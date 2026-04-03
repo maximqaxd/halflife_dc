@@ -1,0 +1,10 @@
+LIBRARY "client.dll"
+
+EXPORTS
+    Initialize
+    HUD_VidInit
+    HUD_Init
+    HUD_Redraw
+    HUD_UpdateClientData
+    HUD_Reset
+

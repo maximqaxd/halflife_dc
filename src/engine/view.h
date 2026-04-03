@@ -1,0 +1,37 @@
+// view.h
+#if !defined( VIEW_H )
+#define VIEW_H
+#ifdef _WIN32
+#pragma once
+#endif
+
+extern cvar_t		v_gamma;		// monitor gamma
+extern cvar_t		v_texgamma;		// source gamma of textures
+extern cvar_t		v_brightness;	// low level light adjustment
+extern cvar_t		v_lambert;
+extern cvar_t		v_direct;
+
+extern byte			texgammatable[256];
+extern int 			lightgammatable[1024];
+extern int			lineargammatable[1024];
+extern int			screengammatable[1024];
+
+extern float v_blend[4];
+
+extern cvar_t lcd_x;
+
+void V_Init( void );
+void V_InitLevel( void );
+void V_RenderView( void );
+
+int V_FadeAlpha( void );
+void V_CalcBlend( void );
+
+void V_UpdatePalette( void );
+
+float V_CalcRoll( float* angles, float* velocity );
+
+int V_ScreenShake( const char* pszName, int iSize, void* pbuf );
+int V_ScreenFade( const char* pszName, int iSize, void* pbuf );
+
+#endif // VIEW_H
