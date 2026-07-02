@@ -157,30 +157,29 @@ static int DCV_FB_Glyph( DDSURFACEDESC2 *pDDSD, int x, int y, int iGlyph, unsign
 	int iXScale;
 	int iYScale;
 
-	if (iGlyph < 0)
-		iGlyph = 0;
-	else if (iGlyph > 0x5F)
-		iGlyph = 0x5F;
-
 	for (iRow = 0; iRow < GLYPH_H; ++iRow)
 	{
+		const char *pRow = (const char *)s_szGlyphRows + (iGlyph * 5 + iRow) * 6;
+		int xCol = x;
 		for (iCol = 0; iCol < GLYPH_W; ++iCol)
 		{
-			if (s_szGlyphRows[iGlyph][iRow][iCol] == '-')
-				continue;
-
-			for (iXScale = 0; iXScale < GLYPH_XSCALE; ++iXScale)
+			if (pRow[iCol] != '-')
 			{
-				for (iYScale = 0; iYScale < GLYPH_YSCALE; ++iYScale)
+				int xPix = xCol;
+				for (iXScale = 0; iXScale < GLYPH_XSCALE; ++iXScale)
 				{
-					DCV_FB_TextPixel(
-						pDDSD,
-						x + iCol * GLYPH_XSCALE + iXScale,
-						y + iRow * GLYPH_YSCALE + iYScale,
-						wColor);
+					int yPix = y;
+					for (iYScale = 0; iYScale < GLYPH_YSCALE; ++iYScale)
+					{
+						((unsigned short *)pDDSD->lpSurface)[(pDDSD->lPitch / 2) * yPix + xPix] = wColor;
+						++yPix;
+					}
+					++xPix;
 				}
 			}
+			xCol += GLYPH_XSCALE;
 		}
+		y += GLYPH_YSCALE;
 	}
 
 	return x + GLYPH_ADVANCE;

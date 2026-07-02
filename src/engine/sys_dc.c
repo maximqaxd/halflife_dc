@@ -712,28 +712,21 @@ void Sys_Error( char *error, ... )
 {
 	va_list argptr;
 	char    text[1024];
-	TCHAR   wtext[1024];
-	unsigned short wFatalBarColor;
 
 	va_start(argptr, error);
 	vsprintf(text, error, argptr);
 	va_end(argptr);
 
-#ifdef _WIN32_WCE
-	MultiByteToWideChar( CP_ACP, 0, text, -1, wtext, ARRAYSIZE( wtext ) );
-	OutputDebugString( wtext );
-#else
-	OutputDebugString(text);
-#endif
+	strcat(text, "\n");
 
-	wFatalBarColor = 0xF800;
-	DCV_FB_BackgroundRect(0x18, wFatalBarColor);
+	DCV_FB_BackgroundRect(0x18, 0xFFFF);
 	DCV_FB_Text(8, 0x18, text);
-	Sys_PresentFrame();
+
 	giActive = DLL_INACTIVE;
+	Mnemo_ReportToFile(FALSE);
+
 	for (;;)
 	{
-		
 	}
 }
 
@@ -1526,6 +1519,8 @@ static LRESULT CALLBACK MainWndProc( HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 #endif
+
+static qboolean DCV_InitDirect3D( void );
 
 qboolean Sys_InitDisplay( void )
 {

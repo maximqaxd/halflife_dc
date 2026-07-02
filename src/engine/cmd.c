@@ -9,6 +9,11 @@ void Cmd_CmdList_f( void );
 
 void Cmd_ForwardToServer( void );
 
+// Dreamcast console-file logging (native WinCE handle I/O, not stdio)
+int  Sys_OpenHandle( const char* path, const char* mode );
+void Sys_FPrintf( int handle, const char* fmt, ... );
+int  Sys_CloseHandle( int handle );
+
 #define	MAX_ALIAS_NAME	32
 
 typedef struct cmdalias_s
@@ -271,6 +276,8 @@ void Cmd_Exec_f( void )
 	char* f;
 	int		mark;
 	char* pszFileName;
+	char* temp;
+	int		templen;
 
 	if (Cmd_Argc() != 2)
 	{
@@ -279,23 +286,45 @@ void Cmd_Exec_f( void )
 	}
 
 	pszFileName = Cmd_Argv(1);
-	if (!pszFileName)
-		return;
-
-	mark = Hunk_LowMark();
-	f = (char*)COM_LoadHunkFile(pszFileName);
-	if (!f)
+	if (pszFileName)
 	{
-		if (!strstr(pszFileName, "autoexec.cfg"))
+		mark = Hunk_LowMark();
+		f = (char*)COM_LoadHunkFile(pszFileName);
+		if (!f)
 		{
-			Con_Printf("couldn't exec %s\n", pszFileName);
+			if (!strstr(pszFileName, "autoexec.cfg") &&
+				!strstr(pszFileName, "hw/opengl.cfg") &&
+				!strstr(pszFileName, "joystick.cfg") &&
+				!strstr(pszFileName, "game.cfg"))
+			{
+				Con_Printf("couldn't exec %s\n", pszFileName);
+			}
 		}
-		return;
-	}
-	Con_DPrintf("execing %s\n", pszFileName);
+		else
+		{
+			// insert "\n" + file + "\n" at the front of the command buffer
+			templen = cmd_text.cursize;
+			if (templen)
+			{
+				temp = Z_Malloc(templen);
+				Q_memcpy(temp, cmd_text.data, templen);
+				SZ_Clear(&cmd_text);
+			}
+			else
+				temp = NULL;
 
-	Cbuf_InsertText(f);
-	Hunk_FreeToLowMark(mark);
+			Cbuf_AddText("\n");
+			Cbuf_AddText(f);
+			Cbuf_AddText("\n");
+
+			if (templen)
+			{
+				SZ_Write(&cmd_text, temp, templen);
+				Z_Free(temp);
+			}
+			Hunk_FreeToLowMark(mark);
+		}
+	}
 }
 
 
@@ -348,42 +377,45 @@ void Cmd_Alias_f( void )
 	}
 
 	s = Cmd_Argv(1);
-	if (strlen(s) >= MAX_ALIAS_NAME)
+	if (strlen(s) < MAX_ALIAS_NAME)
+	{
+	// copy the rest of the command line
+		cmd[0] = 0;		// start out with a null string
+		c = Cmd_Argc();
+		for (i = 2; i < c; i++)
+		{
+			strcat(cmd, Cmd_Argv(i));
+			if (i != c)
+				strcat(cmd, " ");
+		}
+		strcat(cmd, "\n");
+
+		// if the alias already exists, reuse it
+		for (a = cmd_alias; a; a = a->next)
+		{
+			if (!strcmp(s, a->name))
+			{
+				if (!strcmp(a->value, cmd))
+					return;
+				Z_Free(a->value);
+				break;
+			}
+		}
+
+		if (!a)
+		{
+			a = Z_Malloc(sizeof(cmdalias_t));
+			a->next = cmd_alias;
+			cmd_alias = a;
+		}
+		strcpy(a->name, s);
+		a->value = Z_Malloc(strlen(cmd) + 1);
+		strcpy(a->value, cmd);
+	}
+	else
 	{
 		Con_Printf("Alias name is too long\n");
-		return;
 	}
-
-	// if the alias already exists, reuse it
-	for (a = cmd_alias; a; a = a->next)
-	{
-		if (!strcmp(s, a->name))
-		{
-			Z_Free(a->value);
-			break;
-		}
-	}
-
-	if (!a)
-	{
-		a = Z_Malloc(sizeof(cmdalias_t));
-		a->next = cmd_alias;
-		cmd_alias = a;
-	}
-	strcpy(a->name, s);
-
-// copy the rest of the command line
-	cmd[0] = 0;		// start out with a null string
-	c = Cmd_Argc();
-	for (i = 2; i < c; i++)
-	{
-		strcat(cmd, Cmd_Argv(i));
-		if (i != c)
-			strcat(cmd, " "); //FF: this got inlined into direct string write in the binary
-	}
-	strcat(cmd, "\n");
-
-	a->value = CopyString(cmd);
 }
 
 /*
@@ -544,8 +576,8 @@ void	Cmd_AddCommand( char* cmd_name, xcommand_t function )
 	cmd = Hunk_Alloc(sizeof(cmd_function_t));
 	cmd->name = cmd_name;
 	cmd->function = function;
-	cmd->next = cmd_functions;
 	cmd->huddll = FALSE;
+	cmd->next = cmd_functions;
 	cmd_functions = cmd;
 }
 
@@ -709,19 +741,22 @@ void Cmd_ForwardToServer( void )
 		cls.state != ca_uninitialized &&
 		cls.state != ca_active)
 	{
-		Con_Printf("Can't \"%s\", not connected\n", Cmd_Argv(0));
+		if (Q_strcasecmp(Cmd_Argv(0), "setinfo") != 0)
+			Con_Printf("Can't \"%s\", not connected\n", Cmd_Argv(0));
 		return;
 	}
 
-	if (cls.demoplayback || isDedicated)
+	if (cls.demoplayback)
 		return;		// not really connected
 
 	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+
 	if (Q_strcasecmp(Cmd_Argv(0), "cmd") != 0)
 	{
 		SZ_Print(&cls.netchan.message, Cmd_Argv(0));
 		SZ_Print(&cls.netchan.message, " ");
 	}
+
 	if (Cmd_Argc() > 1)
 		SZ_Print(&cls.netchan.message, Cmd_Args());
 	else
@@ -765,18 +800,16 @@ void Cmd_CmdList_f( void )
 	cmd_function_t* cmd;
 	int		iCmds = 0;
 	int		iArgs;
-	const char* partial = NULL, * arg1;
+	const char* partial = NULL;
 	int		ipLen;
 	char	szTemp[256];
-	FILE* f = NULL;
+	int		f;
 	qboolean bLogging = FALSE;
 
 	iArgs = Cmd_Argc();
 	if (iArgs >= 2)
 	{
-		arg1 = Cmd_Argv(1);
-
-		if (!_stricmp(arg1, "?"))
+		if (!Q_strcasecmp(Cmd_Argv(1), "?"))
 		{
 			Con_Printf(
 				"CmdList           : List all commands\n"
@@ -786,11 +819,11 @@ void Cmd_CmdList_f( void )
 			return;
 		}
 
-		if (!_stricmp(arg1, "log"))
+		if (!Q_strcasecmp(Cmd_Argv(1), "log"))
 		{
 			sprintf(szTemp, "c:\\%s", Cmd_Argv(2));
 
-			f = fopen(szTemp, "wt");
+			f = Sys_OpenHandle(szTemp, "wt");
 			if (!f)
 			{
 				Con_Printf("Couldn't open [%s] for writing!\n", Cmd_Argv(2));
@@ -809,7 +842,7 @@ void Cmd_CmdList_f( void )
 		}
 		else
 		{
-			partial = arg1;
+			partial = Cmd_Argv(1);
 			ipLen = strlen(partial);
 		}
 	}
@@ -820,26 +853,26 @@ void Cmd_CmdList_f( void )
 	// Loop through cmds...
 	for (cmd = cmd_functions; cmd; cmd = cmd->next)
 	{
-		if (partial)  // Partial string searching?
-		{
-			if (!_strnicmp(cmd->name, partial, ipLen))
-			{
-				Con_Printf("%-16.16s\n", cmd->name);
-				if (bLogging)
-				{
-					fprintf(f, "%-16.16s\n", cmd->name);
-				}
-				iCmds++;
-			}
-		}
-		else		  // List all cmds
+		if (!partial)		  // List all cmds
 		{
 			Con_Printf("%-16.16s\n", cmd->name);
 			if (bLogging)
 			{
-				fprintf(f, "%-16.16s\n", cmd->name);
+				Sys_FPrintf(f, "%-16.16s\n", cmd->name);
 			}
 			iCmds++;
+		}
+		else				  // Partial string searching?
+		{
+			if (!Q_strncasecmp(cmd->name, partial, ipLen))
+			{
+				Con_Printf("%-16.16s\n", cmd->name);
+				if (bLogging)
+				{
+					Sys_FPrintf(f, "%-16.16s\n", cmd->name);
+				}
+				iCmds++;
+			}
 		}
 	}
 
@@ -856,6 +889,6 @@ void Cmd_CmdList_f( void )
 	// Close log
 	if (bLogging)
 	{
-		fclose(f);
+		Sys_CloseHandle(f);
 	}
 }

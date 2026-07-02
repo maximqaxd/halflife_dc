@@ -25,17 +25,21 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 DUMPBIN_DEFAULT = r"C:\Windows CE Tools\wce211\bin\DUMPBIN.EXE"
 EXE_DEFAULT = os.path.join(REPO, "RE", "HALFLIFE_DC.EXE")
 SYMS_DEFAULT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "symbols.tsv")
+BININSNS_DEFAULT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin_insns.tsv")
 
-# All PC-relative control flow: dumpbin prints targets relative-to-function in
-# objs but absolute in the exe, so the displacement isn't comparable across the
-# two. Strip to the mnemonic; scoring rests on opcodes + data operands
-# (registers, immediates, @(disp,rN) struct/stack offsets, pool loads), which
-# still captures register-allocation and instruction-selection divergence.
-CFLOW = {"bt", "bf", "bt.s", "bf.s", "bra", "bra.s", "bsr", "bsr.s"}
+# Call idioms — near (bsr), far (bsrf), indirect (jsr): all collapse to "call"
+# so link-distance choices (which the linked binary makes but a standalone .obj
+# can't) don't register as differences.
+CALL = {"bsr", "bsrf", "jsr"}
+# Unconditional jumps
+JUMP = {"bra", "braf", "jmp"}
+# Conditional branches — keep the mnemonic, drop the (link-relative) target.
+COND = {"bt", "bf", "bt/s", "bf/s"}
 
 # dumpbin -disasm line:  "  0001100c: 8900 bt      00000000"  (with bytes)
 #                    or  "  0001100c: bt      00000000"        (nobytes)
-LINE = re.compile(r"^\s*([0-9A-Fa-f]{4,8}):\s+(?:[0-9A-Fa-f]{2,4}\s+)?([a-z][a-z0-9._]*)\s*(.*)$")
+# SH-4 mnemonics can contain '.' (mov.l) and '/' (cmp/gt, bf/s) -> include both
+LINE = re.compile(r"^\s*([0-9A-Fa-f]{4,8}):\s+(?:[0-9A-Fa-f]{2,4}\s+)?([a-z][a-z0-9._/]*)\s*(.*)$")
 
 
 def run_dumpbin(dumpbin, *args):
@@ -56,36 +60,91 @@ def parse_disasm(text):
     return insns
 
 
-def normalize(va, mnem, ops):
-    """Collapse link-time-variable operands; keep structure."""
-    o = ops
-    # literal-pool loads: @(disp,pc) -> @(pc)
-    o = re.sub(r"@\(([0-9A-Fa-f]+),pc\)", "@(pc)", o)
-    # control-flow target is not comparable across obj/exe dumps -> mnemonic only
-    if mnem in CFLOW:
-        o = ""
+def _canon_num(tok):
+    """Canonicalize an immediate/displacement to a signed-32 decimal string.
+    Handles dumpbin (#FFFFFFF0, 00000004) and Ghidra (#-0x10, #0x1, 0x4)."""
+    s = tok.strip()
+    neg = s.startswith("-")
+    if neg:
+        s = s[1:]
+    try:
+        if s.lower().startswith("0x"):
+            v = int(s, 16)
+        else:
+            v = int(s, 16)  # dumpbin bare hex
+    except ValueError:
+        return tok
+    if neg:
+        v = -v
+    v &= 0xFFFFFFFF
+    if v >= 0x80000000:
+        v -= 0x100000000
+    return str(v)
+
+
+def normalize(mnem, ops):
+    """Format-agnostic canonical form for a dumpbin OR Ghidra instruction, so the
+    obj (dumpbin) and binary (Ghidra, pool-free) sides compare on structure."""
+    mnem = mnem.lstrip("_").lower()          # drop Ghidra delay-slot prefix
+    if mnem in CALL:
+        return "call"
+    if mnem in JUMP:
+        return "jump"
+    o = ops.strip().lower()
+    if mnem in COND:
+        return mnem                          # drop link-relative target
+    # pool loads: dumpbin @(disp,pc) and Ghidra bare absolute addr -> @(pc)
+    o = re.sub(r"@\(-?(?:0x)?[0-9a-f]+,pc\)", "@(pc)", o)
+    o = re.sub(r"(?<![#\w])0x[0-9a-f]{5,8}\b", "@(pc)", o)
+    # canonicalize @(disp,rN) displacements
+    o = re.sub(r"@\((-?(?:0x)?[0-9a-f]+),(r\d+|pc|gbr)\)",
+               lambda m: "@(" + _canon_num(m.group(1)) + "," + m.group(2) + ")", o)
+    # canonicalize # immediates
+    o = re.sub(r"#(-?(?:0x)?[0-9a-f]+)", lambda m: "#" + _canon_num(m.group(1)), o)
     return mnem + " " + o if o else mnem
 
 
 def norm_stream(insns):
-    return [normalize(va, m, o) for (va, m, o) in insns]
+    return [normalize(m, o) for (va, m, o) in insns]
+
+
+def load_bin_insns(path):
+    """entry_hex -> [(va, mnem, ops)] from bin_insns.tsv (Ghidra's pool-free
+    instruction listing). Lines: entryHex<TAB>vaHex<TAB>mnem ops."""
+    funcs = {}
+    with open(path, encoding="latin-1") as f:
+        for line in f:
+            p = line.rstrip("\n").split("\t")
+            if len(p) < 3:
+                continue
+            entry, va, insn = p[0], p[1], p[2]
+            parts = insn.split(None, 1)
+            mnem = parts[0] if parts else ""
+            ops = parts[1] if len(parts) > 1 else ""
+            funcs.setdefault(entry, []).append((int(va, 16), mnem, ops))
+    return funcs
 
 
 def load_symbols(path):
-    """name -> (start, size). size is recomputed as the gap to the next
-    function start, because vtable-swept functions have truncated bodies in
-    Ghidra and their recorded size is unreliable for slicing."""
+    """name -> (start, size). Prefer Ghidra's recorded body size; fall back to
+    the gap-to-next-symbol only when the recorded size is a truncated stub
+    (<=8 bytes, typical of vtable-swept functions Ghidra didn't fully analyze).
+    Always clamp so a function never overruns into the next symbol."""
     raw = {}
     with open(path) as f:
         for line in f:
             p = line.rstrip("\n").split("\t")
             if len(p) == 3:
-                raw[p[0]] = int(p[1], 16)
-    starts = sorted(set(raw.values()))
+                raw[p[0]] = (int(p[1], 16), int(p[2]))
+    starts = sorted({s for s, _ in raw.values()})
     nextof = {}
     for i, s in enumerate(starts):
         nextof[s] = starts[i + 1] if i + 1 < len(starts) else s + 0x400
-    return {n: (s, nextof[s] - s) for n, s in raw.items()}
+    out = {}
+    for n, (s, size) in raw.items():
+        gap = nextof[s] - s
+        out[n] = (s, gap if size <= 8 else min(size, gap))
+    return out
 
 
 def demangle(sym):
@@ -129,6 +188,19 @@ def label_to_gname(line):
     return None
 
 
+def trim_pool(insns):
+    """Cut the trailing literal pool: obj disassembly runs the PC-relative
+    constant pool right after a function's final `rts` (+ its delay slot).
+    Everything after the last rts's delay slot is data, not code."""
+    last = -1
+    for i, (_, m, _) in enumerate(insns):
+        if m == "rts":
+            last = i
+    if last >= 0:
+        return insns[:last + 2]  # keep rts + its delay-slot instruction
+    return insns
+
+
 def obj_functions(dumpbin, obj):
     """Map Ghidra function name -> list-of-insns, from the obj disassembly."""
     funcs = {}
@@ -142,7 +214,7 @@ def obj_functions(dumpbin, obj):
         m = LINE.match(ln)
         if m and cur is not None:
             funcs[cur].append((int(m.group(1), 16), m.group(2), m.group(3).strip()))
-    return funcs
+    return {k: trim_pool(v) for k, v in funcs.items()}
 
 
 def slice_exe(exe_dis, start, size):
@@ -201,22 +273,23 @@ def main():
     args = ap.parse_args()
 
     syms = load_symbols(args.symbols)
-    # cache the (slow) 25MB exe disassembly next to the exe; reuse if fresh
-    cache = args.exe + ".disasm.txt"
-    if os.path.exists(cache) and os.path.getmtime(cache) >= os.path.getmtime(args.exe):
-        text = open(cache, encoding="latin-1").read()
-    else:
-        print("[objdiff] disassembling exe (caching)...")
-        text = run_dumpbin(args.dumpbin, "-disasm:nobytes", args.exe)
-        open(cache, "w", encoding="latin-1").write(text)
-    exe_dis = parse_disasm(text)
-    print("[objdiff] %d binary symbols; exe .text: %d instructions"
-          % (len(syms), len(exe_dis)))
+    # binary side = Ghidra's pool-free per-function listing (from ExportInsns.java)
+    bininsns = load_bin_insns(BININSNS_DEFAULT)
+    print("[objdiff] %d binary symbols; %d binary functions (Ghidra listing)"
+          % (len(syms), len(bininsns)))
 
     ofuncs = obj_functions(args.dumpbin, args.obj)
     print("[objdiff] obj functions: %d" % len(ofuncs))
 
     if args.locate:
+        # --locate still needs the flat exe disassembly (dumpbin, cached)
+        cache = args.exe + ".disasm.txt"
+        if os.path.exists(cache) and os.path.getmtime(cache) >= os.path.getmtime(args.exe):
+            text = open(cache, encoding="latin-1").read()
+        else:
+            text = run_dumpbin(args.dumpbin, "-disasm:nobytes", args.exe)
+            open(cache, "w", encoding="latin-1").write(text)
+        exe_dis = parse_disasm(text)
         exe_norm = norm_stream(exe_dis)
         rows = []
         for sym, insns in ofuncs.items():
@@ -243,7 +316,12 @@ def main():
                 print("!! %s (%s) not found in symbols.tsv" % (gname, sym))
             continue
         start, size = syms[gname]
-        bin_insns = slice_exe(exe_dis, start, size)
+        bkey = format(start, "x")
+        if bkey not in bininsns:
+            if args.func:
+                print("!! %s @ %s not in Ghidra listing (re-run ExportInsns.java)" % (gname, bkey))
+            continue
+        bin_insns = bininsns[bkey]
         r = diff_one(gname, insns, bin_insns)
         results.append((gname, r))
         if not (args.all or args.func):

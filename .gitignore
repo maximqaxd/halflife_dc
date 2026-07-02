@@ -12,3 +12,6 @@ __pycache__/
 /utils/*
 !/utils/re/
 /utils/re/build/
+
+# large regenerable Ghidra instruction dump (ExportInsns.java)
+/utils/re/bin_insns.tsv

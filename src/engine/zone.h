@@ -127,6 +127,8 @@ void* Cache_Alloc( cache_user_t* c, int size, char* name );
 
 void Cache_Report( void );
 
+void Mnemo_ReportToFile( qboolean verbose );
+
 char* CommatizeNumber( int num, char* pout );
 
 #endif // ZONE_H

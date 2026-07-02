@@ -4,7 +4,7 @@
 #define COMMON_H
 #pragma once
 
-typedef int qboolean;
+typedef short qboolean;
 
 //============================================================================
 

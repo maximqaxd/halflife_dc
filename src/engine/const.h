@@ -701,10 +701,9 @@ typedef unsigned short 		word;
 #undef false
 
 #ifndef __cplusplus
-typedef enum {false, true}  qboolean;
-#else 
-typedef int qboolean;
+enum {false, true};
 #endif
+typedef short qboolean;
 
 typedef struct
 {

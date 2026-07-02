@@ -152,7 +152,7 @@ static qboolean Mnemo_CommitBlockHeader( mnemo_header_t* hdr );
 static void Mnemo_DecommitPages( mnemo_header_t* hdr );
 static const char* Mnemo_FlagsToString( unsigned short flags );
 static void Mnemo_Summary_f( void );
-static void Mnemo_ReportToFile( qboolean verbose );
+void Mnemo_ReportToFile( qboolean verbose );
 static void Mnemo_FreeByClass( int allocClass );
 static int MnemoPurge( int aggressive );
 
@@ -197,7 +197,7 @@ static const char* Mnemo_FlagsToString( unsigned short flags )
 	return buffer;
 }
 
-static void Mnemo_ReportToFile( qboolean verbose )
+void Mnemo_ReportToFile( qboolean verbose )
 {
 	FILE* f;
 	mnemo_header_t* node;
