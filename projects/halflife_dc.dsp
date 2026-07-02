@@ -40,7 +40,7 @@ CFG=halflife_dc - Win32 (WCE SH4) Debug
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 0
 # PROP Output_Dir "../obj/WCESH4Rel"
-# PROP Intermediate_Dir "../obj/WCESH4Rel"
+# PROP Intermediate_Dir "../obj/WCESH4Rel/dc"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 CPP=shcl.exe
@@ -78,7 +78,7 @@ SOURCE="$(InputPath)"
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 1
 # PROP Output_Dir "../obj/WCESH4Dbg"
-# PROP Intermediate_Dir "../obj/WCESH4Dbg"
+# PROP Intermediate_Dir "../obj/WCESH4Dbg/dc"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 CPP=shcl.exe

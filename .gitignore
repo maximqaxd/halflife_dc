@@ -1,3 +1,14 @@
 /deploy
-/utils
 /obj
+
+# IDE / build artifacts
+*.plg
+*.ncb
+*.opt
+__pycache__/
+/RE/*.disasm.txt
+
+# /utils holds deploy tooling (ignored) except the RE toolkit
+/utils/*
+!/utils/re/
+/utils/re/build/
