@@ -16,12 +16,20 @@ REM      (env var for getenv) + VMARGS -D (for getProperty) so run_ghidra_script
 REM      ExportSymbols.java work over the bridge. Loopback-only, no auth token.
 REM
 REM  Usage:  apply_ghidra_patches.bat  [ghidra_install_dir]
-REM  Default install dir: C:\dev\ghidra_12.1.2_PUBLIC
+REM  Default install dir: C:\Dev\ghidra_12.1.2_PUBLIC
 REM  Idempotent -- safe to re-run. RESTART Ghidra afterwards.
 REM ===========================================================================
-setlocal
+setlocal enabledelayedexpansion
 set "GHIDRA=%~1"
-if "%GHIDRA%"=="" set "GHIDRA=C:\dev\ghidra_12.1.2_PUBLIC"
+if "%GHIDRA%"=="" set "GHIDRA=C:\Dev\ghidra_12.1.2_PUBLIC"
+
+REM SLEIGH's compiler aborts if the given path's case differs from the on-disk
+REM canonical case (e.g. C:\dev vs C:\Dev). Normalize GHIDRA to its real case.
+if exist "%GHIDRA%\" (
+	pushd "%GHIDRA%"
+	set "GHIDRA=!CD!"
+	popd
+)
 
 set "SINC=%GHIDRA%\Ghidra\Processors\SuperH4\data\languages\SuperH4.sinc"
 set "SLASPEC=%GHIDRA%\Ghidra\Processors\SuperH4\data\languages\SuperH4_le.slaspec"
