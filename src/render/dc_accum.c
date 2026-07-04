@@ -17,16 +17,19 @@ extern void* Sys_GetD3DDevice3( void );
 
 static short    *g_pQuadTable[QUAD_TABLE_ROWS + 1];
 static short     g_QuadIndexData[7350 / sizeof(short)];
-static D3DLVERTEX *g_pAccumVerts;
-static WORD     *g_pAccumIndex;
+
+// shared with the inline render-state helpers in dc_accum.h
+D3DLVERTEX      *g_pAccumVerts;
+WORD            *g_pAccumIndex;
+int              g_nAccumVertCount;
+int              g_nAccumIndexCount;
+DWORD            g_dwAccumFlushFlags = D3DDP_DONOTUPDATEEXTENTS;
+int              g_nAccumMaxVertsSeen;
+int              g_nAccumMaxIndicesSeen;
+
 static void     *g_pMultiMtx0;
 static void     *g_pMultiMtx1;
-static int       g_nAccumVertCount;
-static int       g_nAccumIndexCount;
 static DWORD     g_dwAccumCurrentDiffuse = 0xFFFFFFFFu;
-static DWORD     g_dwAccumFlushFlags = D3DDP_DONOTUPDATEEXTENTS;
-static int       g_nAccumMaxVertsSeen;
-static int       g_nAccumMaxIndicesSeen;
 static qboolean  g_bAccumInitialized = FALSE;
 
 static int DCV_GetMaxVertCount( void )
@@ -47,15 +50,6 @@ static BYTE DCV_ClampColorFloat( float value )
 		value = 1.0f;
 		
 	return (BYTE)(value * 255.0f);
-}
-
-static void DCV_UpdateFlushStats( void )
-{
-	if (g_nAccumMaxVertsSeen < g_nAccumVertCount)
-		g_nAccumMaxVertsSeen = g_nAccumVertCount;
-
-	if (g_nAccumMaxIndicesSeen < g_nAccumIndexCount)
-		g_nAccumMaxIndicesSeen = g_nAccumIndexCount;
 }
 
 static void DCV_ClearBatch( void )
@@ -120,32 +114,6 @@ void DCV_AccumInit( void )
 
 	DCV_ClearBatch();
 	g_bAccumInitialized = TRUE;
-}
-
-void DCV_Flush( void )
-{
-	LPDIRECT3DDEVICE3 pD3DDev;
-
-	if (!g_bAccumInitialized || g_nAccumVertCount == 0)
-		return;
-
-	DCV_UpdateFlushStats();
-
-	pD3DDev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-	if (pD3DDev && pD3DDev->lpVtbl && pD3DDev->lpVtbl->DrawIndexedPrimitive)
-	{
-		pD3DDev->lpVtbl->DrawIndexedPrimitive(
-			pD3DDev,
-			D3DPT_TRIANGLELIST,
-			D3DFVF_LVERTEX,
-			g_pAccumVerts,
-			(DWORD)g_nAccumVertCount,
-			g_pAccumIndex,
-			(DWORD)g_nAccumIndexCount,
-			g_dwAccumFlushFlags | D3DDP_DONOTLIGHT);
-	}
-
-	DCV_ClearBatch();
 }
 
 void DCV_FlushIfLarge( void )

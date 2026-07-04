@@ -2788,6 +2788,10 @@ NODEP_CPP_CVAR_=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\render\vid_dc.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\render\dc_accum.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
@@ -8053,6 +8057,10 @@ NODEP_CPP_SV_US=\
 
 !ENDIF 
 
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\engine\sys_engine.c
 # End Source File
 # Begin Source File
 
