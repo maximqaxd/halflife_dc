@@ -1,3 +1,9 @@
 # Ghidra project databases are binary — never normalize line endings
 RE/*.rep/** -text
 *.gbf -text
+
+# VC6 / eMbedded VC project files must stay CRLF — VS 6.0 won't open them as LF
+*.dsp text eol=crlf
+*.dsw text eol=crlf
+*.clw text eol=crlf
+*.mak text eol=crlf
