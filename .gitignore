@@ -15,3 +15,12 @@ __pycache__/
 
 # large regenerable Ghidra instruction dump (ExportInsns.java)
 /utils/re/bin_insns.tsv
+
+# recoverable Ghidra project backups (not versioned)
+/RE/halflife_dc_OLD.gpr
+/RE/halflife_dc_OLD.rep/
+*.prp.bak
+
+# transient Ghidra session lock files
+/RE/*.lock
+/RE/*.lock~
