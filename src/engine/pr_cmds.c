@@ -1507,7 +1507,7 @@ Pick a vector for the player to shoot along
 vector aim(entity, missilespeed)
 =============
 */
-cvar_t	sv_aim = { "sv_aim", "1", FALSE, TRUE };
+cvar_t	sv_aim = { "sv_aim", "1", FCVAR_SERVER };
 void PF_aim_I( edict_t* ent, float speed, float* rgflReturn )
 {
 	edict_t* check;

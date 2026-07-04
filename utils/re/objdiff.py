@@ -22,7 +22,7 @@ Requires: symbols.tsv (from ExportSymbols.java), dumpbin.exe on PATH or via
 import argparse, os, re, subprocess, sys, difflib
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DUMPBIN_DEFAULT = r"C:\Windows CE Tools\wce211\bin\DUMPBIN.EXE"
+DUMPBIN_DEFAULT = r"C:\Windows CE Tools\WCE212\bin\DUMPBIN.EXE"
 EXE_DEFAULT = os.path.join(REPO, "RE", "HALFLIFE_DC.EXE")
 SYMS_DEFAULT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "symbols.tsv")
 BININSNS_DEFAULT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin_insns.tsv")

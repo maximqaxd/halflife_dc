@@ -73,10 +73,6 @@ void 	Cvar_WriteVariables( FILE* f );
 // Writes lines containing "set variable value" for all variables
 // with the archive flag set to true.
 
-void	Cvar_WriteProfileVariables( FILE* f );
-// Writes lines containing "set variable value" for all variables
-// with the profile flag set to true.
-
 int		Cvar_CountServerVariables( void );
 
 void	Cvar_CmdInit( void );

@@ -294,10 +294,11 @@ void DCV_FB_TextOnSurface( LPDIRECTDRAWSURFACE4 pddsSurface, int x, int y, const
  * DCV_FB_BackgroundRect: fills a centered 128x32 RGB565 bar.
  * Draws to primary and backbuffer when distinct.
  */
-void DCV_FB_BackgroundRect( int y, unsigned short wColor )
+void DCV_FB_BackgroundRect( unsigned short wColor )
 {
 	LPDIRECTDRAWSURFACE4 pddsPrimary;
 	LPDIRECTDRAWSURFACE4 pddsBack;
+	int y = 0x18;   /* binary reads a fixed y offset from a global (DAT_001be734) */
 
 	pddsPrimary = (LPDIRECTDRAWSURFACE4)Sys_GetPrimarySurface4();
 	pddsBack = (LPDIRECTDRAWSURFACE4)Sys_GetBackBuffer4();
@@ -311,10 +312,12 @@ void DCV_FB_BackgroundRect( int y, unsigned short wColor )
  * DCV_FB_Text: lock primary/backbuffer and stamp built-in 5x5 font.
  * Bypasses normal 2D batch so fatal errors still render when frame pipeline is bad.
  */
-void DCV_FB_Text( int x, int y, const char* text )
+void DCV_FB_Text( const char* text )
 {
 	LPDIRECTDRAWSURFACE4 pddsPrimary;
 	LPDIRECTDRAWSURFACE4 pddsBack;
+	int x = 8;      /* binary reads fixed x/y offsets from globals (DAT_001be730/734) */
+	int y = 0x18;
 
 	pddsPrimary = (LPDIRECTDRAWSURFACE4)Sys_GetPrimarySurface4();
 	pddsBack = (LPDIRECTDRAWSURFACE4)Sys_GetBackBuffer4();

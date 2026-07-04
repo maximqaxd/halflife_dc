@@ -124,7 +124,7 @@ void Cvar_Set( char* var_name, char* value )
 	var->string = Z_Malloc(Q_strlen(value) + 1);
 	Q_strcpy(var->string, value);
 	var->value = Q_atof(var->string);
-	if (var->server && changed)
+	if ((var->flags & FCVAR_SERVER) && changed)
 	{
 		if (sv.active)
 			SV_BroadcastPrintf("\"%s\" changed to \"%s\"\n", var->name, var->string);
@@ -222,25 +222,7 @@ void Cvar_WriteVariables( FILE* f )
 	cvar_t* var;
 
 	for (var = cvar_vars; var; var = var->next)
-		if (var->archive)
-			fprintf(f, "%s \"%s\"\n", var->name, var->string);
-}
-
-
-/*
-============
-Cvar_WriteVariables
-
-Writes lines containing "set variable value" for all variables
-with the profile flag set to true.
-============
-*/
-void Cvar_WriteProfileVariables( FILE* f )
-{
-	cvar_t* var;
-
-	for (var = cvar_vars; var; var = var->next)
-		if (var->profile)
+		if (var->flags & FCVAR_ARCHIVE)
 			fprintf(f, "%s \"%s\"\n", var->name, var->string);
 }
 
@@ -261,21 +243,15 @@ void Cmd_CvarListPrintCvar( cvar_t* var, FILE* f )
 		sprintf(szOutstr, "%-15s : %8.3f", var->name, var->value);
 
 	// Tack on archive setting
-	if (var->archive)
+	if (var->flags & FCVAR_ARCHIVE)
 	{
 		strcat(szOutstr, ", a");
 	}
 
 	// And server setting
-	if (var->server)
+	if (var->flags & FCVAR_SERVER)
 	{
 		strcat(szOutstr, ", sv");
-	}
-
-	// and profile setting
-	if (var->profile)
-	{
-		strcat(szOutstr, ", p");
 	}
 
 	// End the line
@@ -398,7 +374,7 @@ int Cvar_CountServerVariables( void )
 
 	for (var = cvar_vars; var; var = var->next)
 	{
-		if (var->server)
+		if (var->flags & FCVAR_SERVER)
 		{
 			i++;
 		}

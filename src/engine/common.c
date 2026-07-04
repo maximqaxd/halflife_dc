@@ -16,7 +16,7 @@ static char* safeargvs[NUM_SAFE_ARGVS] =
 qboolean com_ignorecolons = FALSE;  // YWB:  Ignore colons as token separators in COM_Parse
 
 cvar_t  registered = { "registered","0" };
-cvar_t  cmdline = { "cmdline","0", FALSE, TRUE };
+cvar_t  cmdline = { "cmdline","0", FCVAR_SERVER };
 
 qboolean        com_modified;   // set true if using non-id files
 

@@ -4,7 +4,7 @@
 #ifdef HLDEMO_BUILD
 #define INTERFACE_VERSION       001
 #else  // !HLDEMO_BUILD, i.e., regular version of HL
-#define INTERFACE_VERSION		128
+#define INTERFACE_VERSION		138		// DC binary: GetEntityAPI checks 138 (PC GoldSrc uses 140)
 #endif // !HLDEMO_BUILD
 
 #include "custom.h"

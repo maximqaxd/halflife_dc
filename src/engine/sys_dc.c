@@ -132,7 +132,7 @@ DLL_FUNCTIONS		gEntityInterface;
 
 int giActive    = DLL_INACTIVE;
 int giStateInfo = 1;
-int giSubState  = 0;
+short giSubState = 0;
 extern cvar_t sys_ticrate;
 // -----------------------------------------------------------------------------
 
@@ -167,377 +167,466 @@ qboolean Sys_InitDisplayAndWindow( void );
 void     GDROM_ConfigureDoorBehavior( void );
 void     Sys_InitFloatTime( void );
 
-#define MAX_HANDLES 10
-static HANDLE sys_handles[MAX_HANDLES];
-
 // -----------------------------------------------------------------------------
 // ASYNC FILE IO 
 // -----------------------------------------------------------------------------
 
 #define MAX_ASYNC 16
 
-struct sys_async_s
+/* Binary DC file model: a 16-entry table shadowing each open HANDLE with a
+ * duplicate handle + OVERLAPPED for async reads. nId == the primary HANDLE. */
+typedef struct dc_syncslot_s
 {
-	HANDLE       hFile;
-	unsigned int requested;
-	unsigned int completed;
-	unsigned int startTick;
-	unsigned int error;
-	OVERLAPPED   ov;
-	HANDLE       hEvent;
-};
+	int        nId;    // primary HANDLE this slot shadows (-1 = free)
+	void      *pFile;  // duplicate HANDLE opened for async reads
+	OVERLAPPED ov;
+} dc_syncslot_t;
 
-typedef struct dc_async_slot_s
+static dc_syncslot_t g_AsyncHandles[MAX_ASYNC];
+int g_filesOpened;
+int g_filesClosed;
+
+/* GD-ROM filesystem hooks: the DC routes reads under \CD-ROM\ through its own
+ * GD driver instead of CreateFileW. GDROM_Open returns a driver handle (0 if the
+ * path isn't on the GD filesystem); Sys_IsGDPath tests a live handle. */
+extern int  Sys_IsGDPath( void *hFile );
+extern int  GDROM_Open( const char *path, const char *mode );
+extern int  GDROM_Close( int hGDROM );
+extern int  GDROM_FileSize( void *hFile );
+extern int  GDROM_Read( void *buffer, int size, int count, void *hFile );
+extern int  GDROM_Write( void *buffer, int size, int count, void *hFile );
+extern int  GDROM_Seek( void *hFile, int offset, int whence );
+extern int  GDROM_Tell( void *hFile );
+
+extern void DCV_MeterText( unsigned int color, int x, int y, const char *text );
+
+void Sys_RegisterFileHandle( const char *path, int hFile );
+unsigned int DC_fwrite( void *buffer, unsigned int size, unsigned int count, void *hFile );
+
+/* Shared narrow->wide staging buffer for every CreateFileW open (DAT_0020a630),
+ * plus the byte the port clears immediately before each open (DAT_0020b62e). */
+static WCHAR g_wOpenPath[MAX_PATH];
+static BYTE  g_gdOpenFlag;
+
+/* Sys_FPrintf coalescing buffer: writes to the same file accumulate here and
+ * flush when the target file changes or the buffer would pass 0x400 bytes. */
+static int  g_fprintfFile;
+static char g_fprintfBuffer[0x400 + 4];
+static int  g_fprintfLen;
+
+// On-screen open/close counters ("%d opened %d closed", profilemeter overlay).
+void DC_PrintFileCounts( void )
 {
-	int         handle;  // engine-level handle id (Sys_File* index)
-	sys_async_t status;  // async status block 
-} dc_async_slot_t;
+	char szText[68];
 
-static dc_async_slot_t g_AsyncSlots[MAX_ASYNC];
-
-static dc_async_slot_t* DC_FindAsyncSlot( int handle )
-{
-	int i;
-
-	for (i = 0; i < MAX_ASYNC; ++i)
-	{
-		if (g_AsyncSlots[i].handle == handle)
-			return &g_AsyncSlots[i];
-	}
-
-	return NULL;
+	sprintf(szText, "%d opened %d closed", g_filesOpened, g_filesClosed);
+	DCV_MeterText(0x8000ff00, 0, (g_filesOpened - g_filesClosed) + 1, szText);
 }
 
-// DC internal open helper
-// - normalizes '/' -> '\\'
-// - builds a full path relative to the current CWD
-// - forbids write/append opens on the GD filesystem (\CD-ROM\*)
-// - returns a raw OS handle or INVALID_HANDLE_VALUE on failure
-static HANDLE Sys_OpenHandle( const char *path, const char *mode, DWORD *outLength )
+void Host_ExecConfig( void )
+{
+	Cbuf_AddText("exec config.cfg\n");
+	Cbuf_Execute();
+}
+
+// GD-aware file size of an open handle.
+DWORD DC_fsize( void *hFile )
+{
+	if (Sys_IsGDPath(hFile))
+		return GDROM_FileSize(hFile);
+
+	return GetFileSize(hFile, NULL);
+}
+
+// DC internal open helper (Sys_OpenHandle @ 0x122254). Read mode tries the GD-ROM
+// driver first, then CreateFileW OPEN_EXISTING. Write/append refuses \CD-ROM\ paths
+// and uses CREATE_ALWAYS (w) / OPEN_ALWAYS (a, seeks to end). Normalizes '/'->'\\',
+// bumps g_filesOpened, returns the raw HANDLE or NULL on failure.
+static HANDLE Sys_OpenHandle( const char *path, const char *mode )
 {
 	char   szPath[MAX_PATH];
-	char   szPathUpper[MAX_PATH];
 	char  *p;
-	DWORD  access = GENERIC_READ;
+	DWORD  access;
 	DWORD  creation;
-	DWORD  share = FILE_SHARE_READ;
-	DWORD  attrs = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED;
 	HANDLE hFile;
-	int    retryUpper = 0;
 
-	if (!path || !mode)
-		return INVALID_HANDLE_VALUE;
-
-	// Guard: do not allow writes to the GD-ROM filesystem.
-	if ((strchr(mode, 'w') || strchr(mode, 'a')) && strstr(path, "CD-ROM"))
+	if (!strchr(mode, 'w') && !strchr(mode, 'a'))
 	{
-		Sys_Error("Attempted open-for-write on GD filesystem");
-		return INVALID_HANDLE_VALUE;
+		hFile = (HANDLE)GDROM_Open(path, mode);
+		if (hFile != NULL)
+			return hFile;
+
+		creation = OPEN_EXISTING;
+		access   = GENERIC_READ;
+	}
+	else
+	{
+		if (strstr(path, "CD-ROM"))
+			return NULL;
+
+		creation = strchr(mode, 'a') ? OPEN_ALWAYS : CREATE_ALWAYS;
+		access   = GENERIC_WRITE;
 	}
 
-	memset(szPath, 0, sizeof(szPath));
-	strncpy(szPath, path, sizeof(szPath) - 1);
-
-	// Normalize slashes to the WinCE-style backslashes used in the DC EXE.
+	strcpy(szPath, path);
 	for (p = szPath; *p; ++p)
 	{
 		if (*p == '/')
 			*p = '\\';
 	}
 
-	// Normalize common CD root spellings to "\CD-ROM\..."
-	if (!strncmp(szPath, "\\\\CD-ROM\\\\", 8))
-	{
-		// already fine
-	}
-	else if (!strncmp(szPath, "\\CD-ROM\\", 8))
-	{
-		// already fine
-	}
-	else if (!strncmp(szPath, "CD-ROM\\", 7))
-	{
-		// add leading backslash
-		memmove(szPath + 1, szPath, strlen(szPath) + 1);
-		szPath[0] = '\\';
-	}
-	else if (!strncmp(szPath, "\\CD-ROM", 7) && szPath[7] == 0)
-	{
-		// "\CD-ROM" -> "\CD-ROM\"
-		strncat(szPath, "\\", sizeof(szPath) - strlen(szPath) - 1);
-	}
+	MultiByteToWideChar(CP_ACP, 0, szPath, -1, g_wOpenPath, ARRAYSIZE(g_wOpenPath));
+	g_gdOpenFlag = 0;
+	hFile = CreateFileW(g_wOpenPath, access, FILE_SHARE_READ, NULL, creation,
+	                    FILE_ATTRIBUTE_NORMAL, NULL);
 
-	// Map stdio-style mode to Win32 access/creation flags.
-	if (strchr(mode, 'w'))
+	if (hFile == INVALID_HANDLE_VALUE)
 	{
-		access = GENERIC_WRITE;
-		creation = CREATE_ALWAYS;
-	}
-	else if (strchr(mode, 'a'))
-	{
-		access = GENERIC_WRITE;
-		creation = OPEN_ALWAYS;
+		hFile = NULL;
 	}
 	else
 	{
-		access = GENERIC_READ;
-		creation = OPEN_EXISTING;
-	}
-
-#ifdef _WIN32_WCE
-	/* WinCE: path is narrow, convert to wide and call CreateFile (CreateFileW). */
-	{
-		TCHAR wszPath[MAX_PATH];
-
-		wszPath[0] = 0;
-		MultiByteToWideChar(CP_ACP, 0, szPath, -1, wszPath, ARRAYSIZE(wszPath));
-
-		hFile = CreateFile(wszPath, access, share, NULL, creation, attrs, NULL);
-	}
-
-	if (hFile == INVALID_HANDLE_VALUE)
-	{
-		if (!strncmp(szPath, "\\CD-ROM\\", 8))
-			retryUpper = 1;
-		else if (strstr(szPath, "CD-ROM"))
-			retryUpper = 1;
-
-		if (retryUpper)
-		{
-			memset(szPathUpper, 0, sizeof(szPathUpper));
-			strncpy(szPathUpper, szPath, sizeof(szPathUpper) - 1);
-
-			for (p = szPathUpper + 8; *p; ++p)
-			{
-				if (*p >= 'a' && *p <= 'z')
-					*p = (char)(*p - ('a' - 'A'));
-			}
-
-			{
-				TCHAR wszPath[MAX_PATH];
-
-				wszPath[0] = 0;
-				MultiByteToWideChar(CP_ACP, 0, szPathUpper, -1, wszPath, ARRAYSIZE(wszPath));
-				hFile = CreateFile(wszPath, access, share, NULL, creation, attrs, NULL);
-			}
-		}
-	}
-#else
-	/* Win32 desktop: use narrow path with CreateFileA (no CD-ROM retry). */
-	hFile = CreateFileA(szPath, access, share, NULL, creation, attrs, NULL);
-#endif
-
-	if (hFile == INVALID_HANDLE_VALUE)
-	{
-		if (outLength)
-			*outLength = (DWORD)-1;
-		return INVALID_HANDLE_VALUE;
-	}
-
-	// If requested, report current file length (for read-only opens).
-	if (outLength)
-	{
-		DWORD size = GetFileSize(hFile, NULL);
-		*outLength = (size == INVALID_FILE_SIZE) ? (DWORD)-1 : size;
-	}
-
-	// For append mode, seek to the end.
-	if (strchr(mode, 'a'))
-	{
-		SetFilePointer(hFile, 0, NULL, FILE_END);
+		g_filesOpened++;
+		if (creation == OPEN_ALWAYS)
+			SetFilePointer(hFile, 0, NULL, FILE_END);
 	}
 
 	return hFile;
 }
 
-static int findhandle( void )
+// Low-level close: flush any pending Sys_FPrintf output for this file, release
+// the async shadow slot, then close the handle (GD-ROM or Win32).
+int Sys_CloseHandle( void *hFile )
 {
+	dc_syncslot_t *slot = NULL;
 	int i;
 
-	for (i = 1; i < MAX_HANDLES; i++)
+	if (hFile == (void *)g_fprintfFile)
 	{
-		if (!sys_handles[i])
-			return i;
+		DC_fwrite(g_fprintfBuffer, g_fprintfLen, 1, hFile);
+		g_fprintfLen = 0;
 	}
 
-	Sys_Error("out of handles");
-	return -1;
+	if (Sys_IsGDPath(hFile) != 0)
+		return GDROM_Close((int)hFile);
+
+	for (i = 0; i < MAX_ASYNC; i++)
+	{
+		if ((void *)g_AsyncHandles[i].nId == hFile)
+		{
+			slot = &g_AsyncHandles[i];
+			break;
+		}
+	}
+
+	if (slot != NULL)
+	{
+		g_filesClosed++;
+		CloseHandle(slot->pFile);
+		slot->nId = -1;
+		slot->pFile = INVALID_HANDLE_VALUE;
+	}
+
+	if (!CloseHandle(hFile))
+		return -1;
+
+	g_filesClosed++;
+	return 0;
 }
 
-int Sys_FileOpenRead( char *path, int *hndl )
+// Buffered file printf: coalesce writes to the same file, flush when the target
+// changes or the buffer would pass 0x400 bytes.
+void Sys_FPrintf( int fileid, char *fmt, ... )
 {
-	DWORD  length = (DWORD)-1;
-	HANDLE hFile;
-	int    slot;
+	va_list argptr;
+	char    text[1024];
+	int     len;
 
-	slot = findhandle();
-	hFile = Sys_OpenHandle(path, "rb", &length);
-	if (hFile == INVALID_HANDLE_VALUE || length == (DWORD)-1)
+	va_start(argptr, fmt);
+	vsprintf(text, fmt, argptr);
+	va_end(argptr);
+
+	len = strlen(text);
+	if (fileid != g_fprintfFile || g_fprintfLen + len > 0x400)
 	{
-		*hndl = -1;
-		return -1;
+		DC_fwrite(g_fprintfBuffer, g_fprintfLen, 1, (void *)g_fprintfFile);
+		g_fprintfLen = 0;
 	}
 
-	sys_handles[slot] = hFile;
-	*hndl = slot;
-	return (int)length;
+	g_fprintfFile = fileid;
+	memcpy(g_fprintfBuffer + g_fprintfLen, text, len);
+	g_fprintfLen += len;
+}
+
+// GD-aware stdio-style transfer helpers.  The Win32 path reads/writes one
+// record at a time so short transfers report how many whole records landed.
+unsigned int DC_fread( void *buffer, unsigned int size, unsigned int count, void *hFile )
+{
+	unsigned int n;
+	DWORD        bytes;
+
+	if (size == 0 || count == 0)
+		return 0;
+
+	if (Sys_IsGDPath(hFile) != 0)
+		return GDROM_Read(buffer, size, count, hFile);
+
+	for (n = 0; n < count; n++)
+	{
+		bytes = 0;
+		if (!ReadFile(hFile, buffer, size, &bytes, NULL) || bytes != size)
+			return n;
+		buffer = (char *)buffer + size;
+	}
+
+	return n;
+}
+
+unsigned int DC_fwrite( void *buffer, unsigned int size, unsigned int count, void *hFile )
+{
+	unsigned int n;
+	DWORD        bytes;
+
+	if (size == 0 || count == 0)
+		return 0;
+
+	if (Sys_IsGDPath(hFile) != 0)
+		return GDROM_Write(buffer, size, count, hFile);
+
+	for (n = 0; n < count; n++)
+	{
+		bytes = 0;
+		if (!WriteFile(hFile, buffer, size, &bytes, NULL) || bytes != size)
+			return n;
+		buffer = (char *)buffer + size;
+	}
+
+	return n;
+}
+
+int DC_fseek( void *hFile, int offset, int whence )
+{
+	DWORD method;
+
+	if (Sys_IsGDPath(hFile) != 0)
+		return GDROM_Seek(hFile, offset, whence);
+
+	if (whence == SEEK_CUR)
+		method = FILE_CURRENT;
+	if (whence == SEEK_SET)
+		method = FILE_BEGIN;
+	if (whence == SEEK_END)
+		method = FILE_END;
+
+	SetFilePointer(hFile, offset, NULL, method);
+	return 0;
+}
+
+int DC_ftell( void *hFile )
+{
+	if (Sys_IsGDPath(hFile) != 0)
+		return GDROM_Tell(hFile);
+
+	return SetFilePointer(hFile, 0, NULL, FILE_CURRENT);
+}
+
+// Shadow an open HANDLE with a second read handle for async I/O: find a free
+// slot (nId == -1) and open a duplicate of path into it.
+void Sys_RegisterFileHandle( const char *path, int hFile )
+{
+	HANDLE hDup;
+	int    i;
+
+	for (i = 0; i < MAX_ASYNC; i++)
+	{
+		if (g_AsyncHandles[i].nId == -1)
+		{
+			MultiByteToWideChar(CP_ACP, 0, path, -1, g_wOpenPath, ARRAYSIZE(g_wOpenPath));
+			g_gdOpenFlag = 0;
+			hDup = CreateFileW(g_wOpenPath, GENERIC_READ, FILE_SHARE_READ, NULL,
+			                   OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (hDup != NULL)
+				g_filesOpened++;
+			if (hDup != INVALID_HANDLE_VALUE)
+			{
+				g_AsyncHandles[i].nId   = hFile;
+				g_AsyncHandles[i].pFile = hDup;
+				return;
+			}
+		}
+	}
+}
+
+// Sys_FileOpenRead @ 0x122b3c. Opens path for reading (GD-ROM or CreateFileW),
+// writes the raw HANDLE to *pHandle, optionally registers it for async reads, and
+// returns the file size (-1 on failure).
+int Sys_FileOpenRead( char *path, int *pHandle, int bRegisterAsync )
+{
+	HANDLE hFile;
+	DWORD  size;
+	char  *p;
+
+	hFile = (HANDLE)GDROM_Open(path, "rb");
+	if (hFile == NULL)
+	{
+		for (p = path; *p; ++p)
+		{
+			if (*p == '/')
+				*p = '\\';
+		}
+
+		MultiByteToWideChar(CP_ACP, 0, path, -1, g_wOpenPath, ARRAYSIZE(g_wOpenPath));
+		g_gdOpenFlag = 0;
+		hFile = CreateFileW(g_wOpenPath, GENERIC_READ, FILE_SHARE_READ, NULL,
+		                    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (hFile == INVALID_HANDLE_VALUE)
+		{
+			*pHandle = -1;
+			return -1;
+		}
+
+		if (bRegisterAsync)
+			Sys_RegisterFileHandle(path, (int)hFile);
+	}
+	else
+	{
+		*pHandle = (int)hFile;
+	}
+
+	g_filesOpened++;
+	*pHandle = (int)hFile;
+
+	if (Sys_IsGDPath(hFile))
+		size = GDROM_FileSize(hFile);
+	else
+		size = GetFileSize(hFile, NULL);
+
+	return size;
 }
 
 FILE* Sys_FOpenReadSeek( const char* path, int offset )
 {
 	HANDLE h;
-	DWORD  len;
 
 	if (!path)
 		return NULL;
 
-	h = Sys_OpenHandle(path, "rb", &len);
+	h = Sys_OpenHandle(path, "rb");
 
-	if (h == INVALID_HANDLE_VALUE)
+	if (h == NULL)
 		return NULL;
 
 	SetFilePointer(h, offset, NULL, FILE_BEGIN);
 	CloseHandle(h);
 
-	return NULL; 
+	return NULL;
 }
 
 int Sys_FileOpenWrite( char *path )
 {
-	HANDLE hFile;
-	int    slot;
+	(void)path;
+	Sys_Error("File write not supported on Dreamcast");
+	return -1;
+}
 
-	slot = findhandle();
-	hFile = Sys_OpenHandle(path, "wb", NULL);
-	if (hFile == INVALID_HANDLE_VALUE)
+void Sys_FileClose( void *hFile )
+{
+	dc_syncslot_t *slot = NULL;
+	int i;
+
+	for (i = 0; i < MAX_ASYNC; i++)
 	{
-		Sys_Error("Error opening %s", path);
-		return -1;
+		if ((void *)g_AsyncHandles[i].nId == hFile)
+		{
+			slot = &g_AsyncHandles[i];
+			break;
+		}
 	}
 
-	sys_handles[slot] = hFile;
-	return slot;
+	if (slot != NULL)
+	{
+		g_filesClosed++;
+		CloseHandle(slot->pFile);
+		slot->nId = -1;
+		slot->pFile = INVALID_HANDLE_VALUE;
+	}
+	CloseHandle(hFile);
+	g_filesClosed++;
 }
 
-void Sys_FileClose( int handle )
+/* DC file I/O uses raw Win32 HANDLEs with a GD-ROM path abstraction: Sys_IsGDPath
+ * (declared above) routes I/O through the GD-ROM driver layer instead of CreateFile. */
+extern int GD_Read( void *buffer, int size, int count, void *hFile );
+extern int GD_Seek( void *hFile, int offset, int whence );
+
+void Sys_FileSeek( void *hFile, int position )
 {
-	if (handle <= 0 || handle >= MAX_HANDLES || !sys_handles[handle])
-		return;
-
-	CloseHandle(sys_handles[handle]);
-	sys_handles[handle] = NULL;
+	if (Sys_IsGDPath(hFile) != 0)
+		GD_Seek(hFile, position, 0);
+	else
+		SetFilePointer(hFile, position, NULL, FILE_BEGIN);
 }
 
-void Sys_FileSeek( int handle, int position )
-{
-	if (handle <= 0 || handle >= MAX_HANDLES || !sys_handles[handle])
-		return;
-
-	SetFilePointer(sys_handles[handle], position, NULL, FILE_BEGIN);
-}
-
-int Sys_FileRead( int handle, void *dest, int count )
+int Sys_FileRead( void *hFile, void *dest, int count )
 {
 	DWORD bytesRead = 0;
-	DWORD pos;
-	OVERLAPPED ov;
-	HANDLE hEvent;
 
-	if (handle <= 0 || handle >= MAX_HANDLES || !sys_handles[handle])
-		return 0;
-	if (!dest || count <= 0)
-		return 0;
+	if (Sys_IsGDPath(hFile) != 0)
+		bytesRead = GD_Read(dest, 1, count, hFile);
+	else
+		ReadFile(hFile, dest, count, &bytesRead, NULL);
 
-	pos = SetFilePointer(sys_handles[handle], 0, NULL, FILE_CURRENT);
-	memset(&ov, 0, sizeof(ov));
-	ov.Offset = pos;
-	ov.OffsetHigh = 0;
-
-	hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-	ov.hEvent = hEvent;
-
-	if (!ReadFile(sys_handles[handle], dest, (DWORD)count, &bytesRead, &ov))
-	{
-		DWORD gle = GetLastError();
-		if (gle == ERROR_IO_PENDING || gle == ERROR_IO_INCOMPLETE)
-		{
-			if (!GetOverlappedResult(sys_handles[handle], &ov, &bytesRead, TRUE))
-			{
-				Sys_Error("Sys_FileRead: read failed, probably out of WinCE memory (pointer beyond current end?)\n");
-				if (hEvent)
-					CloseHandle(hEvent);
-				return 0;
-			}
-		}
-		else
-		{
-			Sys_Error("Sys_FileRead: read failed, probably out of WinCE memory (pointer beyond current end?)\n");
-			if (hEvent)
-				CloseHandle(hEvent);
-			return 0;
-		}
-	}
-
-	SetFilePointer(sys_handles[handle], pos + bytesRead, NULL, FILE_BEGIN);
-	if (hEvent)
-		CloseHandle(hEvent);
-	return (int)bytesRead;
+	return bytesRead;
 }
 
+/* The DC is read-only from the GD-ROM, so writes never reach a real device
+ * (Sys_FileOpenWrite is a hard error). The handle passed in is the raw HANDLE
+ * that Sys_FileOpenRead stored in *pHandle. */
 int Sys_FileWrite( int handle, void *data, int count )
 {
 	DWORD bytesWritten = 0;
-	DWORD pos;
-	OVERLAPPED ov;
-	HANDLE hEvent;
 
-	if (handle <= 0 || handle >= MAX_HANDLES || !sys_handles[handle])
-		return 0;
-
-	pos = SetFilePointer(sys_handles[handle], 0, NULL, FILE_CURRENT);
-	memset(&ov, 0, sizeof(ov));
-	ov.Offset = pos;
-	ov.OffsetHigh = 0;
-
-	hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-	ov.hEvent = hEvent;
-
-	if (!WriteFile(sys_handles[handle], data, (DWORD)count, &bytesWritten, &ov))
-	{
-		DWORD gle = GetLastError();
-		if (gle == ERROR_IO_PENDING || gle == ERROR_IO_INCOMPLETE)
-		{
-			if (!GetOverlappedResult(sys_handles[handle], &ov, &bytesWritten, TRUE))
-			{
-				if (hEvent)
-					CloseHandle(hEvent);
-				return 0;
-			}
-		}
-		else
-		{
-			if (hEvent)
-				CloseHandle(hEvent);
-			return 0;
-		}
-	}
-
-	SetFilePointer(sys_handles[handle], pos + bytesWritten, NULL, FILE_BEGIN);
-	if (hEvent)
-		CloseHandle(hEvent);
+	WriteFile((HANDLE)handle, data, (DWORD)count, &bytesWritten, NULL);
 	return (int)bytesWritten;
 }
 
+// Sys_FileTime @ 0x122d44. Returns the file's high modification-time dword, or -1
+// if it can't be opened; GD-ROM files always report present (1).
 int Sys_FileTime( char *path )
 {
-	DWORD  length = (DWORD)-1;
-	HANDLE hFile;
+	HANDLE   hFile;
+	int      hGDROM;
+	DWORD    ftime = (DWORD)-1;
+	FILETIME mtime;
+	char    *p;
 
-	hFile = Sys_OpenHandle(path, "rb", &length);
-	if (hFile == INVALID_HANDLE_VALUE)
-		return -1;
+	hGDROM = GDROM_Open(path, "rb");
+	if (hGDROM == 0)
+	{
+		for (p = path; *p; ++p)
+		{
+			if (*p == '/')
+				*p = '\\';
+		}
 
-	CloseHandle(hFile);
-	return (length == (DWORD)-1) ? -1 : 1;
+		MultiByteToWideChar(CP_ACP, 0, path, -1, g_wOpenPath, ARRAYSIZE(g_wOpenPath));
+		g_gdOpenFlag = 0;
+		hFile = CreateFileW(g_wOpenPath, GENERIC_READ, FILE_SHARE_READ, NULL,
+		                    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (hFile != INVALID_HANDLE_VALUE)
+		{
+			if (GetFileTime(hFile, NULL, NULL, &mtime))
+				ftime = mtime.dwHighDateTime;
+			CloseHandle(hFile);
+		}
+	}
+	else
+	{
+		GDROM_Close(hGDROM);
+		ftime = 1;
+	}
+
+	return ftime;
 }
 
 void Sys_mkdir( char *path )
@@ -554,140 +643,68 @@ void Sys_mkdir( char *path )
 
 int Sys_FileTell( int i )
 {
-	if (i <= 0 || i >= MAX_HANDLES || !sys_handles[i])
-		return -1;
-
-	return (int)SetFilePointer(sys_handles[i], 0, NULL, FILE_CURRENT);
+	return (int)SetFilePointer((HANDLE)i, 0, NULL, FILE_CURRENT);
 }
 
 // -----------------------------------------------------------------------------
-// ASYNC HELPERS (Sys_RegisterAsync / Sys_AsyncBusy / Sys_FileReadAsync)
+// ASYNC HELPERS (Sys_AsyncBusy / Sys_FileReadAsync)
 // -----------------------------------------------------------------------------
 
-qboolean Sys_RegisterAsync( int handle, sys_async_t **ppAsync )
+qboolean Sys_AsyncBusy( int id, LPOVERLAPPED pov )
 {
-	dc_async_slot_t *slot;
-	int              i;
+	dc_syncslot_t *slot = NULL;
+	DWORD          bytes = 0;
+	int            i;
 
-	if (handle <= 0 || handle >= MAX_HANDLES || !sys_handles[handle])
-		return FALSE;
-
-	// Check for double-register.
-	slot = DC_FindAsyncSlot(handle);
-	if (slot)
+	for (i = 0; i < MAX_ASYNC; i++)
 	{
-		Sys_Error("Sys_RegisterAsync: handle already registered\n");
-		return FALSE;
-	}
-
-	// Find a free slot.
-	for (i = 0; i < MAX_ASYNC; ++i)
-	{
-		if (g_AsyncSlots[i].handle == 0)
+		if (g_AsyncHandles[i].nId == id)
 		{
-			if (g_AsyncSlots[i].status.hEvent)
-			{
-				CloseHandle(g_AsyncSlots[i].status.hEvent);
-			}
-
-			memset(&g_AsyncSlots[i].status, 0, sizeof(g_AsyncSlots[i].status));
-			g_AsyncSlots[i].status.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-
-			g_AsyncSlots[i].handle       = handle;
-			g_AsyncSlots[i].status.hFile = sys_handles[handle];
-
-			if (ppAsync)
-				*ppAsync = &g_AsyncSlots[i].status;
-
-			return TRUE;
+			slot = &g_AsyncHandles[i];
+			break;
 		}
 	}
 
-	Sys_Error("Sys_RegisterAsync: too many async handles\n");
-	return FALSE;
-}
-
-qboolean Sys_AsyncBusy( int handle, sys_async_t *pStatus )
-{
-	dc_async_slot_t *slot = DC_FindAsyncSlot(handle);
-	sys_async_t     *st;
-	DWORD            bytes;
-
-	if (!slot)
-	{
+	if (slot == NULL)
 		Sys_Error("Sys_AsyncBusy on unregistered sync handle\n");
-		return FALSE;
-	}
 
-	st = pStatus ? pStatus : &slot->status;
+	if (pov == NULL)
+		pov = &slot->ov;
 
-	if (!st->requested || !st->hFile || !st->hEvent)
-		return FALSE;
-
-	if (!GetOverlappedResult(st->hFile, &st->ov, &bytes, FALSE))
-	{
-		DWORD err = GetLastError();
-
-		if (err == ERROR_IO_INCOMPLETE)
-		{
-			return TRUE;
-		}
-
-		st->error     = err;
-		st->completed = 0;
-		st->requested = 0;
-		return FALSE;
-	}
-
-	st->completed = bytes;
-	st->requested = 0;
-	return FALSE;
+	return GetOverlappedResult(slot->pFile, pov, &bytes, FALSE) == 0;
 }
 
-int Sys_FileReadAsync( int handle, void *buffer, int count, sys_async_t *pStatus )
+int Sys_FileReadAsync( void *hFile, void *buffer, int count, struct _OVERLAPPED *pov )
 {
-	dc_async_slot_t *slot = DC_FindAsyncSlot(handle);
-	sys_async_t     *st;
-	DWORD            bytesRead = 0;
+	dc_syncslot_t *slot = NULL;
+	DWORD          bytes = 0;
+	DWORD          pos;
+	void          *hRealFile;
+	int            i;
 
-	if (handle <= 0 || handle >= MAX_HANDLES || !sys_handles[handle])
-		return 0;
+	pos = SetFilePointer(hFile, 0, NULL, FILE_CURRENT);
 
-	if (!slot)
+	for (i = 0; i < MAX_ASYNC; i++)
 	{
-		Sys_Error("Sys_FileReadAsync on unregistered sync handle\n");
-		return 0;
-	}
-
-	st = pStatus ? pStatus : &slot->status;
-
-	st->hFile     = sys_handles[handle];
-	st->requested = (unsigned int)count;
-	st->completed = 0;
-	st->error     = 0;
-	st->startTick = GetTickCount();
-	memset(&st->ov, 0, sizeof(st->ov));
-	st->ov.hEvent = st->hEvent;
-
-	if (!ReadFile(sys_handles[handle], buffer, (DWORD)count, &bytesRead, &st->ov))
-	{
-		DWORD err = GetLastError();
-
-		if (err != ERROR_IO_PENDING)
+		if ((void *)g_AsyncHandles[i].nId == hFile)
 		{
-			st->error     = err;
-			st->completed = 0;
-			st->requested = 0;
-			return 0;
+			slot = &g_AsyncHandles[i];
+			break;
 		}
-
-		// I/O is pending; Sys_AsyncBusy will observe completion later.
-		return count;
 	}
 
-	// Completed synchronously; update status now.
-	st->completed = bytesRead;
-	st->requested = 0;
+	if (slot == NULL)
+		Sys_Error("Sys_FileReadAsync on unregistered sync handle\n");
+
+	hRealFile = slot->pFile;
+	if (pov == NULL)
+		pov = &slot->ov;
+
+	GetOverlappedResult(hRealFile, pov, &bytes, TRUE);
+	pov->hEvent     = NULL;
+	pov->Offset     = pos;
+	pov->OffsetHigh = 0;
+	ReadFile(hRealFile, buffer, count, &bytes, pov);
 	return count;
 }
 
@@ -697,16 +714,36 @@ int Sys_FileReadAsync( int handle, void *buffer, int count, sys_async_t *pStatus
 
 void Sys_MakeCodeWriteable( unsigned long startaddr, unsigned long length )
 {
-	DWORD flOldProtect;
-
-	if (!VirtualProtect((LPVOID)startaddr, length, PAGE_READWRITE, &flOldProtect))
-		Sys_Error("Protection change failed");
+	Sys_Error("And WHY would you want to make code writable?");
 }
 
 // -----------------------------------------------------------------------------
 // ERROR/PRINT/QUIT
 // -----------------------------------------------------------------------------
 
+// Fatal error with a caller-chosen RGB565 background bar.  C89 varargs can't
+// be forwarded, so this and Sys_Error carry duplicate bodies.
+void Sys_ErrorColor( int wColor, char *error, ... )
+{
+	va_list argptr;
+	char    text[1024];
+
+	va_start(argptr, error);
+	vsprintf(text, error, argptr);
+	va_end(argptr);
+
+	strcat(text, "\n");
+
+	DCV_FB_BackgroundRect(wColor);
+	DCV_FB_Text(text);
+
+	giActive = DLL_INACTIVE;
+	Mnemo_ReportToFile();
+
+	for (;;)
+	{
+	}
+}
 
 void Sys_Error( char *error, ... )
 {
@@ -719,15 +756,24 @@ void Sys_Error( char *error, ... )
 
 	strcat(text, "\n");
 
-	DCV_FB_BackgroundRect(0x18, 0xFFFF);
-	DCV_FB_Text(8, 0x18, text);
+	DCV_FB_BackgroundRect(0xFFFF);
+	DCV_FB_Text(text);
 
 	giActive = DLL_INACTIVE;
-	Mnemo_ReportToFile(FALSE);
+	Mnemo_ReportToFile();
 
 	for (;;)
 	{
 	}
+}
+
+void Sys_WinError( void )
+{
+	char text[1024];
+
+	sprintf(text, "Windows error %d; sorry for the numeric cop-out, but FormatMessage isn't available.", GetLastError());
+	//Sys_Error
+	("%s", text);
 }
 
 void Sys_Warning( char *fmt, ... )
@@ -763,33 +809,54 @@ void Sys_Printf( char *fmt, ... )
 
 void Sys_Quit( void )
 {
-	Host_Shutdown();
-	giActive = DLL_CLOSE;
-	longjmp(host_abortserver, 1);
+	Sys_Error("Sys_Quit");
 }
 
 // -----------------------------------------------------------------------------
 // TIMING 
 // -----------------------------------------------------------------------------
 
-static double g_pfreq       = 0.0;
-static double g_curtime     = 0.0;
-static double g_lastcurtime = 0.0;
+static float  g_pfreq       = 0.0f;
+static float  g_curtime     = 0.0f;
+static float  g_lastcurtime = 0.0f;
 static int    g_lowshift    = 0;
+static DWORD  g_baseTick    = 0;
 
-void Sys_Init( void )
+DLL_EXPORT float Sys_FloatTime( void )
 {
-	LARGE_INTEGER perfFreq;
-	unsigned int  lowpart, highpart;
+	static DWORD s_base = 0;
+	DWORD        base = s_base;
+
+	if (base == 0)
+	{
+		s_base = GetTickCount();
+		return 0.0f;
+	}
+
+	return (GetTickCount() - base) * 0.001f;
+}
+
+// Sys_InitFloatTime @ 0x122fec. Reads the perf-counter frequency (Sys_Error if none),
+// normalizes it to a ~1us-resolution float so pfreq = 1/freq, latches g_baseTick, honors
+// -starttime, and clears the async handle table. pfreq/lowshift are vestigial on the DC:
+// the port's Sys_FloatTime uses the GetTickCount()*0.001f path instead.
+void Sys_InitFloatTime( void )
+{
+	LARGE_INTEGER  perfFreq;
+	unsigned int   lowpart, highpart;
+	float          freq;
+	int            j;
+	int            i;
+	dc_syncslot_t *slot;
 
 	if (!QueryPerformanceFrequency(&perfFreq))
 		Sys_Error("No hardware timer available");
 
-	lowpart = (unsigned int)perfFreq.LowPart;
+	lowpart  = (unsigned int)perfFreq.LowPart;
 	highpart = (unsigned int)perfFreq.HighPart;
 	g_lowshift = 0;
 
-	while (highpart || (lowpart > 2000000u))
+	while (highpart || (float)lowpart > 2000000.0f)
 	{
 		g_lowshift++;
 		lowpart >>= 1;
@@ -797,77 +864,32 @@ void Sys_Init( void )
 		highpart >>= 1;
 	}
 
-	g_pfreq = 1.0 / (double)lowpart;
-	Sys_InitFloatTime();
-}
+	freq = (float)lowpart;
+	g_pfreq = 1.0f / freq;
 
-DLL_EXPORT double Sys_FloatTime( void )
-{
-	static int          sametimecount;
-	static unsigned int oldtime;
-	static int          first = 1;
-	LARGE_INTEGER       perfCount;
-	unsigned int        temp, t2;
-	double              time;
-
-	QueryPerformanceCounter(&perfCount);
-
-	temp = ((unsigned int)perfCount.LowPart >> g_lowshift) |
-	       ((unsigned int)perfCount.HighPart << (32 - g_lowshift));
-
-	if (first)
-	{
-		oldtime = temp;
-		first = 0;
-	}
+	if (g_baseTick == 0)
+		g_baseTick = GetTickCount();
 	else
-	{
-		if ((temp <= oldtime) && ((oldtime - temp) < 0x10000000))
-		{
-			oldtime = temp;
-		}
-		else
-		{
-			t2 = temp - oldtime;
-			time = (double)t2 * g_pfreq;
-			oldtime = temp;
-
-			g_curtime += time;
-
-			if (g_curtime == g_lastcurtime)
-			{
-				sametimecount++;
-				if (sametimecount > 100000)
-				{
-					g_curtime += 1.0;
-					sametimecount = 0;
-				}
-			}
-			else
-			{
-				sametimecount = 0;
-			}
-
-			g_lastcurtime = g_curtime;
-		}
-	}
-
-	return g_curtime;
-}
-
-void Sys_InitFloatTime( void )
-{
-	int j;
-
-	Sys_FloatTime();
+		GetTickCount();
 
 	j = COM_CheckParm("-starttime");
 	if (j)
-		g_curtime = (double)(Q_atof(com_argv[j + 1]));
+		g_curtime = (float)Q_atof(com_argv[j + 1]);
 	else
-		g_curtime = 0.0;
-
+		g_curtime = 0.0f;
 	g_lastcurtime = g_curtime;
+
+	slot = g_AsyncHandles;
+	for (i = 0; i < MAX_ASYNC; i++)
+	{
+		slot->nId   = -1;
+		slot->pFile = INVALID_HANDLE_VALUE;
+		slot++;
+	}
+}
+
+void Sys_ShutdownFloatTime( void )
+{
 }
 
 void Sys_Sleep( void )
@@ -901,348 +923,53 @@ void Sys_SendKeyEvents( void )
 }
 
 // -----------------------------------------------------------------------------
-// Engine/DLL interface helpers (static-link path for DC)
+// Engine/DLL interface (static link)
 //
-// Win32 uses LoadLibrary/GetProcAddress and BuildExportTable; DC uses a
-// single "virtual" extension with a static name->address table and no
-// LoadLibrary.
+// The DC links the game DLL statically, so both interface directions were
+// devirtualized: the engine calls the game's Dispatch* functions directly,
+// and the game calls the PF_* engine functions directly.  What remains is
+// the export registry used by save/restore to map function pointers to
+// names: cbase.cpp fills a 512-entry {function, name} table at startup
+// (GameDLL_RegisterModules, called from Host_Init) through the typed
+// registration entry points below, and FunctionFromName / NameForFunction
+// (also cbase.cpp) search it.
 // -----------------------------------------------------------------------------
 
-extern globalvars_t gGlobalVariables;
-extern int GetEntityAPI( DLL_FUNCTIONS *pFunctionTable, int interfaceVersion );
-extern void DLLEXPORT GiveFnptrsToDll( enginefuncs_t *pengfuncsFromEngine, globalvars_t *pGlobals );
+extern void Sys_RegisterExport( char *pName, unsigned int function );	// cbase.cpp
 
-typedef struct hl_link_export_s
+void Sys_RegisterExportA( char *pName, unsigned int function )
 {
-	const char *name;
-	void *func;
-} hl_link_export_t;
-extern hl_link_export_t lib_hl_exports[];
-
-static enginefuncs_t g_engfuncsExportedToDlls =
-{
-	PF_precache_model_I,
-	PF_precache_sound_I,
-	PF_setmodel_I,
-	PF_modelindex,
-	ModelFrames,
-	PF_setsize_I,
-	PF_changelevel_I,
-	PF_setspawnparms_I,
-	SaveSpawnParms,
-	PF_vectoyaw_I,
-	PF_vectoangles_I,
-	SV_MoveToOrigin_I,
-	PF_changeyaw_I,
-	PF_changepitch_I,
-	FindEntityByString,
-	GetEntityIllum,
-	FindEntityInSphere,
-	PF_checkclient_I,
-	PVSFindEntities,
-	PF_makevectors_I,
-	AngleVectors,
-	PF_Spawn_I,
-	PF_Remove_I,
-	CreateNamedEntity,
-	PF_makestatic_I,
-	PF_checkbottom_I,
-	PF_droptofloor_I,
-	PF_walkmove_I,
-	PF_setorigin_I,
-	PF_sound_I,
-	PF_ambientsound_I,
-	PF_traceline_DLL,
-	PF_TraceToss_DLL,
-	TraceMonsterHull,
-	TraceHull,
-	TraceModel,
-	TraceTexture,
-	TraceSphere,
-	PF_aim_I,
-	PF_localcmd_I,
-	PF_stuffcmd_I,
-	PF_particle_I,
-	PF_lightstyle_I,
-	PF_DecalIndex,
-	PF_pointcontents_I,
-	PF_MessageBegin_I,
-	PF_MessageEnd_I,
-	PF_WriteByte_I,
-	PF_WriteChar_I,
-	PF_WriteShort_I,
-	PF_WriteLong_I,
-	PF_WriteAngle_I,
-	PF_WriteCoord_I,
-	PF_WriteString_I,
-	PF_WriteEntity_I,
-	CVarGetFloat,
-	CVarGetString,
-	CVarSetFloat,
-	CVarSetString,
-	AlertMessage,
-	EngineFprintf,
-	PvAllocEntPrivateData,
-	PvEntPrivateData,
-	FreeEntPrivateData,
-	SzFromIndex,
-	AllocEngineString,
-	GetVarsOfEnt,
-	PEntityOfEntOffset,
-	EntOffsetOfPEntity,
-	IndexOfEdict,
-	PEntityOfEntIndex,
-	FindEntityByVars,
-	GetModelPtr,
-	RegUserMsg,
-	AnimationAutomove,
-	GetBonePosition,
-	FunctionFromName,
-	NameForFunction,
-	ClientPrintf,
-	Cmd_Args,
-	Cmd_Argv,
-	Cmd_Argc,
-	GetAttachment,
-	CRC32_Init,
-	CRC32_ProcessBuffer,
-	CRC32_ProcessByte,
-	CRC32_Final,
-	RandomLong,
-	RandomFloat,
-	PF_setview_I,
-	PF_Time,
-	PF_crosshairangle_I,
-	COM_LoadFileForMe,
-	COM_FreeFile,
-	Host_EndSection,
-	COM_CompareFileTime,
-	COM_GetGameDir,
-	Cvar_RegisterVariable,
-	PF_FadeVolume,
-	PF_SetClientMaxspeed,
-	PF_CreateFakeClient_I,
-	PF_RunPlayerMove_I,
-	PF_NumberOfEntities_I,
-	PF_IsMapValid_I
-};
-
-extensiondll_t g_rgextdll[MAX_EXT_DLLS];
-int g_iextdllMac;
-
-static functiontable_t *static_game_exports;
-static int static_game_export_count;
-
-static qboolean AddStaticExport( extensiondll_t *pextdll, const char *pName, uint32 function );
-
-static qboolean AddStaticExport( extensiondll_t *pextdll, const char *pName, uint32 function )
-{
-	functiontable_t *pNewTable;
-	char *pNameCopy;
-	int i;
-
-	if (!pName || !function)
-		return FALSE;
-
-	for (i = 0; i < pextdll->functionCount; i++)
-	{
-		if (!strcmp(pextdll->functionTable[i].pFunctionName, pName))
-			return TRUE;
-	}
-
-	pNewTable = (functiontable_t *)realloc(pextdll->functionTable,
-	                                       sizeof(functiontable_t) * (pextdll->functionCount + 1));
-	if (!pNewTable)
-		return FALSE;
-	pextdll->functionTable = pNewTable;
-
-	pNameCopy = (char *)malloc(strlen(pName) + 1);
-	if (!pNameCopy)
-		return FALSE;
-	strcpy(pNameCopy, pName);
-
-	pextdll->functionTable[pextdll->functionCount].pFunctionName = pNameCopy;
-	pextdll->functionTable[pextdll->functionCount].pFunction = function;
-	pextdll->functionCount++;
-	return TRUE;
+	Sys_RegisterExport(pName, function);
 }
 
-static void FreeStaticExportTable( extensiondll_t *pextdll )
+void Sys_RegisterExportB( char *pName, unsigned int function )
 {
-	int i;
-
-	if (!pextdll->functionTable)
-		return;
-
-	for (i = 0; i < pextdll->functionCount; i++)
-	{
-		if (pextdll->functionTable[i].pFunctionName)
-			free(pextdll->functionTable[i].pFunctionName);
-	}
-
-	free(pextdll->functionTable);
-	pextdll->functionTable = NULL;
-	pextdll->functionCount = 0;
+	Sys_RegisterExport(pName, function);
 }
 
-static qboolean BuildStaticExportTable( extensiondll_t *pextdll )
+void Sys_RegisterExportC( char *pName, unsigned int function )
 {
-	int i;
-
-	pextdll->lDLLHandle = NULL;
-	pextdll->functionTable = NULL;
-	pextdll->functionCount = 0;
-
-	if (!AddStaticExport(pextdll, "GiveFnptrsToDll", (uint32)(size_t)GiveFnptrsToDll))
-		return FALSE;
-	if (!AddStaticExport(pextdll, "GetEntityAPI", (uint32)(size_t)GetEntityAPI))
-		return FALSE;
-
-	/* Populate class/entity dispatch directly from halflife/link_helper.cpp. */
-	for (i = 0; lib_hl_exports[i].name; i++)
-	{
-		if (!AddStaticExport(pextdll, lib_hl_exports[i].name, (uint32)(size_t)lib_hl_exports[i].func))
-			return FALSE;
-	}
-
-	static_game_exports = pextdll->functionTable;
-	static_game_export_count = pextdll->functionCount;
-	Con_Printf("Static export table: %i entries (GiveFnptrsToDll + GetEntityAPI + %i from link_helper)\n",
-	           pextdll->functionCount,
-	           pextdll->functionCount > 2 ? pextdll->functionCount - 2 : 0); // TODO - remove that 
-	return TRUE;
+	Sys_RegisterExport(pName, function);
 }
 
-static char *FindAddressInTable( extensiondll_t *pDll, uint32 function )
+void Sys_RegisterExportD( char *pName, unsigned int function )
 {
-	int i;
-
-	for (i = 0; i < pDll->functionCount; i++)
-	{
-		if (pDll->functionTable[i].pFunction == function)
-			return pDll->functionTable[i].pFunctionName;
-	}
-	return NULL;
+	Sys_RegisterExport(pName, function);
 }
 
-static uint32 FindNameInTable( extensiondll_t *pDll, char *pName )
+void Sys_RegisterExportE( char *pName, unsigned int function )
 {
-	int i;
-
-	for (i = 0; i < pDll->functionCount; i++)
-	{
-		if (!strcmp(pName, pDll->functionTable[i].pFunctionName))
-			return pDll->functionTable[i].pFunction;
-	}
-	return 0;
-}
-
-DISPATCHFUNCTION GetDispatch( char *pname )
-{
-	int i;
-	uint32 fn;
-
-	for (i = 0; i < g_iextdllMac; i++)
-	{
-		fn = FindNameInTable(&g_rgextdll[i], pname);
-		if (fn)
-			return (DISPATCHFUNCTION)(size_t)fn;
-	}
-	return NULL;
-}
-
-ENTITYINIT GetEntityInit( char *pClassName )
-{
-	return (ENTITYINIT)GetDispatch(pClassName);
-}
-
-FIELDIOFUNCTION GetIOFunction( char *pName )
-{
-	return (FIELDIOFUNCTION)GetDispatch(pName);
-}
-
-uint32 FunctionFromName( char *pName )
-{
-	int i;
-	uint32 function;
-
-	for (i = 0; i < g_iextdllMac; i++)
-	{
-		function = FindNameInTable(&g_rgextdll[i], pName);
-		if (function)
-			return function;
-	}
-	Con_Printf("Can't find proc: %s\n", pName);
-	return 0;
-}
-
-char *NameForFunction( uint32 function )
-{
-	int i;
-	char *pName;
-
-	for (i = 0; i < g_iextdllMac; i++)
-	{
-		pName = FindAddressInTable(&g_rgextdll[i], function);
-		if (pName)
-			return pName;
-	}
-	Con_Printf("Can't find address: %08lx\n", (unsigned long)function);
-	return NULL;
-}
-
-void LoadEntityDLLs( char *szBaseDir )
-{
-	typedef void (DLLEXPORT *PFN_GiveFnptrsToDll)(enginefuncs_t *, globalvars_t *);
-	PFN_GiveFnptrsToDll pfnGiveFnptrsToDll;
-	APIFUNCTION pfnGetAPI;
-	int interface_version;
-
-	(void)szBaseDir;
-
-	g_iextdllMac = 0;
-	memset(g_rgextdll, 0, sizeof(g_rgextdll));
-
-	if (!BuildStaticExportTable(&g_rgextdll[0]))
-		Sys_Error("Unable to build static export table");
-
-	g_iextdllMac = 1;
-
-	pfnGiveFnptrsToDll = (PFN_GiveFnptrsToDll)GetDispatch("GiveFnptrsToDll");
-
-	if (!pfnGiveFnptrsToDll)
-		Sys_Error("Can't get GiveFnptrsToDll!");
-
-	pfnGiveFnptrsToDll(&g_engfuncsExportedToDlls, &gGlobalVariables);
-
-	pfnGetAPI = (APIFUNCTION)GetDispatch("GetEntityAPI");
-
-	if (!pfnGetAPI)
-		Sys_Error("Can't get DLL API!");
-
-	interface_version = INTERFACE_VERSION;
-	if (!pfnGetAPI(&gEntityInterface, interface_version))
-		Sys_Error("Invalid DLL version!");
-
-	Con_Printf("----------------------\n");
-	Con_Printf("Dlls loaded for game:\n%s\n", gEntityInterface.pfnGetGameDescription());
-	Con_Printf("----------------------\n");
+	Sys_RegisterExport(pName, function);
 }
 
 void LoadThisDll( char *szDllFilename )
 {
-	(void)szDllFilename;
-	/* DC does not load DLLs from disk. */
 }
 
-void ReleaseEntityDlls( void )
+// Returns entity initialization functions, generated by LINK_ENTITY_TO_CLASS
+ENTITYINIT GetEntityInit( char *pClassName )
 {
-	if (g_iextdllMac > 0)
-		FreeStaticExportTable(&g_rgextdll[0]);
-	static_game_exports = NULL;
-	static_game_export_count = 0;
-	g_iextdllMac = 0;
-	memset(g_rgextdll, 0, sizeof(g_rgextdll));
+	return (ENTITYINIT)GetDispatch(pClassName);
 }
 
 void EngineFprintf( void *pFile, char *szFmt, ... )
@@ -1254,38 +981,34 @@ void EngineFprintf( void *pFile, char *szFmt, ... )
 	va_end(argptr);
 }
 
+void GameSetState( int iState )
+{
+	giActive = iState;
+}
+
+// AlertMessage @ 0x123248. Gated on the developer cvar: formats into a shared global
+// buffer, echoes it to the console verbatim, and escalates to Sys_Error on at_error.
+static char g_szAlertMsg[1024];
+
 void AlertMessage( ALERT_TYPE atype, char *szFmt, ... )
 {
 	va_list argptr;
-	char    szOut[1024];
 
-	if (!developer.value)
-		return;
-
-	va_start(argptr, szFmt);
-	vsprintf(szOut, szFmt, argptr);
-	va_end(argptr);
-
-	switch (atype)
+	if (developer.value)
 	{
-	case at_notice:
-		Con_Printf("NOTE:  %s", szOut);
-		break;
-	case at_console:
-		Con_Printf("%s", szOut);
-		break;
-	case at_aiconsole:
-		if (developer.value < 2)
-			return;
-		Con_Printf("%s", szOut);
-		break;
-	case at_warning:
-		Con_Printf("WARNING:  %s", szOut);
-		break;
-	case at_error:
-		Con_Printf("ERROR:  %s", szOut);
-		break;
+		va_start(argptr, szFmt);
+		vsprintf(g_szAlertMsg, szFmt, argptr);
+		va_end(argptr);
+
+		Con_Printf("%s", g_szAlertMsg);
+		if (atype == at_error)
+			Sys_Error(g_szAlertMsg);
 	}
+}
+
+void Dispatch_Substate( int iSubState )
+{
+	giSubState = iSubState;
 }
 
 
@@ -1487,7 +1210,7 @@ qboolean GameInit( char* lpCmdLine )
 #endif
 
 	// Set up timer scale and start time, then bring up the engine.
-	Sys_Init();
+	Sys_InitFloatTime();
 
 	return Host_Init(&parms) ? TRUE : FALSE;
 }
@@ -1703,6 +1426,127 @@ qboolean Sys_InitDisplay( void )
 	return TRUE;
 }
 
+/* ------------------------------------------------------------------------- *
+ * Sys_Frame - launcher-side frame pump above the exported Host_Frame.
+ * Rate-limits to g_minFrameTime via a Sys_FloatTime busy-wait, runs one
+ * Host_Frame, then drives the DLL_STATE machine (pause/trans/close).
+ * ------------------------------------------------------------------------- */
+static int      g_engineState = DLL_INACTIVE;   /* launcher DLL state      */
+static float    g_lastFrameTime;                /* timestamp of last frame */
+static int      g_engineStateInfo;              /* Host_Frame stateInfo out*/
+static float    g_frameSampleTime;              /* accum minus sample cost */
+static float    g_minFrameTime;                 /* min seconds per frame   */
+static int      g_sampleBase;                   /* sample-count baseline   */
+static float    g_frameAccum;                   /* accumulated frame time  */
+static HMODULE  g_hGameDll;                      /* loaded game DLL handle  */
+static int      g_pauseCounter;                 /* pause debounce counter  */
+static int      g_pauseFlag;                    /* pause pending flag      */
+static int      g_closeFlag;                    /* killserver-once guard   */
+
+extern int  Host_Frame( float time, int iState, int *stateInfo );
+extern int  Sys_SampleCount( void );   /* 0x176ef0 - perf sample count  */
+extern void Sys_NotifyState( int state );   /* 0x123240 - state-change hook */
+
+int Sys_Frame( float time, int forceRun )
+{
+	int   state = g_engineState;
+	int   ret;
+	float now;
+
+	if (state != DLL_ACTIVE && forceRun == 0)
+		return DLL_INACTIVE;
+
+	if (state != DLL_INACTIVE)
+	{
+		now = Sys_FloatTime();
+		time = now - g_lastFrameTime;
+		while (time < g_minFrameTime)
+		{
+			now = Sys_FloatTime();
+			time = now - g_lastFrameTime;
+		}
+
+		g_frameAccum += time;
+		g_frameSampleTime = g_frameAccum - (float)(Sys_SampleCount() - g_sampleBase) / 10.0f;
+
+		g_engineStateInfo = 0;
+		ret = Host_Frame(time, g_engineState, &g_engineStateInfo);
+
+		switch (g_engineStateInfo)
+		{
+		case STATE_TRAINING:
+		case STATE_ENDLOGO:
+			break;
+		case DLL_QUIT:
+			PostQuitMessage(0);
+			FreeLibrary(g_hGameDll);
+			g_hGameDll = NULL;
+			g_engineState = DLL_INACTIVE;
+			g_engineStateInfo = 0;
+			break;
+		}
+
+		if (g_pauseCounter != 0)
+		{
+			g_pauseCounter--;
+			if (ret == DLL_PAUSED)
+			{
+				g_pauseFlag = 1;
+				g_engineState = DLL_ACTIVE;
+				Sys_NotifyState(DLL_ACTIVE);
+				ret = DLL_ACTIVE;
+			}
+			if (g_pauseCounter == 0 && g_pauseFlag != 0)
+			{
+				g_engineState = DLL_ACTIVE;
+				g_pauseFlag = 0;
+				ret = DLL_PAUSED;
+			}
+		}
+
+		if (ret == DLL_TRANS)
+		{
+			g_pauseCounter = 5;
+			ret = DLL_ACTIVE;
+			g_engineState = DLL_ACTIVE;
+			Sys_NotifyState(DLL_ACTIVE);
+		}
+
+		if (ret != g_engineState)
+		{
+			g_engineState = ret;
+			Sys_NotifyState(ret);
+		}
+
+		g_lastFrameTime = now;
+	}
+
+	ret = g_engineState;
+	if (g_engineState == DLL_CLOSE)
+	{
+		if (g_closeFlag == 0)
+		{
+			g_closeFlag = 1;
+			Cbuf_AddText("killserver\n");
+			Sys_Frame(time, 1);
+			Sleep(100);
+			Sys_Frame(time, 1);
+			Sleep(100);
+			ret = g_engineState;
+		}
+		else
+		{
+			PostQuitMessage(1);
+			FreeLibrary(g_hGameDll);
+			g_hGameDll = NULL;
+			g_engineState = DLL_INACTIVE;
+			g_engineStateInfo = 0;
+			ret = g_engineState;
+		}
+	}
+	return ret;
+}
+
 int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow )
 {
 	double time, oldtime, newtime;
@@ -1714,7 +1558,7 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLi
 #ifdef _WIN32_WCE
 	GDROM_ConfigureDoorBehavior();
 #endif 
-	Sys_Init();
+	Sys_InitFloatTime();
 
 	if ( !Sys_InitDisplay() )
 	{

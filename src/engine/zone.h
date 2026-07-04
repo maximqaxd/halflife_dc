@@ -127,7 +127,7 @@ void* Cache_Alloc( cache_user_t* c, int size, char* name );
 
 void Cache_Report( void );
 
-void Mnemo_ReportToFile( qboolean verbose );
+void Mnemo_ReportToFile( void );
 
 char* CommatizeNumber( int num, char* pout );
 

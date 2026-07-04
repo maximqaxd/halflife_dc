@@ -62,7 +62,7 @@ int			scr_copyeverything;
 float		scr_con_current;
 float		scr_conlines;		// lines of console to display
 
-cvar_t		scr_viewsize = { "viewsize", "120", TRUE };
+cvar_t		scr_viewsize = { "viewsize", "120", FCVAR_ARCHIVE };
 float		scr_fov_value = 90;	// 10 - 170
 cvar_t		scr_conspeed = { "scr_conspeed", "600" };
 cvar_t		scr_centertime = { "scr_centertime", "2" };

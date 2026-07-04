@@ -2511,90 +2511,6 @@ void Host_Changelevel2_f( void )
 	SV_ActivateServer(FALSE);
 }
 
-char* GetProfilePath( void )
-{
-	static char szProfilePath[128];
-
-	memset(szProfilePath, 0, sizeof(szProfilePath));
-	sprintf(szProfilePath, "PROFILES/%s.cfg", MakeProfileName(cl_name.string));
-	return szProfilePath;
-}
-
-void Cvar_SetProfile( char* name )
-{
-	cvar_t* var;
-
-	if (!name || !name[0])
-		return;
-
-	var = Cvar_FindVar(name);
-	if (!var)
-		return;
-	var->profile = TRUE;
-}
-
-/*
-===============
-Host_LoadProfile
-
-Loads and processes profile.lst configuration file
-===============
-*/
-void Host_LoadProfile( void )
-{
-	byte* file;
-	char* data;
-	char szProfileFile[128];
-
-	sprintf(szProfileFile, "profile.lst");
-	file = COM_LoadFile(szProfileFile, 5, NULL);
-	if (!file)
-		Con_Printf("Could not open file %s\n", szProfileFile);
-
-	data = (char*)file;
-	if (!file)
-		return;
-
-	while (1)
-	{
-		data = COM_Parse(data);
-		if (!data)
-			break;
-		Cvar_SetProfile(com_token);
-	}
-	free(file);
-}
-
-/*
-===============
-Host_UnloadProfile
-
-===============
-*/
-void Host_UnloadProfile( char* name )
-{
-}
-
-/*
-===============
-Host_WriteProfile_f
-
-===============
-*/
-void Host_WriteProfile_f( void )
-{
-}
-
-/*
-===============
-Host_RevertProfile_f
-
-===============
-*/
-void Host_RevertProfile_f( void )
-{
-}
-
 //============================================================================
 
 /*
@@ -2628,8 +2544,6 @@ void Host_Name_f( void )
 	{
 		if (!Q_strcmp(cl_name.string, newName))
 			return;
-
-		Host_UnloadProfile(cl_name.string);
 
 		Cvar_Set("_cl_name", newName);
 
@@ -4122,8 +4036,6 @@ void Host_InitCommands( void )
 	Cmd_AddCommand("save", Host_Savegame_f);
 	Cmd_AddCommand("autosave", Host_AutoSave_f);
 	Cmd_AddCommand("shortname", Host_ShortName_f);
-	Cmd_AddCommand("writeprofile", Host_WriteProfile_f);
-	Cmd_AddCommand("revertprofile", Host_RevertProfile_f);
 
 	Cmd_AddCommand("startdemos", Host_Startdemos_f);
 	Cmd_AddCommand("demos", Host_Demos_f);

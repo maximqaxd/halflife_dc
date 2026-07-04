@@ -24,3 +24,6 @@ __pycache__/
 # transient Ghidra session lock files
 /RE/*.lock
 /RE/*.lock~
+
+# RE symbol export backups
+*.tsv.bak

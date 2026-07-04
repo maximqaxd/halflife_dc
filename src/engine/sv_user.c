@@ -15,9 +15,9 @@ float* velocity;
 usercmd_t	cmd;
 
 cvar_t	sv_idealpitchscale = { "sv_idealpitchscale", "0.8" };
-cvar_t	sv_edgefriction = { "edgefriction", "2", FALSE, TRUE };
-cvar_t	sv_maxspeed = { "sv_maxspeed", "320", FALSE, TRUE };
-cvar_t	sv_accelerate = { "sv_accelerate", "10", FALSE, TRUE };
+cvar_t	sv_edgefriction = { "edgefriction", "2", FCVAR_SERVER };
+cvar_t	sv_maxspeed = { "sv_maxspeed", "320", FCVAR_SERVER };
+cvar_t	sv_accelerate = { "sv_accelerate", "10", FCVAR_SERVER };
 
 /*
 ===============
