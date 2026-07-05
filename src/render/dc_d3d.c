@@ -243,7 +243,7 @@ void DCV_BuildGammaTable( float lo, float hi )
 
 __inline void DCV_RefreshGamma( void )
 {
-	DCV_BuildGammaTable(0.58f, 0.9f);
+	DCV_BuildGammaTable(0.9f, 0.58f);
 	g_nOverscanX = 8;
 	g_nOverscanY = 24;
 }
@@ -278,7 +278,7 @@ void DCV_GammaRefresh_f( void )
 		DCV_RefreshGamma();
 		break;
 	case 0x40:
-		DCV_BuildGammaTable(0.8f, 0.9f);
+		DCV_BuildGammaTable(0.9f, 0.8f);
 		g_nOverscanX = 0;
 		g_nOverscanY = 0;
 		break;
