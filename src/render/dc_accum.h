@@ -40,7 +40,7 @@ void          DCV_FlushApplyRenderState( D3DRENDERSTATETYPE state, DWORD value )
  * triangles already queued in the current tile, so the pending batch has to be
  * flushed before the state can change. These setters do the flush; they are inline
  * because they are called from a lot of places. The batch itself lives in
- * dc_accum.c and the device in vid_dc.c.
+ * dc_accum.c and the device in dc_d3d.c.
  */
 extern int               g_nAccumVertCount;
 extern int               g_nAccumIndexCount;

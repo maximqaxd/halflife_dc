@@ -104,25 +104,6 @@ DCV_TexState Helpers
 =========================================================
 */
 
-/*
- * DCV_SetRenderState / DCV_SetTextureStageState
- */
-void DCV_SetRenderState(D3DRENDERSTATETYPE state, DWORD value)
-{
-	LPDIRECT3DDEVICE3 dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-	DWORD current;
-
-	if (!dev || !dev->lpVtbl)
-		return;
-
-	dev->lpVtbl->GetRenderState(dev, state, &current);
-	if (current != value)
-	{
-		DCV_Flush();
-		dev->lpVtbl->SetRenderState(dev, state, value);
-	}
-}
-
 void DCV_FlushApplyRenderState(D3DRENDERSTATETYPE state, DWORD value)
 {
 	LPDIRECT3DDEVICE3 dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
@@ -134,22 +115,6 @@ void DCV_FlushApplyRenderState(D3DRENDERSTATETYPE state, DWORD value)
 	dev->lpVtbl->SetRenderState(dev, state, value);
 }
 
-void DCV_SetTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE type, DWORD value)
-{
-	LPDIRECT3DDEVICE3 dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-	DWORD current;
-
-	if (!dev || !dev->lpVtbl)
-		return;
-
-	/* Same as DCV_SetRenderState — ignore HRESULT from GetTextureStageState. */
-	dev->lpVtbl->GetTextureStageState(dev, stage, type, &current);
-	if (current != value)
-	{
-		DCV_Flush();
-		dev->lpVtbl->SetTextureStageState(dev, stage, type, value);
-	}
-}
 
 
 /*

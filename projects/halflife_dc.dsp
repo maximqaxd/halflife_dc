@@ -2788,7 +2788,7 @@ NODEP_CPP_CVAR_=\
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\render\vid_dc.c
+SOURCE=..\src\render\dc_d3d.c
 # End Source File
 # Begin Source File
 
@@ -3069,7 +3069,7 @@ NODEP_CPP_DC_DR=\
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\engine\dc_framebuffer.c
+SOURCE=..\src\render\dc_debug.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -8095,7 +8095,7 @@ DEP_CPP_SYS_D=\
 	"..\src\engine\custom.h"\
 	"..\src\engine\cvar.h"\
 	"..\src\engine\cvardef.h"\
-	"..\src\engine\dc_framebuffer.h"\
+	"..\src\render\dc_debug.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\glquake.h"\
@@ -8165,7 +8165,7 @@ DEP_CPP_SYS_D=\
 	"..\src\engine\custom.h"\
 	"..\src\engine\cvar.h"\
 	"..\src\engine\cvardef.h"\
-	"..\src\engine\dc_framebuffer.h"\
+	"..\src\render\dc_debug.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\glquake.h"\

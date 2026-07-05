@@ -1,4 +1,4 @@
-// vid_dc.c -- Dreamcast video: window, DirectDraw and Direct3D setup
+// dc_d3d.c -- Dreamcast video: window, DirectDraw and Direct3D setup
 
 #include "quakedef.h"
 #include "winquake.h"

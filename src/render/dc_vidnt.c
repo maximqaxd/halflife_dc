@@ -2,6 +2,7 @@
 
 #include "quakedef.h"
 #include "winquake.h"
+#include "dc_accum.h"
 
 BOOL gfMiniDriver = FALSE;
 
@@ -13,6 +14,8 @@ const char* gl_extensions;
 static HANDLE	hMovieFile = INVALID_HANDLE_VALUE;
 
 cvar_t	gl_ztrick = { "gl_ztrick", "1" };
+cvar_t	r_testlight = { "r_testlight", "0" };
+cvar_t	mipbias = { "mipbias", "0" };
 
 viddef_t	vid;				// global video state
 
@@ -132,11 +135,13 @@ void GL_BeginRendering( int* x, int* y, int* width, int* height )
 }
 
 
+extern void DCV_Flip( void );
+
 void GL_EndRendering( void )
 {
 	LPDIRECT3DDEVICE3 dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
 
-	if (in_scene) 
+	if (in_scene)
 	{
 		DCV_Flush();
 
@@ -146,7 +151,7 @@ void GL_EndRendering( void )
 		in_scene = FALSE;
 	}
 
-	Sys_PresentFrame();
+	DCV_Flip();
 }
 
 /*

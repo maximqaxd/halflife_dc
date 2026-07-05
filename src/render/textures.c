@@ -368,3 +368,9 @@ void TEX_AddAnimatingTextures( void )
 	if (nummiptex != base)
 		Con_SafePrintf("added %i texture frames\n", nummiptex - base);
 }
+
+// Texture cache list init (the fork uses a slot-based cache in dc_draw.c).
+qboolean DC_InitTextureList( void )
+{
+	return TRUE;
+}

@@ -1,5 +1,5 @@
 /*
- * dc_framebuffer.h -- fatal text drawing on framebuffer (Sys_Error path).
+ * dc_debug.h -- fatal text drawing on framebuffer (Sys_Error path).
  */
 
 #ifndef DC_FRAMEBUFFER_H
@@ -16,5 +16,6 @@ void DCV_FB_TextOnSurface( LPDIRECTDRAWSURFACE4 pddsSurface, int x, int y, const
 
 void DCV_FB_BackgroundRect( unsigned short wColor );
 void DCV_FB_Text( const char* text );
+void DCV_MeterText( unsigned int color, int x, int y, const char* text );
 
 #endif /* DC_FRAMEBUFFER_H */

@@ -1,5 +1,5 @@
 /*
- * dc_framebuffer.c -- fatal text drawing on framebuffer (Sys_Error path).
+ * dc_debug.c -- fatal text drawing on framebuffer (Sys_Error path).
  * Renders 5x5 procedural font directly to primary/backbuffer surfaces.
  */
 

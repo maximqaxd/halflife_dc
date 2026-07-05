@@ -7,7 +7,7 @@
 #include "r_studio.h"
 #include "server.h"
 #include "draw.h"
-#include "dc_framebuffer.h"
+#include "dc_debug.h"
 
 #include <windows.h>
 #include <segagdrm.h>
