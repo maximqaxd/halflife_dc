@@ -12,8 +12,7 @@ extern HINSTANCE g_hInstance;
 extern HINSTANCE g_hPrevInstance;
 
 extern void     VID_UpdateWindowVars( RECT *pRect, int cx, int cy );
-extern qboolean maybe_TextureInit( void );
-extern void     DCV_SetupFog( void );
+extern qboolean DC_InitTextureList( void );
 extern cvar_t   r_testlight;
 extern cvar_t   mipbias;
 
@@ -52,6 +51,25 @@ void* Sys_GetPrimarySurface4( void ) { return (void*)g_pddsPrimary; }
 void* Sys_GetD3D3( void )            { return (void*)g_pD3D; }
 void* Sys_GetD3DDevice3( void )      { return (void*)g_pD3DDevice; }
 void* Sys_GetD3DViewport( void )     { return (void*)g_pViewport; }
+
+// Fog render states.
+void DCV_SetupFog( void )
+{
+}
+
+/*
+================
+DCV_Flip
+
+Present the back buffer. The full version flushes the deferred triangle batch and
+draws the profiling meters before the flip; this one just page-flips.
+================
+*/
+void DCV_Flip( void )
+{
+	if (g_pddsPrimary)
+		g_pddsPrimary->lpVtbl->Flip(g_pddsPrimary, NULL, DDFLIP_WAIT);
+}
 
 /*
 ================
@@ -360,5 +378,5 @@ qboolean DCV_CreateWindow( void )
 		return FALSE;
 	if (!DCV_InitDirect3D())
 		return FALSE;
-	return maybe_TextureInit();
+	return DC_InitTextureList();
 }

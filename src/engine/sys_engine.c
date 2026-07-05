@@ -23,10 +23,10 @@ extern int       giStateInfo;
 
 extern qboolean DCV_CreateWindow( void );
 extern void     GDROM_ConfigureDoorBehavior( void );
-extern void     Sys_InitFloatTime( void );
+extern void     Sys_Init( void );
 extern int      Host_Frame( float time, int iState, int *stateInfo );
 extern int      Sys_SampleCount( void );
-extern void     Sys_NotifyState( int state );
+extern void     GameSetState( int state );
 
 // Heap chosen by GameInit.
 static unsigned char *g_pEngineMem     = NULL;
@@ -128,7 +128,7 @@ qboolean GameInit( char* lpCmdLine )
 	parms.argv = argv;
 
 	// Set up timer scale and start time, then bring up the engine.
-	Sys_InitFloatTime();
+	Sys_Init();
 
 	return Host_Init(&parms) ? TRUE : FALSE;
 }
@@ -187,7 +187,7 @@ int Sys_Frame( float time, int forceRun )
 			{
 				g_pauseFlag = 1;
 				g_engineState = DLL_ACTIVE;
-				Sys_NotifyState(DLL_ACTIVE);
+				GameSetState(DLL_ACTIVE);
 				ret = DLL_ACTIVE;
 			}
 			if (g_pauseCounter == 0 && g_pauseFlag != 0)
@@ -203,13 +203,13 @@ int Sys_Frame( float time, int forceRun )
 			g_pauseCounter = 5;
 			ret = DLL_ACTIVE;
 			g_engineState = DLL_ACTIVE;
-			Sys_NotifyState(DLL_ACTIVE);
+			GameSetState(DLL_ACTIVE);
 		}
 
 		if (ret != g_engineState)
 		{
 			g_engineState = ret;
-			Sys_NotifyState(ret);
+			GameSetState(ret);
 		}
 
 		g_lastFrameTime = now;
@@ -250,7 +250,6 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLi
 
 	isDedicated = FALSE;
 	GDROM_ConfigureDoorBehavior();
-	Sys_InitFloatTime();
 
 	if ( !DCV_CreateWindow() )
 	{
@@ -283,4 +282,46 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLi
 	}
 	Host_Shutdown();
 	return 0;
+}
+
+qboolean g_bInStartup = FALSE;
+qboolean g_bInactive  = FALSE;
+
+void Sys_Printf( char *fmt, ... )
+{
+	va_list argptr;
+	char    text[1024];
+	TCHAR   wtext[1024];
+
+	va_start(argptr, fmt);
+	vsprintf(text, fmt, argptr);
+	va_end(argptr);
+
+	MultiByteToWideChar( CP_ACP, 0, text, -1, wtext, ARRAYSIZE( wtext ) );
+	OutputDebugString( wtext );
+}
+
+void Sys_SendKeyEvents( void )
+{
+	MSG msg;
+
+	if (g_bInStartup)
+		return;
+
+	while (PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE))
+	{
+		scr_skipupdate = 0;
+		if (g_bInactive)
+			break;
+
+		if (!GetMessage(&msg, NULL, 0, 0))
+			Sys_Quit();
+
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
+
+	if (!g_bInactive)
+		return;
+
 }

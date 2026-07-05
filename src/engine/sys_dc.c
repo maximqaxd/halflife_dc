@@ -20,8 +20,6 @@ HINSTANCE       g_hInstance     = NULL;
 HINSTANCE       g_hPrevInstance = NULL;
 
 
-qboolean g_bInStartup = FALSE;
-qboolean g_bInactive  = FALSE;
 qboolean gfUseLANAuthentication = TRUE;
 qboolean gfBackground = FALSE;
 qboolean			isDedicated;
@@ -36,25 +34,6 @@ int giStateInfo = 1;
 short giSubState = 0;
 extern cvar_t sys_ticrate;
 // -----------------------------------------------------------------------------
-
-/*
-================
-Sys_GetProfileRegKeyValue
-
-Gets profile settings from the registry
-================
-*/
-void Sys_GetProfileRegKeyValue( char* pszName, char* pszPath, char* pszSetting, char* pszElement, char* pszReturnString, int nReturnLength, char* pszDefaultValue )
-{
-
-}
-
-
-void ExecuteProfileSettings( char* pszName )
-{
-	(void)pszName;
-}
-
 
 static DWORD g_dwYUV420StagingBufferSize   = 0x1000;
 static DWORD g_dwCommandPolygonBufferSize  = 0x2ce20;
@@ -88,18 +67,18 @@ int g_filesOpened;
 int g_filesClosed;
 
 /* GD-ROM filesystem hooks: the DC routes reads under \CD-ROM\ through its own
- * GD driver instead of CreateFileW. GDROM_Open returns a driver handle (0 if the
- * path isn't on the GD filesystem); Sys_IsGDPath tests a live handle. */
-extern int  Sys_IsGDPath( void *hFile );
-extern int  GDROM_Open( const char *path, const char *mode );
-extern int  GDROM_Close( int hGDROM );
-extern int  GDROM_FileSize( void *hFile );
-extern int  GDROM_Read( void *buffer, int size, int count, void *hFile );
-extern int  GDROM_Write( void *buffer, int size, int count, void *hFile );
-extern int  GDROM_Seek( void *hFile, int offset, int whence );
-extern int  GDROM_Tell( void *hFile );
+ * GD driver instead of CreateFileW. Bopen returns a driver handle (0 if the
+ * path isn't on the GD filesystem); IsBfile tests a live handle. */
+extern int  IsBfile( void *hFile );
+extern int  Bopen( const char *path, const char *mode );
+extern int  Bclose( int hGDROM );
+extern int  Bsize( void *hFile );
+extern int  Bread( void *buffer, int size, int count, void *hFile );
+extern int  Bwrite( void *buffer, int size, int count, void *hFile );
+extern int  Bseek( void *hFile, int offset, int whence );
+extern int  Btell( void *hFile );
+extern int  Beof( void *hFile );
 
-extern void DCV_MeterText( unsigned int color, int x, int y, const char *text );
 
 void Sys_RegisterFileHandle( const char *path, int hFile );
 unsigned int DC_fwrite( void *buffer, unsigned int size, unsigned int count, void *hFile );
@@ -133,8 +112,8 @@ void Host_ExecConfig( void )
 // GD-aware file size of an open handle.
 DWORD DC_fsize( void *hFile )
 {
-	if (Sys_IsGDPath(hFile))
-		return GDROM_FileSize(hFile);
+	if (IsBfile(hFile))
+		return Bsize(hFile);
 
 	return GetFileSize(hFile, NULL);
 }
@@ -143,7 +122,7 @@ DWORD DC_fsize( void *hFile )
 // OPEN_EXISTING. Write/append refuses \CD-ROM\ paths
 // and uses CREATE_ALWAYS (w) / OPEN_ALWAYS (a, seeks to end). Normalizes '/'->'\\',
 // bumps g_filesOpened, returns the raw HANDLE or NULL on failure.
-static HANDLE Sys_OpenHandle( const char *path, const char *mode )
+HANDLE Sys_OpenHandle( const char *path, const char *mode )
 {
 	char   szPath[MAX_PATH];
 	char  *p;
@@ -153,7 +132,7 @@ static HANDLE Sys_OpenHandle( const char *path, const char *mode )
 
 	if (!strchr(mode, 'w') && !strchr(mode, 'a'))
 	{
-		hFile = (HANDLE)GDROM_Open(path, mode);
+		hFile = (HANDLE)Bopen(path, mode);
 		if (hFile != NULL)
 			return hFile;
 
@@ -208,8 +187,8 @@ int Sys_CloseHandle( void *hFile )
 		g_fprintfLen = 0;
 	}
 
-	if (Sys_IsGDPath(hFile) != 0)
-		return GDROM_Close((int)hFile);
+	if (IsBfile(hFile) != 0)
+		return Bclose((int)hFile);
 
 	for (i = 0; i < MAX_ASYNC; i++)
 	{
@@ -270,8 +249,8 @@ unsigned int DC_fread( void *buffer, unsigned int size, unsigned int count, void
 	if (size == 0 || count == 0)
 		return 0;
 
-	if (Sys_IsGDPath(hFile) != 0)
-		return GDROM_Read(buffer, size, count, hFile);
+	if (IsBfile(hFile) != 0)
+		return Bread(buffer, size, count, hFile);
 
 	for (n = 0; n < count; n++)
 	{
@@ -294,8 +273,8 @@ unsigned int DC_fwrite( void *buffer, unsigned int size, unsigned int count, voi
 	if (size == 0 || count == 0)
 		return 0;
 
-	if (Sys_IsGDPath(hFile) != 0)
-		return GDROM_Write(buffer, size, count, hFile);
+	if (IsBfile(hFile) != 0)
+		return Bwrite(buffer, size, count, hFile);
 
 	for (n = 0; n < count; n++)
 	{
@@ -313,8 +292,8 @@ int DC_fseek( void *hFile, int offset, int whence )
 {
 	DWORD method;
 
-	if (Sys_IsGDPath(hFile) != 0)
-		return GDROM_Seek(hFile, offset, whence);
+	if (IsBfile(hFile) != 0)
+		return Bseek(hFile, offset, whence);
 
 	if (whence == SEEK_CUR)
 		method = FILE_CURRENT;
@@ -329,14 +308,23 @@ int DC_fseek( void *hFile, int offset, int whence )
 
 int DC_ftell( void *hFile )
 {
-	if (Sys_IsGDPath(hFile) != 0)
-		return GDROM_Tell(hFile);
+	if (IsBfile(hFile) != 0)
+		return Btell(hFile);
 
 	return SetFilePointer(hFile, 0, NULL, FILE_CURRENT);
 }
 
 // Shadow an open HANDLE with a second read handle for async I/O: find a free
 // slot (nId == -1) and open a duplicate of path into it.
+// GD-aware feof of an open handle.
+int DC_feof( void *hFile )
+{
+	if (IsBfile(hFile))
+		return Beof(hFile);
+
+	return DC_fsize(hFile) <= (DWORD)DC_ftell(hFile);
+}
+
 void Sys_RegisterFileHandle( const char *path, int hFile )
 {
 	HANDLE hDup;
@@ -371,7 +359,7 @@ int Sys_FileOpenRead( char *path, int *pHandle, int bRegisterAsync )
 	DWORD  size;
 	char  *p;
 
-	hFile = (HANDLE)GDROM_Open(path, "rb");
+	hFile = (HANDLE)Bopen(path, "rb");
 	if (hFile == NULL)
 	{
 		for (p = path; *p; ++p)
@@ -401,30 +389,12 @@ int Sys_FileOpenRead( char *path, int *pHandle, int bRegisterAsync )
 	g_filesOpened++;
 	*pHandle = (int)hFile;
 
-	if (Sys_IsGDPath(hFile))
-		size = GDROM_FileSize(hFile);
+	if (IsBfile(hFile))
+		size = Bsize(hFile);
 	else
 		size = GetFileSize(hFile, NULL);
 
 	return size;
-}
-
-FILE* Sys_FOpenReadSeek( const char* path, int offset )
-{
-	HANDLE h;
-
-	if (!path)
-		return NULL;
-
-	h = Sys_OpenHandle(path, "rb");
-
-	if (h == NULL)
-		return NULL;
-
-	SetFilePointer(h, offset, NULL, FILE_BEGIN);
-	CloseHandle(h);
-
-	return NULL;
 }
 
 int Sys_FileOpenWrite( char *path )
@@ -434,14 +404,14 @@ int Sys_FileOpenWrite( char *path )
 	return -1;
 }
 
-void Sys_FileClose( void *hFile )
+void Sys_FileClose( int hFile )
 {
 	dc_syncslot_t *slot = NULL;
 	int i;
 
 	for (i = 0; i < MAX_ASYNC; i++)
 	{
-		if ((void *)g_AsyncHandles[i].nId == hFile)
+		if (g_AsyncHandles[i].nId == hFile)
 		{
 			slot = &g_AsyncHandles[i];
 			break;
@@ -455,44 +425,28 @@ void Sys_FileClose( void *hFile )
 		slot->nId = -1;
 		slot->pFile = INVALID_HANDLE_VALUE;
 	}
-	CloseHandle(hFile);
+	CloseHandle((HANDLE)hFile);
 	g_filesClosed++;
 }
 
-/* DC file I/O uses raw Win32 HANDLEs with a GD-ROM path abstraction: Sys_IsGDPath
- * (declared above) routes I/O through the GD-ROM driver layer instead of CreateFile. */
-extern int GD_Read( void *buffer, int size, int count, void *hFile );
-extern int GD_Seek( void *hFile, int offset, int whence );
-
-void Sys_FileSeek( void *hFile, int position )
+void Sys_FileSeek( int hFile, int position )
 {
-	if (Sys_IsGDPath(hFile) != 0)
-		GD_Seek(hFile, position, 0);
+	if (IsBfile((void *)hFile) != 0)
+		Bseek((void *)hFile, position, 0);
 	else
-		SetFilePointer(hFile, position, NULL, FILE_BEGIN);
+		SetFilePointer((HANDLE)hFile, position, NULL, FILE_BEGIN);
 }
 
-int Sys_FileRead( void *hFile, void *dest, int count )
+int Sys_FileRead( int hFile, void *dest, int count )
 {
 	DWORD bytesRead = 0;
 
-	if (Sys_IsGDPath(hFile) != 0)
-		bytesRead = GD_Read(dest, 1, count, hFile);
+	if (IsBfile((void *)hFile) != 0)
+		bytesRead = Bread(dest, 1, count, (void *)hFile);
 	else
-		ReadFile(hFile, dest, count, &bytesRead, NULL);
+		ReadFile((HANDLE)hFile, dest, count, &bytesRead, NULL);
 
 	return bytesRead;
-}
-
-/* The DC is read-only from the GD-ROM, so writes never reach a real device
- * (Sys_FileOpenWrite is a hard error). The handle passed in is the raw HANDLE
- * that Sys_FileOpenRead stored in *pHandle. */
-int Sys_FileWrite( int handle, void *data, int count )
-{
-	DWORD bytesWritten = 0;
-
-	WriteFile((HANDLE)handle, data, (DWORD)count, &bytesWritten, NULL);
-	return (int)bytesWritten;
 }
 
 // Returns the file's high modification-time dword, or -1
@@ -505,7 +459,7 @@ int Sys_FileTime( char *path )
 	FILETIME mtime;
 	char    *p;
 
-	hGDROM = GDROM_Open(path, "rb");
+	hGDROM = Bopen(path, "rb");
 	if (hGDROM == 0)
 	{
 		for (p = path; *p; ++p)
@@ -527,7 +481,7 @@ int Sys_FileTime( char *path )
 	}
 	else
 	{
-		GDROM_Close(hGDROM);
+		Bclose(hGDROM);
 		ftime = 1;
 	}
 
@@ -536,19 +490,6 @@ int Sys_FileTime( char *path )
 
 void Sys_mkdir( char *path )
 {
-	TCHAR wszPath[MAX_PATH];
-
-	if (!path || !path[0])
-		return;
-
-	wszPath[0] = 0;
-	MultiByteToWideChar(CP_ACP, 0, path, -1, wszPath, ARRAYSIZE(wszPath));
-	CreateDirectory(wszPath, NULL);
-}
-
-int Sys_FileTell( int i )
-{
-	return (int)SetFilePointer((HANDLE)i, 0, NULL, FILE_CURRENT);
 }
 
 // -----------------------------------------------------------------------------
@@ -694,20 +635,6 @@ void Sys_Warning( char *fmt, ... )
 	giActive = DLL_PAUSED;
 }
 
-void Sys_Printf( char *fmt, ... )
-{
-	va_list argptr;
-	char    text[1024];
-	TCHAR   wtext[1024];
-
-	va_start(argptr, fmt);
-	vsprintf(text, fmt, argptr);
-	va_end(argptr);
-
-	MultiByteToWideChar( CP_ACP, 0, text, -1, wtext, ARRAYSIZE( wtext ) );
-	OutputDebugString( wtext );
-}
-
 void Sys_Quit( void )
 {
 	Sys_Error("Sys_Quit");
@@ -721,7 +648,6 @@ static float  g_pfreq       = 0.0f;
 static float  g_curtime     = 0.0f;
 static float  g_lastcurtime = 0.0f;
 static int    g_lowshift    = 0;
-static DWORD  g_baseTick    = 0;
 
 DLL_EXPORT float Sys_FloatTime( void )
 {
@@ -737,16 +663,28 @@ DLL_EXPORT float Sys_FloatTime( void )
 	return (GetTickCount() - base) * 0.001f;
 }
 
-// Reads the perf-counter frequency (Sys_Error if none), normalizes it to a
-// ~1us-resolution float so pfreq = 1/freq, latches g_baseTick, honors -starttime,
-// and clears the async handle table. pfreq/lowshift are unused here since
-// Sys_FloatTime uses the GetTickCount()*0.001f path.
 void Sys_InitFloatTime( void )
+{
+	int j;
+
+	Sys_FloatTime();
+
+	j = COM_CheckParm("-starttime");
+	if (j)
+		g_curtime = (float)Q_atof(com_argv[j + 1]);
+	else
+		g_curtime = 0.0f;
+
+	g_lastcurtime = g_curtime;
+}
+
+// Reads the perf-counter frequency (Sys_Error if none) and normalizes it to a
+// ~1us-resolution float so pfreq = 1/freq; pfreq/lowshift end up unused since
+// Sys_FloatTime uses the GetTickCount()*0.001f path.
+void Sys_Init( void )
 {
 	LARGE_INTEGER  perfFreq;
 	unsigned int   lowpart, highpart;
-	float          freq;
-	int            j;
 	int            i;
 	dc_syncslot_t *slot;
 
@@ -765,20 +703,9 @@ void Sys_InitFloatTime( void )
 		highpart >>= 1;
 	}
 
-	freq = (float)lowpart;
-	g_pfreq = 1.0f / freq;
+	g_pfreq = 1.0f / (float)lowpart;
 
-	if (g_baseTick == 0)
-		g_baseTick = GetTickCount();
-	else
-		GetTickCount();
-
-	j = COM_CheckParm("-starttime");
-	if (j)
-		g_curtime = (float)Q_atof(com_argv[j + 1]);
-	else
-		g_curtime = 0.0f;
-	g_lastcurtime = g_curtime;
+	Sys_InitFloatTime();
 
 	slot = g_AsyncHandles;
 	for (i = 0; i < MAX_ASYNC; i++)
@@ -791,36 +718,6 @@ void Sys_InitFloatTime( void )
 
 void Sys_ShutdownFloatTime( void )
 {
-}
-
-void Sys_Sleep( void )
-{
-	Sleep(1);
-}
-
-void Sys_SendKeyEvents( void )
-{
-	MSG msg;
-
-	if (g_bInStartup)
-		return;
-
-	while (PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE))
-	{
-		scr_skipupdate = 0;
-		if (g_bInactive)
-			break;
-
-		if (!GetMessage(&msg, NULL, 0, 0))
-			Sys_Quit();
-
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
-	}
-
-	if (!g_bInactive)
-		return;
-
 }
 
 // -----------------------------------------------------------------------------
@@ -873,13 +770,27 @@ ENTITYINIT GetEntityInit( char *pClassName )
 	return (ENTITYINIT)GetDispatch(pClassName);
 }
 
-void EngineFprintf( void *pFile, char *szFmt, ... )
+int COM_CompareFileTime( int *ft1, int *ft2 )
 {
-	va_list argptr;
+	int iCompare = 0;
 
-	va_start(argptr, szFmt);
-	vfprintf((FILE *)pFile, szFmt, argptr);
-	va_end(argptr);
+	if (ft1 && ft2)
+	{
+		if (*ft1 < *ft2)
+			iCompare = -1;
+		else if (*ft2 < *ft1)
+			iCompare = 1;
+	}
+
+	return iCompare;
+}
+
+void GameSetSubState( int iSubState )
+{
+	if (iSubState & 2)
+		giStateInfo = 1;
+	else if (iSubState != 1)
+		giStateInfo = iSubState;
 }
 
 void GameSetState( int iState )
@@ -923,13 +834,18 @@ Sys_Init‑time GD‑ROM setup:
  - on failure, calls Sys_Error with the GD‑ROM error string.
 ==================
 */
+// Door state from the low-level driver.
+int g_gdDoorOpened;
+int g_gdDoorPending;
+
+extern void GDROM_DoorReset( void );
+
 void GDROM_ConfigureDoorBehavior( void )
 {
-	HANDLE              hGDROM;
-	SEGACD_DOOR_BEHAVIOR doorbehavior;
-	DWORD               dwReturned;
+	HANDLE hGDROM;
+	DWORD  dwBehavior;
+	DWORD  dwReturned;
 
-	// Create a handle to the GD‑ROM drive
 	hGDROM = CreateFile(TEXT("\\Device\\CDROM0"),
 	                    GENERIC_READ,
 	                    0,
@@ -937,34 +853,29 @@ void GDROM_ConfigureDoorBehavior( void )
 	                    OPEN_EXISTING,
 	                    0,
 	                    NULL);
-	if (hGDROM == INVALID_HANDLE_VALUE)
+	if (hGDROM != INVALID_HANDLE_VALUE)
 	{
-		Sys_Error("Error opening GD‑ROM");
-		return;
+		// Request "notify app" behavior instead of reboot on door open. A
+		// missing disc is fine here; the door flow below deals with it.
+		dwBehavior = 0;
+		if (!DeviceIoControl(hGDROM,
+		                     IOCTL_SEGACD_SET_DOOR_BEHAVIOR,
+		                     &dwBehavior,
+		                     sizeof(dwBehavior),
+		                     NULL,
+		                     0,
+		                     &dwReturned,
+		                     NULL)
+			&& GetLastError() != ERROR_NO_MEDIA_IN_DRIVE)
+		{
+			Sys_Error("Error setting GD-ROM door behavior (0x%08x).\n", GetLastError());
+		}
+
+		CloseHandle(hGDROM);
 	}
 
-	// Request "notify app" behaviour instead of reboot on door open.
-	doorbehavior.dwBehavior = SEGACD_DOOR_NOTIFY_APP;
-	if (!DeviceIoControl(hGDROM,
-	                     IOCTL_SEGACD_SET_DOOR_BEHAVIOR,
-	                     &doorbehavior,
-	                     sizeof(doorbehavior),
-	                     NULL,
-	                     0,
-	                     &dwReturned,
-	                     NULL))
-	{
-		DWORD nError = GetLastError();
-
-		if (nError == ERROR_NO_MEDIA_IN_DRIVE)
-		{
-			Sys_Error("There is no media in the GD‑ROM drive.  Please insert the Half‑Life disc and restart.");
-		}
-		else
-		{
-			Sys_Error("Error setting GD‑ROM door behavior (0x%08x).", nError);
-		}
-	}
-
-	CloseHandle(hGDROM);
+	g_gdDoorPending = 0;
+	if (g_gdDoorOpened)
+		GDROM_DoorReset();
 }
+

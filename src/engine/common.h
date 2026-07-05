@@ -170,7 +170,7 @@ byte* COM_LoadFileForMe( char* path, int* pLength );
 void COM_FileSeek( int filepos, int filelen, int handle, int pos );
 int COM_FileTell( int filepos, int filelen, int handle );
 
-int COM_CompareFileTime( char* filename1, char* filename2, int* iCompare );
+int COM_CompareFileTime( int* ft1, int* ft2 );
 
 void COM_ClearCustomizationList( struct customization_s* pHead, qboolean bCleanDecals );
 

@@ -308,6 +308,10 @@ void DCV_FB_BackgroundRect( unsigned short wColor )
 		DCV_FB_BackgroundRectOnSurface(pddsBack, y, wColor);
 }
 
+void DCV_MeterText( unsigned int color, int x, int y, const char* text )
+{
+}
+
 /*
  * DCV_FB_Text: lock primary/backbuffer and stamp built-in 5x5 font.
  * Bypasses normal 2D batch so fatal errors still render when frame pipeline is bad.
@@ -325,4 +329,9 @@ void DCV_FB_Text( const char* text )
 	DCV_FB_TextOnSurface(pddsPrimary, x, y, text);
 	if (pddsBack && pddsBack != pddsPrimary)
 		DCV_FB_TextOnSurface(pddsBack, x, y, text);
+}
+
+// Hand the console back to the firmware after the drive door opens.
+void GDROM_DoorReset( void )
+{
 }

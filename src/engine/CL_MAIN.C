@@ -15,6 +15,15 @@
 // Only send this many requests before timing out.
 #define CL_CONNECTION_RETRIES		4
 
+// Current long-running task, for the crash screen.
+static char g_szTaskName[64];
+
+void Sys_SetTaskName( char *name )
+{
+	strncpy(g_szTaskName, name, 63);
+	g_szTaskName[63] = 0;
+}
+
 // these two are not intended to be set directly
 cvar_t	cl_name = { "_cl_name", "player", TRUE };
 cvar_t	cl_color = { "_cl_color", "0", TRUE };

@@ -11,9 +11,9 @@ int Sys_FileOpenRead( char* path, int* pHandle, int bRegisterAsync );
 
 FILE* Sys_FOpenReadSeek( const char* path, int offset );
 int Sys_FileOpenWrite( char* path );
-void Sys_FileClose( void *hFile );
-void Sys_FileSeek( void *hFile, int position );
-int Sys_FileRead( void *hFile, void* dest, int count );
+void Sys_FileClose( int hFile );
+void Sys_FileSeek( int hFile, int position );
+int Sys_FileRead( int hFile, void* dest, int count );
 int Sys_FileWrite( int handle, void* data, int count );
 int	Sys_FileTime( char* path );
 void Sys_mkdir( char* path );
@@ -34,25 +34,19 @@ void Sys_MakeCodeWriteable( unsigned long startaddr, unsigned long length );
 void Sys_Error( char* error, ... );
 // an error will cause the entire program to exit
 
-void Sys_Warning( char* fmt, ... );
-
 void Sys_Printf( char* fmt, ... );
 // send text to the console
 
 void Sys_Quit( void );
 
-DLL_EXPORT float Sys_FloatTime( void );
+void Sys_Init( void );
 
-void Sys_Sleep( void );
-// called to yield for a little bit so as
-// not to hog cpu when paused or debugging
+DLL_EXPORT float Sys_FloatTime( void );
 
 void Sys_SendKeyEvents( void );
 // Perform Key_Event () callbacks until the input que is empty
 
 void AlertMessage( ALERT_TYPE atype, char* szFmt, ... );
-
-void EngineFprintf( void* pFile, char* szFmt, ... );
 
 // Returns functions to dispatch events to entities (entityclass.c static table)
 DISPATCHFUNCTION GetDispatch( char* pname );

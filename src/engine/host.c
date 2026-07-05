@@ -2006,13 +2006,6 @@ DLL_EXPORT int Host_Frame( float time, int iState, int* stateInfo )
 	if (setjmp(host_abortserver))
 		return giActive;			// something bad happened, or the server disconnected
 
-	if (cls.state == ca_active && g_bForceReloadOnCA_Active)
-	{
-		ExecuteProfileSettings(g_szProfileName);
-		g_bForceReloadOnCA_Active = FALSE;
-		memset(g_szProfileName, 0, sizeof(g_szProfileName));
-	}
-
 	giActive = iState;
 #if 0
 	*stateInfo = 0;

@@ -1579,7 +1579,7 @@ void COM_CopyFile( char* netpath, char* cachepath )
 	int             remaining, count;
 	char    buf[4096];
 
-	remaining = Sys_FileOpenRead(netpath, &in);
+	remaining = Sys_FileOpenRead(netpath, &in, 0);
 	COM_CreatePath(cachepath);     // create directories up to the cache file
 	out = Sys_FileOpenWrite(cachepath);
 
@@ -1679,7 +1679,7 @@ int COM_FindFile( char* filename, int* phFile, FILE** file )
 				CloseHandle(hfile);
 			}
 
-			com_filesize = Sys_FileOpenRead(netpath, &i);
+			com_filesize = Sys_FileOpenRead(netpath, &i, 0);
 			if (phFile)
 			{
 				phFile[2] = i;
@@ -1929,7 +1929,7 @@ pack_t* COM_LoadPackFile( char* packfile )
 	int                             packhandle;
 	CRC32_t					crc;
 
-	if (Sys_FileOpenRead(packfile, &packhandle) == -1)
+	if (Sys_FileOpenRead(packfile, &packhandle, 1) == -1)
 	{
 //		Con_Printf("Couldn't open %s\n", packfile);
 		return NULL;
@@ -2801,32 +2801,35 @@ byte* COM_LoadFileForMe( char* path, int* pLength )
 	return COM_LoadFile(path, 5, pLength);
 }
 
-int COM_CompareFileTime( char* filename1, char* filename2, int* iCompare )
+FILE* Sys_FOpenReadSeek( const char* path, int offset )
 {
-	int bRet = 0;
-	*iCompare = 0;
+	HANDLE h;
 
-	if (filename1 && filename2)
-	{
-		FILE* pFile;
-		FILETIME ft1;
-		FILETIME ft2;
+	if (!path)
+		return NULL;
 
-		COM_FOpenFile(filename1, &pFile);
-		if (pFile)
-			fclose(pFile);
-		ft1 = gFileTime;
+	h = Sys_OpenHandle(path, "rb");
 
-		COM_FOpenFile(filename2, &pFile);
-		if (pFile)
-			fclose(pFile);
-		ft2 = gFileTime;
+	if (h == NULL)
+		return NULL;
 
-		*iCompare = CompareFileTime(&ft1, &ft2);
-		bRet = 1;
-	}
+	SetFilePointer(h, offset, NULL, FILE_BEGIN);
+	CloseHandle(h);
 
-	return bRet;
+	return NULL;
+}
+
+int Sys_FileWrite( int handle, void *data, int count )
+{
+	DWORD bytesWritten = 0;
+
+	WriteFile((HANDLE)handle, data, (DWORD)count, &bytesWritten, NULL);
+	return (int)bytesWritten;
+}
+
+int Sys_FileTell( int i )
+{
+	return (int)SetFilePointer((HANDLE)i, 0, NULL, FILE_CURRENT);
 }
 
 void COM_GetGameDir( char* szGameDir )
