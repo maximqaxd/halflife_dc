@@ -43,6 +43,12 @@ cvar_t	gl_overbright = { "gl_overbright", "1", FCVAR_ARCHIVE };
 cvar_t	gl_envmapsize = { "gl_envmapsize", "256" };
 cvar_t	gl_flipmatrix = { "gl_flipmatrix", "0", FCVAR_ARCHIVE };
 
+cvar_t	fogrange = { "fogrange", "500.0" };
+cvar_t	fogscale = { "fogscale", "0.03" };
+cvar_t	progress = { "progress", "0.0" };
+cvar_t	profilescale = { "profilescale", "0" };
+cvar_t	profilemeter = { "profilemeter", "0" };
+
 cvar_t	dc_light_min = { "dc_light_min", "0.04" };
 cvar_t	dc_light_max = { "dc_light_max", "1" };
 cvar_t	dc_light_alpha = { "dc_light_alpha", "2.0" };
@@ -217,6 +223,12 @@ void R_Init( void )
 	Cvar_RegisterVariable(&dc_msd);
 	Cvar_RegisterVariable(&dc_msh);
 	Cvar_RegisterVariable(&dc_msh2);
+
+	Cvar_RegisterVariable(&fogrange);
+	Cvar_RegisterVariable(&fogscale);
+	Cvar_RegisterVariable(&progress);
+	Cvar_RegisterVariable(&profilescale);
+	Cvar_RegisterVariable(&profilemeter);
 
 	Cvar_RegisterVariable(&dc_light_min);
 	Cvar_RegisterVariable(&dc_light_max);

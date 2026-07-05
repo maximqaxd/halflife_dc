@@ -214,6 +214,12 @@ extern	cvar_t	gl_overbright;
 extern	cvar_t	gl_envmapsize;
 extern	cvar_t	gl_flipmatrix;
 
+extern	cvar_t	fogrange;
+extern	cvar_t	fogscale;
+extern	cvar_t	progress;
+extern	cvar_t	profilescale;
+extern	cvar_t	profilemeter;
+
 extern	cvar_t	dc_light_min;
 extern	cvar_t	dc_light_max;
 extern	cvar_t	dc_light_alpha;

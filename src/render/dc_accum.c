@@ -116,21 +116,6 @@ void DCV_AccumInit( void )
 	g_bAccumInitialized = TRUE;
 }
 
-void DCV_FlushIfLarge( void )
-{
-	if (g_nAccumVertCount > FLUSH_THRESHOLD && g_nAccumVertCount != 0)
-		DCV_Flush();
-}
-
-void DCV_SetColor( int r, int g, int b, int a )
-{
-	g_dwAccumCurrentDiffuse =
-		(((DWORD)(a & 0xFF)) << 24) |
-		(((DWORD)(r & 0xFF)) << 16) |
-		(((DWORD)(g & 0xFF)) << 8) |
-		((DWORD)(b & 0xFF));
-}
-
 void DCV_SetPackedColor( DWORD diffuse )
 {
 	g_dwAccumCurrentDiffuse = diffuse;
@@ -183,27 +168,6 @@ qboolean DCV_EnsureSpace( int add_verts, int add_indices )
 int DCV_GetVertCount( void )
 {
 	return g_nAccumVertCount;
-}
-
-int DCV_AddVertex( float x, float y, float z, float u, float v )
-{
-	D3DLVERTEX *pVert;
-	int base;
-
-	if (!DCV_EnsureSpace(1, 0))
-		return -1;
-
-	base = g_nAccumVertCount;
-	pVert = g_pAccumVerts + g_nAccumVertCount++;
-	pVert->x = x;
-	pVert->y = y;
-	pVert->z = z;
-	pVert->dwReserved = 0;
-	pVert->color = g_dwAccumCurrentDiffuse;
-	pVert->specular = 0;
-	pVert->tu = u;
-	pVert->tv = v;
-	return base;
 }
 
 void DCV_AddLVertex( const D3DLVERTEX* v )

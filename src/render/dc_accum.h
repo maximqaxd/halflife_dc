@@ -1,7 +1,7 @@
 /*
- * dc_accum.h – AccumVerts/AccumIndex batch 
+ * dc_accum.h – AccumVerts/AccumIndex batch
  *
- * 
+ *
  */
 #ifndef DC_ACCUM_H
 #define DC_ACCUM_H
@@ -16,14 +16,11 @@ extern "C" {
 #define FLUSH_THRESHOLD       224
 
 void          DCV_AccumInit( void );
-void          DCV_FlushIfLarge( void );
-void          DCV_SetColor( int r, int g, int b, int a );
 void          DCV_SetPackedColor( DWORD diffuse );
 DWORD         DCV_GetCurrentDiffuse( void );
 void          DCV_SetColorFloat( float r, float g, float b, float a );
 qboolean      DCV_EnsureSpace( int add_verts, int add_indices );
 int           DCV_GetVertCount( void );
-int           DCV_AddVertex( float x, float y, float z, float u, float v );
 void          DCV_AddLVertex( const D3DLVERTEX* v );
 void          DCV_AddPolyIndices( int base, int numverts );
 void          DCV_AddIndicesQuad( int i0, int i1, int i2, int i3 );
@@ -49,6 +46,7 @@ extern int               g_nAccumMaxIndicesSeen;
 extern D3DLVERTEX       *g_pAccumVerts;
 extern WORD             *g_pAccumIndex;
 extern DWORD             g_dwAccumFlushFlags;
+extern DWORD             g_dwAccumCurrentDiffuse;
 extern LPDIRECT3DDEVICE3 g_pD3DDevice;
 
 static __inline void DCV_Flush( void )
@@ -69,13 +67,20 @@ static __inline void DCV_Flush( void )
 	}
 }
 
+static __inline void DCV_FlushIfLarge( void )
+{
+	if (g_nAccumVertCount > FLUSH_THRESHOLD)
+		DCV_Flush();
+}
+
 static __inline void DCV_SetRenderState( D3DRENDERSTATETYPE state, DWORD value )
 {
 	DWORD current;
 	g_pD3DDevice->lpVtbl->GetRenderState(g_pD3DDevice, state, &current);
 	if (current != value)
 	{
-		DCV_Flush();
+		if (g_nAccumVertCount)
+			DCV_Flush();
 		g_pD3DDevice->lpVtbl->SetRenderState(g_pD3DDevice, state, value);
 	}
 }
@@ -86,9 +91,28 @@ static __inline void DCV_SetTextureStageState( DWORD stage, D3DTEXTURESTAGESTATE
 	g_pD3DDevice->lpVtbl->GetTextureStageState(g_pD3DDevice, stage, type, &current);
 	if (current != value)
 	{
-		DCV_Flush();
+		if (g_nAccumVertCount)
+			DCV_Flush();
 		g_pD3DDevice->lpVtbl->SetTextureStageState(g_pD3DDevice, stage, type, value);
 	}
+}
+
+static __inline void DCV_SetColor( int r, int g, int b, int a )
+{
+	g_dwAccumCurrentDiffuse = (a << 24) | (r << 16) | (g << 8) | b;
+}
+
+static __inline int DCV_AddVertex( float x, float y, float z, float tu, float tv )
+{
+	D3DLVERTEX *pVert = &g_pAccumVerts[g_nAccumVertCount];
+
+	pVert->x = x;
+	pVert->y = y;
+	pVert->z = z;
+	pVert->color = g_dwAccumCurrentDiffuse;
+	pVert->tu = tu;
+	pVert->tv = tv;
+	return g_nAccumVertCount++;
 }
 
 #ifdef __cplusplus
