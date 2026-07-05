@@ -32,6 +32,8 @@ extern void     Key_Event( int key, qboolean down );
 extern void     Sys_ExecCmd( int iState, char *fmt, ... );
 extern void     Host_GetHostInfo( float *fps, int *nActive, int *nSpectators, int *nMaxPlayers, char *pszMap );
 
+static char *g_GameArgv[1];
+
 // Heap chosen by GameInit.
 static unsigned char *g_pEngineMem     = NULL;
 static int            g_iEngineMemSize = 0;
@@ -61,80 +63,40 @@ GameInit
 */
 qboolean GameInit( void )
 {
-	MEMORYSTATUS ms;
-	DWORD        heapSize;
-	DWORD        lastErr = 0;
-	void        *pHeap = NULL;
+	MEMORYSTATUS stat;
 	quakeparms_t parms;
-	static char  basedir[] = "/CD-ROM";
-	static char* argv[1] = { "" };
 
-	memset(&ms, 0, sizeof(ms));
-	ms.dwLength = sizeof(ms);
-	GlobalMemoryStatus(&ms);
+	stat.dwLength = sizeof(MEMORYSTATUS);
+	GlobalMemoryStatus(&stat);
 
-	// Heap target from currently available RAM with Dreamcast headroom.
-	if (ms.dwAvailPhys > 1700000)
-		heapSize = ms.dwAvailPhys - 1700000;
-	else
-		heapSize = ms.dwAvailPhys;
-	heapSize &= ~0xFFF; // page-align for VM APIs
-
-	{
-		TCHAR dbg[256];
-		wsprintf(dbg, TEXT("GameInit: total=%lu avail=%lu trying heap=%lu\n"), ms.dwTotalPhys, ms.dwAvailPhys, heapSize);
-		OutputDebugString(dbg);
-	}
-	if (ms.dwAvailPhys < 0x800000)
+	g_iEngineMemSize = stat.dwAvailPhys - 1700000;
+	if (stat.dwAvailPhys < 0x800000)
 	{
 		PHYSICAL_ADDRESS pa;
-		pa.QuadPart = 0x8c800000;
-		if (heapSize > ms.dwAvailPhys)
-			heapSize = ms.dwAvailPhys & ~0xFFF;
-		if (heapSize < 0x100000)
-			heapSize = 0x100000;
-		pHeap = MmMapIoSpace(pa, heapSize, TRUE);
-		if (!pHeap)
-			lastErr = GetLastError();
+
+		g_iEngineMemSize = 0x800000;
+		pa.LowPart = 0x8c800000;
+		g_pEngineMem = (unsigned char *)MmMapIoSpace(pa, g_iEngineMemSize, TRUE);
 	}
 	else
 	{
-		pHeap = VirtualAlloc(NULL, heapSize, MEM_COMMIT, PAGE_READWRITE);
-		if (!pHeap)
-			lastErr = GetLastError();
+		g_pEngineMem = (unsigned char *)VirtualAlloc(NULL, g_iEngineMemSize, MEM_COMMIT, PAGE_READWRITE);
 	}
 
-	if (!pHeap)
-	{
-		Sys_Error("GameInit: failed to allocate heap (%lu bytes). total=%lu avail=%lu gle=0x%08lx",
-		          heapSize, ms.dwTotalPhys, ms.dwAvailPhys, lastErr);
+	if (!g_pEngineMem)
 		return FALSE;
-	}
 
-	g_pEngineMem     = (unsigned char *)pHeap;
-	g_iEngineMemSize = (int)heapSize;
-	{
-		TCHAR dbg[256];
-		wsprintf(dbg, TEXT("GameInit: selected heap=%lu at %p\n"), heapSize, pHeap);
-		OutputDebugString(dbg);
-	}
-
-	// Dedicated is not used on Dreamcast.
-	isDedicated = FALSE;
-
-	memset(&parms, 0, sizeof(parms));
-	parms.membase = g_pEngineMem;
-	parms.memsize = g_iEngineMemSize;
-	parms.cachedir = NULL;
-
-	parms.basedir = basedir;
-	parms.argc = 1;
-	parms.argv = argv;
-
-	// Set up timer scale and start time, then bring up the engine.
 	Sys_Init();
 
-	return Host_Init(&parms) ? TRUE : FALSE;
+	parms.argv = g_GameArgv;
+	parms.basedir = "/CD-ROM";
+	parms.cachedir = NULL;
+	parms.argc = 1;
+	g_GameArgv[0] = "";
+	parms.membase = g_pEngineMem;
+	parms.memsize = g_iEngineMemSize;
+
+	return Host_Init(&parms) != 0;
 }
 
 /*
