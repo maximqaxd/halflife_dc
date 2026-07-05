@@ -8060,6 +8060,10 @@ NODEP_CPP_SV_US=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\util\Zap.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\engine\entityclass.c
 # End Source File
 # Begin Source File

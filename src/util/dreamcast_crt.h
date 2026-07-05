@@ -35,6 +35,7 @@ int isprint( int c );
 
 char* _strdup( const char *s );
 char* _strlwr( char *s );
+char* strrchr( const char *s, int c );
 void  _splitpath( const char* path, char* drive, char* dir, char* fname, char* ext );
 
 long time( long* t );

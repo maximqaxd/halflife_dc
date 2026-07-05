@@ -187,6 +187,25 @@ char* _strlwr( char* s )
 	return s;
 }
 
+int Sys_SampleCount( void )
+{
+	return -1;
+}
+
+char* strrchr( const char* s, int c )
+{
+	const char ch = (char)c;
+	char* last = NULL;
+
+	for ( ;; s++ )
+	{
+		if ( *s == ch )
+			last = (char*)s;
+		if ( *s == '\0' )
+			return last;
+	}
+}
+
 
 void _splitpath( const char* path,
                  char* drive, char* dir, char* fname, char* ext )
