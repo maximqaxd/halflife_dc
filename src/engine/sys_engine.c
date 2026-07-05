@@ -27,6 +27,10 @@ extern void     Sys_Init( void );
 extern int      Host_Frame( float time, int iState, int *stateInfo );
 extern int      Sys_SampleCount( void );
 extern void     GameSetState( int state );
+extern void     Dispatch_Substate( int iSubState );
+extern void     Key_Event( int key, qboolean down );
+extern void     Sys_ExecCmd( int iState, char *fmt, ... );
+extern void     Host_GetHostInfo( float *fps, int *nActive, int *nSpectators, int *nMaxPlayers, char *pszMap );
 
 // Heap chosen by GameInit.
 static unsigned char *g_pEngineMem     = NULL;
@@ -55,7 +59,7 @@ GameInit
  - runs Sys_InitFloatTime/low-level init, then mounts "/CD-ROM" as the base game directory and builds search paths using a DC helper.
 ==================
 */
-qboolean GameInit( char* lpCmdLine )
+qboolean GameInit( void )
 {
 	MEMORYSTATUS ms;
 	DWORD        heapSize;
@@ -241,48 +245,123 @@ int Sys_Frame( float time, int forceRun )
 	return ret;
 }
 
+LPTSTR g_lpCmdLine;
+int    g_nCmdShow;
+
+static void *g_pStartupMem;
+
+int giState;
+
+// Forward the engine state to the game as well as our own frame loop.
+void Sys_NotifyState( int iState )
+{
+	giState = iState;
+	GameSetState(iState);
+}
+
+// Key events arrive already translated on this platform.
+int MapKey( int key )
+{
+	return key;
+}
+
+// Accumulate frame times and rebuild the fps/players status line twice a second.
+static float g_flStatusTime;
+static float g_flFrameAccum;
+static int   g_nFrameCount;
+
+void Host_UpdateFrameStats( void )
+{
+	float now, fps;
+	int   nActive, nSpectators, nMaxPlayers;
+	char  szMap[32];
+	char  szStatus[80];
+
+	now = Sys_FloatTime();
+	Host_GetHostInfo(&fps, &nActive, &nSpectators, &nMaxPlayers, szMap);
+
+	g_flFrameAccum += fps;
+	g_nFrameCount++;
+
+	if (now - g_flStatusTime >= 0.5f)
+	{
+		g_flStatusTime = now;
+		if (g_nFrameCount < 1)
+			fps = 0;
+		else
+			fps = g_flFrameAccum / (float)g_nFrameCount;
+
+		sprintf(szStatus, "%.1f fps %2i(%2i spec)/%2i on %16s", (double)fps, nActive, nSpectators, nMaxPlayers, szMap);
+
+		g_flFrameAccum = 0;
+		g_nFrameCount = 0;
+	}
+}
+
+#pragma optimize("", off)
+
 int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow )
 {
-	double time, oldtime, newtime;
-	host_initialized = FALSE;
-	g_hInstance = hInstance;
-	g_hPrevInstance = hPrevInstance;
+	MSG      msg;
+	qboolean quit = FALSE;
+	int      key;
 
-	isDedicated = FALSE;
+	host_initialized = FALSE;
+
 	GDROM_ConfigureDoorBehavior();
 
-	if ( !DCV_CreateWindow() )
-	{
-		Sys_Error("DCV_CreateWindow failed");
-		return -1;
-	}
+	g_pStartupMem = VirtualAlloc(NULL, 0x2000, MEM_COMMIT, PAGE_READWRITE);
 
-	if ( !GameInit( (char*)lpCmdLine ) )
-	{
-		Sys_Error("GameInit failed");
-		return -1;
-	}
+	g_hInstance     = hInstance;
+	g_hPrevInstance = hPrevInstance;
+	g_lpCmdLine     = lpCmdLine;
+	g_nCmdShow      = nCmdShow;
 
-	giActive = DLL_ACTIVE;
-	oldtime = Sys_FloatTime();
+	DCV_CreateWindow();
+
+	if (!GameInit())
+		return -1;
+
+	Sys_ExecCmd(0, "menu splash\n");
+	Dispatch_Substate(1);
+
+	while (!quit)
 	{
-		int quit = 0;
-		while (!quit)
+		while (PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE))
 		{
-			do
+			if (!GetMessage(&msg, NULL, 0, 0))
 			{
-				newtime = Sys_FloatTime();
-				time = newtime - oldtime;
-			} while (time < 0.015f);
+				quit = TRUE;
+				break;
+			}
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
 
-			oldtime = newtime;
-
-			Sys_Frame((float)time, 1);
+			if (msg.message == WM_KEYDOWN)
+			{
+				key = MapKey(msg.wParam);
+				if (key)
+					Key_Event(key, 1);
+			}
+			else if (msg.message == WM_KEYUP)
+			{
+				key = MapKey(msg.wParam);
+				if (key)
+					Key_Event(key, 0);
+			}
 		}
+
+		if (quit)
+			break;
+
+		Sys_Frame(0.0f, 0);
+		Host_UpdateFrameStats();
 	}
-	Host_Shutdown();
-	return 0;
+
+	return 1;
 }
+
+#pragma optimize("", on)
 
 qboolean g_bInStartup = FALSE;
 qboolean g_bInactive  = FALSE;
