@@ -39,9 +39,9 @@ static unsigned char *g_pEngineMem     = NULL;
 static int            g_iEngineMemSize = 0;
 
 // Sys_Frame state machine.
-static int      g_engineState = DLL_INACTIVE;   // current DLL state
+int             giState        = DLL_INACTIVE;   // current DLL state
 static float    g_lastFrameTime;                // timestamp of last frame
-static int      g_engineStateInfo;              // Host_Frame stateInfo out
+static int      giStateInfo;              // Host_Frame stateInfo out
 static float    g_frameSampleTime;              // accum minus sample cost
 static float    g_minFrameTime;                 // min seconds per frame
 static int      g_sampleBase;                   // sample-count baseline
@@ -109,7 +109,7 @@ then drives the DLL_STATE machine (pause/trans/close).
 */
 int Sys_Frame( float time, int forceRun )
 {
-	int   state = g_engineState;
+	int   state = giState;
 	int   ret;
 	float now;
 
@@ -129,10 +129,10 @@ int Sys_Frame( float time, int forceRun )
 		g_frameAccum += time;
 		g_frameSampleTime = g_frameAccum - (float)(Sys_SampleCount() - g_sampleBase) / 10.0f;
 
-		g_engineStateInfo = 0;
-		ret = Host_Frame(time, g_engineState, &g_engineStateInfo);
+		giStateInfo = 0;
+		ret = Host_Frame(time, giState, &giStateInfo);
 
-		switch (g_engineStateInfo)
+		switch (giStateInfo)
 		{
 		case STATE_TRAINING:
 		case STATE_ENDLOGO:
@@ -141,8 +141,8 @@ int Sys_Frame( float time, int forceRun )
 			PostQuitMessage(0);
 			FreeLibrary(g_hGameDll);
 			g_hGameDll = NULL;
-			g_engineState = DLL_INACTIVE;
-			g_engineStateInfo = 0;
+			giState = DLL_INACTIVE;
+			giStateInfo = 0;
 			break;
 		}
 
@@ -152,13 +152,13 @@ int Sys_Frame( float time, int forceRun )
 			if (ret == DLL_PAUSED)
 			{
 				g_pauseFlag = 1;
-				g_engineState = DLL_ACTIVE;
+				giState = DLL_ACTIVE;
 				GameSetState(DLL_ACTIVE);
 				ret = DLL_ACTIVE;
 			}
 			if (g_pauseCounter == 0 && g_pauseFlag != 0)
 			{
-				g_engineState = DLL_ACTIVE;
+				giState = DLL_ACTIVE;
 				g_pauseFlag = 0;
 				ret = DLL_PAUSED;
 			}
@@ -168,21 +168,21 @@ int Sys_Frame( float time, int forceRun )
 		{
 			g_pauseCounter = 5;
 			ret = DLL_ACTIVE;
-			g_engineState = DLL_ACTIVE;
+			giState = DLL_ACTIVE;
 			GameSetState(DLL_ACTIVE);
 		}
 
-		if (ret != g_engineState)
+		if (ret != giState)
 		{
-			g_engineState = ret;
+			giState = ret;
 			GameSetState(ret);
 		}
 
 		g_lastFrameTime = now;
 	}
 
-	ret = g_engineState;
-	if (g_engineState == DLL_CLOSE)
+	ret = giState;
+	if (giState == DLL_CLOSE)
 	{
 		if (g_closeFlag == 0)
 		{
@@ -192,16 +192,16 @@ int Sys_Frame( float time, int forceRun )
 			Sleep(100);
 			Sys_Frame(time, 1);
 			Sleep(100);
-			ret = g_engineState;
+			ret = giState;
 		}
 		else
 		{
 			PostQuitMessage(1);
 			FreeLibrary(g_hGameDll);
 			g_hGameDll = NULL;
-			g_engineState = DLL_INACTIVE;
-			g_engineStateInfo = 0;
-			ret = g_engineState;
+			giState = DLL_INACTIVE;
+			giStateInfo = 0;
+			ret = giState;
 		}
 	}
 	return ret;
@@ -211,8 +211,6 @@ LPTSTR g_lpCmdLine;
 int    g_nCmdShow;
 
 static void *g_pStartupMem;
-
-int giState;
 
 // Forward the engine state to the game as well as our own frame loop.
 void Sys_NotifyState( int iState )
