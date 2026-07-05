@@ -5,6 +5,7 @@
 
 #include "quakedef.h"
 #include "winquake.h"
+#include "dc_debug.h"
 
 extern void* Sys_GetPrimarySurface4( void );
 extern void* Sys_GetBackBuffer4( void );
@@ -206,24 +207,6 @@ static qboolean DCV_FB_LockSurface( LPDIRECTDRAWSURFACE4 pddsSurface, DDSURFACED
 	return !FAILED(hr);
 }
 
-void DCV_FB_BackgroundRectOnSurface( LPDIRECTDRAWSURFACE4 pddsSurface, int y, unsigned short wColor )
-{
-	DDSURFACEDESC2 ddsd;
-	int iRow;
-	int iCol;
-
-	if (!DCV_FB_LockSurface(pddsSurface, &ddsd))
-		return;
-
-	for (iRow = 0; iRow < BANNER_H; ++iRow)
-	{
-		for (iCol = 0; iCol < BANNER_W; ++iCol)
-			DCV_FB_TextPixel(&ddsd, BANNER_X + iCol, y + iRow, wColor);
-	}
-
-	pddsSurface->lpVtbl->Unlock(pddsSurface, NULL);
-}
-
 void DCV_FB_TextOnSurface( LPDIRECTDRAWSURFACE4 pddsSurface, int x, int y, const char* text )
 {
 	DDSURFACEDESC2 ddsd;
@@ -290,26 +273,24 @@ void DCV_FB_TextOnSurface( LPDIRECTDRAWSURFACE4 pddsSurface, int x, int y, const
 	pddsSurface->lpVtbl->Unlock(pddsSurface, NULL);
 }
 
-/*
- * DCV_FB_BackgroundRect: fills a centered 128x32 RGB565 bar.
- * Draws to primary and backbuffer when distinct.
- */
-void DCV_FB_BackgroundRect( unsigned short wColor )
-{
-	LPDIRECTDRAWSURFACE4 pddsPrimary;
-	LPDIRECTDRAWSURFACE4 pddsBack;
-	int y = 0x18;   /* binary reads a fixed y offset from a global (DAT_001be734) */
-
-	pddsPrimary = (LPDIRECTDRAWSURFACE4)Sys_GetPrimarySurface4();
-	pddsBack = (LPDIRECTDRAWSURFACE4)Sys_GetBackBuffer4();
-
-	DCV_FB_BackgroundRectOnSurface(pddsPrimary, y, wColor);
-	if (pddsBack && pddsBack != pddsPrimary)
-		DCV_FB_BackgroundRectOnSurface(pddsBack, y, wColor);
-}
-
 void DCV_MeterText( unsigned int color, int x, int y, const char* text )
 {
+}
+
+/*
+ * Profiling/status meter overlay. The full meter renderer (r_studio_neo-era
+ * profiling HUD) is not reconstructed yet; DCV_Flip fills g_FBMeters and calls
+ * DCV_DrawMeters once per frame.
+ */
+fbmeter_t g_FBMeters[32];
+
+void DCV_DrawMeters( void )
+{
+}
+
+int DCV_FB_LoadImage( byte* rgb, int cache )
+{
+	return -1;
 }
 
 /*

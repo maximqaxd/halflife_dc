@@ -1,5 +1,9 @@
 // sys.h -- non-portable functions
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 //
 // file IO
 //
@@ -83,14 +87,12 @@ extern short giSubState;	// 16-bit in the DC binary (Dispatch_Substate does a mo
 extern void	(VID_Update)( struct vrect_s* rects );
 extern void	(VID_Shutdown)( void );
 
-# ifdef __cplusplus
-extern "C" {
-# endif
 void CDAudio_Play( int track, int looping );
 void CDAudio_Pause( void );
 void CDAudio_Resume( void );
 void CDAudio_Update( void );
-# ifdef __cplusplus
+
+#ifdef __cplusplus
 }
-# endif
+#endif
 

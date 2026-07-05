@@ -79,6 +79,10 @@ Zone block
 #define MNEMO_FLAG_ROOT   0x8000
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void Memory_Init( void* buf, int size );
 
 void* MnemoAlloc( int size, unsigned int flags, int allocClass, const char* tag );
@@ -86,6 +90,7 @@ int Mnemo_LastChanceActive( void );
 void* MnemoReallocDbg( void* oldPtr, int sizeBytes, const char* srcFile, int srcLine );
 void MnemoFreeDbg( void* ptr );
 void MnemoFree( void* ptr );
+void MnemoShrink( void* ptr, int newsize );
 typedef int (*mnemo_purge_callback_t)( int aggressive );
 void Mnemo_SetPurgeCallback( mnemo_purge_callback_t callback );
 
@@ -130,5 +135,9 @@ void Cache_Report( void );
 void Mnemo_ReportToFile( void );
 
 char* CommatizeNumber( int num, char* pout );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // ZONE_H

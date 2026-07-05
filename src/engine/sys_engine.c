@@ -219,11 +219,8 @@ void Sys_NotifyState( int iState )
 	GameSetState(iState);
 }
 
-// Key events arrive already translated on this platform.
-int MapKey( int key )
-{
-	return key;
-}
+// Scan-code -> Quake key translation lives in in_dc.c.
+extern int MapKey( int key );
 
 // Accumulate frame times and rebuild the fps/players status line twice a second.
 static float g_flStatusTime;

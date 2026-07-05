@@ -5,10 +5,13 @@
 #include "winquake.h"
 #include "sys.h"
 #include "dc_accum.h"
+#include "dc_debug.h"
 
 #include <windows.h>
 #include <tchar.h>
 #include <shintr.h>
+
+#pragma intrinsic(fabsf)
 
 extern HINSTANCE g_hInstance;
 extern HINSTANCE g_hPrevInstance;
@@ -23,21 +26,6 @@ extern int      GetVideoOutputFormat( void );
 
 // dc_draw.c: point the HUD transform at one of the 2D depth sublayers
 extern void     DCV_SetHudDepth( float layer );
-
-// dc_debug.c: framebuffer overlay text, image registry and profiling meters
-extern void     DCV_DrawMeters( void );
-extern int      DCV_FB_LoadImage( byte *rgb, int cache );
-
-typedef struct fbmeter_s
-{
-	short type;
-	short value;
-	int   frame;
-	DWORD color;
-	char  pad[64];
-} fbmeter_t;
-
-extern fbmeter_t g_FBMeters[32];
 
 #define MAX_METERS      32
 #define METER_FLIP      400

@@ -3261,3 +3261,15 @@ int Draw_CacheByIndex( cachewad_t* wad, int nIndex )
 
 	return i;
 }
+/*
+================
+DCV_SetHudDepth
+
+Point the HUD transform at one of the 2D depth sublayers between dc_msh and
+dc_msh2. TODO: reconstruct the transform/depth-range setup (FUN_00140d94); the
+screen fade and progress overlays still draw at dc_depthhud without it.
+================
+*/
+void DCV_SetHudDepth( float layer )
+{
+}

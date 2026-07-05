@@ -1227,6 +1227,29 @@ void MnemoFree( void* ptr )
 	Mnemo_FreeArenaBlock(hdr);
 }
 
+void MnemoShrink( void* ptr, int newsize )
+{
+	mnemo_header_t* hdr;
+
+	// TODO: reconstruct in-place block splitting. For now the allocation keeps
+	// its original size; callers that shrink a buffer just leave the tail unused.
+	if (!ptr || newsize < 0)
+		return;
+
+	hdr = ((mnemo_header_t*)ptr) - 1;
+
+	if (!(hdr->flags & MNEMO_FLAG_USED))
+		return;
+
+	if (newsize < hdr->payload_size)
+	{
+		mnemo_stats.live_bytes -= hdr->payload_size - newsize;
+		if (mnemo_stats.live_bytes < 0)
+			mnemo_stats.live_bytes = 0;
+		hdr->payload_size = newsize;
+	}
+}
+
 static void Mnemo_FreeByClass( int allocClass )
 {
 	mnemo_header_t* hdr;

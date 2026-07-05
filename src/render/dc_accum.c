@@ -29,7 +29,7 @@ int              g_nAccumMaxIndicesSeen;
 
 static void     *g_pMultiMtx0;
 static void     *g_pMultiMtx1;
-static DWORD     g_dwAccumCurrentDiffuse = 0xFFFFFFFFu;
+DWORD            g_dwAccumCurrentDiffuse = 0xFFFFFFFFu;
 static qboolean  g_bAccumInitialized = FALSE;
 
 static int DCV_GetMaxVertCount( void )
