@@ -11,7 +11,7 @@ extern "C" {
 #endif
 
 // Upload 16-bit subrect into an existing texture slot (for lightmap updates).
-void DC_UploadSubRect16( int texnum, int x, int y, int w, int h, const unsigned short* src, int src_pitch );
+void DCV_UpdateTextureSubRect( int texnum, int x, int y, int w, int h, const unsigned short* src, int src_pitch );
 int DC_ReclaimTextureSlot( void );
 void DC_TexDump_f( void );
 
