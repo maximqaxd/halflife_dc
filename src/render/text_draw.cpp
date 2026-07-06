@@ -51,11 +51,11 @@ int			g_nLangTags;
 // Fonts scale down for languages whose strings run longer; sv_language
 // selects the reduced set. The active scale is latched here and applied by
 // the glyph renderer.
-float	g_flTextScaleX;
-float	g_flTextScaleY;
+float	g_flTextScaleX = 1.0f;
+float	g_flTextScaleY = 1.0f;
 
 // Extra texels of spacing added to the right edge of every glyph quad.
-int		g_nTextCharGap = 1;
+int		g_nTextCharGap;
 
 // Character codes at or above this index hold the localized (high-range)
 // glyphs; they are shifted down into the accented block before lookup.
@@ -254,10 +254,12 @@ float Font_DrawChar( float x, float y, dcfont_t *font, int ch )
 		x2 = x + advance + g_flTextScaleX * (float)g_nTextCharGap;
 		ybot = y + (float)(int)height;
 
+		// Wind TL, TR, BR, BL so the shared fan index template (which triangulates
+		// on the vertex-0..vertex-2 diagonal) covers the whole glyph cell.
 		DCV_AddVertex(x,  y,    dc_depthhud.value, u0, v0);
 		DCV_AddVertex(x2, y,    dc_depthhud.value, u1, v0);
-		DCV_AddVertex(x,  ybot, dc_depthhud.value, u0, v1);
 		DCV_AddVertex(x2, ybot, dc_depthhud.value, u1, v1);
+		DCV_AddVertex(x,  ybot, dc_depthhud.value, u0, v1);
 	}
 
 	return advance;

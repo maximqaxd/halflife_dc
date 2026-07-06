@@ -45,8 +45,6 @@ extern cachewad_t	menu_wad;
 
 int			numgltextures;
 
-float		chars_xsize, chars_ysize;
-float		creditsfont_ysize;
 
 #define DC_MAXTEXTURES   1140
 typedef struct dc_texture_s
@@ -2425,14 +2423,17 @@ void Draw_Init( void )
 
 	gl_round_down.value = prev;
 
-	chars_xsize = 1.0 / 256;
-	chars_ysize = 1.0 / draw_chars->height;
-
-	creditsfont_ysize = 1.0 / draw_creditsfont->height;
+	// Publish the glyph-sheet UV scale into each font header. Font_DrawChar reads
+	// usize (+0x414) and vsize (+0x418) to map glyph cells to texture coords;
+	// these overlap the first pixels of the sheet, which is safe now that the
+	// sheets have been uploaded to textures.
+	*(float *)(draw_chars->data + 4)       = 1.0f / 256.0f;
+	*(float *)(draw_chars->data + 8)       = 1.0f / (float)draw_chars->height;
+	*(float *)(draw_creditsfont->data + 4) = 1.0f / 256.0f;
+	*(float *)(draw_creditsfont->data + 8) = 1.0f / (float)draw_creditsfont->height;
 
 	draw_chars   = draw_creditsfont;
 	char_texture = font_texture;
-	chars_ysize  = creditsfont_ysize;
 
 	// save a texture slot for translated picture
 	translate_texture = texture_extension_number++;
@@ -2577,6 +2578,23 @@ void Draw_Pic2( int x, int y, int w, int h, qpic_t* pic )
 	DCV_2D_AddVertex((float)(x + w),  (float)y,         uright, vtop);
 	DCV_2D_AddVertex((float)(x + w),  (float)(y + h),   uright, vbottom);
 	DCV_2D_AddVertex((float)x,        (float)(y + h),   uleft,  vbottom);
+}
+
+/*
+=============
+Draw_ConsoleBackground
+
+Draw the console background image, scrolled down from the top so that its
+bottom edge sits at the bottom of the visible console (y = lines).
+=============
+*/
+void Draw_ConsoleBackground( int lines )
+{
+	DCV_SetHudDepth(2.0f);
+	DCV_SetPackedColor(0xFFFFFFFF);
+	DCV_SetDefaultRenderStates();
+	Draw_Pic2(0, lines - glheight, glwidth, glheight + 1, conback);
+	DCV_SetHudDepth(3.0f);
 }
 
 // Sprites are clipped to this rectangle (x,y,width,height) if ScissorTest is enabled
