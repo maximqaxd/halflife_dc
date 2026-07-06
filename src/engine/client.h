@@ -347,7 +347,7 @@ typedef struct
 	float		pitchvel;
 	qboolean	nodrift;
 	float		driftmove;
-	double		laststop;
+	float		laststop;
 
 	float		viewheight;
 
@@ -366,13 +366,13 @@ typedef struct
 	int			intermission;	// don't change view angle, full screen, etc
 	int			completed_time;	// latched ffrom time at intermission start
 
-	double		mtime[2];		// the timestamp of last two messages
+	float		mtime[2];		// the timestamp of last two messages
 
 	// Client clock
-	double		time;
+	float		time;
 
 	// Old Client clock
-	double		oldtime;
+	float		oldtime;
 
 	frame_t		frames[UPDATE_BACKUP];
 

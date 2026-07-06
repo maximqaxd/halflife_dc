@@ -3,7 +3,7 @@
 #include <string.h>
 
 // hack into header files that we can ship
-typedef int qboolean;
+typedef short qboolean;
 typedef unsigned char byte;
 #include "platform.h"
 #include "mathlib.h"

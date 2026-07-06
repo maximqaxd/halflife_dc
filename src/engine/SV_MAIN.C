@@ -1256,7 +1256,7 @@ void SVC_RuleInfo( void )
 	//  effect rules.  Also, probably need a hook into the .dll to respond with additional rule information.
 	for (var = cvar_vars; var; var = var->next)
 	{
-		if (!var->server)
+		if (!(var->flags & FCVAR_SERVER))
 			continue;
 
 		MSG_WriteString(&buf, var->name);   // Cvar Name
