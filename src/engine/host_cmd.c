@@ -4091,3 +4091,46 @@ void Host_InitCommands( void )
 	Cmd_AddCommand("hpklist", HPAK_List_f);
 	Cmd_AddCommand("hpkremove", HPAK_Remove_f);
 }
+
+//=============================================================================
+
+// Controller-status message drawn over the HUD.
+static char		hostMessage[80];
+static float	hostMessageTime;
+
+/*
+==================
+Host_SetMessage
+==================
+*/
+void Host_SetMessage( char* pszMessage )
+{
+	strcpy(hostMessage, pszMessage);
+	hostMessageTime = 0;
+}
+
+/*
+==================
+Host_CheckController
+
+Pause the game and post a message while the controller is unplugged.
+==================
+*/
+void Host_CheckController( void )
+{
+	// TODO: pause and post "#check_controller"/"#no_controller" while the
+	// controller is missing, unpause once it returns
+}
+
+/*
+==================
+Host_DrawMessage
+
+Draw the host message centered above the status bar, fading it out after a
+few seconds.
+==================
+*/
+void Host_DrawMessage( void )
+{
+	// TODO: draw hostMessage with fade-out
+}

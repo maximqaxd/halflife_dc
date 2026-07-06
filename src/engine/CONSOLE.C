@@ -727,7 +727,7 @@ void Con_DrawConsole( int lines, qboolean drawinput )
 		return;
 
 // draw the background
-	Draw_ConsoleBackground(lines);
+//	Draw_ConsoleBackground(lines);
 
 	if ((giSubState & 4) || con_loading)
 		return;

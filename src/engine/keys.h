@@ -97,7 +97,7 @@
 
 
 
-typedef enum { key_game, key_console, key_message, key_menu } keydest_t;
+typedef enum { key_game, key_console, key_message, key_menu, key_ui } keydest_t;
 
 extern keydest_t	key_dest;
 extern char* keybindings[256];

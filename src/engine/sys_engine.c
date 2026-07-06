@@ -277,7 +277,9 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLi
 	DCV_CreateWindow();
 
 	if (!GameInit())
+	{
 		return -1;
+	}
 
 	Sys_ExecCmd(0, "menu splash\n");
 	Dispatch_Substate(1);

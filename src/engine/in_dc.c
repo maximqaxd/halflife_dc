@@ -434,6 +434,19 @@ void IN_StartupJoystick( void );
 void Joy_AdvancedUpdate_f( void );
 void IN_JoyMove( usercmd_t* cmd );
 
+/*
+===========
+IN_ControllerPresent
+
+Report whether a controller is plugged in; the status text warns when it
+isn't. TODO: query the actual pad state.
+===========
+*/
+int IN_ControllerPresent( void )
+{
+	return 1;
+}
+
 
 /*
 ===========

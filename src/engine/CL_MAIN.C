@@ -2184,6 +2184,20 @@ void CL_AllowUpload_f( void )
 		Con_Printf("Client uploading enabled.\nMax. upload size is %i", (unsigned int)(__int64)cl_upload_max.value);
 }
 
+cvar_t	cl_adaptive = { "cl_adaptive", "0" };
+
+/*
+==================
+R_DrawAdaptive
+
+Draw the adaptive frame-timing bars in the corner of the screen.
+==================
+*/
+void R_DrawAdaptive( void )
+{
+	// TODO: draw per-frame timing bars from the recent frame history
+}
+
 char* CL_HashedClientID( unsigned char* hash, int size )
 {
 	static char szReturn[128];
