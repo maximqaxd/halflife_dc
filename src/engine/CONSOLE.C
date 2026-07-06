@@ -49,6 +49,15 @@ qboolean	con_initialized;
 
 int			con_notifylines;		// scan lines to clear for notify lines
 
+// On-screen text origin. The Dreamcast build insets all console/HUD/notify text
+// by a fixed TV-overscan-safe margin; DCV_GammaRefresh_f recomputes these when
+// the video mode changes. 8,24 are the defaults.
+int			scr_safe_x = 8;
+int			scr_safe_y = 24;
+
+extern int	Font_CharHeight( qfont_t* font );				// render/text_draw.cpp
+extern void	DCV_SetPackedColor( unsigned long diffuse );	// render/dc_accum.c
+
 /*
 ================
 Con_SetTimes_f
@@ -653,7 +662,7 @@ void Con_DrawNotify( void )
 	{
 		if (key_dest == key_game || key_dest == key_message)
 		{	// only draw notify in game
-			v = 0;
+			v = scr_safe_y + 4;
 			if (developer.value > 0.0)
 			{
 				for (i = con_current - con_num_times + 1; i <= con_current; i++)
@@ -671,13 +680,15 @@ void Con_DrawNotify( void )
 					clearnotify = 0;
 					scr_copytop = 1;
 
-					x = 8;
+					DCV_SetPackedColor(0xFFFF9000);
+
+					x = scr_safe_x + 8;
 					for (charpos = 0; charpos < con_linewidth; charpos++)
 					{
 						x += Draw_Character(x, v, text[charpos]);
 					}
 
-					v += draw_chars->rowheight;
+					v += Font_CharHeight(draw_chars);
 				}
 			}
 
@@ -691,15 +702,16 @@ void Con_DrawNotify( void )
 				if ((vid.width / 10) < chat_bufferlen)
 					charpos = chat_bufferlen - (vid.width / 10);
 
-				x = 8;
+				x = scr_safe_x + 8;
 				x = Draw_String(Draw_String(x, v, "say"), v, ": ");
+				DCV_SetPackedColor(0xFFFF9000);
 				while (chat_buffer[charpos])
 				{
 					x += Draw_Character(x, v, chat_buffer[charpos]);
 					charpos++;
 				}
 				Draw_Character((charpos + 5) << 3, v, 10 + ((int)(realtime * con_cursorspeed) & 1));
-				v += draw_chars->rowheight;
+				v += Font_CharHeight(draw_chars);
 			}
 
 			if (v > con_notifylines)
@@ -727,7 +739,7 @@ void Con_DrawConsole( int lines, qboolean drawinput )
 		return;
 
 // draw the background
-//	Draw_ConsoleBackground(lines);
+	Draw_ConsoleBackground(lines);
 
 	if ((giSubState & 4) || con_loading)
 		return;
@@ -735,18 +747,31 @@ void Con_DrawConsole( int lines, qboolean drawinput )
 // draw the text
 	con_vislines = lines;
 
-	rows = (lines - 16) / draw_chars->rowheight;		// rows of text to draw
+	rows = (lines - (scr_safe_y + 4)) / Font_CharHeight(draw_chars) - 1;		// rows of text to draw
 	con_rows = rows;
-	y = lines - 16 - rows * draw_chars->rowheight;	// may start slightly negative
 
-	for (i = con_current - rows + 1; i <= con_current; i++, y += draw_chars->rowheight)
+	// bottom-anchor the last row inside the overscan-safe area
+	y = con_vislines;
+	if (y > 480 - scr_safe_y)
+		y = 480 - scr_safe_y;
+	y -= Font_CharHeight(draw_chars) + 4;
+	if (y < scr_safe_y + 4)
+		y = scr_safe_y + 4;
+	y -= Font_CharHeight(draw_chars) * rows;
+
+	for (i = con_current - rows + 1; i <= con_current; i++, y += Font_CharHeight(draw_chars))
 	{
+		if (y <= scr_safe_y + 4)
+			continue;						// above the safe area - clipped
+
 		j = i - con_backscroll;
 		if (j < 0)
 			j = 0;
 		text = con_text + (j % con_totallines) * con_linewidth;
 
-		x = 8;
+		DCV_SetPackedColor(0xFFFF9000);
+
+		x = scr_safe_x + 8;
 		for (charpos = 0; charpos < con_linewidth; charpos++)
 		{
 			x += Draw_Character(x, y, text[charpos]);
