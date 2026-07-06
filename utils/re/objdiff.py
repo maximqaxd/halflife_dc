@@ -144,6 +144,11 @@ def load_symbols(path):
     for n, (s, size) in raw.items():
         gap = nextof[s] - s
         out[n] = (s, gap if size <= 8 else min(size, gap))
+    # maybe_-prefixed Ghidra names are unconfirmed identifications; alias the
+    # bare name (what the source uses) when it doesn't collide.
+    for n in list(out):
+        if n.startswith("maybe_") and n[6:] not in out:
+            out[n[6:]] = out[n]
     return out
 
 

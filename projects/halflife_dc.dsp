@@ -57,7 +57,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 coredll.lib /nologo /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /subsystem:$(CESubsystem) /STACK:65536,4096
-# ADD LINK32 coredll.lib winsock.lib d3dim.lib ddraw.lib wdm.lib mapledev.lib dxguid.lib dinput.lib client.lib halflife.lib /nologo /map /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /libpath:"../obj/WCESH4Rel/" /subsystem:$(CESubsystem) /STACK:65536,4096
+# ADD LINK32 coredll.lib winsock.lib d3dim.lib ddraw.lib wdm.lib mapledev.lib dxguid.lib dinput.lib FloatMath.lib client.lib halflife.lib /nologo /map /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /libpath:"../obj/WCESH4Rel/" /subsystem:$(CESubsystem) /STACK:65536,4096
 # Begin Custom Build
 OutDir=.\../obj/WCESH4Rel
 InputPath=\Dev\Dreamcast\halflife_dc\obj\WCESH4Rel\halflife_dc.exe
@@ -95,7 +95,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 coredll.lib /nologo /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /subsystem:$(CESubsystem) /STACK:65536,4096
-# ADD LINK32 coredll.lib winsock.lib d3dim.lib ddraw.lib wdm.lib mapledev.lib dxguid.lib dinput.lib client.lib halflife.lib /nologo /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /libpath:"../obj/WCESH4Dbg/" /subsystem:$(CESubsystem) /STACK:65536,4096
+# ADD LINK32 coredll.lib winsock.lib d3dim.lib ddraw.lib wdm.lib mapledev.lib dxguid.lib dinput.lib FloatMath.lib client.lib halflife.lib /nologo /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /libpath:"../obj/WCESH4Dbg/" /subsystem:$(CESubsystem) /STACK:65536,4096
 # Begin Custom Build
 OutDir=.\../obj/WCESH4Dbg
 InputPath=\Dev\Dreamcast\halflife_dc\obj\WCESH4Dbg\halflife_dc.exe
@@ -2789,6 +2789,18 @@ NODEP_CPP_CVAR_=\
 # Begin Source File
 
 SOURCE=..\src\render\dc_d3d.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\render\d3dmath.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\render\decals.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\render\text_draw.cpp
 # End Source File
 # Begin Source File
 
@@ -8496,25 +8508,6 @@ NODEP_CPP_TMESS=\
 # Begin Source File
 
 SOURCE=..\src\engine\ui.c
-
-!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
-
-# PROP Exclude_From_Build 1
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
-
-# PROP Exclude_From_Build 1
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-# PROP Exclude_From_Build 1
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
-# PROP Exclude_From_Build 1
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
