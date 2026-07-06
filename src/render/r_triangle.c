@@ -99,7 +99,7 @@ int R_TriangleSpriteTexture( model_t* pSpriteModel, int frame )
 	if (!pSpriteFrame)
 		return FALSE;
 
-	GL_Bind(0, pSpriteFrame->gl_texturenum);
+	GL_Bind(pSpriteFrame->gl_texturenum, 0);
 	return TRUE;
 }
 #else

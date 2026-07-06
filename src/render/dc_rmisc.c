@@ -129,7 +129,7 @@ void R_InitParticleTexture( void )
 	// particle texture
 	//
 	particletexture = texture_extension_number++;
-	GL_Bind(0, particletexture);
+	GL_Bind(particletexture, 0);
 
 	for (x = 0; x < 8; x++)
 	{

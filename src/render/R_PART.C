@@ -1336,7 +1336,7 @@ void R_DrawParticles( void )
 	vec3_t			up, right;
 	float			scale;
 
-	GL_Bind(0, particletexture);
+	GL_Bind(particletexture, 0);
 	qglEnable(GL_ALPHA_TEST);
 	qglEnable(GL_BLEND);
 	qglTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);

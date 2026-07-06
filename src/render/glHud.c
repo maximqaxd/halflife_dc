@@ -29,7 +29,7 @@ void GLBeginHud( void )
 	if (!dev || !dev->lpVtbl)
 		return;
 
-	DCV_Flush();
+	DCV_FlushInline();
 
 	dev->lpVtbl->GetTransform(dev, D3DTRANSFORMSTATE_PROJECTION, &s_savedProjMatrix);
 	dev->lpVtbl->GetTransform(dev, D3DTRANSFORMSTATE_VIEW,       &s_savedViewMatrix);
@@ -51,9 +51,7 @@ void GLBeginHud( void )
 
 		fh = 480.0f;
 	dev->lpVtbl->SetTransform(dev, D3DTRANSFORMSTATE_PROJECTION, &identity);
-	DCV_MatrixMode(D3DTRANSFORMSTATE_PROJECTION);
-	DCV_Ortho(0.0f, fw, fh, 0.0f, -99999.0f, 99999.0f);
-	DCV_MatrixMode(D3DTRANSFORMSTATE_WORLD);
+	DCV_Ortho(0.0f, fw, fh, 0.0f, -99999.0f, 99999.0f, 1.0f, D3DTRANSFORMSTATE_PROJECTION);
 	DCV_SetNoClip();
 
 	DCV_SetColor(255, 255, 255, 255);
@@ -87,12 +85,11 @@ void GLFinishHud( void )
 	if (!dev || !dev->lpVtbl)
 		return;
 
-	DCV_Flush();
+	DCV_FlushInline();
 
 	dev->lpVtbl->SetTransform(dev, D3DTRANSFORMSTATE_PROJECTION, &s_savedProjMatrix);
 	dev->lpVtbl->SetTransform(dev, D3DTRANSFORMSTATE_VIEW,       &s_savedViewMatrix);
 	dev->lpVtbl->SetTransform(dev, D3DTRANSFORMSTATE_WORLD,      &s_savedWorldMatrix);
-	DCV_MatrixMode(D3DTRANSFORMSTATE_WORLD);
 
 	DCV_SetColor(255, 255, 255, 255);
 	DCV_SetClipRequired();
@@ -104,16 +101,6 @@ DCV_TexState Helpers
 =========================================================
 */
 
-void DCV_FlushApplyRenderState(D3DRENDERSTATETYPE state, DWORD value)
-{
-	LPDIRECT3DDEVICE3 dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-
-	if (!dev || !dev->lpVtbl)
-		return;
-
-	DCV_Flush();
-	dev->lpVtbl->SetRenderState(dev, state, value);
-}
 
 
 

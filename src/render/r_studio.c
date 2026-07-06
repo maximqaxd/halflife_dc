@@ -2575,8 +2575,8 @@ void R_StudioRenderFinal( void )
 
 					color = 1.0f - (r_blend * 0.5f);
 
-					DCV_Flush();
-					GL_Bind(0, -1);
+					DCV_FlushInline();
+					GL_Bind(-1, 0);
 					DCV_SetRenderState(D3DRENDERSTATE_ALPHABLENDENABLE, TRUE);
 					DCV_SetRenderState(D3DRENDERSTATE_SRCBLEND, D3DBLEND_SRCALPHA);
 					DCV_SetRenderState(D3DRENDERSTATE_DESTBLEND, D3DBLEND_INVSRCALPHA);
@@ -2606,7 +2606,7 @@ void R_StudioRenderFinal( void )
 	DCV_SetTexStateFromRenderMode(5);  
 	DCV_SetTexStateFromRenderMode(0); 
 
-	DCV_Flush();
+	DCV_FlushInline();
 }
 
 /*
@@ -2698,8 +2698,8 @@ void R_StudioDrawPoints( void )
 		}
 	}
 
-	DCV_Flush();
-	GL_Bind(1, -1);
+	DCV_FlushInline();
+	GL_Bind(-1, 1);
 
 	pstudionorms = (vec3_t*)((byte*)pstudiohdr + psubmodel->normindex);
 	for (j = 0; j < psubmodel->nummesh; j++)

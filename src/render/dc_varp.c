@@ -281,14 +281,14 @@ void EmitBothSkyLayers( msurface_t* fa )
 {
 	GL_DisableMultitexture();
 
-	GL_Bind(0, solidskytexture);
+	GL_Bind(solidskytexture, 0);
 	speedscale = realtime * 8;
 	speedscale -= (int)speedscale & ~127;
 
 	EmitSkyPolys(fa);
 
 	glEnable(GL_BLEND);
-	GL_Bind(0, alphaskytexture);
+	GL_Bind(alphaskytexture, 0);
 	speedscale = realtime * 16;
 	speedscale -= (int)speedscale & ~127;
 
@@ -668,7 +668,7 @@ retry:
 				paletteIndex = GL_PaletteAdd(packPalette, TRUE);
 				if (paletteIndex >= 0)
 				{
-					GL_Bind(0, 2000 + i);
+					GL_Bind(2000 + i, 0);
 					loadedBMP = TRUE;
 					qglTexImage2D(GL_TEXTURE_2D, 0, GL_COLOR_INDEX8_EXT, 256, 256, 0, GL_COLOR_INDEX, GL_UNSIGNED_BYTE, pImage);
 					gSkyTexNumber[i] = 2000 + i + 65536 + (paletteIndex << 16);
@@ -712,7 +712,7 @@ retry:
 				}
 			}
 
-			GL_Bind(0, 2000 + i);
+			GL_Bind(2000 + i, 0);
 			qglTexImage2D(GL_TEXTURE_2D, 0, 3, 256, 256, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
 			gSkyTexNumber[i] = 2000 + i;
 		}
@@ -1111,7 +1111,7 @@ void R_DrawSkyBox( void )
 		if (DotProduct(vpn, normal) < (-1 + 0.70710678))
 			continue;
 
-		GL_Bind(0, gSkyTexNumber[skytexorder[i]]);
+		GL_Bind(gSkyTexNumber[skytexorder[i]], 0);
 #if 0
 		qglColor3f(1, 1, 1);
 

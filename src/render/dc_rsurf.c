@@ -206,7 +206,7 @@ void DCV_AccumGLPoly( float verts[][VERTEXSIZE], int numverts, DWORD diffuse, fl
 
 void DCV_BindTexture( int texnum )
 {
-	GL_Bind(0, texnum);
+	GL_Bind(texnum, 0);
 }
 
 static DWORD DCV_SurfColorFromEntity( const cl_entity_t* ent )
@@ -825,7 +825,7 @@ void R_BlendLightmaps( void )
 		return;
 
 	/* Flush any pending world geometry before changing state. */
-	DCV_Flush();
+	DCV_FlushInline();
 
 	DCV_SetRenderState(D3DRENDERSTATE_ZFUNC, D3DCMP_EQUAL);
 	DCV_SetRenderState(D3DRENDERSTATE_ZWRITEENABLE, FALSE);
@@ -843,13 +843,13 @@ void R_BlendLightmaps( void )
 		if (lm_texnum[i] < 0)
 			continue;
 
-		GL_Bind(0, lm_texnum[i]);
+		GL_Bind(lm_texnum[i], 0);
 
 		/* Upload fresh lightmap data for surfaces with dynamic lights. */
 		if (lightmap_modified[i] && lm_page[i])
 		{
 			lightmap_modified[i] = 0;
-			DC_UploadSubRect16(lm_texnum[i], 0, 0, BLOCK_WIDTH, BLOCK_HEIGHT,
+			DCV_UpdateTextureSubRect(lm_texnum[i], 0, 0, BLOCK_WIDTH, BLOCK_HEIGHT,
 			                   lm_page[i], BLOCK_WIDTH);
 		}
 
@@ -857,9 +857,9 @@ void R_BlendLightmaps( void )
 			DCV_AccumLightmapPoly(p);
 	}
 
-	DCV_Flush();
+	DCV_FlushInline();
 
-	GL_Bind(0, -1);
+	GL_Bind(-1, 0);
 	DCV_SetRenderState(D3DRENDERSTATE_ALPHABLENDENABLE, FALSE);
 	DCV_SetRenderState(D3DRENDERSTATE_SRCBLEND,         D3DBLEND_SRCALPHA);
 	DCV_SetRenderState(D3DRENDERSTATE_DESTBLEND,        D3DBLEND_INVSRCALPHA);
@@ -958,7 +958,7 @@ void R_RenderBrushPoly( msurface_t* fa )
 		DrawGLWaterPoly(fa->polys);
 	else if (currententity && currententity->rendermode == kRenderTransColor)
 	{
-		GL_Bind(1, -1);
+		GL_Bind(-1, 1);
 		DrawGLSolidPoly(fa->polys);
 	}
 	else if (fa->flags & SURF_DRAWTILED)
@@ -1029,7 +1029,7 @@ void R_DrawWaterChain( msurface_t* pChain )
 
 	for (s = pChain; s; s = s->texturechain)
 	{
-		GL_Bind(0, s->texinfo->texture->gl_texturenum);
+		GL_Bind(s->texinfo->texture->gl_texturenum, 0);
 		EmitWaterPolys(s, 0);
 	}
 }
@@ -1225,8 +1225,7 @@ void R_DrawBrushModel( cl_entity_t* e )
 		}
 	}
 
-	DCV_MatrixMode(D3DTRANSFORMSTATE_WORLD);
-	DCV_PushMatrix();
+	DCV_PushMatrix(D3DTRANSFORMSTATE_WORLD);
 	DCV_SetClipRequired();
 
 	memset(lightmap_polys, 0, sizeof(lightmap_polys));
@@ -1281,8 +1280,7 @@ void R_DrawBrushModel( cl_entity_t* e )
 	DCV_SetRenderState(D3DRENDERSTATE_ALPHATESTENABLE,  FALSE);
 	DCV_SetRenderState(D3DRENDERSTATE_ZWRITEENABLE,     TRUE);
 
-	DCV_MatrixMode(D3DTRANSFORMSTATE_WORLD);
-	DCV_PopMatrix();
+	DCV_PopMatrix(D3DTRANSFORMSTATE_WORLD);
 	DCV_SetNoClip();
 }
 
@@ -1447,7 +1445,7 @@ void R_DrawWorld( void )
 
 	R_BlendLightmaps();
 
-	DCV_Flush();
+	DCV_FlushInline();
 }
 
 /*
@@ -2621,7 +2619,7 @@ void R_DrawDecals( void )
 		plist = chains[i];
 
 		ptexture = Draw_DecalTexture(plist->texture);
-		GL_Bind(0, ptexture->gl_texturenum);
+		GL_Bind(ptexture->gl_texturenum, 0);
 		DCV_FlushIfLarge();
 
 		for (; plist; plist = plist->chain_next)
