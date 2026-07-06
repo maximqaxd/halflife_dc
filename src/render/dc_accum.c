@@ -116,6 +116,29 @@ void DCV_AccumInit( void )
 	g_bAccumInitialized = TRUE;
 }
 
+void DCV_Flush( void )
+{
+	if (g_nAccumVertCount != 0)
+	{
+		if (g_nAccumMaxVertsSeen < g_nAccumVertCount)
+			g_nAccumMaxVertsSeen = g_nAccumVertCount;
+		if (g_nAccumMaxIndicesSeen < g_nAccumIndexCount)
+			g_nAccumMaxIndicesSeen = g_nAccumIndexCount;
+		g_pD3DDevice->lpVtbl->DrawIndexedPrimitive(g_pD3DDevice,
+			D3DPT_TRIANGLELIST, D3DFVF_LVERTEX,
+			g_pAccumVerts, g_nAccumVertCount,
+			g_pAccumIndex, g_nAccumIndexCount,
+			g_dwAccumFlushFlags | D3DDP_DONOTLIGHT);
+		g_nAccumVertCount = 0;
+		g_nAccumIndexCount = 0;
+	}
+}
+
+void DCV_SetColor( int r, int g, int b, int a )
+{
+	g_dwAccumCurrentDiffuse = (a << 24) | (r << 16) | (g << 8) | b;
+}
+
 void DCV_SetPackedColor( DWORD diffuse )
 {
 	g_dwAccumCurrentDiffuse = diffuse;
@@ -133,6 +156,45 @@ void DCV_SetColorFloat( float r, float g, float b, float a )
 		(int)DCV_ClampColorFloat(g),
 		(int)DCV_ClampColorFloat(b),
 		(int)DCV_ClampColorFloat(a));
+}
+
+void DCV_FlushIfLarge( void )
+{
+	if (g_nAccumVertCount > FLUSH_THRESHOLD)
+		DCV_FlushInline();
+}
+
+/* Modulated texture, alpha blended additively; the shared baseline most of
+   the renderer draws with. */
+void DCV_SetDefaultRenderStates( void )
+{
+	DCV_SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHABLENDENABLE, TRUE);
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHATESTENABLE, FALSE);
+	DCV_SetRenderState(D3DRENDERSTATE_SRCBLEND, D3DBLEND_SRCALPHA);
+	DCV_SetRenderState(D3DRENDERSTATE_DESTBLEND, D3DBLEND_ONE);
+	DCV_SetRenderState(D3DRENDERSTATE_FOGENABLE, FALSE);
+}
+
+/* As above but with standard alpha blending, for glyph quads. */
+void DCV_SetTextRenderStates( void )
+{
+	DCV_SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHABLENDENABLE, TRUE);
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHATESTENABLE, FALSE);
+	DCV_SetRenderState(D3DRENDERSTATE_SRCBLEND, D3DBLEND_SRCALPHA);
+	DCV_SetRenderState(D3DRENDERSTATE_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	DCV_SetRenderState(D3DRENDERSTATE_FOGENABLE, FALSE);
 }
 
 void DCV_SetClipRequired( void )
@@ -159,7 +221,7 @@ qboolean DCV_EnsureSpace( int add_verts, int add_indices )
 	if (g_nAccumVertCount + add_verts > DCV_GetMaxVertCount() ||
 		g_nAccumIndexCount + add_indices > DCV_GetMaxIndexCount())
 	{
-		DCV_Flush();
+		DCV_FlushInline();
 	}
 
 	return TRUE;
@@ -176,6 +238,19 @@ void DCV_AddLVertex( const D3DLVERTEX* v )
 		return;
 
 	g_pAccumVerts[g_nAccumVertCount++] = *v;
+}
+
+int DCV_AddVertex( float x, float y, float z, float tu, float tv )
+{
+	D3DLVERTEX *pVert = &g_pAccumVerts[g_nAccumVertCount];
+
+	pVert->x = x;
+	pVert->y = y;
+	pVert->z = z;
+	pVert->color = g_dwAccumCurrentDiffuse;
+	pVert->tu = tu;
+	pVert->tv = tv;
+	return g_nAccumVertCount++;
 }
 
 void DCV_AddPolyIndices( int base, int numverts )

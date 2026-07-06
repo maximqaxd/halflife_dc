@@ -14,6 +14,10 @@
 #pragma warning(disable : 4051)     // ALPHA
 #pragma warning(disable : 4305)     // truncation from 'const double ' to 'float '
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct auxvert_s
 {
 	float fv[3];		// viewspace x, y
@@ -57,13 +61,9 @@ void GLBeginHud( void );
 void GLFinishHud( void );
 void DCV_MatrixInit( void );
 void DCV_MatrixMode( D3DTRANSFORMSTATETYPE state );
-void DCV_PushMatrix( void );
-void DCV_PopMatrix( void );
-void DCV_Frustum( float left, float right, float bottom, float top, float znear, float zfar );
-void DCV_Ortho( float left, float right, float bottom, float top, float znear, float zfar );
-void DCV_Rotate( float angle, float x, float y, float z );
-void DCV_SetTransform( D3DTRANSFORMSTATETYPE state, const D3DMATRIX* pMatrix );
-void DCV_SetViewportDepthRange( float minz, float maxz );
+/* The d3dmath.c matrix/transform API (DCV_PushMatrix, DCV_Frustum, DCV_Ortho,
+   DCV_Rotate, DCV_SetTransform, DCV_SetViewportDepthRange, ...) is declared in
+   dc_accum.h with its authentic per-state signatures; do not redeclare it here. */
 void DCV_BuildProjectionAndSetTransform( float right, float left, float top, float bottom, float zn, float zf, float scale, D3DTRANSFORMSTATETYPE state );
 void DrawWedge( float centerx, float centery, float angle1, float angle2, float radius );
 
@@ -308,5 +308,9 @@ void DC_BuildLightmaps( void );
 void R_DecalInit( void );
 void R_DrawDecals( void );
 int DecalListCreate( DECALLIST* pList );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // GLQUAKE_H

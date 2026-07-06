@@ -82,145 +82,12 @@ DCV matrix stack / helpers
 
 ================
 */
-#define WORLD_MATRIX_STACK_DEPTH	32
-#define PROJ_MATRIX_STACK_DEPTH	2
-
-typedef struct
-{
-	D3DMATRIX           m;
-	D3DTRANSFORMSTATETYPE   state;
-} matrixStackEntry_t;
-
-static matrixStackEntry_t	worldStack[WORLD_MATRIX_STACK_DEPTH];
-static int					worldStackSp;
-static matrixStackEntry_t	projStack[PROJ_MATRIX_STACK_DEPTH];
-static int					projStackSp;
-static D3DTRANSFORMSTATETYPE	matrixMode = D3DTRANSFORMSTATE_WORLD;
-
-void DCV_MatrixInit( void )
-{
-	worldStackSp = 0;
-	projStackSp = 0;
-	matrixMode = D3DTRANSFORMSTATE_WORLD;
-}
-
-void DCV_MatrixMode( D3DTRANSFORMSTATETYPE state )
-{
-	matrixMode = state;
-}
-
-void DCV_PushMatrix( void )
-{
-	LPDIRECT3DDEVICE3	dev;
-	D3DMATRIX			m;
-	matrixStackEntry_t	ent;
-
-	dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-	if (!dev || !dev->lpVtbl)
-		return;
-
-	dev->lpVtbl->GetTransform(dev, matrixMode, &m);
-	ent.m = m;
-	ent.state = matrixMode;
-
-	if (matrixMode == D3DTRANSFORMSTATE_WORLD)
-	{
-		if (worldStackSp >= WORLD_MATRIX_STACK_DEPTH)
-			Sys_Error("World matrix stack overflow\n");
-		worldStack[worldStackSp++] = ent;
-	}
-	else
-	{
-		if (projStackSp >= PROJ_MATRIX_STACK_DEPTH)
-			Sys_Error("Projection matrix stack overflow\n");
-		projStack[projStackSp++] = ent;
-	}
-}
-
-void DCV_PopMatrix( void )
-{
-	LPDIRECT3DDEVICE3	dev;
-	matrixStackEntry_t	ent;
-
-	DCV_Flush();
-
-	dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-	if (!dev || !dev->lpVtbl)
-		return;
-
-	if (matrixMode == D3DTRANSFORMSTATE_WORLD)
-	{
-		if (worldStackSp <= 0)
-			Sys_Error("DCV_PopMatrix: world matrix stack underflow\n");
-		ent = worldStack[--worldStackSp];
-	}
-	else
-	{
-		if (projStackSp <= 0)
-			Sys_Error("DCV_PopMatrix: projection matrix stack underflow\n");
-		ent = projStack[--projStackSp];
-	}
-
-	dev->lpVtbl->SetTransform(dev, ent.state, &ent.m);
-}
-
-/*
-==================
-DCV_SetTransform
-
-==================
-*/
-void DCV_SetTransform( D3DTRANSFORMSTATETYPE state, const D3DMATRIX* pMatrix )
-{
-	LPDIRECT3DDEVICE3 dev;
-
-	DCV_Flush();
-
-	dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-	if ( !dev || !dev->lpVtbl || !pMatrix )
-		return;
-
-	dev->lpVtbl->SetTransform( dev, state, (D3DMATRIX*)pMatrix );
-
-	if ( state == D3DTRANSFORMSTATE_WORLD )
-		memcpy( r_world_matrix, pMatrix, sizeof(D3DMATRIX) );
-	else if ( state == D3DTRANSFORMSTATE_VIEW )
-		memcpy( r_base_world_matrix, pMatrix, sizeof(D3DMATRIX) );
-	else
-		memcpy( gProjectionMatrix, pMatrix, sizeof(D3DMATRIX) );
-}
-
 /*
 ======================
 DCV_SetViewportDepthRange
 
 ======================
 */
-void DCV_SetViewportDepthRange( float minz, float maxz )
-{
-	LPDIRECT3DDEVICE3    dev;
-	LPDIRECT3DVIEWPORT3  vp3;
-	D3DVIEWPORT2         vp;
-
-	DCV_Flush();
-
-	dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-	vp3 = (LPDIRECT3DVIEWPORT3)Sys_GetD3DViewport();
-	
-	if ( !dev || !dev->lpVtbl || !vp3 || !vp3->lpVtbl )
-		return;
-
-	memset( &vp, 0, sizeof(vp) );
-	vp.dwSize = sizeof(vp);
-	vp3->lpVtbl->GetViewport2( vp3, &vp );
-
-	vp.dvMinZ = minz;
-	vp.dvMaxZ = maxz;
-
-	vp3->lpVtbl->SetViewport2( vp3, &vp );
-	dev->lpVtbl->SetCurrentViewport( dev, vp3 );
-}
-
 /*
 ===========================
 DCV_BuildProjectionAndSetTransform
@@ -237,7 +104,7 @@ void DCV_BuildProjectionAndSetTransform(
 	D3DMATRIX         m;
 	float             xRange, yRange, zRange;
 
-	DCV_Flush();
+	DCV_FlushInline();
 
 	dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
 	if ( !dev || !dev->lpVtbl )
@@ -279,147 +146,6 @@ void DCV_BuildProjectionAndSetTransform(
 		memcpy( gProjectionMatrix, &m, sizeof(m) );
 }
 
-
-static int OnePrincipalAxis( float x, float y, float z )
-{
-	double ax, ay, az;
-
-	ax = fabs(x);
-	ay = fabs(y);
-	az = fabs(z);
-
-	if (ax <= EQUAL_EPSILON && ay <= EQUAL_EPSILON && az <= EQUAL_EPSILON)
-		return -1;
-	if (ax > EQUAL_EPSILON && ay <= EQUAL_EPSILON && az <= EQUAL_EPSILON)
-		return 0;
-	if (ay > EQUAL_EPSILON && ax <= EQUAL_EPSILON && az <= EQUAL_EPSILON)
-		return 1;
-	if (az > EQUAL_EPSILON && ax <= EQUAL_EPSILON && ay <= EQUAL_EPSILON)
-		return 2;
-	return -1;
-}
-
-void DCV_Frustum( float left, float right, float bottom, float top, float znear, float zfar )
-{
-	LPDIRECT3DDEVICE3	dev;
-	D3DMATRIX			m;
-	float				sum, diff, twoNear, zFarTwoNear;
-	float				xSum, ySum, xRange, yRange;
-
-	if (matrixMode == D3DTRANSFORMSTATE_WORLD)
-		Sys_Error("Are you sure calling DCV_Frustum on the world transform is wise?\n");
-
-	dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-	if (!dev || !dev->lpVtbl)
-		return;
-
-	xRange = right - left;
-	yRange = top - bottom;
-	sum = zfar + znear;
-	diff = zfar - znear;
-	twoNear = znear * 2.0f;
-	zFarTwoNear = zfar * twoNear;
-	xSum = right + left;
-	ySum = top + bottom;
-
-	if (xRange == 0.0f || yRange == 0.0f || diff == 0.0f)
-		return;
-
-	memset(&m, 0, sizeof(m));
-	m._11 = twoNear / xRange;
-	m._22 = twoNear / yRange;
-	m._31 = xSum / xRange;
-	m._32 = ySum / yRange;
-	m._33 = -(zfar / diff);
-	m._34 = -1.0f;
-	m._43 = -(znear * zfar / diff);
-
-	dev->lpVtbl->MultiplyTransform(dev, D3DTRANSFORMSTATE_PROJECTION, &m);
-}
-
-void DCV_Ortho( float left, float right, float bottom, float top, float znear, float zfar )
-{
-	LPDIRECT3DDEVICE3	dev;
-	D3DMATRIX			m;
-	float				rx, ry, rz;
-
-	if (matrixMode == D3DTRANSFORMSTATE_WORLD)
-		Sys_Error("Are you sure calling DCV_Ortho on the world transform is wise?\n");
-
-	dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-	if (!dev || !dev->lpVtbl)
-		return;
-
-	rx = right - left;
-	ry = top - bottom;
-	rz = zfar - znear;
-	if (rx == 0.0f || ry == 0.0f || rz == 0.0f)
-		return;
-
-	memset(&m, 0, sizeof(m));
-	m._11 = 2.0f / rx;
-	m._22 = 2.0f / ry;
-	m._33 = -1.0f / rz;
-	m._41 = -(right + left) / rx;
-	m._42 = -(top + bottom) / ry;
-	m._43 = -znear / rz;
-	m._44 = 1.0f;
-
-	dev->lpVtbl->MultiplyTransform(dev, D3DTRANSFORMSTATE_PROJECTION, &m);
-}
-
-void DCV_Rotate( float angle, float x, float y, float z )
-{
-	LPDIRECT3DDEVICE3	dev;
-	D3DMATRIX			mtx;
-	float				rad, s, c;
-	int					axis;
-
-	axis = OnePrincipalAxis(x, y, z);
-	
-	if (axis < 0)
-		Sys_Error("DCV_Rotate around non-aligned axis?\n");
-
-	rad = DEG2RAD(angle);
-	s = (float)sin(rad);
-	c = (float)cos(rad);
-
-	memset(&mtx, 0, sizeof(mtx));
-
-	switch (axis)
-	{
-	case 0:
-		mtx._11 = 1.0f;
-		mtx._22 = c;
-		mtx._23 = s;
-		mtx._32 = -s;
-		mtx._33 = c;
-		mtx._44 = 1.0f;
-		break;
-	case 1:
-		mtx._11 = c;
-		mtx._13 = -s;
-		mtx._22 = 1.0f;
-		mtx._31 = s;
-		mtx._33 = c;
-		mtx._44 = 1.0f;
-		break;
-	default:
-		mtx._11 = c;
-		mtx._12 = s;
-		mtx._21 = -s;
-		mtx._22 = c;
-		mtx._33 = 1.0f;
-		mtx._44 = 1.0f;
-		break;
-	}
-
-	dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-	if (!dev || !dev->lpVtbl)
-		return;
-
-	dev->lpVtbl->MultiplyTransform(dev, matrixMode, &mtx);
-}
 
 void ProjectPointOnPlane( vec_t* dst, const vec_t* p, const vec_t* normal )
 {
@@ -597,7 +323,7 @@ void R_RotateForEntity( cl_entity_t* e )
 		D3DMATRIX world;
 		vec3_t forward, right, up;
 			
-		DCV_Flush();
+		DCV_FlushInline();
 
 		AngleVectors(angles, forward, right, up);
 
@@ -712,8 +438,8 @@ void R_DrawSpriteModel( cl_entity_t* e )
 	}
 
 	R_GetSpriteAxes( e, psprite->type, forward, right, up );
-	DCV_Flush();
-	GL_Bind( 0, frame->gl_texturenum );
+	DCV_FlushInline();
+	GL_Bind(frame->gl_texturenum, 0);
 
 	if ( !DCV_EnsureSpace( 4, 6 ) )
 		return;
@@ -758,7 +484,7 @@ void R_DrawSpriteModel( cl_entity_t* e )
 			dc_msw.value,
 			D3DTRANSFORMSTATE_PROJECTION );
 		DCV_SetViewportDepthRange( dc_depthmin.value, dc_depthmax.value );
-		DCV_Flush();
+		DCV_FlushInline();
 	}
 }
 
@@ -975,7 +701,7 @@ void R_DrawViewModel( void )
 			D3DTRANSFORMSTATE_PROJECTION );
 
 		DCV_SetViewportDepthRange( dc_depthmin.value, dc_depthmax.value );
-		DCV_Flush();
+		DCV_FlushInline();
 
 		switch (currententity->model->type)
 		{
@@ -1005,7 +731,7 @@ void R_DrawViewModel( void )
 			break;
 		}
 
-		DCV_Flush();
+		DCV_FlushInline();
 
 		DCV_BuildProjectionAndSetTransform(
 			g_frustum_xmax, -g_frustum_xmax,
@@ -1015,7 +741,7 @@ void R_DrawViewModel( void )
 			D3DTRANSFORMSTATE_PROJECTION );
 
 		DCV_SetViewportDepthRange( dc_depthmin.value, dc_depthmax.value );
-		DCV_Flush();
+		DCV_FlushInline();
 }
 
 void R_PreDrawViewModel( void )
@@ -1354,12 +1080,11 @@ void R_SetupGL( void )
 	view._11 = view._22 = view._33 = view._44 = 1.0f;
 	dev->lpVtbl->SetTransform(dev, D3DTRANSFORMSTATE_VIEW, &view);
 
-	DCV_MatrixMode(D3DTRANSFORMSTATE_VIEW);
-	DCV_Rotate(-90.0f, 1.0f, 0.0f, 0.0f);
-	DCV_Rotate(90.0f, 0.0f, 0.0f, 1.0f);
-	DCV_Rotate(-r_refdef.viewangles[2], 1.0f, 0.0f, 0.0f);
-	DCV_Rotate(-r_refdef.viewangles[0], 0.0f, 1.0f, 0.0f);
-	DCV_Rotate(-r_refdef.viewangles[1], 0.0f, 0.0f, 1.0f);
+	DCV_Rotate(-90.0f, 1.0f, 0.0f, 0.0f, D3DTRANSFORMSTATE_VIEW);
+	DCV_Rotate(90.0f, 0.0f, 0.0f, 1.0f, D3DTRANSFORMSTATE_VIEW);
+	DCV_Rotate(-r_refdef.viewangles[2], 1.0f, 0.0f, 0.0f, D3DTRANSFORMSTATE_VIEW);
+	DCV_Rotate(-r_refdef.viewangles[0], 0.0f, 1.0f, 0.0f, D3DTRANSFORMSTATE_VIEW);
+	DCV_Rotate(-r_refdef.viewangles[1], 0.0f, 0.0f, 1.0f, D3DTRANSFORMSTATE_VIEW);
 	memset(&mtx, 0, sizeof(mtx));
 	mtx._11 = 1.0f; mtx._22 = 1.0f; mtx._33 = 1.0f; mtx._44 = 1.0f;
 	mtx._41 = -r_refdef.vieworg[0];
@@ -1375,7 +1100,6 @@ void R_SetupGL( void )
 
 	memcpy(r_world_matrix, &view, sizeof(view));
 
-	DCV_MatrixMode(D3DTRANSFORMSTATE_WORLD);
 	DCV_TexState_Opaque();
 }
 

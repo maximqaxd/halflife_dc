@@ -37,14 +37,14 @@ static LPDIRECTDRAWSURFACE4 g_pddsPrimary   = NULL;
 static LPDIRECTDRAWSURFACE4 g_pddsBack      = NULL;
 static LPDIRECT3D3          g_pD3D          = NULL;
 LPDIRECT3DDEVICE3           g_pD3DDevice    = NULL;
-static LPDIRECT3DVIEWPORT3  g_pViewport     = NULL;
+LPDIRECT3DVIEWPORT3         g_pViewport     = NULL;
 static LPDIRECT3DMATERIAL3  g_pBackgroundMaterial = NULL;
 static LPDIRECT3DLIGHT      g_pLights[4];
 
 static D3DDEVICEDESC        g_d3dHWDeviceDesc;
 static D3DDEVICEDESC        g_d3dHELDeviceDesc;
 static D3DDEVICEDESC        g_d3dDeviceDesc;
-static D3DVIEWPORT2         g_viewportDesc;
+D3DVIEWPORT2               g_viewportDesc;
 static D3DMATERIAL          g_backgroundMaterialData;
 static D3DLIGHT2            g_lightData[4];
 static D3DMATRIX            g_identityMatrix;
@@ -596,7 +596,7 @@ void DCV_Flip( void )
 	DCV_DrawMeters();
 	g_dwFlipTick = GetTickCount();
 
-	DCV_Flush();
+	DCV_FlushInline();
 	g_pddsPrimary->lpVtbl->Flip(g_pddsPrimary, NULL, DDFLIP_WAIT);
 
 	if (profilescale.value >= 1.0f)
