@@ -14,6 +14,7 @@ const char* gl_extensions;
 static HANDLE	hMovieFile = INVALID_HANDLE_VALUE;
 
 cvar_t	gl_ztrick = { "gl_ztrick", "1" };
+cvar_t	gl_d3dflip = { "gl_d3dflip", "0" };
 cvar_t	r_testlight = { "r_testlight", "0" };
 cvar_t	mipbias = { "mipbias", "0" };
 
@@ -27,9 +28,6 @@ PROC qglTexCoordPointerEXT;
 PROC qglVertexPointerEXT;
 
 qboolean gl_mtexable = FALSE;
-
-/* Track whether we're inside a D3D BeginScene/EndScene pair. */
-static qboolean in_scene = FALSE;
 
 //====================================
 
@@ -54,6 +52,10 @@ extern void	(*VID_GetVID)( struct viddef_s* pvid );
 extern char* (*VID_GetExtModeDescription)( int mode );
 
 extern int GlideReadPixels( int x, int y, int width, int height, word* pixels );
+
+/* dc_d3d.c: flush the batch and program the D3D viewport to a screen rect. */
+extern void  DCV_SetViewport( int x, int y, int width, int height );
+extern void* Sys_GetD3DDevice3( void );
 
 
 //int		texture_mode = GL_NEAREST;
@@ -113,25 +115,15 @@ GL_BeginRendering
 */
 void GL_BeginRendering( int* x, int* y, int* width, int* height )
 {
-	LPDIRECT3DDEVICE3 dev;
-
-	window_rect.left   = 0;
-	window_rect.top    = 0;
-	window_rect.right  = 640;
-	window_rect.bottom = 480;
-
-	*x = 0;
 	*y = 0;
-	*width  = 640;
-	*height = 480;
+	*x = 0;
+	*width  = window_rect.right - window_rect.left;
+	*height = window_rect.bottom - window_rect.top;
 
-	vid.width = vid.conwidth   = *width;
-	vid.height = vid.conheight = *height;
+	vid.conwidth  = vid.width  = *width;
+	vid.conheight = vid.height = *height;
 
-	dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-
-	if (dev && !in_scene && SUCCEEDED(dev->lpVtbl->BeginScene(dev)))
-		in_scene = TRUE;
+	DCV_SetViewport(*x, *y, *width, *height);
 }
 
 
@@ -139,18 +131,7 @@ extern void DCV_Flip( void );
 
 void GL_EndRendering( void )
 {
-	LPDIRECT3DDEVICE3 dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-
-	if (in_scene)
-	{
-		DCV_Flush();
-
-		if (dev)
-			dev->lpVtbl->EndScene(dev);
-
-		in_scene = FALSE;
-	}
-
+	DCV_Flush();
 	DCV_Flip();
 }
 
@@ -159,9 +140,13 @@ void GL_EndRendering( void )
 VID_DescribeMode_f
 =================
 */
+static char vid_describe_msg[256];
+
 void VID_DescribeMode_f( void )
 {
-
+	Q_atoi(Cmd_Argv(1));
+	sprintf(vid_describe_msg, "FIXME: %s, %d", __FILE__, __LINE__);
+	Con_Printf("%s\n", vid_describe_msg);
 }
 
 
@@ -184,6 +169,11 @@ int VID_Init( word* palette )
 	Cvar_RegisterVariable(&_windowed_mouse);
 	Cvar_RegisterVariable(&gl_ztrick);
 	Cvar_RegisterVariable(&vid_d3d);
+
+	if (gfMiniDriver)
+		Cvar_Set("vid_d3d", "1");
+
+	Cvar_RegisterVariable(&gl_d3dflip);
 
 	Cmd_AddCommand("vid_describemode", VID_DescribeMode_f);
 
@@ -214,11 +204,7 @@ void VID_WriteBuffer( const char* pFilename )
 
 DLL_EXPORT void VID_UpdateWindowVars( void* prc, int x, int y )
 {
-	RECT* rect = (RECT*)prc;
-	window_rect.left = rect->left;
-	window_rect.top = rect->top;
-	window_rect.right = rect->right;
-	window_rect.bottom = rect->bottom;
+	window_rect = *(RECT*)prc;
 	window_center_x = x;
 	window_center_y = y;
 }
