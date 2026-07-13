@@ -6,20 +6,15 @@ rem Resolve repo root from the location of this script.
 set ROOT=%~dp0
 echo ROOT=%ROOT%
 
-rem First argument: path to built EXE (full or relative to repo root).
-set EXE=%~1
-echo EXE=%EXE%
-if "%EXE%"=="" (
+rem First argument: path to built EXE. %~f1 resolves it to a full path against the
+rem caller's working directory (eVC runs this from the .dsp's projects\ dir, so a
+rem relative arg like .\..\obj\WCESH4Rel\halflife_dc.exe lands inside the repo).
+if "%~1"=="" (
     echo No EXE path passed - post-build may not be configured.
     goto done
 )
-
-rem If relative path, resolve against repo root (e.g. obj/WCESH4Rel/halflife_dc.exe).
-set "EXECHECK=%EXE:~0,2%"
-if not "%EXECHECK%"==":\" if not "%EXECHECK%"=="\\" if not "%EXE:~0,1%"=="\" (
-    set "EXE=%ROOT%%EXE%"
-    set "EXE=%EXE:/=\%"
-)
+set "EXE=%~f1"
+echo EXE=%EXE%
 if not exist "%EXE%" (
     echo EXE not found: %EXE%
     goto done
@@ -32,13 +27,20 @@ rem assets live only on that prototype. Instead we use buildgdi -rebuild to copy
 rem the disc and overlay just the files that changed: the freshly built EXE and
 rem the WinCE OS image. Overlay names MUST match the ISO (UPPERCASE, no version)
 rem so buildgdi REPLACES the existing entries instead of adding duplicates.
+rem
+rem GDISRC is machine-specific (the prototype GDI isn't in the repo). Point it at
+rem your local Half-Life.GDI to enable the bootable-disc step; left blank it skips.
 rem ---------------------------------------------------------------------------
-set GDISRC=C:\dev\gdi2data\Half Life.GDI
-set STAGE=%ROOT%deploy_stage
-set OUTDIR=C:\dev\hldc_gdi_out
+set "GDISRC="
+set "STAGE=%ROOT%deploy_stage"
+set "OUTDIR=%ROOT%..\gdi_out"
 
 if not exist "%ROOT%utils\buildgdi.exe" (
     echo buildgdi.exe not found in %ROOT%utils - skipping GDI step.
+    goto done
+)
+if "%GDISRC%"=="" (
+    echo GDISRC not set - skipping bootable-disc step ^(set it to your local Half-Life.GDI to enable^).
     goto done
 )
 if not exist "%GDISRC%" (
