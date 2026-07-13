@@ -363,6 +363,13 @@ extern colorVec		gWaterColor;
 extern qfont_t*	draw_chars;
 extern int		char_texture;
 
+// shared palette-pool indices: the gray ramp, 6x6x6 color cube, and padded
+// gray ramp built once in DCV_GammaRefresh_f (dc_d3d.c), consumed by DC_LoadTexture
+extern short	g_iPalIdxDefault;
+extern short	g_iPalIdxClass6;
+extern short	g_iPalIdxClass9;
+int		DC_GetPaletteIndex( unsigned char* pPal );
+
 //
 // dc_vidnt.c -- render test cvars
 //

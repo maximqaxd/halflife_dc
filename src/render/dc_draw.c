@@ -920,9 +920,9 @@ int DC_ReclaimTextureSlot( void )
 int			g_nLastUploadBytes;
 
 /* Shared palette-pool slot indices used by the paletted texture classes (init -1). */
-static short		g_iPalIdxDefault = -1;
-static short		g_iPalIdxClass6  = -1;
-static short		g_iPalIdxClass9  = -1;
+short		g_iPalIdxDefault = -1;
+short		g_iPalIdxClass6  = -1;
+short		g_iPalIdxClass9  = -1;
 
 /* Create a video-memory 3D texture surface with pixel format *fmt into the
    caller's local ddsd (reused for the Lock that follows), evicting cached

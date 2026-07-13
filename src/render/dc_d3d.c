@@ -18,21 +18,16 @@ extern HINSTANCE g_hPrevInstance;
 
 extern void     VID_UpdateWindowVars( RECT *pRect, int cx, int cy );
 extern qboolean DC_InitTextureList( void );
-extern cvar_t   r_testlight;
-extern cvar_t   mipbias;
 
 extern float    Sys_FloatTime( void );
 extern int      GetVideoOutputFormat( void );
-
-// dc_draw.c: point the HUD transform at one of the 2D depth sublayers
-extern void     DCV_SetHudDepth( float layer );
 
 #define MAX_METERS      32
 #define METER_FLIP      400
 
 static HWND                 g_hwndAppDC;
 static LPDIRECTDRAW         g_pDD           = NULL;
-static LPDIRECTDRAW4        g_pDD4          = NULL;
+LPDIRECTDRAW4               g_pDD4          = NULL;	/* shared: dc_draw.c texture surfaces */
 static LPDIRECTDRAWSURFACE4 g_pddsPrimary   = NULL;
 static LPDIRECTDRAWSURFACE4 g_pddsBack      = NULL;
 static LPDIRECT3D3          g_pD3D          = NULL;
@@ -47,16 +42,18 @@ static D3DDEVICEDESC        g_d3dDeviceDesc;
 D3DVIEWPORT2               g_viewportDesc;
 static D3DMATERIAL          g_backgroundMaterialData;
 static D3DLIGHT2            g_lightData[4];
-static D3DMATRIX            g_identityMatrix;
+D3DMATRIX                   g_identityMatrix;
 static D3DMATRIX            g_matNegY;
 static D3DMATRIX            g_matNegX;
 static D3DMATRIX            g_matAxis3;
 static D3DMATRIX            g_matAxis4;
-static DDPIXELFORMAT        g_pfRGB565;
-static DDPIXELFORMAT        g_pfPalette8;
-static DDPIXELFORMAT        g_pfARGB1555;
-static DDPIXELFORMAT        g_pfARGB4444;
-static DDPIXELFORMAT        g_pfScreenRGB565;
+/* Shared with dc_draw.c (DC_LoadTexture passes these by address to the
+   surface-prep helpers), so they can no longer be file-static. */
+DDPIXELFORMAT               g_pfRGB565;
+DDPIXELFORMAT               g_pfPalette8;	/* shared: DCV_PrepSurfacePaletted */
+DDPIXELFORMAT               g_pfARGB1555;
+DDPIXELFORMAT               g_pfARGB4444;
+DDPIXELFORMAT               g_pfScreenRGB565;
 
 // fog parameters set by the game through DCV_SetFog, applied by DCV_SetupFog
 static int      g_bFogChanged;
@@ -74,10 +71,6 @@ byte            g_GammaTable256[256];
 int             g_nOverscanX;
 int             g_nOverscanY;
 
-// test images registered for the gamma calibration screen
-static short    g_hGammaRamp256;
-static short    g_hGammaPalette;
-static short    g_hGammaPalette2;
 
 // screen saver: fade the frame out after five minutes without input
 int             g_bScreenSaverActive;
@@ -285,7 +278,7 @@ void DCV_GammaRefresh_f( void )
 		p[2] = (byte)i;
 		p += 3;
 	}
-	g_hGammaRamp256 = (short)DCV_FB_LoadImage(rgb, 0);
+	g_iPalIdxDefault = (short)DC_GetPaletteIndex(rgb);
 
 	for (i = 0; i < 6; i++)
 	{
@@ -307,8 +300,8 @@ void DCV_GammaRefresh_f( void )
 		p[2] = (byte)(i * 255 / 39);
 		p += 3;
 	}
-	g_hGammaPalette = (short)DCV_FB_LoadImage(rgb, 0);
-	g_hGammaPalette2 = (short)DCV_FB_LoadImage(rgb, 0);
+	g_iPalIdxClass6 = (short)DC_GetPaletteIndex(rgb);
+	g_iPalIdxClass9 = (short)DC_GetPaletteIndex(rgb);
 }
 
 void Sys_ShutdownDisplay( void )
