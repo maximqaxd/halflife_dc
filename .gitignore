@@ -22,6 +22,9 @@ __pycache__/
 # large regenerable Ghidra instruction dump (ExportInsns.java)
 /utils/re/bin_insns.tsv
 
+# cross-binary symbol-port intermediates (ExportFingerprints.py output)
+/utils/re/portdata/
+
 # recoverable Ghidra project backups (not versioned)
 /RE/halflife_dc_OLD.gpr
 /RE/halflife_dc_OLD.rep/

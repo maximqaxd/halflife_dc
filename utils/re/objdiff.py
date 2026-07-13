@@ -361,10 +361,10 @@ def main():
             va, r = locate(insns, exe_dis, exe_norm)
             rows.append((sym, len(insns), va, r))
         rows.sort(key=lambda x: -x[3])
-        print("\n  %-22s %5s  %-10s %s" % ("obj function", "insns", "binary@", "match"))
+        # tab-separated, FULL names (backport_names.py parses this)
+        print("obj_function\tinsns\tbinary_va\tmatch")
         for sym, n, va, r in rows:
-            print("  %-22s %5d  %-10s %.1f%%"
-                  % (sym[:22], n, ("%08x" % va) if va else "-", r * 100))
+            print("%s\t%d\t%s\t%.1f" % (sym, n, ("%08x" % va) if va else "-", r * 100))
         return
 
     results = []
