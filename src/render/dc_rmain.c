@@ -7,9 +7,6 @@
 #include "dc_draw.h"
 #include "dc_accum.h"
 
-extern void* Sys_GetD3DDevice3( void );
-extern void* Sys_GetD3DViewport( void );
-
 cl_entity_t	r_worldentity;
 
 qboolean	r_cache_thrash;		// compatability
@@ -427,7 +424,7 @@ void R_DrawSpriteModel( cl_entity_t* e )
 		break;
 
 	case kRenderTransAlpha:
-		DCV_TexState_AlphaTest();
+		DCV_TexState_Blend();
 		DCV_SetColor( color.r, color.g, color.b, alpha );
 		break;
 

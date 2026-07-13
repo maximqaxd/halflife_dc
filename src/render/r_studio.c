@@ -12,8 +12,6 @@
 #include "dc_accum.h"
 
 extern void R_SetRenderMode( cl_entity_t* pEntity );
-extern void* Sys_GetD3DDevice3( void );
-extern void DCV_InvalidateTextureCache( void );
 
 // Hulls & planes
 #define STUDIO_NUM_HULLS	128

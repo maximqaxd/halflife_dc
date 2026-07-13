@@ -8,13 +8,13 @@
 
 typedef unsigned char byte;
 
-cachewad_t	decal_wad;
+cachewad_t	*decal_wad;
 cachewad_t	custom_wad;
-cachewad_t	menu_wad;
+cachewad_t	*menu_wad;
 
 char		decal_names[MAX_BASE_DECALS][16];
 
-static int	m_bDrawInitialized;
+short		m_bDrawInitialized;
 
 void Draw_FreeWad( cachewad_t* pWad );
 void Draw_CacheWadInitFromFile( int h0, int h1, int h2, int len, char *name, int cacheMax, cachewad_t *wad );
@@ -33,13 +33,15 @@ void Draw_Shutdown( void )
 	if (m_bDrawInitialized)
 	{
 		m_bDrawInitialized = FALSE;
-		Draw_FreeWad(&menu_wad);
+		Draw_FreeWad(menu_wad);
+		menu_wad = NULL;
 	}
 }
 
 void Draw_DecalShutdown( void )
 {
-	Draw_FreeWad(&decal_wad);
+	Draw_FreeWad(decal_wad);
+	decal_wad = NULL;
 }
 
 void Draw_CacheWadInitFromFile( int h0, int h1, int h2, int len, char *name, int cacheMax, cachewad_t *wad )
@@ -155,15 +157,15 @@ int Draw_DecalIndex( int id )
 		pName = tmpName;
 	}
 
-	return Draw_CacheIndex(&decal_wad, pName);
+	return Draw_CacheIndex(decal_wad, pName);
 }
 
 int Draw_DecalSize( int number )
 {
-	if (number >= decal_wad.lumpCount)
+	if (number >= decal_wad->lumpCount)
 		return 0;
 
-	return decal_wad.lumps[number].size;
+	return decal_wad->lumps[number].size;
 }
 
 texture_t* Draw_DecalTexture( int index )
@@ -173,7 +175,7 @@ texture_t* Draw_DecalTexture( int index )
 
 	// Just a regular decal
 	if (index >= 0)
-		return (texture_t*)Draw_CacheGet(&decal_wad, index);
+		return (texture_t*)Draw_CacheGet(decal_wad, index);
 
 	// Player decal
 	playernum = ~index;
@@ -303,7 +305,16 @@ void Decal_Init( void )
 {
 	int i;
 
-	Draw_CacheWadInit("decals.wad", MAX_BASE_DECALS, &decal_wad);
+	if (decal_wad)
+	{
+		Draw_FreeWad(decal_wad);
+		decal_wad = NULL;
+	}
+	decal_wad = (cachewad_t *)MnemoAllocDbg(sizeof(cachewad_t), __FILE__, __LINE__);
+	memset(decal_wad, 0, sizeof(cachewad_t));
+	Draw_CacheWadInit("decals.wad", MAX_BASE_DECALS, decal_wad);
+	decal_wad->pfnCacheBuild = Draw_MiptexTexture;
+	decal_wad->cacheExtra = MIP_EXTRASIZE;
 
 	sv_decalnamecount = Draw_DecalCount();
 	if (sv_decalnamecount > MAX_BASE_DECALS)
@@ -469,15 +480,15 @@ int Draw_CacheIndex( cachewad_t* wad, char* path )
 
 int Draw_DecalCount( void )
 {
-	return decal_wad.lumpCount;
+	return decal_wad->lumpCount;
 }
 
 char* Draw_DecalName( int number )
 {
-	if (number >= decal_wad.lumpCount)
+	if (number >= decal_wad->lumpCount)
 		return 0;
 
-	return decal_wad.lumps[number].name;
+	return decal_wad->lumps[number].name;
 }
 
 /*

@@ -53,9 +53,6 @@ extern char* (*VID_GetExtModeDescription)( int mode );
 
 extern int GlideReadPixels( int x, int y, int width, int height, word* pixels );
 
-/* dc_d3d.c: flush the batch and program the D3D viewport to a screen rect. */
-extern void  DCV_SetViewport( int x, int y, int width, int height );
-extern void* Sys_GetD3DDevice3( void );
 
 
 //int		texture_mode = GL_NEAREST;
@@ -126,8 +123,6 @@ void GL_BeginRendering( int* x, int* y, int* width, int* height )
 	DCV_SetViewport(*x, *y, *width, *height);
 }
 
-
-extern void DCV_Flip( void );
 
 void GL_EndRendering( void )
 {

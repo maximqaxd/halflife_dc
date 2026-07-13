@@ -104,9 +104,6 @@ int		g_nTextCharGap;
 #define LANGTAG_MAXLEN		0x7f
 
 extern cvar_t	sv_language;
-extern cvar_t	dc_depthhud;
-extern qfont_t	*draw_chars;
-extern int		char_texture;
 
 void	GL_BindStage( int texnum, int stage );
 void	DCV_SetHudDepth( float layer );
@@ -644,7 +641,7 @@ void Text_DrawCenteredStatus( float sx, float sy, byte *str, int color )
 	float	fx, fy;
 
 	DCV_SetHudDepth(TEXT_DEPTH_FRONT);
-	DCV_SetDefaultRenderStates();
+	DCV_TexState_Additive();
 
 	brightness = STATUS_BRIGHTNESS;
 

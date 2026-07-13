@@ -51,7 +51,7 @@ typedef enum
 
 int GL_LoadTexture( char* identifier, GL_TEXTURETYPE textureType, int width, int height, unsigned char* data, int mipmap, int iType, unsigned char* pPal );
 int GL_LoadPicTexture( qpic_t* pic, char* pszName );
-void GL_UnloadTextures( void );
+int GL_UnloadTextures( void );
 void GL_SelectTexture( unsigned int target );
 
 void GL_PaletteClearSky( void );
@@ -61,14 +61,10 @@ void GLBeginHud( void );
 void GLFinishHud( void );
 void DCV_MatrixInit( void );
 void DCV_MatrixMode( D3DTRANSFORMSTATETYPE state );
-/* The d3dmath.c matrix/transform API (DCV_PushMatrix, DCV_Frustum, DCV_Ortho,
-   DCV_Rotate, DCV_SetTransform, DCV_SetViewportDepthRange, ...) is declared in
-   dc_accum.h with its authentic per-state signatures; do not redeclare it here. */
 void DCV_BuildProjectionAndSetTransform( float right, float left, float top, float bottom, float zn, float zf, float scale, D3DTRANSFORMSTATETYPE state );
 void DrawWedge( float centerx, float centery, float angle1, float angle2, float radius );
 
 void DCV_TexState_Additive( void );
-void DCV_TexState_AlphaTest( void );
 void DCV_TexState_Blend( void );
 void DCV_TexState_VertColor( void );
 void DCV_TexState_Modulate( void );
@@ -121,13 +117,34 @@ typedef struct pvrt_s
 #define PVR_RGB565   0x01
 #define PVR_ARGB4444 0x02
 
+/* On-disk header of a .PVR texture: a GBIX chunk followed by a PVRT chunk, with
+   the encoded pixel data starting right after (at offset 0x20). */
+typedef struct pvrheader_s
+{
+	unsigned char	gbixMagic[4];	/* +0x00 "GBIX" */
+	int				gbixLength;		/* +0x04 bytes of global index that follow */
+	unsigned int	globalIndex[2];	/* +0x08 texture global index */
+	unsigned char	pvrtMagic[4];	/* +0x10 "PVRT" */
+	int				dataSize;		/* +0x14 pixel data size + 8 */
+	unsigned char	pixelFormat;	/* +0x18 PVR_ARGB1555 / PVR_RGB565 / PVR_ARGB4444 */
+	unsigned char	dataFormat;		/* +0x19 PVR_TWIDDLE / PVR_VQ / PVR_RECT / ... */
+	unsigned short	reserved;		/* +0x1a */
+	short			width;			/* +0x1c */
+	short			height;			/* +0x1e */
+} pvrheader_t;
+
 #define TEX_TYPE_NONE				0
 #define TEX_TYPE_ALPHA				1
 #define TEX_TYPE_LUM				2
 #define TEX_TYPE_ALPHA_GRADIENT		3
 #define TEX_TYPE_RGBA				4
 #define TEX_TYPE_RGB565				5
-#define TEX_TYPE_GBIX				8
+#define TEX_TYPE_PAL8_6				6	/* 8-bit paletted, palette pool class 6 */
+#define TEX_TYPE_PAL8				7	/* 8-bit paletted, default palette pool */
+#define TEX_TYPE_GBIX				8	/* .PVR file with GBIX/PVRT header */
+#define TEX_TYPE_PAL8_9				9	/* 8-bit paletted, palette pool class 9 */
+#define TEX_TYPE_RGB565_RAW			10	/* pre-encoded 16-bit RGB565, uploaded verbatim */
+#define TEX_TYPE_FONT				11
 
 #define TEX_IS_ALPHA(type)		((type) == TEX_TYPE_ALPHA || (type) == TEX_TYPE_ALPHA_GRADIENT || (type) == TEX_TYPE_RGBA)
 
@@ -308,6 +325,49 @@ void DC_BuildLightmaps( void );
 void R_DecalInit( void );
 void R_DrawDecals( void );
 int DecalListCreate( DECALLIST* pList );
+
+//
+// dc_d3d.c -- DirectDraw/Direct3D display surfaces + texture pixel-format state
+//
+extern LPDIRECTDRAW4		g_pDD4;			// primary IDirectDraw4
+extern LPDIRECT3DDEVICE3	g_pD3DDevice;	// active HAL device
+extern D3DMATRIX		g_identityMatrix;
+extern DDPIXELFORMAT	g_pfRGB565;
+extern DDPIXELFORMAT	g_pfARGB1555;
+extern DDPIXELFORMAT	g_pfARGB4444;
+extern DDPIXELFORMAT	g_pfScreenRGB565;
+extern DDPIXELFORMAT	g_pfPalette8;
+
+void*		Sys_GetDirectDraw4( void );
+void*		Sys_GetPrimarySurface4( void );
+void*		Sys_GetBackBuffer4( void );
+void*		Sys_GetD3DDevice3( void );
+void*		Sys_GetD3DViewport( void );
+
+qboolean	DCV_DDError( HRESULT hr, TCHAR* op );
+void		DCV_SetHudDepth( float layer );
+void		DCV_Flip( void );
+void		DCV_InvalidateTextureCache( void );
+int			DCV_LT2Decode( const byte* in, int in_size, color24* out, int w, int h );
+
+//
+// dc_rmain.c / dc_varp.c -- world view transform + water shading
+//
+extern D3DMATRIX	gViewMatrix;
+extern colorVec		gWaterColor;
+
+//
+// text_draw.cpp / dc_draw.c -- console character sheet (the Font_* text API is
+// declared per-caller: it takes an internal dcfont_t*, not qfont_t*)
+//
+extern qfont_t*	draw_chars;
+extern int		char_texture;
+
+//
+// dc_vidnt.c -- render test cvars
+//
+extern cvar_t	r_testlight;
+extern cvar_t	mipbias;
 
 #ifdef __cplusplus
 }

@@ -1128,6 +1128,22 @@ static int MnemoDbgOldSize( void* ptr )
 	return hdr->payload_size;
 }
 
+void* MnemoAllocDbg( int size, const char* srcFile, int srcLine )
+{
+	static char tag[64];
+	const char* base;
+
+	base = strrchr(srcFile, '\\');
+	if (!base)
+		base = strrchr(srcFile, '/');
+	if (base)
+		srcFile = base + 1;
+
+	sprintf(tag, "%d, %s", srcLine, srcFile);
+
+	return MnemoAlloc(size, 0x20, 0, tag);
+}
+
 void* MnemoReallocDbg( void* oldPtr, int sizeBytes, const char* srcFile, int srcLine )
 {
 	char tag[MAX_OSPATH];

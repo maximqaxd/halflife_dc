@@ -10,9 +10,6 @@
 #include "dc_accum.h"
 #include "view.h"
 
-extern void* Sys_GetD3DDevice3( void );
-extern D3DMATRIX gViewMatrix;
-
 #define MAX_DECALSURFS		500
 
 int		lightmap_bytes;		// 1, 2, or 4
@@ -45,8 +42,6 @@ int gDecalSurfCount;
 /* For gl_texsort 0 */
 msurface_t* skychain;
 msurface_t* waterchain;
-
-extern colorVec gWaterColor;
 
 void R_RenderDynamicLightmaps( msurface_t* fa );
 void DrawGLPolyScroll( msurface_t* psurface, cl_entity_t* pEntity );
@@ -1129,7 +1124,7 @@ void R_SetRenderMode( cl_entity_t* pEntity )
 		break;
 
 	case kRenderTransAlpha:
-		DCV_TexState_AlphaTest();
+		DCV_TexState_Blend();
 		alpha = (BYTE)(r_blend * 255.0f);
 		DCV_SetColor(alpha, alpha, alpha, 0xFF);
 		break;

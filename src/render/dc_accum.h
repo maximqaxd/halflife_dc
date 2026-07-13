@@ -32,8 +32,6 @@ void          DCV_AddIndicesFan( int base, int count );
 void          DCV_SetClipRequired( void );
 void          DCV_SetNoClip( void );
 void          DCV_SetTexStateFromRenderMode( int rendermode );
-void          DCV_SetDefaultRenderStates( void );
-void          DCV_SetTextRenderStates( void );
 
 void          DCV_FlushApplyRenderState( D3DRENDERSTATETYPE state, DWORD value );
 
@@ -73,11 +71,10 @@ extern LPDIRECT3DDEVICE3   g_pD3DDevice;
 extern LPDIRECT3DVIEWPORT3 g_pViewport;
 extern D3DVIEWPORT2        g_viewportDesc;
 
-/* The batch flush exists in two forms in the binary. DCV_Flush is a real
-   out-of-line function (dc_accum.c, 0x128428) that direct callers such as
-   GL_EndRendering invoke. The state-change setters below instead carry an inlined
-   copy (DCV_FlushInline) so they fold into the render path exactly as the binary
-   does (e.g. inside DCV_Flip), rather than emitting an out-of-line call. */
+/* Draw the accumulated vertex batch. DCV_Flush is the shared out-of-line entry
+   point for direct callers such as GL_EndRendering; the render-state setters below
+   use the inline DCV_FlushInline so any pending batch is drawn before a state
+   change takes effect. */
 void DCV_Flush( void );
 
 static __inline void DCV_FlushInline( void )
@@ -121,6 +118,10 @@ static __inline void DCV_SetTextureStageState( DWORD stage, D3DTEXTURESTAGESTATE
 		g_pD3DDevice->lpVtbl->SetTextureStageState(g_pD3DDevice, stage, type, value);
 	}
 }
+
+/* 2D screen-space quad drawing (built on the qgl entry points); not yet ported. */
+void DCV_Begin2D( int mode, int flags );
+void DCV_2D_SetupStates( void );
 
 #ifdef __cplusplus
 }

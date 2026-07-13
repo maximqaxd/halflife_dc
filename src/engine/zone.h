@@ -86,6 +86,7 @@ extern "C" {
 void Memory_Init( void* buf, int size );
 
 void* MnemoAlloc( int size, unsigned int flags, int allocClass, const char* tag );
+void* MnemoAllocDbg( int size, const char* srcFile, int srcLine );
 int Mnemo_LastChanceActive( void );
 void* MnemoReallocDbg( void* oldPtr, int sizeBytes, const char* srcFile, int srcLine );
 void MnemoFreeDbg( void* ptr );

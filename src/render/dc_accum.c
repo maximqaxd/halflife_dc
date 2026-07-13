@@ -5,8 +5,6 @@
 #include "quakedef.h"
 #include "dc_accum.h"
 
-extern void* Sys_GetD3DDevice3( void );
-
 #define QUAD_TABLE_ROWS     0x32
 #define ROW_STRIDE_SHORTS   6
 
@@ -164,37 +162,95 @@ void DCV_FlushIfLarge( void )
 		DCV_FlushInline();
 }
 
-/* Modulated texture, alpha blended additively; the shared baseline most of
-   the renderer draws with. */
-void DCV_SetDefaultRenderStates( void )
+/* ---------------------------------------------------------------------------
+ * Texture-stage / blend presets. Each sets stage 0 to modulate the texture by
+ * the vertex color, then selects a blend mode.
+ * --------------------------------------------------------------------------- */
+
+/* Additive: texture * color, added to the frame buffer (dst = ONE). */
+void DCV_TexState_Additive( void )
 {
-	DCV_SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+	DCV_SetTextureStageState(0, D3DTSS_COLOROP,   D3DTOP_MODULATE);
 	DCV_SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 	DCV_SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-	DCV_SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
 	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+
 	DCV_SetRenderState(D3DRENDERSTATE_ALPHABLENDENABLE, TRUE);
-	DCV_SetRenderState(D3DRENDERSTATE_ALPHATESTENABLE, FALSE);
-	DCV_SetRenderState(D3DRENDERSTATE_SRCBLEND, D3DBLEND_SRCALPHA);
-	DCV_SetRenderState(D3DRENDERSTATE_DESTBLEND, D3DBLEND_ONE);
-	DCV_SetRenderState(D3DRENDERSTATE_FOGENABLE, FALSE);
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHATESTENABLE,  FALSE);
+	DCV_SetRenderState(D3DRENDERSTATE_SRCBLEND,         D3DBLEND_SRCALPHA);
+	DCV_SetRenderState(D3DRENDERSTATE_DESTBLEND,        D3DBLEND_ONE);
+	DCV_SetRenderState(D3DRENDERSTATE_FOGENABLE,        FALSE);
 }
 
-/* As above but with standard alpha blending, for glyph quads. */
-void DCV_SetTextRenderStates( void )
+/* Standard alpha blending, for glyph quads and translucent pics. */
+void DCV_TexState_Blend( void )
 {
-	DCV_SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+	DCV_SetTextureStageState(0, D3DTSS_COLOROP,   D3DTOP_MODULATE);
 	DCV_SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 	DCV_SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-	DCV_SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
 	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+
 	DCV_SetRenderState(D3DRENDERSTATE_ALPHABLENDENABLE, TRUE);
-	DCV_SetRenderState(D3DRENDERSTATE_ALPHATESTENABLE, FALSE);
-	DCV_SetRenderState(D3DRENDERSTATE_SRCBLEND, D3DBLEND_SRCALPHA);
-	DCV_SetRenderState(D3DRENDERSTATE_DESTBLEND, D3DBLEND_INVSRCALPHA);
-	DCV_SetRenderState(D3DRENDERSTATE_FOGENABLE, FALSE);
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHATESTENABLE,  FALSE);
+	DCV_SetRenderState(D3DRENDERSTATE_SRCBLEND,         D3DBLEND_SRCALPHA);
+	DCV_SetRenderState(D3DRENDERSTATE_DESTBLEND,        D3DBLEND_INVSRCALPHA);
+	DCV_SetRenderState(D3DRENDERSTATE_FOGENABLE,        FALSE);
+}
+
+/* Modulate: texture * frame buffer (dst = SRCCOLOR, src = ZERO). */
+void DCV_TexState_Modulate( void )
+{
+	DCV_SetTextureStageState(0, D3DTSS_COLOROP,   D3DTOP_MODULATE);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHABLENDENABLE, TRUE);
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHATESTENABLE,  FALSE);
+	DCV_SetRenderState(D3DRENDERSTATE_SRCBLEND,         D3DBLEND_ZERO);
+	DCV_SetRenderState(D3DRENDERSTATE_DESTBLEND,        D3DBLEND_SRCCOLOR);
+	DCV_SetRenderState(D3DRENDERSTATE_FOGENABLE,        FALSE);
+}
+
+/* Opaque: no blending; also re-applies the current fog settings. */
+void DCV_TexState_Opaque( void )
+{
+	DCV_SetTextureStageState(0, D3DTSS_COLOROP,   D3DTOP_MODULATE);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHABLENDENABLE, FALSE);
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHATESTENABLE,  FALSE);
+	DCV_SetRenderState(D3DRENDERSTATE_SRCBLEND,         D3DBLEND_SRCALPHA);
+	DCV_SetRenderState(D3DRENDERSTATE_DESTBLEND,        D3DBLEND_INVSRCALPHA);
+
+	DCV_SetupFog();
+}
+
+/* Vertex color drawn directly (COLOROP selects the diffuse arg), alpha blended. */
+void DCV_TexState_VertColor( void )
+{
+	DCV_SetTextureStageState(0, D3DTSS_COLOROP,   D3DTOP_SELECTARG2);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHABLENDENABLE, TRUE);
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHATESTENABLE,  FALSE);
+	DCV_SetRenderState(D3DRENDERSTATE_SRCBLEND,         D3DBLEND_SRCALPHA);
+	DCV_SetRenderState(D3DRENDERSTATE_DESTBLEND,        D3DBLEND_INVSRCALPHA);
+	DCV_SetRenderState(D3DRENDERSTATE_FOGENABLE,        FALSE);
 }
 
 void DCV_SetClipRequired( void )
@@ -361,11 +417,33 @@ void DCV_SetTexStateFromRenderMode( int rendermode )
 		break;
 
 	case kRenderTransAlpha:
-		DCV_TexState_AlphaTest();
+		DCV_TexState_Blend();
 		break;
 
 	default:
 		DCV_TexState_Blend();
 		break;
 	}
+}
+
+/*
+=============================================================================
+
+	2D drawing
+
+	Screen-space quad drawing built on the OpenGL immediate-mode entry points
+	(qgl.c). Not yet ported to the Dreamcast; the helpers below are stubbed.
+
+=============================================================================
+*/
+
+/* Begin a 2D drawing batch. */
+void DCV_Begin2D( int mode, int flags )
+{
+	Sys_Error("NYI");
+}
+
+/* Program the render/texture-stage state for 2D drawing. */
+void DCV_2D_SetupStates( void )
+{
 }

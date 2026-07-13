@@ -9,10 +9,14 @@
 #include "draw.h"
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_DECALS				4096		// MAX decals in world
 
 #if defined ( GLQUAKE )
-#define MIP_EXTRASIZE		32
+#define MIP_EXTRASIZE		28
 #else
 #define MIP_EXTRASIZE		24
 #endif
@@ -66,5 +70,9 @@ extern void*				Draw_CustomCacheGet( cachewad_t* wad, void* raw, int index );
 extern void					CustomDecal_Init( cachewad_t* wad, void* raw, int nFileSize );
 extern void					Draw_CustomCacheWadInit( int cacheMax, cachewad_t* wad, void* raw, int nFileSize );
 extern int					Draw_CacheByIndex( cachewad_t* wad, int nIndex );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // DECAL_H

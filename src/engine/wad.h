@@ -5,6 +5,10 @@
 #pragma once
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define	CMP_NONE		0
 #define	CMP_LZSS		1
 
@@ -56,10 +60,13 @@ typedef struct lumpinfo_s lumpinfo_t;
 
 void	W_LoadWadFile( char* filename );
 void	W_CleanupName( char* in, char* out );
-lumpinfo_t* W_GetLumpinfo( char* name, qboolean doerror );
-void*	W_GetLumpName( char* name );
+void*	W_GetLumpinfo( char* name );
 void*	W_GetLumpNum( int num );
 
 void SwapPic( qpic_t* pic );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // WAD_H

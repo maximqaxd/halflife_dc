@@ -7,9 +7,6 @@
 #include "winquake.h"
 #include "dc_debug.h"
 
-extern void* Sys_GetPrimarySurface4( void );
-extern void* Sys_GetBackBuffer4( void );
-
 #define GLYPH_W          5
 #define GLYPH_H          5
 #define GLYPH_XSCALE     2

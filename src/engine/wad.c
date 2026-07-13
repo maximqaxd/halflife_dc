@@ -86,7 +86,7 @@ void W_LoadWadFile( char* filename )
 W_GetLumpinfo
 =============
 */
-lumpinfo_t* W_GetLumpinfo( char* name, qboolean doerror )
+void* W_GetLumpinfo( char* name )
 {
 	int		i;
 	lumpinfo_t* lump_p;
@@ -97,22 +97,14 @@ lumpinfo_t* W_GetLumpinfo( char* name, qboolean doerror )
 	for (lump_p = wad_lumps, i = 0; i < wad_numlumps; i++, lump_p++)
 	{
 		if (!strcmp(clean, lump_p->name))
-			return lump_p;
+			goto found;
 	}
 
-	if (doerror)
-		Sys_Error("W_GetLumpinfo: %s not found", name);
+	Sys_Error("W_GetLumpinfo: %s not found", name);
+	lump_p = NULL;
 
-	return NULL;
-}
-
-void* W_GetLumpName( char* name )
-{
-	lumpinfo_t* lump;
-
-	lump = W_GetLumpinfo(name, TRUE);
-
-	return (void*)(wad_base + lump->filepos);
+found:
+	return (void*)(wad_base + lump_p->filepos);
 }
 
 void* W_GetLumpNum( int num )

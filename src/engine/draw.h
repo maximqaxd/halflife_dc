@@ -39,13 +39,19 @@ typedef struct cachewad_s
 	PFNCACHE		pfnCacheBuild;
 
 #if defined( GLQUAKE )
+	int				numpaths;
+	char**			basedirs;
+	int*			lumppathindices;
 	int				tempWad;
 #endif
 } cachewad_t;
 
 #include "qfont.h"
 
-extern qfont_t* draw_creditsfont;
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern qfont_t* draw_chars;
 extern qpic_t* draw_disc;	// also used on sbar
 extern qpic_t* draw_backtile;
@@ -82,5 +88,9 @@ qpic_t* Draw_CachePic( char* path );
 
 void	EnableScissorTest( int x, int y, int width, int height );
 void	DisableScissorTest( void );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // DRAW_H
