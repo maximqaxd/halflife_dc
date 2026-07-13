@@ -2940,6 +2940,7 @@ NODEP_CPP_DC_AC=\
 # Begin Source File
 
 SOURCE=..\src\render\dc_draw.c
+# ADD CPP /TP
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -8917,6 +8918,10 @@ NODEP_CPP_WORLD=\
 
 !ENDIF 
 
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\engine\qgl.c
 # End Source File
 # Begin Source File
 

@@ -8,6 +8,10 @@
 
 #include "cvardef.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
 
 cvar_t variables are used to hold scalar or string variables that can be changed or displayed at the console or prog code as well as accessed directly
@@ -80,5 +84,9 @@ void	Cvar_CmdInit( void );
 cvar_t* Cvar_FindVar( char* var_name );
 
 extern cvar_t* cvar_vars;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // CVAR_H

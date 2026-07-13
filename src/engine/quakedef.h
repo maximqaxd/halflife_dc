@@ -211,7 +211,7 @@ extern	cvar_t		developer;
 
 extern	qboolean	host_initialized;		// true if into command execution
 extern	float		host_frametime;
-extern	unsigned short* host_basepal;
+C_EXTERN	unsigned short* host_basepal;
 extern	unsigned char*	host_colormap;
 extern	int			host_framecount;	// incremented every frame, never reset
 extern	float		realtime;			// not bounded in any way, changed at

@@ -5,6 +5,10 @@
 #pragma once
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Sprites
 void	SPR_Init( void );
 
@@ -27,5 +31,9 @@ void	SPR_DrawAdditive( int frame, int x, int y, const wrect_t* prcSubRect );
 // Scissor test
 void	SPR_EnableScissor( int x, int y, int width, int height );
 void	SPR_DisableScissor( void );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // CL_DRAW_H

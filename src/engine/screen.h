@@ -5,6 +5,10 @@
 #pragma once
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void SCR_Init( void );
 
 void SCR_UpdateScreen( void );
@@ -51,5 +55,9 @@ extern	cvar_t		scr_graphmean;
 extern	cvar_t		scr_netusage;
 extern	cvar_t		scr_graphmedian;
 extern	cvar_t		scr_downloading;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // SCREEN_H

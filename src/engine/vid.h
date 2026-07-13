@@ -7,6 +7,10 @@
 
 #include "vmodes.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct viddef_s
 {
 	pixel_t* buffer;			// invisible buffer
@@ -47,5 +51,9 @@ void	VID_WriteBuffer( const char* pFilename );
 // Screen shot functionality
 void	VID_TakeSnapshot( const char* pFilename );
 void	VID_TakeSnapshotRect( const char* pFilename, int x, int y, int w, int h );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //VIDH
