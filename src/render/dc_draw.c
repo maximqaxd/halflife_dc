@@ -1,5 +1,6 @@
-// draw.c -- this is the only file outside the refresh that touches the
-// vid buffer
+// dc_draw.cpp -- 2D drawing and the DirectDraw/Direct3D texture cache.
+// CINTERFACE selects the C-style (lpVtbl) DirectX interfaces.
+#define CINTERFACE
 
 #include "quakedef.h"
 #include "winquake.h"
@@ -8,6 +9,8 @@
 #include "pr_cmds.h"
 #include "wad.h"
 #include "dc_accum.h"
+#include "qgl.h"
+#include <floatmathlib.h>
 
 typedef unsigned char byte;
 
@@ -17,16 +20,19 @@ cvar_t		gl_round_down = { "gl_round_down", "3" };
 cvar_t		gl_picmip = { "gl_picmip", "0" };
 cvar_t		gl_palette_tex = { "gl_palette_tex", "1" };
 
-int		gTexLog = 0;
+int		g_bTextureLog = 0;	/* open log-file handle; nonzero => trace texture cache (set by dc_texdump) */
 
-int		font_texture;
-qfont_t* draw_creditsfont;
 qfont_t* draw_chars;
 qpic_t* draw_disc;
 qpic_t* draw_backtile;
 
 int			translate_texture;
 int			char_texture;
+int			nada_texture;
+
+/* Draw_Init runs again on every level change; only register commands and load
+   the one-time pics the first time through. */
+static short	s_bFirstTime = TRUE;
 
 typedef struct
 {
@@ -39,16 +45,26 @@ qpic_t* conback = (qpic_t*)&conback_buffer;
 
 int		texels;
 
-extern cachewad_t	decal_wad;
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern cachewad_t	custom_wad;
-extern cachewad_t	menu_wad;
+extern cachewad_t	*menu_wad;
+extern short		m_bDrawInitialized;
+#ifdef __cplusplus
+}
+#endif
 
 int			numgltextures;
 
 
 #define DC_MAXTEXTURES   1140
-typedef struct dc_texture_s
+class dc_texture_s
 {
+public:
+	dc_texture_s();
+	~dc_texture_s();
+
 	short   iPalette;       /* +0x00 */
 	short   nScaledWidth;   /* +0x02 */
 	short   nScaledHeight;  /* +0x04 */
@@ -68,16 +84,21 @@ typedef struct dc_texture_s
 	int     bCached;        /* +0x30 */
 	void   *pPrev;          /* +0x34 */
 	void   *pNext;          /* +0x38 */
-} dctexture_t;
+};
+typedef dc_texture_s dctexture_t;
 
 /* Palette pool: DDraw palettes are a scarce resource, so paletted textures
    share from a small pool keyed by a tag of the palette bytes. */
-typedef struct
+class dcpalette_t
 {
+public:
+	dcpalette_t();
+	~dcpalette_t();
+
 	int					tag;			/* -1 = free */
 	int					referenceCount;
 	LPDIRECTDRAWPALETTE	lpPalette;
-} dcpalette_t;
+};
 
 #define DC_MAXPALETTES	4
 
@@ -94,77 +115,98 @@ static int			s_slotIsSystem[DC_MAXTEXTURES];  /* GLT_SYSTEM: never cache/decache
 static int			s_bTexReclaimGuard;
 static int			s_bUncacheGuard;
 static int			s_nD3dCurrentTexnum = -1;
+static int			s_stageTexnum[2];	/* last texnum bound per D3D texture stage */
 
-extern void* Sys_GetDirectDraw4( void );
-extern void* Sys_GetBackBuffer4( void );
-extern void* Sys_GetPrimarySurface4( void );
-extern void* Sys_GetD3DDevice3( void );
-
-qpic_t* LoadTransBMP( char* pszName );
+/* Localized text/font renderer (text_draw.cpp). The font object is an internal
+   dcfont_t; callers here pass draw_chars (qfont_t*), matched by cast at the def. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+int DC_FreeTextureByName( char *name );
+void Draw_Shutdown( void );
+void DCV_GammaRefresh_f( void );
 qpic_t* LoadTransPic( char* pszName, qpic_t* ppic );
-
-/* Shared localized text/font renderer (dc_text.c). */
 extern void	Font_SetScale( float sx, float sy );
 extern int	Font_StringWidth( qfont_t* font, char* str );
 extern int	Font_CharHeight( qfont_t* font );
 extern int	Font_DrawCharI( qfont_t* font, int x, int y, int num );
-extern void	DCV_SetTextRenderStates( void );
-extern void	DCV_SetDefaultRenderStates( void );
-void	DCV_SetHudDepth( float layer );
-
-static LPDIRECTDRAWSURFACE4 DCV_CreateTextureSurface16(int w, int h, int color_fmt, int allow_sysmem_fallback);
 void DC_FreeTextureSlot(dctexture_t *slot);
 int DC_ReclaimTextureSlot( void );
-static int DC_DecacheTextureSlot( dctexture_t *slot );
-static int DC_CacheTextureToRam( dctexture_t *slot );
-static void DCV_UnlinkTextureSlot( dctexture_t *slot );
-static void DCV_LinkTextureSlotFront( dctexture_t *slot );
-static void DCV_TouchTextureSlot( dctexture_t *slot );
-static int DCV_AttachTextureInterface( dctexture_t *slot, LPDIRECTDRAWSURFACE4 surf );
 int DC_FreeStaleTextureSlots( void );
 int GL_PaletteTag( byte* pPal );
-void GL_UnloadTextures( void );
+int GL_UnloadTextures( void );
 void GL_BindStage( int texnum, int stage );
+int DC_LoadTexture( char *identifier, int texture_type, int width, int height, void *data, short mipmap, int tex_type, unsigned char *pPal );
+void DC_InitTextureList( void );
+int DCV_UpdateTextureSubRect( int texnum, int x, int y, int w, int h, const unsigned short* src, int src_pitch );
+extern float g_flHudDepth;
+#ifdef __cplusplus
+}
+#endif
 
-static void DCV_UnlinkTextureSlot( dctexture_t *slot )
+static void DC_DecacheTextureSlot( dctexture_t *slot );
+static void DC_CacheTextureToRam( dctexture_t *slot );
+static char* Bmakename( const char* name, int n );	/* tagged alloc-name helper */
+static __inline void DCV_UnlinkTextureSlot( dctexture_t *slot );
+static __inline void DCV_LinkTextureSlotFront( dctexture_t *slot );
+static void DCV_TouchTextureSlot( dctexture_t *slot );
+static int DCV_AttachTextureInterface( dctexture_t *slot, LPDIRECTDRAWSURFACE4 surf );
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern void		Sys_FPrintf( int handle, const char* fmt, ... );
+extern void		Sys_CloseHandle( int handle );
+#ifdef __cplusplus
+}
+#endif
+
+static char texAllocName[64];		/* scratch for the tagged alloc name */
+
+/* Build a tagged Mnemo allocation name from a texture's basename. */
+static char* Bmakename( const char* name, int n )
 {
-	dctexture_t *prev;
-	dctexture_t *next;
+	const char* p;
 
-	if (!slot)
-		return;
+	p = strrchr( name, '\\' );
+	if (!p)
+		p = strrchr( name, '/' );
+	if (p)
+		name = p + 1;
 
-	prev = (dctexture_t *)slot->pPrev;
-	next = (dctexture_t *)slot->pNext;
-
-	if (prev)
-		prev->pNext = next;
-
-	if (next)
-		next->pPrev = prev;
-
-	slot->pPrev = NULL;
-	slot->pNext = NULL;
+	switch (n)
+	{
+	case 0:  sprintf( texAllocName, "|%s|", name ); break;
+	case 1:  sprintf( texAllocName, "}%s{", name ); break;
+	case 2:  sprintf( texAllocName, "(%s)", name ); break;
+	case 3:  sprintf( texAllocName, ">%s<", name ); break;
+	default: sprintf( texAllocName, "%c:%s", n, name ); break;
+	}
+	return texAllocName;
 }
 
-static void DCV_LinkTextureSlotFront( dctexture_t *slot )
+/* Remove a slot from the LRU list. Callers have already validated the slot. */
+static __inline void DCV_UnlinkTextureSlot( dctexture_t *slot )
 {
-	dctexture_t *next;
+	if (slot->pPrev)
+		((dctexture_t *)slot->pPrev)->pNext = slot->pNext;
+	if (slot->pNext)
+		((dctexture_t *)slot->pNext)->pPrev = slot->pPrev;
+	slot->pNext = NULL;
+	slot->pPrev = NULL;
+}
 
-	if (!slot)
-		return;
+static __inline void DCV_LinkTextureSlotFront( dctexture_t *slot )
+{
+	dctexture_t *first;
 
 	DCV_UnlinkTextureSlot(slot);
 
-	next = (dctexture_t *)s_dcTextureLruHead.pNext;
-
+	first = (dctexture_t *)s_dcTextureLruHead.pNext;
+	slot->pNext = first;
 	slot->pPrev = &s_dcTextureLruHead;
-	slot->pNext = next;
-
-	s_dcTextureLruHead.pNext = slot;
-
-	if (next)
-		next->pPrev = slot;
+	first->pPrev = slot;
+	((dctexture_t *)slot->pPrev)->pNext = slot;
 }
 
 static void DCV_TouchTextureSlot( dctexture_t *slot )
@@ -190,20 +232,18 @@ static int DCV_AttachTextureInterface( dctexture_t *slot, LPDIRECTDRAWSURFACE4 s
 
 	tex = NULL;
 
-	if (FAILED(surf->lpVtbl->QueryInterface(surf, &IID_IDirect3DTexture2, (void **)&tex)))
+	if (FAILED(surf->lpVtbl->QueryInterface(surf, IID_IDirect3DTexture2, (void **)&tex)))
 		return 0;
 
 	slot->pd3dtTexture = tex;
 	return 1;
 }
 
-static void DCV_ClearCachedFlag( void )
+static __inline void DCV_ClearCachedFlag( void )
 {
 	dctexture_t *s;
 
-	for (s = (dctexture_t *)s_dcTextureLruHead.pNext;
-	     s != NULL && s != &s_dcTextureLruTail;
-	     s = (dctexture_t *)s->pNext)
+	for (s = (dctexture_t *)s_dcTextureLruTail.pPrev; s != NULL; s = (dctexture_t *)s->pPrev)
 		s->bCached = 0;
 }
 
@@ -239,38 +279,34 @@ int GL_PaletteEqual( dcpalette_t* entry, byte* pPal, int tag )
 	return 1;
 }
 
-static void DC_PaletteEntryClear( dcpalette_t* entry );
-static void DC_PaletteEntryRelease( dcpalette_t* entry );
-
 int DC_CreatePalette( dcpalette_t* entry, byte* pPal, int tag )
 {
 	PALETTEENTRY entries[256];
-	LPDIRECTDRAW4 pDD4;
-	LPDIRECTDRAWPALETTE pal;
+	PALETTEENTRY *pe;
 	int i;
 
-	pDD4 = (LPDIRECTDRAW4)Sys_GetDirectDraw4();
-	if (!pDD4)
-		return 0;
-
-	DC_PaletteEntryRelease(entry);
-	DC_PaletteEntryClear(entry);
-
-	for (i = 0; i < 256; i++)
+	if (entry->lpPalette)
 	{
-		entries[i].peRed = pPal[i*3+0];
-		entries[i].peGreen = pPal[i*3+1];
-		entries[i].peBlue = pPal[i*3+2];
-		entries[i].peFlags = 0;
+		entry->lpPalette->lpVtbl->Release(entry->lpPalette);
+		entry->lpPalette = NULL;
 	}
 
-	pal = NULL;
-	if (FAILED(pDD4->lpVtbl->CreatePalette(pDD4, DDPCAPS_8BIT | DDPCAPS_ALLOW256, entries, &pal, NULL)))
+	pe = entries;
+	i = 0;
+	do {
+		pe->peRed = pPal[0];
+		pe->peGreen = pPal[1];
+		pe->peBlue = pPal[2];
+		pPal += 3;
+		pe++;
+	} while (++i < 256);
+
+	if (DCV_DDError(g_pDD4->lpVtbl->CreatePalette(g_pDD4,
+			DDPCAPS_8BIT | DDPCAPS_ALLOW256, entries, &entry->lpPalette, NULL),
+			TEXT("CreatePalette")))
 		return 0;
 
 	entry->tag = tag;
-	entry->referenceCount = 0;
-	entry->lpPalette = pal;
 	return 1;
 }
 
@@ -289,333 +325,267 @@ int DC_GetPaletteIndex( byte* pPal )
 				return -1;
 
 			gGLPalette[i].referenceCount++;
-			return i;
+			return (short)i;
 		}
 
 		if (GL_PaletteEqual(&gGLPalette[i], pPal, tag))
 		{
 			gGLPalette[i].referenceCount++;
-			return i;
+			return (short)i;
 		}
 	}
 
 	return -1;
 }
 
-static void DC_ReleaseTextureSlot( dctexture_t *slot );
-
-static void DC_CacheRamCallback( void )
-{
-	DC_ReleaseTextureSlot(&s_dcTextureLruHead);
-}
-
 void DC_FreeTextureSlot(dctexture_t *slot)
 {
-	int slot_index;
-	LPDIRECT3DDEVICE3 dev;
-	if (!slot) return;
-	s_pCurrentTextureSurface = NULL;
+	GL_BindStage(0, 0);
 
-	slot_index = (int)(slot - s_texSlots);
-
-	if (slot_index >= 0 && slot_index < DC_MAXTEXTURES)
-	{
-		dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-		if (dev && dev->lpVtbl && dev->lpVtbl->SetTexture)
-		{
-			if (currenttexture == slot_index)
-			{
-				dev->lpVtbl->SetTexture(dev, 0, NULL);
-				currenttexture = -1;
-				s_nD3dCurrentTexnum = -1;
-			}
-
-		}
-		s_slotServercount[slot_index] = -1;
-		s_slotIsSystem[slot_index] = 0;
-	}
 	DCV_UnlinkTextureSlot(slot);
 
-	if (slot->pddsSurface)
+	if (g_bTextureLog)
+		Sys_FPrintf(g_bTextureLog, "Freeing texture %s\n",
+			slot->pszName ? slot->pszName : "<nameless>");
+
+	if (slot->iPalette != -1 && slot->pddsSurface)
+		DCV_DDError(((LPDIRECTDRAWSURFACE4)slot->pddsSurface)->lpVtbl->SetPalette(
+				(LPDIRECTDRAWSURFACE4)slot->pddsSurface, NULL),
+			TEXT("Palette unlink"));
+
+	if (slot->pbCacheData)
 	{
-		((LPDIRECTDRAWSURFACE4)slot->pddsSurface)->lpVtbl->Release((LPDIRECTDRAWSURFACE4)slot->pddsSurface);
-		slot->pddsSurface = NULL;
-	}
-	if (slot->pd3dtTexture)
-	 {
-		((LPDIRECT3DTEXTURE2)slot->pd3dtTexture)->lpVtbl->Release((LPDIRECT3DTEXTURE2)slot->pd3dtTexture);
-	}
-
-	slot->pd3dtTexture = NULL;
-
-	if (slot->pCacheBlock)
-	 {
 		MnemoFree(slot->pCacheBlock);
-
-		slot->pCacheBlock = NULL;
 		slot->pbCacheData = NULL;
+		slot->pCacheBlock = NULL;
 		slot->bCached = 0;
+		s_nCached--;
+	}
+	else
+	{
+		if (slot->pd3dtTexture)
+			((LPDIRECT3DTEXTURE2)slot->pd3dtTexture)->lpVtbl->Release((LPDIRECT3DTEXTURE2)slot->pd3dtTexture);
+		slot->pd3dtTexture = NULL;
 
-		if (s_nCached > 0)
-			s_nCached--;
+		if (slot->pddsSurface)
+			DCV_DDError(((LPDIRECTDRAWSURFACE4)slot->pddsSurface)->lpVtbl->Release(
+					(LPDIRECTDRAWSURFACE4)slot->pddsSurface),
+				TEXT("SurfaceRelease"));
+		slot->pddsSurface = NULL;
 	}
 
 	if (slot->pszName)
-	{
-		MnemoFree(slot->pszName);
-		slot->pszName = NULL;
-	}
-
-	slot->iTextureType = 0;
+		::operator delete(slot->pszName);
+	slot->pszName = NULL;
 	slot->nServerCount = -1;
 }
 
-static int DC_CacheTextureToRam( dctexture_t *slot )
+static void DC_CacheTextureToRam( dctexture_t *slot )
 {
 	DDSURFACEDESC2 *pdd;
-	LPDIRECTDRAWSURFACE4 surf;
-	int cbCopy;
-	int total;
-	DWORD dwSavedLinearSize;
-	const char *dbgname;
+	unsigned short *src, *dst;
+	int i;
 
-	if (!slot || !slot->pddsSurface || slot->pCacheBlock || slot->pbCacheData || slot->cbData <= 0)
-		return 0;
-
-	dbgname = slot->pszName ? slot->pszName : "texture";
-
-	if (gTexLog)
-		Con_DPrintf("Attempting to cache texture %s\n", dbgname);
+	if (g_bTextureLog)
+		Sys_FPrintf(g_bTextureLog, "Attempting to cache texture %s\n",
+			slot->pszName ? slot->pszName : "<nameless>");
 
 	if (slot->bCached)
-		Sys_Error("Reattempted texture-to-RAM cache!\n");
+		Sys_Error("Reattempted texture to RAM cache!\n");
 
-	if (Mnemo_LastChanceActive())
-		return 0;
-
-	surf = (LPDIRECTDRAWSURFACE4)slot->pddsSurface;
-	total = (int)sizeof(DDSURFACEDESC2) + slot->cbData;
-	slot->pCacheBlock = MnemoAlloc(total, 0xA0, 0, dbgname);
-
-	if (!slot->pCacheBlock)
-		return 0;
-
-	pdd = (DDSURFACEDESC2 *)slot->pCacheBlock;
-	memset(pdd, 0, sizeof(*pdd));
-	pdd->dwSize = sizeof(*pdd);
-
-	if (FAILED(surf->lpVtbl->GetSurfaceDesc(surf, pdd)))
-		goto fail_free;
-
-	/* Save dwLinearSize from GetSurfaceDesc; DDLOCK_WAIT on WinCE PVR may overwrite
-	   the lPitch/dwLinearSize union with the row pitch, losing the compressed size. */
-	dwSavedLinearSize = pdd->dwLinearSize;
-
-	if (FAILED(surf->lpVtbl->Lock(surf, NULL, pdd, DDLOCK_WAIT, NULL)))
-	{
-		if (gTexLog)
-			Con_DPrintf("Couldn't lock surface to cache it.\n");
-		goto fail_free;
-	}
-
-	/* Restore dwLinearSize in case Lock overwrote it via the lPitch union. */
-	pdd->dwLinearSize = dwSavedLinearSize;
-
-	cbCopy = slot->cbData;
-	if (cbCopy < 0)
-		cbCopy = 0;
-
-	slot->pbCacheData = (unsigned char *)slot->pCacheBlock + sizeof(DDSURFACEDESC2);
-	if (cbCopy > 0 && pdd->lpSurface)
-		memcpy(slot->pbCacheData, pdd->lpSurface, (size_t)cbCopy);
-
-	surf->lpVtbl->Unlock(surf, NULL);
-
-	/* Strip DDSD_LPSURFACE and zero lpSurface in the stored descriptor.
-	   DC_DecacheTextureSlot passes this exact DDSURFACEDESC2 to CreateSurface;
-	   if DDSD_LPSURFACE is still set with the now-freed VRAM address, the
-	   WinCE PVR driver will attempt to read/validate that stale address -> AV. */
-	pdd->dwFlags &= ~DDSD_LPSURFACE;
-	pdd->lpSurface = NULL;
-
-	if (slot->pd3dtTexture)
-	{
-		((LPDIRECT3DTEXTURE2)slot->pd3dtTexture)->lpVtbl->Release((LPDIRECT3DTEXTURE2)slot->pd3dtTexture);
-		slot->pd3dtTexture = NULL;
-	}
-
-	((LPDIRECTDRAWSURFACE4)slot->pddsSurface)->lpVtbl->Release((LPDIRECTDRAWSURFACE4)slot->pddsSurface);
-	slot->pddsSurface = NULL;
-
-	DCV_UnlinkTextureSlot(slot);
 	slot->bCached = 1;
-	s_nCached++;
 
-	if (gTexLog)
+	if (slot->pbCacheData == NULL && slot->cbData > 0 && !Mnemo_LastChanceActive())
 	{
-		Con_DPrintf("Cached texture %s\n", dbgname);
-		Con_DPrintf("Cached texture from video to main RAM.\n");
-	}
-	return 1;
+		slot->pCacheBlock = MnemoAlloc(slot->cbData + sizeof(DDSURFACEDESC2), 0x8000A0, 0,
+			Bmakename(slot->pszName ? slot->pszName : "<nameless>", 3));
+		if (slot->pCacheBlock)
+		{
+			pdd = (DDSURFACEDESC2 *)slot->pCacheBlock;
+			slot->pbCacheData = (unsigned char *)slot->pCacheBlock + sizeof(DDSURFACEDESC2);
 
-fail_free:
-	MnemoFree(slot->pCacheBlock);
-	slot->pCacheBlock = NULL;
-	slot->pbCacheData = NULL;
-	return 0;
+			((LPDIRECTDRAWSURFACE4)slot->pddsSurface)->lpVtbl->GetSurfaceDesc(
+				(LPDIRECTDRAWSURFACE4)slot->pddsSurface, pdd);
+
+			if (((LPDIRECTDRAWSURFACE4)slot->pddsSurface)->lpVtbl->Lock(
+					(LPDIRECTDRAWSURFACE4)slot->pddsSurface, NULL, pdd, DDLOCK_WAIT, NULL) == DD_OK)
+			{
+				src = (unsigned short *)pdd->lpSurface;
+				dst = (unsigned short *)slot->pbCacheData;
+				i = 0;
+				if (slot->cbData > 0)
+					do {
+						*dst = *src;
+						src++;
+						dst++;
+						i += 2;
+					} while (i < slot->cbData);
+
+				((LPDIRECTDRAWSURFACE4)slot->pddsSurface)->lpVtbl->Unlock(
+					(LPDIRECTDRAWSURFACE4)slot->pddsSurface, NULL);
+
+				if (slot->iPalette != -1 && slot->pddsSurface)
+					DCV_DDError(((LPDIRECTDRAWSURFACE4)slot->pddsSurface)->lpVtbl->SetPalette(
+						(LPDIRECTDRAWSURFACE4)slot->pddsSurface, NULL), TEXT("Palette unlink"));
+
+				((LPDIRECT3DTEXTURE2)slot->pd3dtTexture)->lpVtbl->Release((LPDIRECT3DTEXTURE2)slot->pd3dtTexture);
+				((LPDIRECTDRAWSURFACE4)slot->pddsSurface)->lpVtbl->Release((LPDIRECTDRAWSURFACE4)slot->pddsSurface);
+				slot->pd3dtTexture = NULL;
+				slot->pddsSurface = NULL;
+
+				if (g_bTextureLog)
+					Sys_FPrintf(g_bTextureLog, "Cached texture %s\n",
+						slot->pszName ? slot->pszName : "<nameless>");
+
+				s_nCached++;
+			}
+		}
+	}
 }
 
-static int DC_DecacheTextureSlot( dctexture_t *slot )
+static void DC_DecacheTextureSlot( dctexture_t *slot )
 {
 	DDSURFACEDESC2 *pdd;
 	LPDIRECTDRAWSURFACE4 surf;
-	LPDIRECTDRAW4 pDD4;
-	int cbCopy;
-	const char *dbgname;
+	unsigned short *src, *dst;
+	int i;
+	int reclaimed;
 
-	if (!slot)
-		return 0;
+	if (g_bTextureLog)
+		Sys_FPrintf(g_bTextureLog, "Attempting to decache texture %s\n",
+			slot->pszName ? slot->pszName : "<nameless>");
 
-	if (slot->pddsSurface && slot->pbCacheData)
-		Sys_Error("Cache data was non-null but so was surface.\n");
+	if (!slot->pbCacheData)
+		return;
 
 	if (slot->pddsSurface)
-		return 1;
+		Sys_Error("Cache data was nonnull but so was surface.\n");
 
-	if (!slot->pCacheBlock || !slot->pbCacheData)
-		return 0;
-
-	dbgname = slot->pszName ? slot->pszName : "texture";
-	if (gTexLog)
-		Con_DPrintf("Attempting to decache texture %s\n", dbgname);
-
-	pDD4 = (LPDIRECTDRAW4)Sys_GetDirectDraw4();
-	if (!pDD4)
-		return 0;
+	pdd = (DDSURFACEDESC2 *)slot->pCacheBlock;
 
 	DCV_ClearCachedFlag();
 
-	pdd = (DDSURFACEDESC2 *)slot->pCacheBlock;
-
-	surf = NULL;
-	for (;;)
+	/* Recreate the surface from the cached DDSURFACEDESC2, reclaiming VRAM on failure. */
 	{
-		if (!FAILED(pDD4->lpVtbl->CreateSurface(pDD4, pdd, &surf, NULL)))
-			break;
-
-		{
-			int reclaimed = 0;
-
+		LPDIRECTDRAWSURFACE4 _out;
+		do {
+			if (g_pDD4->lpVtbl->CreateSurface(g_pDD4, pdd, &_out, NULL) == DD_OK)
+			{
+				surf = _out;
+				goto got_surface;
+			}
+			reclaimed = 0;
 			if (!s_bTexReclaimGuard)
 			{
 				s_bTexReclaimGuard = 1;
 				reclaimed = DC_ReclaimTextureSlot();
 				s_bTexReclaimGuard = 0;
 			}
-			if (!reclaimed)
-			{
-				if (gTexLog)
-					Con_DPrintf("Couldn't recreate decached surface.\n");
-				return 0;
-			}
-		}
+		} while (reclaimed);
+		surf = NULL;
+	got_surface:;
 	}
 
-	/* Reuse pCacheBlock as the Lock descriptor so pCacheBlock->lpSurface gets the
-	   new locked VRAM pointer. */
-	for (;;)
-	{
-		if (!FAILED(surf->lpVtbl->Lock(surf, NULL, pdd, DDLOCK_WAIT, NULL)))
-			break;
-
-		{
-			int reclaimed = 0;
-			if (!s_bTexReclaimGuard)
-			{
-				s_bTexReclaimGuard = 1;
-				reclaimed = DC_ReclaimTextureSlot();
-				s_bTexReclaimGuard = 0;
-			}
-			if (!reclaimed)
-			{
-				if (gTexLog)
-					Con_DPrintf("Couldn't lock surface to decache it.\n");
-				surf->lpVtbl->Release(surf);
-				return 0;
-			}
-		}
-	}
-
-	cbCopy = slot->cbData;
-	if (cbCopy < 0)
-		cbCopy = 0;
-
-	if (cbCopy > 0 && slot->pbCacheData && pdd->lpSurface)
-		memcpy(pdd->lpSurface, slot->pbCacheData, (size_t)cbCopy);
-
-	surf->lpVtbl->Unlock(surf, NULL);
 	slot->pddsSurface = surf;
+	if (!surf)
+		return;
 
-	if (!DCV_AttachTextureInterface(slot, surf))
+	if (surf->lpVtbl->Lock(surf, NULL, pdd, DDLOCK_WAIT, NULL) != DD_OK)
 	{
 		surf->lpVtbl->Release(surf);
 		slot->pddsSurface = NULL;
-		return 0;
+		return;
 	}
 
-	DCV_TouchTextureSlot(slot);
+	if (slot->iPalette != -1 && slot->pddsSurface)
+		((LPDIRECTDRAWSURFACE4)slot->pddsSurface)->lpVtbl->SetPalette(
+			(LPDIRECTDRAWSURFACE4)slot->pddsSurface,
+			gGLPalette[slot->iPalette].lpPalette);
+
+	src = (unsigned short *)slot->pbCacheData;
+	dst = (unsigned short *)pdd->lpSurface;
+	i = 0;
+	if (slot->cbData > 0)
+		do {
+			*dst = *src;
+			src++;
+			dst++;
+			i += 2;
+		} while (i < slot->cbData);
+
+	surf->lpVtbl->Unlock(surf, NULL);
+
+	if (DCV_DDError(((LPDIRECTDRAWSURFACE4)slot->pddsSurface)->lpVtbl->QueryInterface(
+			(LPDIRECTDRAWSURFACE4)slot->pddsSurface, IID_IDirect3DTexture2,
+			(void **)&slot->pd3dtTexture), TEXT("Get texture from surface")))
+		Sys_Error("Ugh! Texture from surface failed.\n");
 
 	MnemoFree(slot->pCacheBlock);
-	slot->pCacheBlock = NULL;
-	slot->pbCacheData = NULL;
-	slot->bCached = 0;
-
-	if (s_nCached > 0)
-		s_nCached--;
-
-	if (gTexLog)
-	{
-		Con_DPrintf("Decached texture %s\n", dbgname);
-		Con_DPrintf("Decached texture back to VRAM.\n");
-	}
-	return 1;
-}
-
-static dctexture_t *DC_ClearTextureSlot( dctexture_t *slot )
-{
-	slot->pddsSurface = NULL;
-	slot->pd3dtTexture = NULL;
-	slot->pszName = NULL;
-	slot->iPalette = -1;
-	slot->nScaledWidth = 0;
-	slot->nScaledHeight = 0;
-	slot->nSrcWidth = 0;
-	slot->nSrcHeight = 0;
-	slot->nServerCount = -1;
 	slot->pbCacheData = NULL;
 	slot->pCacheBlock = NULL;
 	slot->bCached = 0;
-	slot->pPrev = NULL;
-	slot->pNext = NULL;
-	return slot;
+
+	if (g_bTextureLog)
+		Sys_FPrintf(g_bTextureLog, "Decached texture %s\n",
+			slot->pszName ? slot->pszName : "<nameless>");
+
+	s_nCached--;
 }
 
-static void DC_ReleaseTextureSlot( dctexture_t *slot )
+dc_texture_s::dc_texture_s()
 {
-	if (!slot)
-		return;
+	pddsSurface = NULL;
+	pd3dtTexture = NULL;
+	pszName = NULL;
+	iPalette = -1;
+	nScaledWidth = 0;
+	nScaledHeight = 0;
+	nSrcWidth = 0;
+	nSrcHeight = 0;
+	nServerCount = -1;
+	pbCacheData = NULL;
+	pCacheBlock = NULL;
+	bCached = 0;
+	pPrev = NULL;
+	pNext = NULL;
+}
 
-	if (slot->pd3dtTexture)
+dc_texture_s::~dc_texture_s()
+{
+	if (pd3dtTexture)
+		((LPDIRECT3DTEXTURE2)pd3dtTexture)->lpVtbl->Release((LPDIRECT3DTEXTURE2)pd3dtTexture);
+	if (pddsSurface)
+		((LPDIRECTDRAWSURFACE4)pddsSurface)->lpVtbl->Release((LPDIRECTDRAWSURFACE4)pddsSurface);
+	if (pszName)
 	{
-		((LPDIRECT3DTEXTURE2)slot->pd3dtTexture)->lpVtbl->Release((LPDIRECT3DTEXTURE2)slot->pd3dtTexture);
-		slot->pd3dtTexture = NULL;
+		::operator delete(pszName);
+		pszName = NULL;
 	}
+	nServerCount = -1;
 }
 
-static void DC_SetupTextureSlot( dctexture_t *slot, char *name, short palIndex, short scaledWidth, short scaledHeight, short srcWidth, short srcHeight )
+static void DC_SetupTextureSlot( dctexture_t *slot, LPDIRECTDRAWSURFACE4 pSurf, LPDIRECT3DTEXTURE2 pTex, char *name, short palIndex, short scaledWidth, short scaledHeight, short srcWidth, short srcHeight )
 {
-	if (!slot)
-		return;
+	slot->pddsSurface = pSurf;
+	slot->pd3dtTexture = pTex;
+	slot->nUsageCount = 0;
+
+	if (slot->pszName)
+	{
+		::operator delete(slot->pszName);
+		slot->pszName = NULL;
+	}
+
+	if (!name)
+	{
+		slot->pszName = (char *)::operator new(3);
+		strcpy(slot->pszName, "?!?");
+	}
+	else
+	{
+		slot->pszName = (char *)::operator new(strlen(name) + 1);
+		strcpy(slot->pszName, name);
+	}
 
 	slot->iPalette = palIndex;
 	slot->nScaledWidth = scaledWidth;
@@ -623,21 +593,22 @@ static void DC_SetupTextureSlot( dctexture_t *slot, char *name, short palIndex, 
 	slot->nSrcWidth = srcWidth;
 	slot->nSrcHeight = srcHeight;
 
-	slot->pszName = NULL;
-	if (name && name[0])
-	{
-		slot->pszName = (char *)MnemoAlloc(strlen(name) + 1, 0x20, 0, "texname");
-		if (slot->pszName)
-			strcpy(slot->pszName, name);
-	}
+	slot->bCached = 0;
+	slot->cbData = 0;
+	slot->pbCacheData = NULL;
+	slot->pCacheBlock = NULL;
 
 	DCV_LinkTextureSlotFront(slot);
 
-	if (gTexLog)
-		Con_DPrintf("Set up texture %s\n", slot->pszName ? slot->pszName : "<nameless>");
+	if (slot->nServerCount)
+		slot->nServerCount = (short)gHostSpawnCount;
+
+	if (g_bTextureLog)
+		Sys_FPrintf(g_bTextureLog, "Set up texture %s\n",
+			slot->pszName ? slot->pszName : "<nameless>");
 }
 
-void DC_TexCache( void )
+void DC_TexCache( char *name )
 {
 	int i;
 
@@ -645,55 +616,74 @@ void DC_TexCache( void )
 	{
 		dctexture_t *slot = &s_texSlots[i];
 
-		if (slot->nServerCount == -1)
-			continue;
-		if (slot->pbCacheData || s_slotIsSystem[i])
-			continue;
+		if (slot->nServerCount != -1)
+		{
+			char *slotname = slot->pszName ? slot->pszName : "<nameless>";
 
-		DC_CacheTextureToRam(slot);
+			if (strcmp(slotname, name) == 0)
+				DC_CacheTextureToRam(slot);
+		}
+	}
+}
+
+void DC_TexDump( void )
+{
+	int i, count;
+
+	count = 0;
+	for (i = 0; i < DC_MAXTEXTURES; i++)
+	{
+		if (s_texSlots[i].nServerCount != -1)
+			count++;
+	}
+
+	Con_Printf("%d textures loaded, max %d\n", count, numgltextures + 1);
+
+	if (g_bTextureLog)
+	{
+		Sys_FPrintf(g_bTextureLog, "Texture log end.\n");
+		Sys_CloseHandle(g_bTextureLog);
+		g_bTextureLog = 0;
 	}
 }
 
 void DC_TexDump_f( void )
 {
-	int i, count, max_used, hi;
-
-	count = 0;
-	hi = -1;
-
-	for (i = 0; i < DC_MAXTEXTURES; i++)
-	{
-		if (s_texSlots[i].nServerCount != -1)
-		{
-			count++;
-			if (i > hi)
-				hi = i;
-		}
-	}
-	max_used = (hi >= 0) ? (hi + 1) : 0;
-
-	Con_Printf("%d textures loaded, max %d\n", count, max_used);
+	DC_TexDump();
 }
 
 int DC_FindTextureSlot(char *name, int width, int height, unsigned int key)
 {
 	int i;
 
-	for (i = 0; i < DC_MAXTEXTURES; i++)
+	for (;;)
 	{
-		if (s_texSlots[i].nServerCount == -1)
-			continue;
+		for (i = 0; i < DC_MAXTEXTURES; i++)
+		{
+			dctexture_t *slot = &s_texSlots[i];
 
-		if (key && (unsigned int)s_texSlots[i].iTextureKey == key)
+			if (slot->nServerCount != -1)
+			{
+				char *slotname;
+
+				if ((unsigned int)slot->iTextureKey == key && key != 0)
+					return i;
+
+				slotname = slot->pszName ? slot->pszName : "<nameless>";
+				if (strcmp(name, slotname) == 0)
+					break;
+			}
+		}
+
+		if (i >= DC_MAXTEXTURES)
+			return -1;
+
+		if (s_texSlots[i].nSrcWidth == width && s_texSlots[i].nSrcHeight == height)
 			return i;
 
-		if (s_texSlots[i].pszName && strcmp(name, s_texSlots[i].pszName) == 0)
-		{
-			if (s_texSlots[i].nSrcWidth == width && s_texSlots[i].nSrcHeight == height)
-				return i;
-		}
+		/* Same name, different size: mangle the requested name and try again. */
+		name[3]++;
 	}
-	return -1;
 }
 
 int DCV_GetSlot( void )
@@ -727,8 +717,8 @@ int DCV_ComputeScaledSize(int tex_type, int *out_w, int *out_h, int w, int h, in
 
 	if (tex_type == TEX_TYPE_GBIX)
 	{
-		*out_w = *(short *)((byte *)pvrt + 0x1c);
-		*out_h = *(short *)((byte *)pvrt + 0x1e);
+		*out_w = ((pvrheader_t *)pvrt)->width;
+		*out_h = ((pvrheader_t *)pvrt)->height;
 		return (*out_w == w && *out_h == h) ? 0 : 1;
 	}
 
@@ -771,11 +761,12 @@ int DCV_ComputeScaledSize(int tex_type, int *out_w, int *out_h, int w, int h, in
 void DCV_BuildPalette1555(unsigned char *pPal, unsigned short *out_256)
 {
 	unsigned short *out = out_256;
-	int i = 0;
+	unsigned i = 0;
 
 	do {
-		byte r = pPal[0], g = pPal[1], b = pPal[2];
-		pPal += 3;
+		unsigned r = *pPal++;
+		unsigned g = *pPal++;
+		unsigned b = *pPal++;
 		*out++ = (unsigned short)(((r>>3)<<10) | 0x8000 | ((g>>3)<<5) | (b>>3));
 	} while (++i < 256);
 
@@ -785,10 +776,15 @@ void DCV_BuildPalette1555(unsigned char *pPal, unsigned short *out_256)
 
 void DCV_BuildPalette565(unsigned char *pPal, unsigned short *out_256)
 {
-	int i;
+	unsigned short *out = out_256;
+	unsigned i = 0;
 
-	for (i = 0; i < 256; i++)
-		out_256[i] = (unsigned short)(((pPal[i*3+0]>>3)<<11) | ((pPal[i*3+1]>>2)<<5) | (pPal[i*3+2]>>3));
+	do {
+		unsigned r = *pPal++;
+		unsigned g = *pPal++;
+		unsigned b = *pPal++;
+		*out++ = (unsigned short)(((r>>3)<<11) | ((g>>2)<<5) | (b>>3));
+	} while (++i < 256);
 }
 
 void DCV_BuildAlphaGradient4444(unsigned char *pPal, unsigned short *out_256)
@@ -812,13 +808,13 @@ void DCV_BuildAlphaGradient4444(unsigned char *pPal, unsigned short *out_256)
 
 void DCV_BuildMaxChannelAlpha(unsigned char *pPal, unsigned short *out_256)
 {
-	int i = 0;
+	unsigned i = 0;
 
 	do {
-		int r = pPal[0];
-		int g = pPal[1];
-		int mx = r;
-		int a;
+		unsigned r = pPal[0];
+		unsigned g = pPal[1];
+		unsigned mx = r;
+		unsigned a;
 
 		if (r <= g)
 			mx = g;			/* mx = max(r, g) */
@@ -838,12 +834,13 @@ void DCV_BuildMaxChannelAlpha(unsigned char *pPal, unsigned short *out_256)
 
 void DCV_BuildLumaRemap(unsigned char *pPal, byte *out_256)
 {
-	int i = 0;
+	unsigned i = 0;
 
 	do {
-		byte r = pPal[0], g = pPal[1], b = pPal[2];
-		pPal += 3;
-		*out_256++ = (byte)(((unsigned)r + g + b) / 3);
+		unsigned r = *pPal++;
+		unsigned g = *pPal++;
+		unsigned b = *pPal++;
+		*out_256++ = (byte)((r + g + b) / 3);
 	} while (++i < 256);
 }
 
@@ -862,8 +859,11 @@ int DC_UncacheOneTexture( void )
 	{
 		slot = (dctexture_t *)s_dcTextureLruTail.pPrev;
 
-		while (slot && !slot->bCached)
-			slot = (dctexture_t *)slot->pPrev;
+		if (slot)
+		{
+			while (!slot->pbCacheData && (slot = (dctexture_t *)slot->pPrev) != NULL)
+				;
+		}
 
 		if (slot)
 			DC_DecacheTextureSlot(slot);
@@ -876,22 +876,22 @@ int DC_UncacheOneTexture( void )
 int DC_ReclaimTextureSlot( void )
 {
 	dctexture_t *slot;
-	const char *dbgname;
 
 	slot = (dctexture_t *)s_dcTextureLruTail.pPrev;
 
 	for (;;)
 	{
 		if (slot == &s_dcTextureLruHead || slot == NULL)
-			return GL_UnloadTextures(), DC_FreeStaleTextureSlots();
-
-		if (gTexLog)
 		{
-			dbgname = slot->pszName ? slot->pszName : "<nameless>";
-			Con_DPrintf("Walking texture %s\n", dbgname);
+			GL_UnloadTextures();
+			return 0;
 		}
 
-		if (!slot->bCached && !slot->pbCacheData)
+		if (g_bTextureLog)
+			Sys_FPrintf(g_bTextureLog, "Walking texture %s\n",
+				slot->pszName ? slot->pszName : "<nameless>");
+
+		if (!slot->pbCacheData && !slot->bCached)
 			break;
 
 		slot = (dctexture_t *)slot->pPrev;
@@ -912,202 +912,174 @@ int DC_ReclaimTextureSlot( void )
 }
 
 /* Create a 16-bit texture surface. */
-static LPDIRECTDRAWSURFACE4 DCV_CreateTextureSurface16(int w, int h, int color_fmt, int allow_sysmem_fallback)
-{
-	DDSURFACEDESC2 ddsd;
-	LPDIRECTDRAW4 pDD4;
-	LPDIRECTDRAWSURFACE4 pSurf = NULL;
+/* Pixel-format descriptors (g_pf*), g_pDD4, and DCV_DDError are declared in
+   glquake.h and defined in dc_d3d.c. DC_LoadTexture selects a format per texture
+   class and passes it by address to the prep helpers. */
 
-	pDD4 = (LPDIRECTDRAW4)Sys_GetDirectDraw4();
+/* Byte count of the last surface upload; DC_LoadTexture stores it into the slot. */
+int			g_nLastUploadBytes;
 
-	if (!pDD4)
-		return NULL;
+/* Shared palette-pool slot indices used by the paletted texture classes (init -1). */
+static short		g_iPalIdxDefault = -1;
+static short		g_iPalIdxClass6  = -1;
+static short		g_iPalIdxClass9  = -1;
 
-	memset(&ddsd, 0, sizeof(ddsd));
-	ddsd.dwSize = sizeof(ddsd);
-	ddsd.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT;
-	ddsd.dwWidth = w;
-	ddsd.dwHeight = h;
-	ddsd.ddsCaps.dwCaps = DDSCAPS_TEXTURE | DDSCAPS_VIDEOMEMORY;
-	ddsd.ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT);
-	ddsd.ddpfPixelFormat.dwRGBBitCount = 16;
-
-	if (color_fmt == PVR_ARGB4444)
-	{
-		ddsd.ddpfPixelFormat.dwFlags = DDPF_RGB | DDPF_ALPHAPIXELS;
-		ddsd.ddpfPixelFormat.dwRBitMask = 0x0f00;
-		ddsd.ddpfPixelFormat.dwGBitMask = 0x00f0;
-		ddsd.ddpfPixelFormat.dwBBitMask = 0x000f;
-		ddsd.ddpfPixelFormat.dwRGBAlphaBitMask = 0xf000;
-	}
-	else if (color_fmt == PVR_ARGB1555)
-	{
-		ddsd.ddpfPixelFormat.dwFlags = DDPF_RGB | DDPF_ALPHAPIXELS;
-		ddsd.ddpfPixelFormat.dwRBitMask = 0x7c00;
-		ddsd.ddpfPixelFormat.dwGBitMask = 0x03e0;
-		ddsd.ddpfPixelFormat.dwBBitMask = 0x001f;
-		ddsd.ddpfPixelFormat.dwRGBAlphaBitMask = 0x8000;
-	}
-	else /* RGB565 */
-	{
-		ddsd.ddpfPixelFormat.dwFlags = DDPF_RGB;
-		ddsd.ddpfPixelFormat.dwRBitMask = 0xF800;
-		ddsd.ddpfPixelFormat.dwGBitMask = 0x07E0;
-		ddsd.ddpfPixelFormat.dwBBitMask = 0x001F;
-		ddsd.ddpfPixelFormat.dwRGBAlphaBitMask = 0x0000;
-	}
-
-	while (FAILED(pDD4->lpVtbl->CreateSurface(pDD4, &ddsd, &pSurf, NULL)))
-	{
-		if (DC_ReclaimTextureSlot())
-			continue;
-
-		if (!allow_sysmem_fallback)
-			return NULL;
-
-		/* retry to create surface in system memory for selected texture classes. */
-		ddsd.ddsCaps.dwCaps = DDSCAPS_TEXTURE | DDSCAPS_SYSTEMMEMORY;
-		if (FAILED(pDD4->lpVtbl->CreateSurface(pDD4, &ddsd, &pSurf, NULL)))
-			return NULL;
-	}
-
-	return pSurf;
-}
+/* Create a video-memory 3D texture surface with pixel format *fmt into the
+   caller's local ddsd (reused for the Lock that follows), evicting cached
+   textures on out-of-memory. A macro so it expands over the caller's ddsd. */
+#define DCV_CREATE_SURFACE(pSurf, ddsd, w, h, fmt, caps)                      \
+	do {                                                                      \
+		int _reclaimed;                                                       \
+		LPDIRECTDRAWSURFACE4 _out;                                            \
+		memset(&(ddsd), 0, sizeof(ddsd));                                     \
+		(ddsd).dwSize = sizeof(ddsd);                                         \
+		(ddsd).dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT; \
+		(ddsd).ddsCaps.dwCaps = (caps);                                       \
+		(ddsd).ddpfPixelFormat = *(fmt);                                      \
+		(ddsd).dwWidth = (w);                                                 \
+		(ddsd).dwHeight = (h);                                                \
+		DCV_ClearCachedFlag();                                                \
+		do {                                                                  \
+			if (g_pDD4->lpVtbl->CreateSurface(g_pDD4, &(ddsd), &_out, NULL) == DD_OK) \
+			{                                                                 \
+				(pSurf) = _out;                                               \
+				goto _dcv_got_surface;                                        \
+			}                                                                 \
+			_reclaimed = 0;                                                   \
+			if (!s_bTexReclaimGuard) {                                        \
+				s_bTexReclaimGuard = 1;                                       \
+				_reclaimed = DC_ReclaimTextureSlot();                        \
+				s_bTexReclaimGuard = 0;                                       \
+			}                                                                 \
+		} while (_reclaimed);                                                 \
+		(pSurf) = NULL;                                                       \
+	_dcv_got_surface:;                                                        \
+	} while (0)  /* NB: one expansion per function (fixed goto label) */
 
 /* DCV_PrepSurfaceTrueColor: convert RGBA bytes to 565 or 4444 and lock/copy/unlock. */
-void *DCV_PrepSurfaceTrueColor(int w, int h, byte *rgbax, int use_565, dctexture_t *slot, int allow_sysmem_fallback)
+LPDIRECTDRAWSURFACE4 DCV_PrepSurfaceTrueColor(int w, int h, void *data, DDPIXELFORMAT *fmt)
 {
 	DDSURFACEDESC2 ddsd;
 	LPDIRECTDRAWSURFACE4 pSurf;
 	unsigned short *dst;
-	int i, n;
+	int n;
+	byte *rgbax = (byte *)data;
+	int use_565 = (fmt == &g_pfRGB565);
 
-	pSurf = DCV_CreateTextureSurface16(w, h, !use_565, allow_sysmem_fallback);
+	DCV_CREATE_SURFACE(pSurf, ddsd, w, h, fmt, DDSCAPS_TEXTURE | DDSCAPS_3DDEVICE | DDSCAPS_VIDEOMEMORY);
+	if (!pSurf)
+		return NULL;
 
-	if (!pSurf) return NULL;
-
-	memset(&ddsd, 0, sizeof(ddsd));
-	ddsd.dwSize = sizeof(ddsd);
-
-	if (FAILED(pSurf->lpVtbl->Lock(pSurf, NULL, &ddsd, DDLOCK_WAIT, NULL)))
+	if (DCV_DDError(pSurf->lpVtbl->Lock(pSurf, NULL, &ddsd, DDLOCK_WAIT, NULL), TEXT("Lock texture")))
 	{
 		pSurf->lpVtbl->Release(pSurf);
 		return NULL;
 	}
 
+	n = h * w;
 	dst = (unsigned short *)ddsd.lpSurface;
-	n = w * h;
+	g_nLastUploadBytes = n * 2;
 
-	for (i = 0; i < n; i++, rgbax += 4)
+	if (n)
 	{
-		if (use_565)
-			*dst++ = (unsigned short)(((rgbax[0]>>3)<<11) | ((rgbax[1]>>2)<<5) | (rgbax[2]>>3));
-		else
-			*dst++ = (unsigned short)(((rgbax[0]>>4)<<8) | ((rgbax[1]>>4)<<4) | (rgbax[2]>>4) | ((rgbax[3]>>4)<<12));
+		do
+		{
+			byte r = rgbax[0], g = rgbax[1], b = rgbax[2], a = rgbax[3];
+			rgbax += 4;
+			n--;
+			if (use_565)
+				*dst++ = (unsigned short)(((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3));
+			else if (fmt == &g_pfARGB4444)
+				*dst++ = (unsigned short)(((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4) | ((a >> 4) << 12));
+			else
+				Sys_Error("DCV_PrepSurfaceTrueColor isn't prepared for this format\n");
+		} while (n);
 	}
 
-	pSurf->lpVtbl->Unlock(pSurf, NULL);
-	texels += n;
-
-	if (slot)
+	if (DCV_DDError(pSurf->lpVtbl->Unlock(pSurf, NULL), TEXT("Unlock texture")))
 	{
-		slot->pddsSurface = pSurf;
-		slot->cbData = w * h * 2;
+		pSurf->lpVtbl->Release(pSurf);
+		return NULL;
 	}
 
 	return pSurf;
 }
 
 /* DCV_UpdateTextureSubRect: copy 16-bit subrect into existing texture (lightmap updates). */
-void DCV_UpdateTextureSubRect( int texnum, int x, int y, int w, int h, const unsigned short* src, int src_pitch )
+int DCV_UpdateTextureSubRect( int texnum, int x, int y, int w, int h, const unsigned short* src, int src_pitch )
 {
 	DDSURFACEDESC2 ddsd;
 	LPDIRECTDRAWSURFACE4 surf;
 	dctexture_t *slot;
-	int slot_index;
-	int row, dst_pitch;
+	int row, col;
 	unsigned short *dst;
+	const unsigned short *s;
 
-	slot_index = (texnum & 0xFFFF);
+	slot = &s_texSlots[texnum];
 
-	if (slot_index < 0 || slot_index >= DC_MAXTEXTURES)
-		return;
-
-	slot = &s_texSlots[slot_index];
-
-	if (slot->nServerCount == -1)
-		return;
-
-	/* if surface null but ram_cache exists, decache first (skip GLT_SYSTEM). */
-	if (!slot->pddsSurface && slot->pCacheBlock && !s_slotIsSystem[slot_index])
+	if (slot->nServerCount != -1)
 	{
-		if (!DC_DecacheTextureSlot(slot))
-			return;
+		surf = (LPDIRECTDRAWSURFACE4)slot->pddsSurface;
+		if (!surf)
+		{
+			DC_DecacheTextureSlot(slot);
+			surf = (LPDIRECTDRAWSURFACE4)slot->pddsSurface;
+		}
+
+		memset(&ddsd, 0, sizeof(ddsd));
+		ddsd.dwSize = sizeof(ddsd);
+
+		if (!DCV_DDError(surf->lpVtbl->Lock(surf, NULL, &ddsd, DDLOCK_WAIT, NULL), TEXT("Lock texture")))
+		{
+			for (row = 0; row < h; row++)
+			{
+				s = src + (src_pitch * y + x);
+				dst = (unsigned short *)ddsd.lpSurface + ((int)(ddsd.lPitch / 2) * y + x);
+				for (col = 0; col < w; col++)
+					*dst++ = *s++;
+				y++;
+			}
+			DCV_DDError(surf->lpVtbl->Unlock(surf, NULL), TEXT("Unlock texture"));
+		}
 	}
-
-	if (!slot->pddsSurface)
-		return;
-
-	surf = (LPDIRECTDRAWSURFACE4)slot->pddsSurface;
-	memset(&ddsd, 0, sizeof(ddsd));
-	ddsd.dwSize = sizeof(ddsd);
-
-	if (FAILED(surf->lpVtbl->Lock(surf, NULL, &ddsd, DDLOCK_WAIT, NULL)))
-		return;
-
-	dst = (unsigned short *)ddsd.lpSurface;
-	dst_pitch = (int)(ddsd.lPitch / 2);
-
-	if (dst_pitch <= 0)
-		dst_pitch = w;
-
-	dst += y * dst_pitch + x;
-
-	for (row = 0; row < h; row++)
-	{
-		memcpy(dst, src, (size_t)w * sizeof(unsigned short));
-		dst += dst_pitch;
-		src += src_pitch;
-	}
-
-	surf->lpVtbl->Unlock(surf, NULL);
+	return 0;
 }
 
 /* DCV_PrepSurface16: copy 16-bit words into a new texture surface. */
-void *DCV_PrepSurface16(int w, int h, unsigned short *src, dctexture_t *slot, int color_fmt, int allow_sysmem_fallback)
+LPDIRECTDRAWSURFACE4 DCV_PrepSurface16(int w, int h, void *data, DDPIXELFORMAT *fmt)
 {
 	DDSURFACEDESC2 ddsd;
 	LPDIRECTDRAWSURFACE4 pSurf;
 	unsigned short *dst;
+	unsigned short *src = (unsigned short *)data;
 	int n;
 
-	pSurf = DCV_CreateTextureSurface16(w, h, color_fmt, allow_sysmem_fallback);
-
+	DCV_CREATE_SURFACE(pSurf, ddsd, w, h, fmt, DDSCAPS_TEXTURE | DDSCAPS_3DDEVICE | DDSCAPS_VIDEOMEMORY);
 	if (!pSurf)
 		return NULL;
 
-	memset(&ddsd, 0, sizeof(ddsd));
-	ddsd.dwSize = sizeof(ddsd);
-
-	if (FAILED(pSurf->lpVtbl->Lock(pSurf, NULL, &ddsd, DDLOCK_WAIT, NULL)))
+	if (DCV_DDError(pSurf->lpVtbl->Lock(pSurf, NULL, &ddsd, DDLOCK_WAIT, NULL), TEXT("Lock texture")))
 	{
 		pSurf->lpVtbl->Release(pSurf);
 		return NULL;
 	}
 
+	n = h * w;
 	dst = (unsigned short *)ddsd.lpSurface;
-	n = w * h;
+	g_nLastUploadBytes = n * 2;
 
-	while (n--)
-		*dst++ = *src++;
-
-	pSurf->lpVtbl->Unlock(pSurf, NULL);
-	texels += w * h;
-
-	if (slot)
+	for (; n != 0; n--)
 	{
-		slot->pddsSurface = pSurf;
-		slot->cbData = w * h * 2;
+		unsigned short v = *src;
+		src++;
+		*dst = v;
+		dst++;
+	}
+
+	if (DCV_DDError(pSurf->lpVtbl->Unlock(pSurf, NULL), TEXT("Unlock texture")))
+	{
+		pSurf->lpVtbl->Release(pSurf);
+		return NULL;
 	}
 
 	return pSurf;
@@ -1115,40 +1087,40 @@ void *DCV_PrepSurface16(int w, int h, unsigned short *src, dctexture_t *slot, in
 
 /* DCV_PrepSurfaceIndexed: 8-bit indices -> 16-bit via palette table.
    color_fmt selects the PVR pixel format: PVR_RGB565, PVR_ARGB1555, or PVR_ARGB4444. */
-void *DCV_PrepSurfaceIndexed(int w, int h, byte *idx, unsigned short *palette, dctexture_t *slot, int color_fmt, int allow_sysmem_fallback)
+LPDIRECTDRAWSURFACE4 DCV_PrepSurfaceIndexed(int w, int h, void *data, unsigned short *palette, DDPIXELFORMAT *fmt)
 {
 	DDSURFACEDESC2 ddsd;
 	LPDIRECTDRAWSURFACE4 pSurf;
 	unsigned short *dst;
-	int i, n;
+	byte *idx = (byte *)data;
+	int n;
 
-	pSurf = DCV_CreateTextureSurface16(w, h, color_fmt, allow_sysmem_fallback);
-
+	DCV_CREATE_SURFACE(pSurf, ddsd, w, h, fmt, DDSCAPS_TEXTURE | DDSCAPS_3DDEVICE | DDSCAPS_VIDEOMEMORY);
 	if (!pSurf)
 		return NULL;
 
-	memset(&ddsd, 0, sizeof(ddsd));
-	ddsd.dwSize = sizeof(ddsd);
-
-	if (FAILED(pSurf->lpVtbl->Lock(pSurf, NULL, &ddsd, DDLOCK_WAIT, NULL)))
+	if (DCV_DDError(pSurf->lpVtbl->Lock(pSurf, NULL, &ddsd, DDLOCK_WAIT, NULL), TEXT("Lock texture")))
 	{
 		pSurf->lpVtbl->Release(pSurf);
 		return NULL;
 	}
 
+	n = h * w;
 	dst = (unsigned short *)ddsd.lpSurface;
-	n = w * h;
+	g_nLastUploadBytes = n * 2;
 
-	for (i = 0; i < n; i++)
-		*dst++ = palette[idx[i]];
-
-	pSurf->lpVtbl->Unlock(pSurf, NULL);
-	texels += n;
-
-	if (slot)
+	for (; n != 0; n--)
 	{
-		slot->pddsSurface = pSurf;
-		slot->cbData = w * h * 2;
+		byte b = *idx;
+		idx++;
+		*dst = palette[b];
+		dst++;
+	}
+
+	if (DCV_DDError(pSurf->lpVtbl->Unlock(pSurf, NULL), TEXT("Unlock texture")))
+	{
+		pSurf->lpVtbl->Release(pSurf);
+		return NULL;
 	}
 
 	return pSurf;
@@ -1171,7 +1143,7 @@ void DCV_TwiddleBlit16Recurse( int x, int y, int size )
 {
 	while (size != 1)
 	{
-		size >>= 1;
+		size /= 2;
 		DCV_TwiddleBlit16Recurse(x, y, size);
 		DCV_TwiddleBlit16Recurse(x, y + size, size);
 		x += size;
@@ -1192,10 +1164,10 @@ void DCV_TwiddleBlit16( int size, unsigned short *dst, byte *src, unsigned short
 
 	if (size == 1)
 	{
-		*twiddle_dst16++ = pal16[src[0]];
-		*twiddle_dst16++ = pal16[src[0]];
-		*twiddle_dst16++ = pal16[src[0]];
-		*twiddle_dst16++ = pal16[src[0]];
+		*twiddle_dst16++ = twiddle_pal16[src[0]];
+		*twiddle_dst16++ = twiddle_pal16[src[0]];
+		*twiddle_dst16++ = twiddle_pal16[src[0]];
+		*twiddle_dst16++ = twiddle_pal16[src[0]];
 	}
 	else
 	{
@@ -1207,7 +1179,7 @@ void DCV_TwiddleBlit8Recurse( int x, int y, int size )
 {
 	while (size != 2)
 	{
-		size >>= 1;
+		size /= 2;
 		DCV_TwiddleBlit8Recurse(x, y, size);
 		DCV_TwiddleBlit8Recurse(x, y + size, size);
 		x += size;
@@ -1215,15 +1187,18 @@ void DCV_TwiddleBlit8Recurse( int x, int y, int size )
 		y += size;
 	}
 
-	twiddle_dst8[0] = twiddle_remap8[twiddle_src[y * twiddle_size + x]];
-	twiddle_dst8[1] = twiddle_remap8[twiddle_src[(y + 1) * twiddle_size + x]];
+	/* Innermost 2x2 block, stored as two twiddled column pairs. */
+	*(unsigned short *)twiddle_dst8 =
+		(unsigned short)(twiddle_remap8[twiddle_src[y * twiddle_size + x]]
+		| (twiddle_remap8[twiddle_src[(y + 1) * twiddle_size + x]] << 8));
 	twiddle_dst8 += 2;
-	twiddle_dst8[0] = twiddle_remap8[twiddle_src[y * twiddle_size + x + 1]];
-	twiddle_dst8[1] = twiddle_remap8[twiddle_src[(y + 1) * twiddle_size + x + 1]];
+	*(unsigned short *)twiddle_dst8 =
+		(unsigned short)(twiddle_remap8[twiddle_src[y * twiddle_size + x + 1]]
+		| (twiddle_remap8[twiddle_src[(y + 1) * twiddle_size + x + 1]] << 8));
 	twiddle_dst8 += 2;
 }
 
-void DCV_TwiddleBlit8( int size, byte *dst, byte *src, byte *remap )
+static __inline void DCV_TwiddleBlit8( int size, byte *dst, byte *src, byte *remap )
 {
 	twiddle_remap8 = remap;
 	twiddle_size = size;
@@ -1234,75 +1209,31 @@ void DCV_TwiddleBlit8( int size, byte *dst, byte *src, byte *remap )
 	DCV_TwiddleBlit8Recurse(0, 0, size);
 }
 
-/* DCV_PrepSurfacePaletted: square 8-bit source into a P8 palettized surface,
-   twiddled, sharing a DDraw palette from the pool. */
-void *DCV_PrepSurfacePaletted(int side, byte *idx, byte *pPal, dctexture_t *slot, int allow_sysmem_fallback)
+/* DCV_PrepSurfacePaletted: square 8-bit source uploaded twiddled into a P8
+   palettized surface. The palette itself is bound by the caller (DC_LoadTexture). */
+LPDIRECTDRAWSURFACE4 DCV_PrepSurfacePaletted(int w, int h, void *data, byte *pPal)
 {
 	DDSURFACEDESC2 ddsd;
-	LPDIRECTDRAW4 pDD4;
 	LPDIRECTDRAWSURFACE4 pSurf;
-	static byte identity[256];
-	int i, pal_index;
+	(void)h;
 
-	pDD4 = (LPDIRECTDRAW4)Sys_GetDirectDraw4();
-	if (!pDD4)
+	DCV_CREATE_SURFACE(pSurf, ddsd, w, h, &g_pfPalette8, 0x80007000);  /* P8: binary caps has bit31 set */
+	if (!pSurf)
 		return NULL;
 
-	pal_index = DC_GetPaletteIndex(pPal);
-	if (pal_index < 0)
-		return NULL;
-
-	memset(&ddsd, 0, sizeof(ddsd));
-	ddsd.dwSize = sizeof(ddsd);
-	ddsd.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT;
-	ddsd.dwWidth = side;
-	ddsd.dwHeight = side;
-	ddsd.ddsCaps.dwCaps = DDSCAPS_TEXTURE | DDSCAPS_VIDEOMEMORY;
-	ddsd.ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT);
-	ddsd.ddpfPixelFormat.dwFlags = DDPF_RGB | DDPF_PALETTEINDEXED8;
-	ddsd.ddpfPixelFormat.dwRGBBitCount = 8;
-
-	pSurf = NULL;
-	while (FAILED(pDD4->lpVtbl->CreateSurface(pDD4, &ddsd, &pSurf, NULL)))
-	{
-		if (DC_ReclaimTextureSlot())
-			continue;
-
-		if (!allow_sysmem_fallback)
-			return NULL;
-
-		ddsd.ddsCaps.dwCaps = DDSCAPS_TEXTURE | DDSCAPS_SYSTEMMEMORY;
-		if (FAILED(pDD4->lpVtbl->CreateSurface(pDD4, &ddsd, &pSurf, NULL)))
-			return NULL;
-	}
-
-	pSurf->lpVtbl->SetPalette(pSurf, gGLPalette[pal_index].lpPalette);
-
-	memset(&ddsd, 0, sizeof(ddsd));
-	ddsd.dwSize = sizeof(ddsd);
-
-	if (FAILED(pSurf->lpVtbl->Lock(pSurf, NULL, &ddsd, DDLOCK_WAIT, NULL)))
+	if (DCV_DDError(pSurf->lpVtbl->Lock(pSurf, NULL, &ddsd, DDLOCK_WAIT, NULL), TEXT("Lock texture")))
 	{
 		pSurf->lpVtbl->Release(pSurf);
 		return NULL;
 	}
 
-	if (!identity[1])
+	g_nLastUploadBytes = w * w;
+	DCV_TwiddleBlit8(w, (byte *)ddsd.lpSurface, (byte *)data, pPal);
+
+	if (DCV_DDError(pSurf->lpVtbl->Unlock(pSurf, NULL), TEXT("Unlock texture")))
 	{
-		for (i = 0; i < 256; i++)
-			identity[i] = (byte)i;
-	}
-
-	DCV_TwiddleBlit8(side, (byte *)ddsd.lpSurface, idx, identity);
-
-	pSurf->lpVtbl->Unlock(pSurf, NULL);
-	texels += side * side;
-
-	if (slot)
-	{
-		slot->iPalette = (short)pal_index;
-		slot->pddsSurface = pSurf;
-		slot->cbData = side * side;
+		pSurf->lpVtbl->Release(pSurf);
+		return NULL;
 	}
 
 	return pSurf;
@@ -1312,13 +1243,15 @@ void *DCV_PrepSurfacePaletted(int side, byte *idx, byte *pPal, dctexture_t *slot
    destination of different dimensions. Each destination texel averages every
    source texel it covers, per channel, using the destination pixel format's
    channel masks. */
-int DCV_ResampleBlit( DDPIXELFORMAT *pf, LPDIRECTDRAWSURFACE4 surf, int dst_w, int dst_h, byte *src, int src_w, int src_h, unsigned short *pal16 )
+int DCV_ResampleBlit( DDPIXELFORMAT *pf, LPDIRECTDRAWSURFACE4 surf, RECT *prc, byte *src, int src_w, int src_h, unsigned short *pal16 )
 {
 	DDSURFACEDESC2 ddsd;
-	unsigned short *dstrow;
+	unsigned short *dst;
+	byte *srcp;
 	float xstep, ystep;
+	float fx, fx1, fy, fy1;
 	int x, y;
-	int sx, sy, sx0, sy0, sx1, sy1;
+	int sx, sy;
 	int count;
 	int accum_r, accum_g, accum_b, accum_a;
 	unsigned int texel;
@@ -1326,47 +1259,58 @@ int DCV_ResampleBlit( DDPIXELFORMAT *pf, LPDIRECTDRAWSURFACE4 surf, int dst_w, i
 	memset(&ddsd, 0, sizeof(ddsd));
 	ddsd.dwSize = sizeof(ddsd);
 
-	if (FAILED(surf->lpVtbl->Lock(surf, NULL, &ddsd, DDLOCK_WAIT, NULL)))
+	if (DCV_DDError(surf->lpVtbl->Lock(surf, NULL, &ddsd, DDLOCK_WAIT, NULL), TEXT("Lock texture")))
 		return 0;
 
-	xstep = (float)src_w / (float)dst_w;
-	ystep = (float)src_h / (float)dst_h;
+	g_nLastUploadBytes = prc->right * prc->bottom * 2;
 
-	for (y = 0; y < dst_h; y++)
+	xstep = (float)src_w / (float)prc->right;
+	ystep = (float)src_h / (float)prc->bottom;
+
+	for (y = 0; y < prc->bottom; y++)
 	{
-		dstrow = (unsigned short *)((byte *)ddsd.lpSurface + y * ddsd.lPitch);
+		fy = ystep * (float)y;
+		fy1 = ystep * (float)(y + 1);
+		dst = (unsigned short *)((byte *)ddsd.lpSurface + prc->right * y * 2);
 
-		for (x = 0; x < dst_w; x++)
+		for (x = 0; x < prc->right; x++)
 		{
-			sx0 = (int)(xstep * x);
-			sx1 = (int)(xstep * (x + 1));
-			sy0 = (int)(ystep * y);
-			sy1 = (int)(ystep * (y + 1));
+			fx = xstep * (float)x;
+			fx1 = xstep * (float)(x + 1);
 
 			count = 0;
 			accum_r = accum_g = accum_b = accum_a = 0;
 
-			for (sy = sy0; sy < sy1; sy++)
+			/* Average every source texel this destination texel covers. Always
+			   sample at least one texel per axis, so a shrunken axis can never
+			   leave a destination texel empty. */
+			sy = (int)floor(fy);
+			do
 			{
-				for (sx = sx0; sx < sx1; sx++)
+				sx = (int)floor(fx);
+				srcp = src + sx + sy * src_w;
+				do
 				{
-					texel = pal16[src[sy * src_w + sx]];
+					count++;
+					texel = pal16[*srcp++];
 					accum_r += (int)(texel & pf->dwRBitMask);
 					accum_g += (int)(texel & pf->dwGBitMask);
 					accum_b += (int)(texel & pf->dwBBitMask);
 					accum_a += (int)(texel & pf->dwRGBAlphaBitMask);
-					count++;
-				}
-			}
+					sx++;
+				} while (sx < (int)floor(fx1));
+				sy++;
+			} while (sy < (int)floor(fy1));
 
 			if (!count)
 				Sys_Error("Destination texel at %d, %d had no source texels!\n", x, y);
-
-			dstrow[x] = (unsigned short)(
-				((accum_r / count) & pf->dwRBitMask) |
-				((accum_g / count) & pf->dwGBitMask) |
-				((accum_b / count) & pf->dwBBitMask) |
-				((accum_a / count) & pf->dwRGBAlphaBitMask));
+			else
+				*dst = (unsigned short)(
+					((accum_r / count) & pf->dwRBitMask) |
+					((accum_g / count) & pf->dwGBitMask) |
+					((accum_b / count) & pf->dwBBitMask) |
+					((accum_a / count) & pf->dwRGBAlphaBitMask));
+			dst++;
 		}
 	}
 
@@ -1375,34 +1319,31 @@ int DCV_ResampleBlit( DDPIXELFORMAT *pf, LPDIRECTDRAWSURFACE4 surf, int dst_w, i
 }
 
 /* DCV_PrepSurfaceTwiddled: square source uploaded in twiddled texel order. */
-void *DCV_PrepSurfaceTwiddled(int side, byte *idx, unsigned short *pal16, dctexture_t *slot, int color_fmt, int allow_sysmem_fallback)
+LPDIRECTDRAWSURFACE4 DCV_PrepSurfaceTwiddled(int w, int h, void *data, unsigned short *pal16, DDPIXELFORMAT *fmt, int mipmap)
 {
 	DDSURFACEDESC2 ddsd;
 	LPDIRECTDRAWSURFACE4 pSurf;
+	byte *idx = (byte *)data;
+	(void)mipmap;
 
-	pSurf = DCV_CreateTextureSurface16(side, side, color_fmt, allow_sysmem_fallback);
-
+	DCV_CREATE_SURFACE(pSurf, ddsd, w, h, fmt, DDSCAPS_TEXTURE | DDSCAPS_3DDEVICE | DDSCAPS_VIDEOMEMORY);
 	if (!pSurf)
 		return NULL;
 
-	memset(&ddsd, 0, sizeof(ddsd));
-	ddsd.dwSize = sizeof(ddsd);
+	g_nLastUploadBytes = w * w;
 
-	if (FAILED(pSurf->lpVtbl->Lock(pSurf, NULL, &ddsd, DDLOCK_WAIT, NULL)))
+	if (DCV_DDError(pSurf->lpVtbl->Lock(pSurf, NULL, &ddsd, DDLOCK_WAIT | DDLOCK_COMPRESSED, NULL), TEXT("Lock texture")))
 	{
 		pSurf->lpVtbl->Release(pSurf);
 		return NULL;
 	}
 
-	DCV_TwiddleBlit16(side, (unsigned short *)ddsd.lpSurface, idx, pal16);
+	DCV_TwiddleBlit16(w, (unsigned short *)ddsd.lpSurface, idx, pal16);
 
-	pSurf->lpVtbl->Unlock(pSurf, NULL);
-	texels += side * side;
-
-	if (slot)
+	if (DCV_DDError(pSurf->lpVtbl->Unlock(pSurf, NULL), TEXT("Unlock texture")))
 	{
-		slot->pddsSurface = pSurf;
-		slot->cbData = side * side * 2;
+		pSurf->lpVtbl->Release(pSurf);
+		return NULL;
 	}
 
 	return pSurf;
@@ -1410,266 +1351,168 @@ void *DCV_PrepSurfaceTwiddled(int side, byte *idx, unsigned short *pal16, dctext
 
 /* DCV_PrepSurfaceResampled: create a texture surface at the rounded dimensions
    and box-filter the source into it. */
-void *DCV_PrepSurfaceResampled(int w, int h, byte *src, int src_w, int src_h, unsigned short *pal16, dctexture_t *slot, int color_fmt, int allow_sysmem_fallback)
+LPDIRECTDRAWSURFACE4 DCV_PrepSurfaceResampled(int w, int h, int src_w, int src_h, void *data, unsigned short *pal16, DDPIXELFORMAT *fmt)
 {
-	DDPIXELFORMAT pf;
+	DDSURFACEDESC2 ddsd;
 	LPDIRECTDRAWSURFACE4 pSurf;
+	RECT rc;
+	byte *src = (byte *)data;
 
-	DCV_ClearCachedFlag();
-
-	pSurf = DCV_CreateTextureSurface16(w, h, color_fmt, allow_sysmem_fallback);
-
+	DCV_CREATE_SURFACE(pSurf, ddsd, w, h, fmt, DDSCAPS_TEXTURE | DDSCAPS_3DDEVICE | DDSCAPS_VIDEOMEMORY);
 	if (!pSurf)
 		return NULL;
 
-	memset(&pf, 0, sizeof(pf));
-	pf.dwSize = sizeof(pf);
-	pSurf->lpVtbl->GetPixelFormat(pSurf, &pf);
-
-	if (!DCV_ResampleBlit(&pf, pSurf, w, h, src, src_w, src_h, pal16))
-	{
-		pSurf->lpVtbl->Release(pSurf);
-		return NULL;
-	}
-
-	texels += w * h;
-
-	if (slot)
-	{
-		slot->pddsSurface = pSurf;
-		slot->cbData = w * h * 2;
-	}
-
-	return pSurf;
-}
-
-static LPDIRECTDRAWSURFACE4 DCV_CreateTextureSurfaceCompressedVQ(int w, int h, int color_fmt, int image_fmt, int allow_sysmem_fallback)
-{
-	DDSURFACEDESC2 ddsd;
-	DDPIXELFORMAT pf;
-	LPDIRECTDRAW4 pDD4 = (LPDIRECTDRAW4)Sys_GetDirectDraw4();
-	LPDIRECTDRAWSURFACE4 pSurf = NULL;
-
-	if (!pDD4)
-		return NULL;
-
-	memset(&pf, 0, sizeof(pf));
-	pf.dwSize = sizeof(pf);
-	pf.dwFlags = DDPF_RGB | DDPF_COMPRESSED;
-	pf.dwRGBBitCount = 16;
-
-	switch (color_fmt)
-	{
-	default:
-	case PVR_RGB565:
-		pf.dwRBitMask = 0x0000F800;
-		pf.dwGBitMask = 0x000007E0;
-		pf.dwBBitMask = 0x0000001F;
-		break;
-	case PVR_ARGB4444:
-		pf.dwFlags |= DDPF_ALPHAPIXELS;
-		pf.dwRBitMask = 0x00000F00;
-		pf.dwGBitMask = 0x000000F0;
-		pf.dwBBitMask = 0x0000000F;
-		pf.dwRGBAlphaBitMask = 0x0000F000;
-		break;
-	case PVR_ARGB1555:
-		pf.dwFlags |= DDPF_ALPHAPIXELS;
-		pf.dwRBitMask = 0x00007C00;
-		pf.dwGBitMask = 0x000003E0;
-		pf.dwBBitMask = 0x0000001F;
-		pf.dwRGBAlphaBitMask = 0x00008000;
-		break;
-	}
-
-	memset(&ddsd, 0, sizeof(ddsd));
-	ddsd.dwSize = sizeof(ddsd);
-	ddsd.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT;
-	ddsd.ddsCaps.dwCaps = DDSCAPS_TEXTURE | DDSCAPS_3DDEVICE | DDSCAPS_VIDEOMEMORY;
-	ddsd.dwWidth = w;
-	ddsd.dwHeight = h;
-	ddsd.ddpfPixelFormat = pf;
-
-	if (image_fmt == PVR_VQ_MIPMAP)
-		ddsd.ddsCaps.dwCaps |= DDSCAPS_COMPLEX;
-
-	while (FAILED(pDD4->lpVtbl->CreateSurface(pDD4, &ddsd, &pSurf, NULL)))
-	{
-		if (DC_ReclaimTextureSlot())
-			continue;
-
-		if (!allow_sysmem_fallback)
-			return NULL;
-
-		ddsd.ddsCaps.dwCaps = DDSCAPS_TEXTURE | DDSCAPS_3DDEVICE | DDSCAPS_SYSTEMMEMORY;
-
-		if (image_fmt == PVR_VQ_MIPMAP)
-			ddsd.ddsCaps.dwCaps |= DDSCAPS_COMPLEX;
-
-		if (FAILED(pDD4->lpVtbl->CreateSurface(pDD4, &ddsd, &pSurf, NULL)))
-			return NULL;
-	}
+	rc.left = 0;
+	rc.right = w;
+	rc.top = 0;
+	rc.bottom = h;
+	DCV_ResampleBlit(fmt, pSurf, &rc, src, src_w, src_h, pal16);
 
 	return pSurf;
 }
 
 /* DCV_PrepSurfacePVR: supports RECT/TWIDDLED/VQ(+mipmap top-level extraction). */
-void *DCV_PrepSurfacePVR(int w, int h, void *pvr_data, unsigned int *fmt_table, char *name, dctexture_t *slot, int allow_sysmem_fallback)
+LPDIRECTDRAWSURFACE4 DCV_PrepSurfacePVR(int w, int h, int src_w, int src_h, void *data, DDPIXELFORMAT *fmt, char *name)
 {
-	int payload;
-	int copyBytes;
-	int dstBytes;
-	unsigned short *src16;
 	DDSURFACEDESC2 ddsd;
 	LPDIRECTDRAWSURFACE4 pSurf;
-	gbix_t *gbix;
-	pvrt_t *pvrt;
-	byte *payloadPtr;
-	unsigned char color_fmt;
-	unsigned char image_fmt;
+	unsigned short *src16, *dst;
+	int texDataSize, payload, n, i;
+	unsigned int fmtword;
+	int lockFlags;
+	int reclaimed;
 
-	if (!pvr_data)
+	(void)src_w;
+	(void)src_h;
+
+	texDataSize = ((pvrheader_t *)data)->dataSize;
+	payload = texDataSize - 8;
+	g_nLastUploadBytes = payload;
+	src16 = (unsigned short *)((pvrheader_t *)data + 1);
+	fmtword = *(unsigned int *)&((pvrheader_t *)data)->pixelFormat;
+
+	memset(&ddsd, 0, sizeof(ddsd));
+	ddsd.dwSize = sizeof(ddsd);
+	ddsd.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT;
+	ddsd.ddsCaps.dwCaps = DDSCAPS_TEXTURE | DDSCAPS_3DDEVICE | DDSCAPS_VIDEOMEMORY;
+	ddsd.ddpfPixelFormat = *fmt;
+	ddsd.dwWidth = w;
+	ddsd.dwHeight = h;
+
+	if ((fmtword & 0xf) == PVR_ARGB1555)
+	{
+		ddsd.ddpfPixelFormat = g_pfARGB1555;
+	}
+	else if ((fmtword & 0xf) == PVR_RGB565)
+	{
+		ddsd.ddpfPixelFormat = g_pfRGB565;
+	}
+	else
+	{
+		if ((fmtword & 0xf) != PVR_ARGB4444)
+		{
+			Sys_Error("%s: No support for PVR YUV or bump textures\n", name);
+			return NULL;
+		}
+		ddsd.ddpfPixelFormat = g_pfARGB4444;
+	}
+
+	lockFlags = DDLOCK_WAIT;
+	fmtword &= 0x1f00;
+
+	if (fmtword == (PVR_TWIDDLE << 8))
+	{
+		ddsd.ddsCaps.dwCaps |= DDSCAPS_COMPLEX;
+		lockFlags = DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_COMPRESSED;
+	}
+	else if (fmtword == (PVR_TWIDDLED_MIPMAP << 8))
+	{
+		ddsd.ddsCaps.dwCaps |= (DDSCAPS_COMPLEX | DDSCAPS_MIPMAP);
+		lockFlags = DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_COMPRESSED;
+	}
+	else if (fmtword == (PVR_VQ << 8))
+	{
+		ddsd.ddpfPixelFormat = g_pfScreenRGB565;
+		lockFlags = DDLOCK_WAIT;
+	}
+	else if (fmtword == (PVR_VQ_MIPMAP << 8))
+	{
+		ddsd.ddpfPixelFormat = g_pfScreenRGB565;
+		ddsd.ddsCaps.dwCaps |= DDSCAPS_MIPMAP;
+		lockFlags = DDLOCK_WAIT;
+	}
+	else if (fmtword == (PVR_CLUT8_TWIDDLED << 8) || fmtword == (PVR_CLUT4_TWIDDLED << 8) ||
+	         fmtword == (PVR_DIRECT8_TWIDDLED << 8) || fmtword == (PVR_DIRECT4_TWIDDLED << 8))
+	{
+		Sys_Error("%s: Palettized PVR texture?\n", name);
+		return NULL;
+	}
+	else if (fmtword != (PVR_RECT << 8) && fmtword != (PVR_RECTANGULAR_STRIDE << 8))
+	{
+		if (fmtword == (PVR_RECTANGULAR_TWIDDLED << 8))
+		{
+			ddsd.ddsCaps.dwCaps |= DDSCAPS_COMPLEX;
+			lockFlags = DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_COMPRESSED;
+		}
+		else if (fmtword != (0x0e << 8) &&
+		         (fmtword == (0x0f << 8) || fmtword == (PVR_SMALL_VQ << 8)))
+		{
+			Sys_Error("%s: D3D don't do small VQ\n", name);
+			return NULL;
+		}
+	}
+
+	DCV_ClearCachedFlag();
+
+	do {
+		if (g_pDD4->lpVtbl->CreateSurface(g_pDD4, &ddsd, &pSurf, NULL) == DD_OK)
+			break;
+		reclaimed = 0;
+		if (!s_bTexReclaimGuard)
+		{
+			s_bTexReclaimGuard = 1;
+			reclaimed = DC_ReclaimTextureSlot();
+			s_bTexReclaimGuard = 0;
+		}
+	} while (reclaimed);
+
+	if (!pSurf)
 		return NULL;
 
-	gbix = (gbix_t *)pvr_data;
-	pvrt = (pvrt_t *)((byte *)pvr_data + 8 + gbix->nextTagOffset);
-
-	payload = pvrt->textureDataSize - 8;
-
-	if (payload <= 0)
-		 return NULL;
-
-	color_fmt = pvrt->colorFormat;
-	image_fmt = pvrt->imageFormat;
-
-	if (color_fmt > PVR_ARGB4444)
+	if (DCV_DDError(pSurf->lpVtbl->Lock(pSurf, NULL, &ddsd, lockFlags, NULL), TEXT("Lock texture")))
 	{
-		Sys_Error("%s: No support for PVR YUV or bump textures yet\n", name ? name : "<null>");
+		pSurf->lpVtbl->Release(pSurf);
+		return NULL;
 	}
 
-	if (pvrt->width > 0 && pvrt->height > 0 && pvrt->width <= 1024 && pvrt->height <= 1024)
+	if (payload < 0)
+		payload = texDataSize - 7;
+
+	dst = (unsigned short *)ddsd.lpSurface;
+	n = payload >> 1;
+	for (i = 0; i < n; i++)
+		dst[i] = src16[i];
+
+	if (DCV_DDError(pSurf->lpVtbl->Unlock(pSurf, NULL), TEXT("Unlock texture")))
 	{
-		w = pvrt->width;
-		h = pvrt->height;
+		pSurf->lpVtbl->Release(pSurf);
+		return NULL;
 	}
 
-	payloadPtr = (byte *)pvrt + 16;
-
-	if (image_fmt == PVR_CLUT8_TWIDDLED || image_fmt == PVR_CLUT4_TWIDDLED ||
-		image_fmt == PVR_DIRECT8_TWIDDLED || image_fmt == PVR_DIRECT4_TWIDDLED)
-	{
-		Sys_Error("%s: Palettized PVR texture?\n", name ? name : "<null>");
-	}
-
-	if (image_fmt == PVR_SMALL_VQ || image_fmt == PVR_SMALL_VQ_MIPMAP)
-	{
-		Sys_Error("%s: D3D doesn't support small VQ textures\n", name ? name : "<null>");
-	}
-
-	/* VQ compressed path. Layout: codebook (2048) + indices. For VQ_MIPMAP: codebook +
-	 * base indices + mip indices down to 8x8. Single copy to top surface; driver parses chain. */
-	if (image_fmt == PVR_VQ || image_fmt == PVR_VQ_MIPMAP)
-	{
-		pSurf = DCV_CreateTextureSurfaceCompressedVQ(w, h, color_fmt, image_fmt, allow_sysmem_fallback);
-		if (!pSurf)
-			return NULL;
-
-		memset(&ddsd, 0, sizeof(ddsd));
-		ddsd.dwSize = sizeof(ddsd);
-
-#if defined(_WIN32_WCE)
-		if (FAILED(pSurf->lpVtbl->Lock(pSurf, NULL, &ddsd, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_COMPRESSED, NULL)))
-#else
-		if (FAILED(pSurf->lpVtbl->Lock(pSurf, NULL, &ddsd, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL)))
-#endif
-		{
-			pSurf->lpVtbl->Release(pSurf);
-			return NULL;
-		}
-
-		dstBytes = (int)(ddsd.dwLinearSize ? ddsd.dwLinearSize : payload);
-		copyBytes = payload & ~3;
-
-		if (copyBytes > 0 && ddsd.lpSurface)
-		{
-			unsigned int i, ndw = copyBytes >> 2;
-			unsigned int *dst = (unsigned int *)ddsd.lpSurface;
-			unsigned int *src = (unsigned int *)payloadPtr;
-
-			for (i = 0; i < ndw; i++)
-				dst[i] = src[i];
-		}
-		pSurf->lpVtbl->Unlock(pSurf, NULL);
-
-		texels += (w * h);
-
-		if (slot)
-		{
-			slot->pddsSurface = pSurf;
-			slot->cbData = copyBytes;
-		}
-		return pSurf;
-	}
-
-	/* Uncompressed path (RECT = linear layout). */
-	if (image_fmt == PVR_RECT)
-	{
-		src16 = (unsigned short *)payloadPtr;
-		pSurf = DCV_CreateTextureSurface16(w, h, color_fmt, allow_sysmem_fallback);
-
-		if (!pSurf)
-			return NULL;
-
-		memset(&ddsd, 0, sizeof(ddsd));
-		ddsd.dwSize = sizeof(ddsd);
-
-		if (FAILED(pSurf->lpVtbl->Lock(pSurf, NULL, &ddsd, DDLOCK_WAIT, NULL)))
-		{
-			pSurf->lpVtbl->Release(pSurf);
-			return NULL;
-		}
-
-		dstBytes = (int)(ddsd.lPitch * h);
-
-		if (dstBytes < 0)
-			dstBytes = -dstBytes;
-		copyBytes = w * h * 2;
-
-		if (copyBytes > payload)
-			copyBytes = payload;
-		if (copyBytes > dstBytes)
-			copyBytes = dstBytes;
-
-		if (copyBytes > 0)
-			memcpy(ddsd.lpSurface, src16, (size_t)copyBytes);
-
-		pSurf->lpVtbl->Unlock(pSurf, NULL);
-
-		texels += (w * h);
-
-		if (slot)
-		{
- 			slot->pddsSurface = pSurf;
-			slot->cbData = copyBytes;
-		}
-		return pSurf;
-	}
-
-	return NULL;
+	return pSurf;
 }
-
 static const unsigned int key_sizes[] = { 8, 16, 32, 64, 128, 256, 512, 0 };
 
-unsigned int DCV_ComputeTextureKey(int w, int h, byte *data, int mip_count, int tex_type)
+/* Rolling-XOR hash over the texture's raw texels (capped at 8000 bytes), used as
+   the cache key that DC_FindTextureSlot matches against. The byte count spans all
+   mip levels and scales with the source's bytes-per-texel. */
+unsigned int DCV_ComputeTextureHash(int w, int h, byte *data, int mip_count, int tex_type)
 {
 	unsigned int shift;
 	unsigned int key;
 	int sample_bytes;
 	int levels;
 	int i;
-
-	if (!data)
-		return 0;
 
 	levels = mip_count ? 4 : 1;
 	switch (tex_type)
@@ -1684,24 +1527,34 @@ unsigned int DCV_ComputeTextureKey(int w, int h, byte *data, int mip_count, int 
 			h >>= 1;
 		}
 		break;
-	case 10:
+	case TEX_TYPE_PAL8_6:
+	case TEX_TYPE_PAL8:
 		sample_bytes = 0;
 		for (i = 0; i < levels; ++i)
 		{
-			sample_bytes += w * h * 2;
+			sample_bytes += w * h;
 			w >>= 1;
 			h >>= 1;
 		}
 		break;
 	case TEX_TYPE_GBIX:
-		sample_bytes = *(int *)(data + 0x14);
-		data += 0x20;
+		sample_bytes = ((pvrheader_t *)data)->dataSize;
+		data += sizeof(pvrheader_t);
 		break;
 	default:
 		sample_bytes = 0;
 		for (i = 0; i < levels; ++i)
 		{
 			sample_bytes += w * h;
+			w >>= 1;
+			h >>= 1;
+		}
+		break;
+	case TEX_TYPE_RGB565_RAW:
+		sample_bytes = 0;
+		for (i = 0; i < levels; ++i)
+		{
+			sample_bytes += w * h * 2;
 			w >>= 1;
 			h >>= 1;
 		}
@@ -1724,153 +1577,23 @@ unsigned int DCV_ComputeTextureKey(int w, int h, byte *data, int mip_count, int 
 
 int DCV_PaletteIsMonochromeQuantized(unsigned char *pPal)
 {
-	int i = 0;
+	unsigned int i = 0;
 
-	do {
-		byte r = pPal[0], g = pPal[1], b = pPal[2];
-		pPal += 3;
+	while (1)
+	{
+		unsigned r = *pPal++;
+		unsigned g = *pPal++;
+		unsigned b = *pPal++;
 
 		if ((r & 0xF8) != (g & 0xF8))
 			return 0;
 		if ((r & 0xF8) != (b & 0xF8))
-			return 0;
-	} while (++i < 256);
-
-	return 1;
-}
-
-/* Indexed paletted upload into 4-4-4-4 texture surface. */
-static void *DC_UploadIndexed4444(int w, int h, byte *idx, unsigned short *palette, dctexture_t *slot, int allow_sysmem_fallback)
-{
-	DDSURFACEDESC2 ddsd;
-	LPDIRECTDRAWSURFACE4 pSurf;
-	unsigned short *dst;
-	int i, n;
-
-	pSurf = DCV_CreateTextureSurface16(w, h, PVR_ARGB4444, allow_sysmem_fallback);
-	if (!pSurf)
-		return NULL;
-
-	memset(&ddsd, 0, sizeof(ddsd));
-	ddsd.dwSize = sizeof(ddsd);
-
-	if (FAILED(pSurf->lpVtbl->Lock(pSurf, NULL, &ddsd, DDLOCK_WAIT, NULL)))
-	{
-		pSurf->lpVtbl->Release(pSurf);
-		return NULL;
+			break;
+		if (++i >= 256)
+			return 1;
 	}
 
-	dst = (unsigned short *)ddsd.lpSurface;
-	n = w * h;
-
-	for (i = 0; i < n; i++)
-		*dst++ = palette[idx[i]];
-
-	pSurf->lpVtbl->Unlock(pSurf, NULL);
-	texels += n;
-
-	if (slot)
-	{
-		slot->pddsSurface = pSurf;
-		slot->cbData = w * h * 2;
-	}
-
-	return pSurf;
-}
-
-/* Resample 8-bit indices to a new size, then upload as 4-4-4-4. */
-static void *DC_UploadResampledIndexed4444(int out_w, int out_h, int src_w, int src_h, byte *idx, unsigned short *palette, dctexture_t *slot, int allow_sysmem_fallback)
-{
-	int x, y;
-	byte *tmp;
-	void *ret;
-
-	tmp = (byte *)malloc(out_w * out_h);
-
-	if (!tmp)
-		return NULL;
-
-	for (y = 0; y < out_h; y++)
-	{
-		int sy = (y * src_h) / out_h;
-		for (x = 0; x < out_w; x++)
-		{
-			int sx = (x * src_w) / out_w;
-			tmp[y * out_w + x] = idx[sy * src_w + sx];
-		}
-	}
-
-	ret = DC_UploadIndexed4444(out_w, out_h, tmp, palette, slot, allow_sysmem_fallback);
-	free(tmp);
-
-	return ret;
-}
-
-/* DC_UploadResampledIndexed16: nearest-neighbor resample indices to new size. */
-static void *DC_UploadResampledIndexed16(int out_w, int out_h, int in_w, int in_h, byte *data, unsigned short *palette, dctexture_t *slot, int color_fmt, int allow_sysmem_fallback)
-{
-	byte *tmp;
-	int x, y;
-	int src_x, src_y;
-	void *ret;
-
-	if (out_w <= 0 || out_h <= 0 || in_w <= 0 || in_h <= 0)
-		return NULL;
-
-	tmp = (byte *)malloc((size_t)(out_w * out_h));
-	if (!tmp)
-		return NULL;
-
-	for (y = 0; y < out_h; y++)
-	{
-		for (x = 0; x < out_w; x++)
-		{
-			src_x = x * in_w / out_w;
-			src_y = y * in_h / out_h;
-
-			if (src_x < 0)
-				src_x = 0;
-
-			if (src_x >= in_w)
-				src_x = in_w - 1;
-
-			if (src_y < 0)
-				src_y = 0;
-
-			if (src_y >= in_h)
-				src_y = in_h - 1;
-
-
-			tmp[y * out_w + x] = data[src_y * in_w + src_x];
-		}
-	}
-
-	ret = DCV_PrepSurfaceIndexed(out_w, out_h, tmp, palette, slot, color_fmt, allow_sysmem_fallback);
-	free(tmp);
-
-	return ret;
-}
-
-static void DCV_BuildPalette4444Alpha(unsigned char *pPal, unsigned short *out_256)
-{
-	int i;
-
-	for (i = 0; i < 256; i++)
-	{
-		int r = pPal[i*3+0];
-		int g = pPal[i*3+1];
-		int b = pPal[i*3+2];
-		int a = r;
-
-		if (g > a)
-			 a = g;
-		if (b > a)
-			a = b;
-
-		/* Keep white RGB (glyph tinted by vertex color), but preserve
-		 * 4-bit alpha gradient from source palette to avoid dotted edges. */
-		out_256[i] = (unsigned short)(((a >> 4) << 12) | 0x0FFF);
-	}
+	return 0;
 }
 
 int DC_LoadTexture(char *identifier, int texture_type, int width, int height, void *data, short mipmap, int tex_type, unsigned char *pPal)
@@ -1878,237 +1601,207 @@ int DC_LoadTexture(char *identifier, int texture_type, int width, int height, vo
 	int slot_index, out_w, out_h;
 	unsigned int key;
 	unsigned short pal_565[256];
-	int allow_sysmem_fallback;
+	int monochrome, bPalIndexed, bDirect16, scaled;
+	short sPalIndex;
 	dctexture_t *slot;
+	DDPIXELFORMAT *fmt;
 	LPDIRECTDRAWSURFACE4 pSurf;
 	LPDIRECT3DTEXTURE2 pTex;
 
+	g_nLastUploadBytes = 0;
+	monochrome = 0;
+	bPalIndexed = 0;
+	bDirect16 = 0;
+	sPalIndex = -1;
+
+	key = DCV_ComputeTextureHash(width, height, (byte *)data, mipmap, tex_type);
+
 	if (tex_type == TEX_TYPE_LUM)
-	 {
 		Sys_Error("Lum textures not supported.");
-		return -1;
-	}
 
-	allow_sysmem_fallback = 1;
-
-	key = DCV_ComputeTextureKey(width, height, (byte *)data, mipmap ? 4 : 1, tex_type);
-
-	if (!identifier || !identifier[0])
+	if (!identifier[0])
 		return 0;
 
 	slot_index = DC_FindTextureSlot(identifier, width, height, key);
 
-	if (slot_index >= 0)
+	if (slot_index != -1)
 	{
-		if (s_slotServercount[slot_index] > 0)
-		{
-			s_slotServercount[slot_index] = gHostSpawnCount;
+		if (texture_type == GLT_STUDIO)
+			s_texSlots[slot_index].nUsageCount++;
+		if (s_texSlots[slot_index].nServerCount > 0)
 			s_texSlots[slot_index].nServerCount = (short)gHostSpawnCount;
-		}
 		return slot_index;
 	}
 
-	slot_index = DCV_GetSlot();
-
-	if (slot_index < 0)
-		return -1;
-
-	slot = &s_texSlots[slot_index];
-	slot->pddsSurface = NULL;
-	slot->pd3dtTexture = NULL;
-	slot->pCacheBlock = NULL;
-	slot->pbCacheData = NULL;
-	slot->bCached = 0;
-	slot->iTextureType = texture_type;
-	s_slotServercount[slot_index] = (texture_type == GLT_WORLD) ? gHostSpawnCount : 0;
-	slot->nServerCount = (short)((texture_type == GLT_WORLD) ? gHostSpawnCount : 0);
-	s_slotUse4444[slot_index] = 0;
-	s_slotIsSystem[slot_index] = (texture_type == GLT_SYSTEM) ? 1 : 0;
-	slot->iPalette = -1;
-	slot->iTextureKey = (int)key;
-	slot->pszName = (char *)MnemoAlloc(strlen(identifier) + 1, 0x20, 0, "texname");
-
-	if (!slot->pszName)
+	/* Claim the first free slot (nServerCount == -1). */
+	slot_index = 0;
+	while (s_texSlots[slot_index].nServerCount != -1)
 	{
-		slot->nServerCount = -1;
-		return -1;
+		if (++slot_index >= DC_MAXTEXTURES)
+		{
+			Sys_Error("DCV_GetSlot: Too many textures.");
+			slot_index = -1;
+			break;
+		}
 	}
 
-	strcpy(slot->pszName, identifier);
+	if (slot_index == -1)
+		return 0;
 
-	DCV_ComputeScaledSize(tex_type, &out_w, &out_h, width, height, 0, 0, data);
+	scaled = DCV_ComputeScaledSize(tex_type, &out_w, &out_h, width, height, 0, 0, data);
 
-	pSurf = NULL;
+	fmt = &g_pfRGB565;
 
 	switch (tex_type)
 	{
-		case TEX_TYPE_ALPHA:
-		if (texture_type == GLT_SYSTEM)
+	default:				/* TEX_TYPE_NONE / TEX_TYPE_LUM */
+		DCV_BuildPalette565(pPal, pal_565);
+		monochrome = DCV_PaletteIsMonochromeQuantized(pPal);
+		fmt = &g_pfRGB565;
+		break;
+	case TEX_TYPE_ALPHA:			/* 1 */
+		DCV_BuildPalette1555(pPal, pal_565);
+		fmt = &g_pfARGB1555;
+		break;
+	case TEX_TYPE_ALPHA_GRADIENT:		/* 3 */
+		DCV_BuildAlphaGradient4444(pPal, pal_565);
+		fmt = &g_pfARGB4444;
+		break;
+	case TEX_TYPE_RGBA:			/* 4 */
+		bDirect16 = 1;
+		fmt = &g_pfARGB4444;
+		break;
+	case TEX_TYPE_RGB565:			/* 5 */
+	case TEX_TYPE_RGB565_RAW:		/* 10 */
+		bDirect16 = 1;
+		fmt = &g_pfRGB565;
+		break;
+	case TEX_TYPE_PAL8_6:
+	case TEX_TYPE_PAL8:
+	case TEX_TYPE_PAL8_9:
+		bPalIndexed = 1;
+		break;
+	case TEX_TYPE_GBIX:			/* 8 */
+		fmt = &g_pfScreenRGB565;
+		break;
+	case 11:
+		DCV_BuildMaxChannelAlpha(pPal, pal_565);
+		fmt = &g_pfARGB4444;
+		break;
+	}
+
+	if (tex_type == TEX_TYPE_GBIX)
+	{
+		pSurf = DCV_PrepSurfacePVR(out_w, out_h, width, height, data, fmt, identifier);
+	}
+	else if (!bPalIndexed)
+	{
+		if (out_w == width && out_h == height && width == height && mipmap == 0 && pPal && monochrome)
 		{
-			s_slotUse4444[slot_index] = 1;
-			DCV_BuildPalette4444Alpha(pPal, pal_565);
-			if (out_w == width && out_h == height)
-				pSurf = DC_UploadIndexed4444(out_w, out_h, (byte *)data, pal_565, slot, allow_sysmem_fallback);
+			/* square, unscaled, monochrome-quantized: share a pool palette. */
+			DCV_BuildLumaRemap(pPal, (byte *)pal_565);
+			pSurf = DCV_PrepSurfacePaletted(out_w, out_h, data, (byte *)pal_565);
+			sPalIndex = g_iPalIdxDefault;
+			if (pSurf)
+				pSurf->lpVtbl->SetPalette(pSurf, gGLPalette[sPalIndex].lpPalette);
+		}
+		else if (!bDirect16)
+		{
+			if (scaled == 0)
+			{
+				if (out_w == out_h && mipmap)
+					pSurf = DCV_PrepSurfaceTwiddled(out_w, out_h, data, pal_565, fmt, mipmap);
+				else
+					pSurf = DCV_PrepSurfaceIndexed(out_w, out_h, data, pal_565, fmt);
+			}
 			else
-				pSurf = DC_UploadResampledIndexed4444(out_w, out_h, width, height, (byte *)data, pal_565, slot, allow_sysmem_fallback);
+			{
+				pSurf = DCV_PrepSurfaceResampled(out_w, out_h, width, height, data, pal_565, fmt);
+			}
 		}
 		else
 		{
-			DCV_BuildPalette1555(pPal, pal_565);
-			if (out_w == width && out_h == height)
-				pSurf = DCV_PrepSurfaceIndexed(out_w, out_h, (byte *)data, pal_565, slot, PVR_ARGB1555, allow_sysmem_fallback);
+			if (out_w != out_h || out_w != width || out_h != height || mipmap)
+				return 0;
+			if (tex_type == TEX_TYPE_RGB565_RAW)
+				pSurf = DCV_PrepSurface16(out_w, out_h, data, fmt);
 			else
-				pSurf = DC_UploadResampledIndexed16(out_w, out_h, width, height, (byte *)data, pal_565, slot, PVR_ARGB1555, allow_sysmem_fallback);
+				pSurf = DCV_PrepSurfaceTrueColor(out_w, out_h, data, fmt);
 		}
-		break;
-		case TEX_TYPE_ALPHA_GRADIENT:
-			s_slotUse4444[slot_index] = 1;
-			DCV_BuildAlphaGradient4444(pPal, pal_565);
-			if (out_w == width && out_h == height)
-				pSurf = DC_UploadIndexed4444(out_w, out_h, (byte *)data, pal_565, slot, allow_sysmem_fallback);
-			else
-				pSurf = DC_UploadResampledIndexed4444(out_w, out_h, width, height, (byte *)data, pal_565, slot, allow_sysmem_fallback);
-			break;
-		case TEX_TYPE_NONE:
-		default:
-			DCV_BuildPalette565(pPal, pal_565);
-			if (out_w == width && out_h == height)
-				pSurf = DCV_PrepSurfaceIndexed(out_w, out_h, (byte *)data, pal_565, slot, PVR_RGB565, allow_sysmem_fallback);
-			else
-				pSurf = DC_UploadResampledIndexed16(out_w, out_h, width, height, (byte *)data, pal_565, slot, PVR_RGB565, allow_sysmem_fallback);
-			break;
-		case 5:
-		case 10:
-			pSurf = DCV_PrepSurface16(out_w, out_h, (unsigned short *)data, slot, s_slotUse4444[slot_index] ? 2 : 1, allow_sysmem_fallback);
-			break;
-		case 6:
-		case 7:
-		case 9:
-			DCV_BuildPalette565(pPal, pal_565);
-			if (out_w == width && out_h == height)
-				pSurf = DCV_PrepSurfaceIndexed(out_w, out_h, (byte *)data, pal_565, slot, PVR_RGB565, allow_sysmem_fallback);
-			else
-				pSurf = DC_UploadResampledIndexed16(out_w, out_h, width, height, (byte *)data, pal_565, slot, PVR_RGB565, allow_sysmem_fallback);
-			break;
-		case TEX_TYPE_GBIX:
-			if (data && *(unsigned int *)data == GBIXHEADER)
-			{
-				gbix_t *gbix = (gbix_t *)data;
-				pvrt_t *pvrt = (pvrt_t *)((byte *)data + 8 + gbix->nextTagOffset);
-				if (pvrt->version == PVRTSIGN)
-					s_slotUse4444[slot_index] = (pvrt->colorFormat == PVR_ARGB4444);
-			}
-			pSurf = DCV_PrepSurfacePVR(out_w, out_h, data, NULL, identifier, slot, allow_sysmem_fallback);
-			break;
-		case 11:
-			s_slotUse4444[slot_index] = 1;
-			DCV_BuildMaxChannelAlpha(pPal, pal_565);
-			if (out_w == width && out_h == height)
-				pSurf = DCV_PrepSurfaceIndexed(out_w, out_h, (byte *)data, pal_565, slot, PVR_ARGB4444, allow_sysmem_fallback);
-			else
-				pSurf = DC_UploadResampledIndexed16(out_w, out_h, width, height, (byte *)data, pal_565, slot, PVR_ARGB4444, allow_sysmem_fallback);
-			break;
+	}
+	else						/* bPalIndexed: classes 6/7/9 */
+	{
+		int i;
+
+		if (tex_type == TEX_TYPE_PAL8_9)
+			sPalIndex = g_iPalIdxClass9;
+		else if (tex_type == TEX_TYPE_PAL8_6)
+			sPalIndex = g_iPalIdxClass6;
+		else
+			sPalIndex = g_iPalIdxDefault;
+
+		for (i = 0; i < 256; i++)
+			((byte *)pal_565)[i] = (byte)i;
+
+		pSurf = DCV_PrepSurfacePaletted(out_w, out_h, data, (byte *)pal_565);
+		if (pSurf)
+			pSurf->lpVtbl->SetPalette(pSurf, gGLPalette[sPalIndex].lpPalette);
 	}
 
 	if (!pSurf)
-	{
-		DC_FreeTextureSlot(slot);
-		return -1;
-	}
+		return 0;
 
 	pTex = NULL;
-
-	if (FAILED(pSurf->lpVtbl->QueryInterface(pSurf, &IID_IDirect3DTexture2, (void **)&pTex)))
-	{
-		DC_FreeTextureSlot(slot);
-		return -1;
-	}
-
-	slot->pddsSurface = pSurf;
-	slot->pd3dtTexture = pTex;
-	DCV_TouchTextureSlot(slot);
-	slot->nSrcWidth = (short)width;
-	slot->nSrcHeight = (short)height;
-	texels += (out_w * out_h);
-	return slot_index;
-}
-
-static LPDIRECT3DTEXTURE2 GetTextureForBind( int slot_index )
-{
-	dctexture_t *slot;
-
-	if (slot_index < 0 || slot_index >= DC_MAXTEXTURES)
-		return NULL;
+	if (DCV_DDError(pSurf->lpVtbl->QueryInterface(pSurf, IID_IDirect3DTexture2, (void **)&pTex),
+			TEXT("Get texture from surface")))
+		return 0;
 
 	slot = &s_texSlots[slot_index];
+	DC_SetupTextureSlot(slot, pSurf, pTex, identifier, sPalIndex,
+			(short)out_w, (short)out_h, (short)width, (short)height);
 
-	if (slot->nServerCount == -1)
-		return NULL;
+	slot->nServerCount = (texture_type == GLT_WORLD || texture_type == GLT_SPRITE)
+			? (short)gHostSpawnCount : 0;
+	if (texture_type == GLT_STUDIO)
+		slot->nUsageCount++;
 
-	if (!slot->pddsSurface && slot->pCacheBlock)
-	{
-		if (!DC_DecacheTextureSlot(slot))
-		{
-			Sys_Error("Couldn't reconstruct surface!\n");
-			return NULL;
-		}
-	}
+	slot->iTextureKey = key;
+	slot->cbData = g_nLastUploadBytes;
+	slot->iTextureType = texture_type;
 
-	if (!slot->pddsSurface || !slot->pd3dtTexture)
-		return NULL;
+	if (numgltextures < slot_index)
+		numgltextures = slot_index;
 
-	DCV_TouchTextureSlot(slot);
-	return (LPDIRECT3DTEXTURE2)slot->pd3dtTexture;
+	return slot_index;
 }
 
 void GL_BindStage( int texnum, int stage )
 {
-	int slot_index;
-	LPDIRECT3DDEVICE3 dev;
-	LPDIRECT3DTEXTURE2 tex;
+	dctexture_t *slot;
 
-	texnum = (texnum & 0xFFFF);
-	if (gl_nobind.value)
-		texnum = char_texture;
-
-	if (stage == 0 && currenttexture == texnum)
+	if (texnum == s_nD3dCurrentTexnum)
 		return;
 
-	DCV_FlushInline();
+	DCV_Flush();
 
-	dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-
-	if (!dev || !dev->lpVtbl || !dev->lpVtbl->SetTexture)
+	slot = &s_texSlots[texnum & 0xFFFF];
+	if (slot->nServerCount == -1)
 		return;
 
-	slot_index = texnum;
+	DCV_LinkTextureSlotFront(slot);
 
-	if (slot_index < 0 || slot_index >= DC_MAXTEXTURES || s_texSlots[slot_index].nServerCount == -1)
-	{
-		dev->lpVtbl->SetTexture(dev, stage, NULL);
-		s_pCurrentTextureSurface = NULL;
+	if (slot->nServerCount != 0)
+		slot->nServerCount = (short)gHostSpawnCount;
 
-		if (stage == 0)
-		{
-			s_nD3dCurrentTexnum = -1;
-			currenttexture = -1;
-		}
+	if (slot->pd3dtTexture == NULL)
+		DC_DecacheTextureSlot(slot);
 
-		return;
-	}
+	DCV_DDError(g_pD3DDevice->lpVtbl->SetTexture(g_pD3DDevice, stage,
+			(LPDIRECT3DTEXTURE2)slot->pd3dtTexture),
+		TEXT("Set texture"));
 
-	tex = GetTextureForBind(slot_index);
-
-	if (tex)
-		dev->lpVtbl->SetTexture(dev, stage, tex);
-
-	s_pCurrentTextureSurface = s_texSlots[slot_index].pddsSurface ? (LPDIRECTDRAWSURFACE4)s_texSlots[slot_index].pddsSurface : NULL;
-
-	if (stage == 0)
-	{
-		s_nD3dCurrentTexnum = slot_index;
-		currenttexture = slot_index;
-	}
+	s_nD3dCurrentTexnum = texnum;
+	s_stageTexnum[stage] = texnum;
 }
 
 /*
@@ -2119,39 +1812,50 @@ Unload all loaded textures
 We do this every time we load the map
 ================
 */
-void GL_UnloadTextures( void )
+int GL_UnloadTextures( void )
 {
-	int i;
+	int i, freed = 0;
 	for (i = 0; i < DC_MAXTEXTURES; i++)
 	{
 		dctexture_t *slot = &s_texSlots[i];
-		if (slot->nServerCount == -1)
-			continue;
-		if (s_slotServercount[i] > 0 && s_slotServercount[i] != gHostSpawnCount)
+		if (slot->nServerCount != -1 &&
+		    slot->nServerCount > 0 &&
+		    slot->nServerCount < gHostSpawnCount &&
+		    slot->nUsageCount == 0)
+		{
 			DC_FreeTextureSlot(slot);
+			freed++;
+		}
 	}
+	return freed;
 }
 
 int DC_FreeTextureByName( char *name )
 {
 	int i;
+	int servercount = 0;
 
 	for (i = 0; i < DC_MAXTEXTURES; i++)
 	{
 		dctexture_t *slot = &s_texSlots[i];
 
-		if (slot->nServerCount == -1)
-			continue;
-
-		if (slot->pszName && strcmp(name, slot->pszName) == 0)
+		servercount = slot->nServerCount;
+		if (servercount != -1)
 		{
-			if (slot->nUsageCount == 0)
-				DC_FreeTextureSlot(slot);
-			return 1;
+			char *slotname = slot->pszName ? slot->pszName : "<nameless>";
+			if (slotname)
+			{
+				slotname = slot->pszName ? slot->pszName : "<nameless>";
+				if (strcmp(slotname, name) == 0 && slot->nServerCount >= 0 && slot->nUsageCount == 0)
+				{
+					DC_FreeTextureSlot(slot);
+					return 1;
+				}
+			}
 		}
 	}
 
-	return 0;
+	return servercount;
 }
 
 void DC_TouchTexture( int texnum )
@@ -2175,51 +1879,43 @@ void DC_TouchTexture( int texnum )
 int DC_ForceFreeTextureByName( char *name )
 {
 	int i;
-	const char *slotname;
+	int servercount = 0;
 
 	for (i = 0; i < DC_MAXTEXTURES; i++)
 	{
 		dctexture_t *slot = &s_texSlots[i];
 
-		if (slot->nServerCount == -1)
-			continue;
-
-		slotname = slot->pszName ? slot->pszName : "<nameless>";
-
-		if (strcmp(slotname, name) == 0)
+		servercount = slot->nServerCount;
+		if (servercount != -1)
 		{
-			DC_FreeTextureSlot(slot);
-			return 1;
+			char *slotname = slot->pszName ? slot->pszName : "<nameless>";
+			if (slotname)
+			{
+				slotname = slot->pszName ? slot->pszName : "<nameless>";
+				if (strcmp(slotname, name) == 0)
+				{
+					DC_FreeTextureSlot(slot);
+					return 1;
+				}
+			}
 		}
 	}
 
-	return 0;
+	return servercount;
 }
 
 int DC_FreeTextureByIndex( int texnum )
 {
-	dctexture_t *slot;
-
-	if (texnum < 0 || texnum >= DC_MAXTEXTURES)
+	if (s_texSlots[texnum].nServerCount == -1)
 		return 0;
 
-	slot = &s_texSlots[texnum];
-
-	if (slot->nServerCount == -1)
-		return 0;
-
-	DC_FreeTextureSlot(slot);
+	DC_FreeTextureSlot(&s_texSlots[texnum]);
 	return 1;
 }
 
 int DC_ReleaseTexture( int texnum )
 {
-	dctexture_t *slot;
-
-	if (texnum < 0 || texnum >= DC_MAXTEXTURES)
-		return 0;
-
-	slot = &s_texSlots[texnum];
+	dctexture_t *slot = &s_texSlots[texnum];
 
 	if (slot->nServerCount == -1)
 		return 0;
@@ -2238,9 +1934,9 @@ int DC_FreeStaleTextureSlots( void )
 	{
 		dctexture_t *slot = &s_texSlots[i];
 		if (slot->nServerCount != -1 &&
+		    slot->iTextureType == 5 &&
 		    slot->nServerCount > 0 &&
-		    slot->nServerCount < (short)gHostSpawnCount &&
-		    slot->nUsageCount == 0)
+		    slot->nServerCount < gHostSpawnCount)
 		{
 			DC_FreeTextureSlot(slot);
 			freed++;
@@ -2251,45 +1947,26 @@ int DC_FreeStaleTextureSlots( void )
 
 void DC_InitTextureList( void )
 {
-	int i;
-
-	for (i = 0; i < DC_MAXTEXTURES; i++)
-	{
-		DC_ClearTextureSlot(&s_texSlots[i]);
-		s_slotServercount[i] = -1;
-		s_slotUse4444[i] = 0;
-		s_slotIsSystem[i] = 0;
-	}
-
-	memset(&s_dcTextureLruHead, 0, sizeof(s_dcTextureLruHead));
-	memset(&s_dcTextureLruTail, 0, sizeof(s_dcTextureLruTail));
+	s_dcTextureLruHead.pPrev = NULL;
 	s_dcTextureLruHead.pNext = &s_dcTextureLruTail;
 	s_dcTextureLruTail.pPrev = &s_dcTextureLruHead;
+	s_dcTextureLruTail.pNext = NULL;
 
-	for (i = 0; i < DC_MAXPALETTES; i++)
-	{
-		gGLPalette[i].tag = -1;
-		gGLPalette[i].referenceCount = 0;
-		gGLPalette[i].lpPalette = NULL;
-	}
-
-	s_nCached = 0;
-	texels = 0;
-	s_pCurrentTextureSurface = NULL;
-	s_nD3dCurrentTexnum = -1;
+	if (g_bTextureLog)
+		Sys_FPrintf(g_bTextureLog, "Texture log start.\n");
 }
 
-static void DC_PaletteEntryClear( dcpalette_t* entry )
+dcpalette_t::dcpalette_t()
 {
-	entry->tag = -1;
-	entry->referenceCount = 0;
-	entry->lpPalette = NULL;
+	tag = -1;
+	referenceCount = 0;
+	lpPalette = NULL;
 }
 
-static void DC_PaletteEntryRelease( dcpalette_t* entry )
+dcpalette_t::~dcpalette_t()
 {
-	if (entry->lpPalette)
-		entry->lpPalette->lpVtbl->Release(entry->lpPalette);
+	if (lpPalette)
+		lpPalette->lpVtbl->Release(lpPalette);
 }
 
 void GL_Bind( int texnum, int stage )
@@ -2300,16 +1977,6 @@ void GL_Bind( int texnum, int stage )
 void GL_Texels_f( void )
 {
 	Con_Printf("Current uploaded texels: %i\n", texels);
-}
-
-/* ---------------------------------------------------------------------------
- * 2D vertex helper: adds to the shared D3DFVF_LVERTEX accumulator with the
- * current HUD depth. HUD ortho projection (set by GLBeginHud) transforms
- * pixel coords to NDC.
- * --------------------------------------------------------------------------- */
-static void DCV_2D_AddVertex( float x, float y, float u, float v )
-{
-	DCV_AddVertex(x, y, dc_depthhud.value, u, v);
 }
 
 /*
@@ -2343,7 +2010,7 @@ int Draw_MessageCharacterAdd( int x, int y, int num, int rr, int gg, int bb )
 {
 	DCV_SetColor(rr, gg, bb, 255);
 	Font_SetScale(1.0f, 1.0f);
-	DCV_SetDefaultRenderStates();
+	DCV_TexState_Additive();
 	return Font_DrawCharI(draw_chars, x, y, num);
 }
 
@@ -2366,36 +2033,49 @@ void Draw_Init( void )
 	qpic_t*	cb;
 	glpic_t* gl;
 	unsigned char* pPal;
+	unsigned int	filler[256];
 	float			prev;
 	int				i;
 
-	DC_InitTextureList();
+	Draw_Shutdown();
+	m_bDrawInitialized = TRUE;
 
-	Draw_CacheWadInit("cached.wad", 16, &menu_wad);
-	menu_wad.tempWad = TRUE;
+	if (s_bFirstTime)
+	{
+		Cmd_AddCommand("gl_texturemode", Draw_TextureMode_f);
+		Cmd_AddCommand("gl_texels", GL_Texels_f);
 
-	Draw_CacheWadHandler(&decal_wad, Draw_MiptexTexture, MIP_EXTRASIZE);
+		Cvar_RegisterVariable(&gl_nobind);
+		Cvar_RegisterVariable(&gl_max_size);
+		Cvar_RegisterVariable(&gl_round_down);
+		Cvar_RegisterVariable(&gl_picmip);
+		Cvar_RegisterVariable(&gl_palette_tex);
+	}
+
+	menu_wad = (cachewad_t *)MnemoAllocDbg(sizeof(cachewad_t), __FILE__, __LINE__);
+	memset(menu_wad, 0, sizeof(cachewad_t));
+	Draw_CacheWadInit("cached.wad", 16, menu_wad);
+	menu_wad->tempWad = TRUE;
+
 	Draw_CacheWadHandler(&custom_wad, Draw_MiptexTexture, MIP_EXTRASIZE);
 
-	Cvar_RegisterVariable(&gl_nobind);
-	Cvar_RegisterVariable(&gl_max_size);
-	Cvar_RegisterVariable(&gl_round_down);
-	Cvar_RegisterVariable(&gl_picmip);
-	Cvar_RegisterVariable(&gl_palette_tex);
+	memset(decal_names, 0, sizeof(decal_names));
 
-	Cmd_AddCommand("gl_texturemode", Draw_TextureMode_f);
-	Cmd_AddCommand("gl_texels", GL_Texels_f);
+	DCV_GammaRefresh_f();
 
-	for (i = 0; i < 256; i++)
-		texgammatable[i] = i;
+	if (s_bFirstTime)
+	{
+		// a fallback texture for models with no skin
+		for (i = 0; i < 256; i++)
+			filler[i] = 0x800000FF;
+		nada_texture = DC_LoadTexture("nada", GLT_SYSTEM, 16, 16, filler, FALSE, TEX_TYPE_RGBA, NULL);
 
-	draw_chars = (qfont_t*)W_GetLumpName("conchars");
-	draw_creditsfont = (qfont_t*)W_GetLumpName("creditsfont");
+		draw_disc = LoadTransPic("lambda", (qpic_t*)W_GetLumpinfo("lambda"));
+	}
 
-	if (con_loading)
-		cb = (qpic_t*)Draw_CachePic("gfx/loading.lmp");
-	else
-		cb = (qpic_t*)Draw_CachePic("gfx/conback.lmp");
+	draw_chars = (qfont_t*)W_GetLumpinfo("creditsfont");
+
+	cb = (qpic_t*)Draw_CacheGet(menu_wad, Draw_CacheIndex(menu_wad, "gfx/conback.lmp"));
 	if (!cb)
 		Sys_Error("Couldn't load conback.lmp");
 
@@ -2406,7 +2086,9 @@ void Draw_Init( void )
 
 	gl = (glpic_t*)conback->data;
 	pPal = &cb->data[cb->width * cb->height + 2];
-	gl->texnum = GL_LoadTexture("conback", GLT_SYSTEM, cb->width, cb->height, cb->data, FALSE, TEX_TYPE_NONE, pPal);
+	if (!s_bFirstTime)
+		DC_FreeTextureByName("conback");
+	gl->texnum = DC_LoadTexture("conback", GLT_SYSTEM, cb->width, cb->height, cb->data, FALSE, TEX_TYPE_NONE, pPal);
 	gl->sl = 0;
 	gl->sh = 1;
 	gl->tl = 0;
@@ -2414,31 +2096,22 @@ void Draw_Init( void )
 
 	prev = gl_round_down.value;
 	gl_round_down.value = 0.0;
+	translate_texture = 0;
 
-	// now turn them into textures
+	// now turn the charset into a texture
 	pPal = &draw_chars->data[256 * draw_chars->height + 2];
-	char_texture = GL_LoadTexture("conchars", GLT_SYSTEM, 256, draw_chars->height, draw_chars->data, FALSE, TEX_TYPE_ALPHA, pPal);
-	pPal = &draw_creditsfont->data[256 * draw_creditsfont->height + 2];
-	font_texture = GL_LoadTexture("creditsfont", GLT_SYSTEM, 256, draw_creditsfont->height, draw_creditsfont->data, FALSE, TEX_TYPE_ALPHA, pPal);
+	char_texture = DC_LoadTexture("creditsfont", GLT_SYSTEM, 256, draw_chars->height, draw_chars->data, FALSE, TEX_TYPE_FONT, pPal);
 
 	gl_round_down.value = prev;
 
-	// Publish the glyph-sheet UV scale into each font header. Font_DrawChar reads
-	// usize (+0x414) and vsize (+0x418) to map glyph cells to texture coords;
-	// these overlap the first pixels of the sheet, which is safe now that the
-	// sheets have been uploaded to textures.
-	*(float *)(draw_chars->data + 4)       = 1.0f / 256.0f;
-	*(float *)(draw_chars->data + 8)       = 1.0f / (float)draw_chars->height;
-	*(float *)(draw_creditsfont->data + 4) = 1.0f / 256.0f;
-	*(float *)(draw_creditsfont->data + 8) = 1.0f / (float)draw_creditsfont->height;
+	// Publish the glyph-sheet UV scale into the font header. Font_DrawChar reads
+	// usize and vsize to map glyph cells to texture coords; these overlap the
+	// first pixels of the sheet, which is safe now that the sheet has been
+	// uploaded to a texture.
+	*(float *)(draw_chars->data + 4) = 1.0f / 256.0f;
+	*(float *)(draw_chars->data + 8) = 1.0f / (float)draw_chars->height;
 
-	draw_chars   = draw_creditsfont;
-	char_texture = font_texture;
-
-	// save a texture slot for translated picture
-	translate_texture = texture_extension_number++;
-
-	draw_disc = (qpic_t*)LoadTransBMP("lambda");
+	s_bFirstTime = FALSE;
 }
 
 /*
@@ -2450,7 +2123,7 @@ Draws a single character
 */
 int Draw_Character( int x, int y, int num )
 {
-	DCV_SetTextRenderStates();
+	DCV_TexState_Blend();
 	Font_SetScale(1.0f, 1.0f);
 	return Font_DrawCharI(draw_chars, x, y, num);
 }
@@ -2462,15 +2135,21 @@ Draw_String
 */
 int Draw_String( int x, int y, char* str )
 {
+	int c;
+
 	DCV_SetHudDepth(3.0f);
 	DCV_SetPackedColor(0xFFFF9000);
 
-	while (*str)
+	c = *str;
+	if (c)
 	{
-		DCV_SetTextRenderStates();
-		Font_SetScale(1.0f, 1.0f);
-		x += Font_DrawCharI(draw_chars, x, y, *str);
-		str++;
+		do {
+			DCV_TexState_Blend();
+			Font_SetScale(1.0f, 1.0f);
+			x += Font_DrawCharI(draw_chars, x, y, c);
+			str++;
+			c = *str;
+		} while (c);
 	}
 	return x;
 }
@@ -2484,28 +2163,22 @@ void Draw_Pic( int x, int y, qpic_t *pic )
 {
 	glpic_t* gl;
 	int base;
-	float uleft, uright, vtop, vbottom;
 
 	if (!pic)
 		return;
 
 	gl = (glpic_t*)pic->data;
 
-	uleft = gl->sl;
-	uright = gl->sh;
-	vtop = gl->tl;
-	vbottom = gl->th;
-
-	DCV_SetColor(255, 255, 255, 255);
-	GL_Bind(gl->texnum, 0);
+	DCV_2D_SetupStates();
+	DCV_SetPackedColor(0xFFFFFFFF);
+	GL_BindStage(gl->texnum, 0);
 	DCV_FlushIfLarge();
 	base = DCV_GetVertCount();
 	DCV_AddPolyIndices(base, 4);
-	DCV_2D_AddVertex((float)x,                   (float)y,                    uleft,  vtop);
-	DCV_2D_AddVertex((float)(x + pic->width),    (float)y,                    uright, vtop);
-	DCV_2D_AddVertex((float)(x + pic->width),    (float)(y + pic->height),    uright, vbottom);
-	DCV_2D_AddVertex((float)x,                   (float)(y + pic->height),   uleft,  vbottom);
-
+	DCV_AddVertex((float)x,                   (float)y,                   dc_depthhud.value - 0.1f, gl->sl, gl->tl);
+	DCV_AddVertex((float)(x + pic->width),    (float)y,                   dc_depthhud.value - 0.1f, gl->sh, gl->tl);
+	DCV_AddVertex((float)(x + pic->width),    (float)(y + pic->height),   dc_depthhud.value - 0.1f, gl->sh, gl->th);
+	DCV_AddVertex((float)x,                   (float)(y + pic->height),   dc_depthhud.value - 0.1f, gl->sl, gl->th);
 }
 
 /*
@@ -2516,36 +2189,44 @@ Draw_AlphaSubPic
 void Draw_AlphaSubPic( int xDest, int yDest, int xSrc, int ySrc, int iWidth, int iHeight, qpic_t* pic, colorVec* pc, int iAlpha )
 {
 	glpic_t* gl;
-	int base;
-	float uleft, uright, vtop, vbottom;
-	float du, dv;
+	float uleft, uright, vtop, vbottom, du;
+	float alpha;
 
 	if (!pic)
 		return;
 
+	DCV_Begin2D(1, 1);
+	qglTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	qglEnable(GL_BLEND);
+	qglEnable(GL_ALPHA_TEST);
+	DCV_2D_SetupStates();
+
 	gl = (glpic_t*)pic->data;
 
-	du = (gl->sh - gl->sl) / (float)pic->width;
-	dv = (gl->th - gl->tl) / (float)pic->height;
+	du    = (float)iWidth / (float)pic->width;
+	uleft = (float)xSrc / (float)pic->width;
+	vtop  = (float)ySrc / (float)pic->height;
+	alpha = (float)iAlpha / 255.0f;
 
-	uleft = gl->sl + xSrc * du;
-	uright = uleft + iWidth * du;
-	vtop = gl->tl + ySrc * dv;
-	vbottom = vtop + iHeight * dv;
+	qglColor4f(alpha * (float)pc->r / 256.0f,
+		alpha * (float)pc->g / 256.0f,
+		alpha * (float)pc->b / 256.0f, 1.0f);
+	GL_BindStage(gl->texnum, 0);
+	qglBegin(GL_QUADS);
 
-	DCV_TexState_Blend();
-	DCV_SetColor(pc->r, pc->g, pc->b, iAlpha);
-	GL_Bind(gl->texnum, 0);
-	DCV_FlushIfLarge();
-	base = DCV_GetVertCount();
-	DCV_AddPolyIndices(base, 4);
-	DCV_2D_AddVertex((float)xDest,            (float)yDest,             uleft,  vtop);
-	DCV_2D_AddVertex((float)(xDest + iWidth), (float)yDest,             uright, vtop);
-	DCV_2D_AddVertex((float)(xDest + iWidth), (float)(yDest + iHeight), uright, vbottom);
-	DCV_2D_AddVertex((float)xDest,            (float)(yDest + iHeight), uleft,  vbottom);
+	qglTexCoord2f(uleft, vtop);
+	qglVertex2f((float)xDest, (float)yDest);
+	uright = uleft + du;
+	qglTexCoord2f(uright, vtop);
+	qglVertex2f((float)(xDest + iWidth), (float)yDest);
+	vbottom = vtop + (float)iHeight / (float)pic->height;
+	qglTexCoord2f(uright, vbottom);
+	qglVertex2f((float)(xDest + iWidth), (float)(yDest + iHeight));
+	qglTexCoord2f(uleft, vbottom);
+	qglVertex2f((float)xDest, (float)(yDest + iHeight));
 
-	DCV_FlushInline();
-	DCV_TexState_Opaque();
+	qglEnd();
+	qglDisable(GL_BLEND);
 }
 
 /*
@@ -2557,27 +2238,21 @@ void Draw_Pic2( int x, int y, int w, int h, qpic_t* pic )
 {
 	glpic_t* gl;
 	int base;
-	float uleft, uright, vtop, vbottom;
 
 	if (!pic)
 		return;
 
 	gl = (glpic_t*)pic->data;
 
-	uleft = gl->sl;
-	uright = gl->sh;
-	vtop = gl->tl;
-	vbottom = gl->th;
-
-	DCV_SetColor(255, 255, 255, 255);
-	GL_Bind(gl->texnum, 0);
+	DCV_2D_SetupStates();
+	GL_BindStage(gl->texnum, 0);
 	DCV_FlushIfLarge();
 	base = DCV_GetVertCount();
 	DCV_AddPolyIndices(base, 4);
-	DCV_2D_AddVertex((float)x,        (float)y,         uleft,  vtop);
-	DCV_2D_AddVertex((float)(x + w),  (float)y,         uright, vtop);
-	DCV_2D_AddVertex((float)(x + w),  (float)(y + h),   uright, vbottom);
-	DCV_2D_AddVertex((float)x,        (float)(y + h),   uleft,  vbottom);
+	DCV_AddVertex((float)x,        (float)y,        dc_depthhud.value - 0.1f, gl->sl, gl->tl);
+	DCV_AddVertex((float)(x + w),  (float)y,        dc_depthhud.value - 0.1f, gl->sh, gl->tl);
+	DCV_AddVertex((float)(x + w),  (float)(y + h),  dc_depthhud.value - 0.1f, gl->sh, gl->th);
+	DCV_AddVertex((float)x,        (float)(y + h),  dc_depthhud.value - 0.1f, gl->sl, gl->th);
 }
 
 /*
@@ -2592,7 +2267,7 @@ void Draw_ConsoleBackground( int lines )
 {
 	DCV_SetHudDepth(2.0f);
 	DCV_SetPackedColor(0xFFFFFFFF);
-	DCV_SetDefaultRenderStates();
+	DCV_TexState_Opaque();
 	Draw_Pic2(0, lines - glheight, glwidth, glheight + 1, conback);
 	DCV_SetHudDepth(3.0f);
 }
@@ -2612,15 +2287,14 @@ Set the scissor
 */
 void EnableScissorTest( int x, int y, int width, int height )
 {
-	// Added casts to int because these warnings are so annoying
 	x = clamp(x, 0, (int)vid.width);
 	y = clamp(y, 0, (int)vid.height);
 	width = clamp(width, 0, (int)vid.width - x);
 	height = clamp(height, 0, (int)vid.height - y);
 
 	scissor_x = x;
-	scissor_y = y;
 	scissor_width = width;
+	scissor_y = (int)vid.height - y - height;
 	scissor_height = height;
 
 	giScissorTest = TRUE;
@@ -2648,7 +2322,7 @@ ValidateWRect
 Verify that this is a valid, properly ordered rectangle.
 ===============
 */
-static int ValidateWRect( const wrect_t* prc )
+static __inline int ValidateWRect( const wrect_t* prc )
 {
 	if (!prc)
 		return FALSE;
@@ -2699,6 +2373,7 @@ AdjustSubRect
 void AdjustSubRect( mspriteframe_t* pFrame, float* pfLeft, float* pfRight, float* pfTop, float* pfBottom, int* pw, int* ph, const wrect_t* prcSubRect )
 {
 	wrect_t rc;
+	float invw, invh;
 
 	if (!ValidateWRect(prcSubRect))
 		return;
@@ -2715,10 +2390,13 @@ void AdjustSubRect( mspriteframe_t* pFrame, float* pfLeft, float* pfRight, float
 	*pw = rc.right - rc.left;
 	*ph = rc.bottom - rc.top;
 
-	*pfLeft = rc.left / (float)pFrame->width;
-	*pfRight = rc.right / (float)pFrame->width;
-	*pfTop = rc.top / (float)pFrame->height;
-	*pfBottom = rc.bottom / (float)pFrame->height;
+	/* Sample pixel centers: nudge the edges inward by half a texel. */
+	invw = 1.0f / (float)pFrame->width;
+	*pfLeft   = ((float)rc.left   + 0.5f) * invw;
+	*pfRight  = ((float)rc.right  - 0.5f) * invw;
+	invh = 1.0f / (float)pFrame->height;
+	*pfTop    = ((float)rc.top    + 0.5f) * invh;
+	*pfBottom = ((float)rc.bottom - 0.5f) * invh;
 }
 
 /*
@@ -2742,30 +2420,26 @@ void Draw_Frame( mspriteframe_t* pFrame, int x, int y, const wrect_t* prcSubRect
 	if (prcSubRect)
 		AdjustSubRect(pFrame, &fLeft, &fRight, &fTop, &fBottom, &iWidth, &iHeight, prcSubRect);
 
-	GL_Bind(pFrame->gl_texturenum, 0);
+	GL_BindStage(pFrame->gl_texturenum, 0);
 	DCV_FlushIfLarge();
 	base = DCV_GetVertCount();
 	DCV_AddPolyIndices(base, 4);
-	DCV_2D_AddVertex((float)x,            (float)y,             fLeft,  fTop);
-	DCV_2D_AddVertex((float)(x + iWidth), (float)y,             fRight, fTop);
-	DCV_2D_AddVertex((float)(x + iWidth), (float)(y + iHeight), fRight, fBottom);
-	DCV_2D_AddVertex((float)x,            (float)(y + iHeight), fLeft,  fBottom);
+	DCV_AddVertex((float)x,            (float)y,             dc_depthhud.value - 0.1f, fLeft,  fTop);
+	DCV_AddVertex((float)(x + iWidth), (float)y,             dc_depthhud.value - 0.1f, fRight, fTop);
+	DCV_AddVertex((float)(x + iWidth), (float)(y + iHeight), dc_depthhud.value - 0.1f, fRight, fBottom);
+	DCV_AddVertex((float)x,            (float)(y + iHeight), dc_depthhud.value - 0.1f, fLeft,  fBottom);
 }
 
 void Draw_SpriteFrame( mspriteframe_t* pFrame, unsigned short* pPalette, int x, int y, const wrect_t* prcSubRect )
 {
-	DCV_TexState_Additive();
-	DCV_SetColor(gSpriteColorR, gSpriteColorG, gSpriteColorB, 255);
 	Draw_Frame(pFrame, x, y, prcSubRect);
-	DCV_TexState_Opaque();
 }
 
 void Draw_SpriteFrameHoles( mspriteframe_t* pFrame, unsigned short* pPalette, int x, int y, const wrect_t* prcSubRect )
 {
-	DCV_TexState_AlphaTest();
+	DCV_2D_SetupStates();
 	if (gl_spriteblend.value)
 		DCV_TexState_Blend();
-	DCV_SetColor(gSpriteColorR, gSpriteColorG, gSpriteColorB, 255);
 	Draw_Frame(pFrame, x, y, prcSubRect);
 	DCV_TexState_Opaque();
 }
@@ -2773,15 +2447,6 @@ void Draw_SpriteFrameHoles( mspriteframe_t* pFrame, unsigned short* pPalette, in
 void Draw_SpriteFrameAdditive( mspriteframe_t* pFrame, unsigned short* pPalette, int x, int y, const wrect_t* prcSubRect )
 {
 	DCV_TexState_Additive();
-	DCV_SetColor(gSpriteColorR, gSpriteColorG, gSpriteColorB, 255);
-	Draw_Frame(pFrame, x, y, prcSubRect);
-	DCV_TexState_Opaque();
-}
-
-void Draw_SpriteFrameGeneric( mspriteframe_t* pFrame, unsigned short* pPalette, int x, int y, const wrect_t* prcSubRect, int src, int dest, int width, int height )
-{
-	DCV_TexState_Blend();
-	DCV_SetColor(gSpriteColorR, gSpriteColorG, gSpriteColorB, 255);
 	Draw_Frame(pFrame, x, y, prcSubRect);
 	DCV_TexState_Opaque();
 }
@@ -2807,7 +2472,7 @@ void Draw_FillRGBA( int x, int y, int w, int h, int r, int g, int b, int a )
 	DCV_AddVertex((float)(x + w),   (float)(y + h),   1.0f, 1.0f, 1.0f);
 	DCV_AddVertex((float)x,         (float)(y + h),   1.0f, 0.0f, 1.0f);
 	DCV_SetPackedColor(0xFFFFFFFF);
-	DCV_FlushApplyRenderState(0x1b, 0);
+	DCV_FlushApplyRenderState((D3DRENDERSTATETYPE)0x1b, 0);
 }
 
 /*
@@ -2830,19 +2495,18 @@ Draw_FadeScreen
 */
 void Draw_FadeScreen( void )
 {
-	int base;
-
-	DCV_TexState_VertColor();
-	DCV_SetColor(0, 0, 0, 204);
-	base = DCV_GetVertCount();
-	DCV_AddPolyIndices(base, 4);
-	DCV_2D_AddVertex(0.0f,           0.0f,            0.0f, 0.0f);
-	DCV_2D_AddVertex((float)glwidth, 0.0f,            1.0f, 0.0f);
-	DCV_2D_AddVertex((float)glwidth, (float)glheight, 1.0f, 1.0f);
-	DCV_2D_AddVertex(0.0f,           (float)glheight, 0.0f, 1.0f);
-	DCV_FlushInline();
-	DCV_SetPackedColor(0xFFFFFFFF);
-	DCV_TexState_Opaque();
+	qglEnable(GL_BLEND);
+	qglDisable(GL_TEXTURE_2D);
+	qglColor4f(0.0f, 0.0f, 0.0f, 0.8f);
+	qglBegin(GL_QUADS);
+	qglVertex2f(0.0f, 0.0f);
+	qglVertex2f((float)glwidth, 0.0f);
+	qglVertex2f((float)glwidth, (float)glheight);
+	qglVertex2f(0.0f, (float)glheight);
+	qglEnd();
+	qglColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	qglEnable(GL_TEXTURE_2D);
+	qglDisable(GL_BLEND);
 }
 
 /*
@@ -2882,13 +2546,10 @@ int GL_PaletteTag( byte* pPal )
 	int tag;
 	int i;
 
-	tag = *pPal;
+	tag = pPal[0];
 
-	for (i = 0; i < 768; i++)
-	{
-		tag = (tag + pPal[1]) ^ *pPal;
-		pPal++;
-	}
+	for (i = 1; i < 768; i++)
+		tag = (tag + pPal[i]) ^ pPal[i - 1];
 
 	if (tag < 0)
 		tag = -tag;
@@ -2909,18 +2570,7 @@ GL_LoadTexture
 */
 int GL_LoadTexture( char* identifier, GL_TEXTURETYPE textureType, int width, int height, unsigned char* data, int mipmap, int iType, unsigned char* pPal )
 {
-	int slot_index, pal_index;
-	slot_index = DC_LoadTexture(identifier, (int)textureType, width, height, data, (short)mipmap, iType, pPal);
-
-	if (slot_index < 0)
-		return 0;
-
-	pal_index = DC_GetSlotPaletteIndex(slot_index);
-
-	if (pal_index >= 0)
-		return slot_index | ((pal_index + 1) << 16);
-
-	return slot_index;
+	return DC_LoadTexture(identifier, (int)textureType, width, height, data, (short)mipmap, iType, pPal);
 }
 
 /*
@@ -2930,40 +2580,33 @@ GL_LoadPicTexture
 */
 int GL_LoadPicTexture( qpic_t* pic, char* pszName )
 {
-	unsigned char* pPal;
-
-	pPal = &pic->data[pic->width * pic->height + 2];
+	unsigned char* pPal = &pic->data[pic->width * pic->height + 2];
 
 	return GL_LoadTexture(pszName, GLT_SYSTEM, pic->width, pic->height, pic->data, FALSE, TEX_TYPE_ALPHA, pPal);
 }
 
 qpic_t* LoadTransPic( char* pszName, qpic_t* ppic )
 {
-	static int	trans_pic_loaded;
+	static int	trans_pic_loaded = 1;
 	glpic_t* gl;
 	qpic_t* ppicNew;
 	byte* pPal;
-	int slot_index;
 
-	if (trans_pic_loaded)
+	if (!trans_pic_loaded)
 		Sys_Error("LoadTransPic called multiple times.\n");
-	trans_pic_loaded = 1;
+	trans_pic_loaded = 0;
 
 	if (!ppic)
 		return NULL;
 
-	ppicNew = (qpic_t*)MnemoAlloc(sizeof(qpic_t) + sizeof(glpic_t), 0x20, 0, "LoadTransPic");
+	ppicNew = (qpic_t*)MnemoAllocDbg(sizeof(qpic_t) + sizeof(glpic_t), __FILE__, __LINE__);
 	gl = (glpic_t*)ppicNew->data;
 
 	ppicNew->width = ppic->width;
 	ppicNew->height = ppic->height;
 
 	pPal = &ppic->data[ppic->width * ppic->height + 2];
-	slot_index = DC_LoadTexture(pszName, GLT_SYSTEM, ppic->width, ppic->height, ppic->data, FALSE, TEX_TYPE_ALPHA, pPal);
-	if (slot_index < 0)
-		slot_index = 0;
-
-	gl->texnum = (slot_index & 0xFFFF);
+	gl->texnum = DC_LoadTexture(pszName, GLT_SYSTEM, ppic->width, ppic->height, ppic->data, FALSE, TEX_TYPE_ALPHA, pPal);
 	gl->sl = 0;
 	gl->sh = 1;
 	gl->tl = 0;
@@ -2972,22 +2615,13 @@ qpic_t* LoadTransPic( char* pszName, qpic_t* ppic )
 	return ppicNew;
 }
 
-/* ---------------------------------------------------------------------------
- * Helpers still referenced from files that have not been reworked yet.
- * --------------------------------------------------------------------------- */
-
-qpic_t* LoadTransBMP( char* pszName )
-{
-	return LoadTransPic(pszName, (qpic_t*)W_GetLumpName(pszName));
-}
-
 qpic_t* Draw_CachePic( char* path )
 {
 	qpic_t* ret;
 	int idx;
 
-	idx = Draw_CacheIndex(&menu_wad, path);
-	ret = (qpic_t*)Draw_CacheGet(&menu_wad, idx);
+	idx = Draw_CacheIndex(menu_wad, path);
+	ret = (qpic_t*)Draw_CacheGet(menu_wad, idx);
 	return ret;
 }
 
@@ -3018,11 +2652,22 @@ float	g_flHudDepth;		// current HUD depth sublayer
 ================
 DCV_SetHudDepth
 
-Point the HUD transform at one of the 2D depth sublayers between dc_msh and
-dc_msh2.
+Set up a 2D orthographic projection for the HUD and place it at one of the depth
+sublayers between dc_msh and dc_msh2, so overlapping HUD elements sort correctly.
 ================
 */
 void DCV_SetHudDepth( float layer )
 {
+	DCV_SetViewport(glx, gly, glwidth, glheight);
+	DCV_SetTransform(3, &g_identityMatrix);
+
 	g_flHudDepth = layer;
+
+	DCV_Ortho(0.0f, (float)glwidth, (float)glheight, 0.0f, 10.0f, -10.0f,
+		dc_msh.value + (dc_msh2.value - dc_msh.value) * layer, 3);
+
+	DCV_SetTransform(2, &g_identityMatrix);
+	DCV_SetTransform(1, &g_identityMatrix);
+
+	DCV_SetViewportDepthRange(dc_depthminhud.value, dc_depthmaxhud.value);
 }
