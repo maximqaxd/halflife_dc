@@ -108,6 +108,35 @@ def norm_stream(insns):
     return [normalize(m, o) for (va, m, o) in insns]
 
 
+# Registers with fixed ABI/architectural roles -- NOT part of the allocator's
+# choices, so they stay put under canonicalization.
+# Allocatable GP registers r1-r13 (NOT r0/r14/r15, which have fixed roles). These
+# are the compiler's free choices; abstracting them makes a register-renaming
+# difference invisible.
+_ALLOC_RE = re.compile(r"\br(?:1[0-3]|[1-9])\b")
+# SP-relative displacements are spill/local slots whose offsets shift with how
+# many callee-saved regs were pushed -- i.e. regalloc-dependent, not structural.
+_SP_DISP_RE = re.compile(r"@\((-?(?:0x)?[0-9a-f]+),r15\)")
+
+
+def canon_stream(norm_insns):
+    """Per-instruction abstraction that isolates instruction-set STRUCTURE from
+    the register allocator's free choices: every allocatable register (r1-r13)
+    collapses to 'rX' and every SP-relative spill slot to '@(sp)'. r0/r14/r15 and
+    @(disp,rN) struct-field offsets are kept (they're meaningful, not regalloc).
+
+    Because abstraction only ever MERGES distinct instructions, the resulting
+    'struct' ratio is always >= the exact ratio; the gap is how much of the miss
+    is pure register/spill assignment (noise we can't steer from C) vs. real
+    structural divergence still worth fixing."""
+    out = []
+    for s in norm_insns:
+        s = _SP_DISP_RE.sub("@(sp)", s)
+        s = _ALLOC_RE.sub("rX", s)
+        out.append(s)
+    return out
+
+
 def load_bin_insns(path):
     """entry_hex -> [(va, mnem, ops)] from bin_insns.tsv (Ghidra's pool-free
     instruction listing). Lines: entryHex<TAB>vaHex<TAB>mnem ops."""
@@ -194,16 +223,38 @@ def label_to_gname(line):
 
 
 def trim_pool(insns):
-    """Cut the trailing literal pool: obj disassembly runs the PC-relative
-    constant pool right after a function's final `rts` (+ its delay slot).
-    Everything after the last rts's delay slot is data, not code."""
-    last = -1
-    for i, (_, m, _) in enumerate(insns):
-        if m == "rts":
-            last = i
-    if last >= 0:
-        return insns[:last + 2]  # keep rts + its delay-slot instruction
-    return insns
+    """Drop literal-pool words that dumpbin disassembles as code. SHCL places a
+    pool after an unconditional transfer (bra/jmp/rts) and execution can only
+    resume at a branch target, so anything between a transfer's delay slot and
+    the next known branch target is data. The trailing pool (after the final
+    rts) has no following target and is dropped entirely."""
+    targets = set()
+    for va, m, o in insns:
+        if m.lower() in ("bt", "bf", "bt/s", "bf/s", "bra", "bsr"):
+            # dumpbin prints the branch displacement (relative to va+4), not
+            # the target address; FFFFxxxx values are negative.
+            tok = o.strip().split(",")[0]
+            try:
+                d = int(tok, 16)
+            except ValueError:
+                continue
+            if d >= 0x80000000:
+                d -= 0x100000000
+            targets.add(va + 4 + d)
+    out = []
+    i = 0
+    n = len(insns)
+    while i < n:
+        out.append(insns[i])
+        if insns[i][1].lower() in ("bra", "jmp", "rts"):
+            if i + 1 < n:
+                out.append(insns[i + 1])   # delay slot
+            i += 2
+            while i < n and insns[i][0] not in targets:
+                i += 1                     # pool word
+            continue
+        i += 1
+    return out
 
 
 def obj_functions(dumpbin, obj):
@@ -228,10 +279,16 @@ def slice_exe(exe_dis, start, size):
 
 def diff_one(name, obj_insns, bin_insns):
     a, b = norm_stream(obj_insns), norm_stream(bin_insns)
-    sm = difflib.SequenceMatcher(None, a, b)
+    # autojunk=False: the >200-element 'popular element' heuristic silently drops
+    # repeated instructions (esp. after abstraction), distorting large functions.
+    sm = difflib.SequenceMatcher(None, a, b, autojunk=False)
     ratio = sm.ratio()
-    print("\n=== %s ===  obj=%d insns  bin=%d insns  match=%.1f%%"
-          % (name, len(a), len(b), ratio * 100))
+    # register-allocation-invariant score: same instruction set/structure up to a
+    # consistent register renaming scores as a match.
+    rn = difflib.SequenceMatcher(None, canon_stream(a), canon_stream(b),
+                                 autojunk=False).ratio()
+    print("\n=== %s ===  obj=%d insns  bin=%d insns  match=%.1f%%  struct=%.1f%% (regalloc gap %.1f)"
+          % (name, len(a), len(b), ratio * 100, rn * 100, (rn - ratio) * 100))
     if ratio < 1.0:
         # show first divergence
         for tag, i1, i2, j1, j2 in sm.get_opcodes():
@@ -243,7 +300,7 @@ def diff_one(name, obj_insns, bin_insns):
             for k in range(j1, min(j1 + 4, len(b))):
                 print("    bin: " + b[k])
             break
-    return ratio
+    return (ratio, rn)
 
 
 def locate(obj_insns, exe_dis, exe_norm):
@@ -273,6 +330,7 @@ def main():
     ap.add_argument("--dumpbin", default=DUMPBIN_DEFAULT)
     ap.add_argument("--func", help="diff only this Ghidra function name")
     ap.add_argument("--all", action="store_true", help="score every matched fn")
+    ap.add_argument("--scores", help="write name/obj/bin/exact%/struct% TSV to this path")
     ap.add_argument("--locate", action="store_true",
                     help="find each obj fn in the binary by code (no symbols needed)")
     args = ap.parse_args()
@@ -310,6 +368,7 @@ def main():
         return
 
     results = []
+    score_rows = []
     for sym, insns in ofuncs.items():
         if not insns:
             continue
@@ -327,17 +386,28 @@ def main():
                 print("!! %s @ %s not in Ghidra listing (re-run ExportInsns.java)" % (gname, bkey))
             continue
         bin_insns = bininsns[bkey]
-        r = diff_one(gname, insns, bin_insns)
-        results.append((gname, r))
+        r, rn = diff_one(gname, insns, bin_insns)
+        results.append((gname, r, rn))
+        score_rows.append((gname, len(insns), len(bin_insns), r * 100, rn * 100))
         if not (args.all or args.func):
             pass
 
+    if args.scores and score_rows:
+        score_rows.sort(key=lambda x: x[0])
+        with open(args.scores, "w", encoding="latin-1") as fh:
+            for nm, o, b, m, st in score_rows:
+                fh.write("%s\t%d\t%d\t%.1f\t%.1f\n" % (nm, o, b, m, st))
+        print("[objdiff] wrote %d scores -> %s" % (len(score_rows), args.scores))
+
     if results:
         results.sort(key=lambda x: x[1])
-        matched = sum(1 for _, r in results if r == 1.0)
-        print("\n[objdiff] %d/%d functions exact-match; mean %.1f%%"
-              % (matched, len(results),
-                 100 * sum(r for _, r in results) / len(results)))
+        matched = sum(1 for _, r, _ in results if r == 1.0)
+        structex = sum(1 for _, _, rn in results if rn == 1.0)
+        print("\n[objdiff] %d/%d exact; %d/%d struct-exact (same code mod regalloc); "
+              "mean %.1f%%  struct-mean %.1f%%"
+              % (matched, len(results), structex, len(results),
+                 100 * sum(r for _, r, _ in results) / len(results),
+                 100 * sum(rn for _, _, rn in results) / len(results)))
 
 
 if __name__ == "__main__":

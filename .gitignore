@@ -13,7 +13,6 @@
 __pycache__/
 .claude/
 /RE/*.disasm.txt
-/RE/**/~journal.bak
 
 # /utils holds deploy tooling (ignored) except the RE toolkit
 /utils/*

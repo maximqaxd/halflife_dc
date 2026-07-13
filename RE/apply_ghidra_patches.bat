@@ -21,7 +21,7 @@ REM  Idempotent -- safe to re-run. RESTART Ghidra afterwards.
 REM ===========================================================================
 setlocal enabledelayedexpansion
 set "GHIDRA=%~1"
-if "%GHIDRA%"=="" set "GHIDRA=C:\Dev\ghidra_12.1.2_PUBLIC"
+if "%GHIDRA%"=="" set "GHIDRA=C:\Dev\Dreamcast\GHIDRA"
 
 REM SLEIGH's compiler aborts if the given path's case differs from the on-disk
 REM canonical case (e.g. C:\dev vs C:\Dev). Normalize GHIDRA to its real case.
