@@ -1,12 +1,19 @@
-/deploy
+/deploy/*
+!/deploy/0winceos.bin
 /obj
+/gdi_out
+/deploy_stage/
 
 # IDE / build artifacts
 *.plg
 *.ncb
 *.opt
+*.pdb
+~$*.xlsx
 __pycache__/
+.claude/
 /RE/*.disasm.txt
+/RE/**/~journal.bak
 
 # /utils holds deploy tooling (ignored) except the RE toolkit
 /utils/*
