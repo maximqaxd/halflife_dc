@@ -301,11 +301,11 @@ int Q_atoi( char* str )
 		{
 			c = *str++;
 			if (c >= '0' && c <= '9')
-				val = (val << 4) + c - '0';
+				val = val * 16 + c - '0';
 			else if (c >= 'a' && c <= 'f')
-				val = (val << 4) + c - 'a' + 10;
+				val = val * 16 + c - 'a' + 10;
 			else if (c >= 'A' && c <= 'F')
-				val = (val << 4) + c - 'A' + 10;
+				val = val * 16 + c - 'A' + 10;
 			else
 				return val * sign;
 		}
@@ -316,7 +316,7 @@ int Q_atoi( char* str )
 //
 	if (str[0] == '\'')
 	{
-		return sign * str[1];
+		return str[1] * sign;
 	}
 
 //
@@ -569,7 +569,7 @@ void MSG_WriteShort( sizebuf_t* sb, int c )
 #endif
 
 	buf = SZ_GetSpace(sb, 2);
-	buf[0] = c & 0xff;
+	buf[0] = c;
 	buf[1] = c >> 8;
 }
 
@@ -587,9 +587,9 @@ void MSG_WriteLong( sizebuf_t* sb, int c )
 	byte* buf;
 
 	buf = (byte*)SZ_GetSpace(sb, 4);
-	buf[0] = c & 0xff;
-	buf[1] = (c >> 8) & 0xff;
-	buf[2] = (c >> 16) & 0xff;
+	buf[0] = c;
+	buf[1] = c >> 8;
+	buf[2] = c >> 16;
 	buf[3] = c >> 24;
 }
 
@@ -601,11 +601,13 @@ void MSG_WriteFloat( sizebuf_t* sb, float f )
 		int     l;
 	} dat;
 
+	byte* buf;
 
 	dat.f = f;
 	dat.l = LittleLong(dat.l);
 
-	SZ_Write(sb, &dat.l, 4);
+	buf = SZ_GetSpace(sb, 4);
+	Q_memcpy(buf, &dat.l, 4);
 }
 
 void MSG_WriteString( sizebuf_t* sb, char* s )
@@ -686,6 +688,233 @@ void MSG_WriteDeltaUsercmd( sizebuf_t* buf, usercmd_t* from, usercmd_t* cmd )
 		MSG_WriteByte(buf, from->impulse);
 	MSG_WriteByte(buf, from->lightlevel);
 	MSG_WriteByte(buf, from->msec);
+}
+
+/*
+============
+MSG_WriteUsercmdGold
+
+Delta-compress a movement command against a baseline for the retail protocol.
+Movement values are sent full precision.
+============
+*/
+void MSG_WriteUsercmdGold( sizebuf_t* buf, usercmd_t* cmd, usercmd_t* from )
+{
+	int		bits;
+	int		i;
+
+	bits = 0;
+	for (i = 0; i < 3; i++)
+	{
+		if (cmd->angles[i] != from->angles[i])
+			bits |= 1 << i;
+	}
+	if (cmd->forwardmove != from->forwardmove)
+		bits |= CM_FORWARD;
+	if (cmd->sidemove != from->sidemove)
+		bits |= CM_SIDE;
+	if (cmd->upmove != from->upmove)
+		bits |= CM_UP;
+	if (cmd->buttons != from->buttons)
+		bits |= CM_BUTTONS;
+	if (cmd->impulse != from->impulse)
+		bits |= CM_IMPULSE;
+
+	MSG_WriteByte(buf, bits);
+
+	if (bits & CM_ANGLE1)
+		MSG_WriteHiresAngle(buf, cmd->angles[0]);
+	if (bits & CM_ANGLE2)
+		MSG_WriteHiresAngle(buf, cmd->angles[1]);
+	if (bits & CM_ANGLE3)
+		MSG_WriteAngle(buf, cmd->angles[2]);
+
+	if (bits & CM_FORWARD)
+		MSG_WriteFloat(buf, cmd->forwardmove);
+	if (bits & CM_SIDE)
+		MSG_WriteFloat(buf, cmd->sidemove);
+	if (bits & CM_UP)
+		MSG_WriteFloat(buf, cmd->upmove);
+
+	if (bits & CM_BUTTONS)
+		MSG_WriteShort(buf, cmd->buttons);
+	if (bits & CM_IMPULSE)
+		MSG_WriteByte(buf, cmd->impulse);
+
+	MSG_WriteByte(buf, cmd->lightlevel);
+	MSG_WriteByte(buf, cmd->msec);
+}
+
+/*
+============
+MSG_WriteUsercmd36
+
+Delta-compress a movement command for the 1.0.3.6 protocol.  Movement values
+are sent as scaled shorts rather than full precision.
+============
+*/
+void MSG_WriteUsercmd36( sizebuf_t* buf, usercmd_t* cmd, usercmd_t* from )
+{
+	int		bits;
+	int		i;
+
+	bits = 0;
+	for (i = 0; i < 3; i++)
+	{
+		if (cmd->angles[i] != from->angles[i])
+			bits |= 1 << i;
+	}
+	if (cmd->forwardmove != from->forwardmove)
+		bits |= CM_FORWARD;
+	if (cmd->sidemove != from->sidemove)
+		bits |= CM_SIDE;
+	if (cmd->upmove != from->upmove)
+		bits |= CM_UP;
+	if (cmd->buttons != from->buttons)
+		bits |= CM_BUTTONS;
+	if (cmd->impulse != from->impulse)
+		bits |= CM_IMPULSE;
+
+	MSG_WriteByte(buf, bits);
+
+	if (bits & CM_ANGLE1)
+		MSG_WriteHiresAngle(buf, cmd->angles[0]);
+	if (bits & CM_ANGLE2)
+		MSG_WriteHiresAngle(buf, cmd->angles[1]);
+	if (bits & CM_ANGLE3)
+		MSG_WriteAngle(buf, cmd->angles[2]);
+
+	if (bits & CM_FORWARD)
+		MSG_WriteShort(buf, (int)cmd->forwardmove);
+	if (bits & CM_SIDE)
+		MSG_WriteShort(buf, (int)cmd->sidemove);
+	if (bits & CM_UP)
+		MSG_WriteShort(buf, (int)cmd->upmove);
+
+	if (bits & CM_BUTTONS)
+		MSG_WriteShort(buf, cmd->buttons);
+	if (bits & CM_IMPULSE)
+		MSG_WriteByte(buf, cmd->impulse);
+
+	MSG_WriteByte(buf, cmd->lightlevel);
+	MSG_WriteByte(buf, cmd->msec);
+}
+
+/*
+============
+MSG_WriteBitUsercmd
+
+Bit-level delta encoder for a movement command, used by the low-bandwidth
+protocol.  Movement values are packed to the minimum number of bits.
+============
+*/
+void MSG_WriteBitUsercmd( sizebuf_t* buf, usercmd_t* cmd, usercmd_t* from )
+{
+	int		bits;
+	int		i;
+	short	value;
+
+	bits = 0;
+	for (i = 0; i < 3; i++)
+	{
+		if (cmd->angles[i] != from->angles[i])
+			bits |= 1 << i;
+	}
+	if (cmd->forwardmove != from->forwardmove)
+		bits |= CM_FORWARD;
+	if (cmd->sidemove != from->sidemove)
+		bits |= CM_SIDE;
+	if (cmd->upmove != from->upmove)
+		bits |= CM_UP;
+	if (cmd->buttons != from->buttons)
+		bits |= CM_BUTTONS;
+	if (cmd->impulse != from->impulse)
+		bits |= CM_IMPULSE;
+
+// header
+	for (i = 7; i >= 0; i--)
+		MSG_WriteOneBit(bits & (1 << i));
+
+// yaw / pitch as 10-bit fixed-point
+	if (bits & CM_ANGLE1)
+	{
+		value = (short)((int)(cmd->angles[0] * 1024.0 / 360.0) & 0x3ff);
+		for (i = 9; i >= 0; i--)
+			MSG_WriteOneBit(value & (1 << i));
+	}
+	if (bits & CM_ANGLE2)
+	{
+		value = (short)((int)(cmd->angles[1] * 1024.0 / 360.0) & 0x3ff);
+		for (i = 9; i >= 0; i--)
+			MSG_WriteOneBit(value & (1 << i));
+	}
+	if (bits & CM_ANGLE3)
+	{
+		value = (short)(int)(cmd->angles[2] * 64.0 / 360.0);
+		for (i = 5; i >= 0; i--)
+			MSG_WriteOneBit(value & 0x3f & (1 << i));
+	}
+
+// movement values as sign + 6-bit magnitude
+	if (bits & CM_FORWARD)
+	{
+		value = (short)(int)(cmd->forwardmove / 4.0);
+		MSG_WriteOneBit(value < 0);
+		if (value < 0)
+			value = -value;
+		for (i = 6; i >= 0; i--)
+			MSG_WriteOneBit(value & 0xffff & (1 << i));
+	}
+	if (bits & CM_SIDE)
+	{
+		value = (short)(int)(cmd->sidemove / 4.0);
+		MSG_WriteOneBit(value < 0);
+		if (value < 0)
+			value = -value;
+		for (i = 6; i >= 0; i--)
+			MSG_WriteOneBit(value & 0xffff & (1 << i));
+	}
+	if (bits & CM_UP)
+	{
+		value = (short)(int)(cmd->upmove / 4.0);
+		MSG_WriteOneBit(value < 0);
+		if (value < 0)
+			value = -value;
+		for (i = 6; i >= 0; i--)
+			MSG_WriteOneBit(value & 0xffff & (1 << i));
+	}
+
+	if (bits & CM_BUTTONS)
+	{
+		for (i = 15; i >= 0; i--)
+			MSG_WriteOneBit(cmd->buttons & (1 << i));
+	}
+	if (bits & CM_IMPULSE)
+	{
+		for (i = 7; i >= 0; i--)
+			MSG_WriteOneBit(cmd->impulse & (1 << i));
+	}
+
+	for (i = 5; i >= 0; i--)
+		MSG_WriteOneBit((cmd->lightlevel >> 2) & (1 << i));
+
+	for (i = 7; i >= 0; i--)
+		MSG_WriteOneBit(cmd->msec & (1 << i));
+}
+
+/*
+============
+MSG_WriteUsercmdByProtocol
+
+Pick the movement encoder that matches the negotiated protocol version.
+============
+*/
+void MSG_WriteUsercmdByProtocol( sizebuf_t* buf, usercmd_t* cmd, usercmd_t* from )
+{
+	if (PROTOCOL_VERSION == 0x23)
+		MSG_WriteUsercmdGold(buf, cmd, from);
+	else
+		MSG_WriteUsercmd36(buf, cmd, from);
 }
 
 //
@@ -916,6 +1145,636 @@ void MSG_ReadDeltaUsercmd( usercmd_t* move, usercmd_t* from )
 	move->msec = MSG_ReadByte();
 }
 
+/*
+============
+MSG_ReadUsercmdGold
+
+Decode a delta-compressed movement command for the retail protocol.
+============
+*/
+void MSG_ReadUsercmdGold( usercmd_t* move, usercmd_t* from )
+{
+	int		bits;
+
+	memcpy(move, from, sizeof(usercmd_t));
+
+	bits = MSG_ReadByte();
+
+	if (bits & CM_ANGLE1)
+		move->angles[0] = MSG_ReadShort() * (360.0 / 65536);
+	if (bits & CM_ANGLE2)
+		move->angles[1] = MSG_ReadShort() * (360.0 / 65536);
+	if (bits & CM_ANGLE3)
+		move->angles[2] = MSG_ReadChar() * (360.0 / 256);
+
+	if (bits & CM_FORWARD)
+		move->forwardmove = MSG_ReadFloat();
+	if (bits & CM_SIDE)
+		move->sidemove = MSG_ReadFloat();
+	if (bits & CM_UP)
+		move->upmove = MSG_ReadFloat();
+
+	if (bits & CM_BUTTONS)
+		move->buttons = MSG_ReadShort();
+	if (bits & CM_IMPULSE)
+		move->impulse = MSG_ReadByte();
+
+	move->lightlevel = MSG_ReadByte();
+	move->msec = MSG_ReadByte();
+}
+
+/*
+============
+MSG_ReadUsercmd36
+
+Decode a delta-compressed movement command for the 1.0.3.6 protocol, where
+movement values arrive as scaled shorts.
+============
+*/
+void MSG_ReadUsercmd36( usercmd_t* move, usercmd_t* from )
+{
+	int		bits;
+
+	memcpy(move, from, sizeof(usercmd_t));
+
+	bits = MSG_ReadByte();
+
+	if (bits & CM_ANGLE1)
+		move->angles[0] = MSG_ReadShort() * (360.0 / 65536);
+	if (bits & CM_ANGLE2)
+		move->angles[1] = MSG_ReadShort() * (360.0 / 65536);
+	if (bits & CM_ANGLE3)
+		move->angles[2] = MSG_ReadChar() * (360.0 / 256);
+
+	if (bits & CM_FORWARD)
+		move->forwardmove = MSG_ReadShort();
+	if (bits & CM_SIDE)
+		move->sidemove = MSG_ReadShort();
+	if (bits & CM_UP)
+		move->upmove = MSG_ReadShort();
+
+	if (bits & CM_BUTTONS)
+		move->buttons = MSG_ReadShort();
+	if (bits & CM_IMPULSE)
+		move->impulse = MSG_ReadByte();
+
+	move->lightlevel = MSG_ReadByte();
+	move->msec = MSG_ReadByte();
+}
+
+/*
+============
+MSG_ReadBitUsercmd
+
+Bit-level decoder matching MSG_WriteBitUsercmd.
+============
+*/
+void MSG_ReadBitUsercmd( usercmd_t* move, usercmd_t* from )
+{
+	int		bits;
+	int		i;
+	int		sign;
+	short	value;
+
+	memcpy(move, from, sizeof(usercmd_t));
+
+	bits = 0;
+	for (i = 7; i >= 0; i--)
+	{
+		if (MSG_ReadOneBit())
+			bits |= (1 << i) & 0xff;
+	}
+
+	if (bits & CM_ANGLE1)
+	{
+		value = 0;
+		for (i = 9; i >= 0; i--)
+		{
+			if (MSG_ReadOneBit())
+				value |= (1 << i) & 0xffff;
+		}
+		move->angles[0] = (short)value * (360.0 / 1024);
+	}
+	if (bits & CM_ANGLE2)
+	{
+		value = 0;
+		for (i = 9; i >= 0; i--)
+		{
+			if (MSG_ReadOneBit())
+				value |= (1 << i) & 0xffff;
+		}
+		move->angles[1] = (short)value * (360.0 / 1024);
+	}
+	if (bits & CM_ANGLE3)
+	{
+		value = 0;
+		for (i = 5; i >= 0; i--)
+		{
+			if (MSG_ReadOneBit())
+				value |= (1 << i) & 0xff;
+		}
+		move->angles[2] = (short)value * (360.0 / 64);
+	}
+
+// wrap the recovered angles back into [-180, 180)
+	for (i = 0; i < 3; i++)
+	{
+		if (move->angles[i] > 180.0)
+			move->angles[i] -= 360.0;
+		if (move->angles[i] < -180.0)
+			move->angles[i] += 360.0;
+	}
+
+	if (bits & CM_FORWARD)
+	{
+		sign = MSG_ReadOneBit();
+		value = 0;
+		for (i = 6; i >= 0; i--)
+		{
+			if (MSG_ReadOneBit())
+				value |= (1 << i) & 0xffff;
+		}
+		if (sign)
+			value = -value;
+		move->forwardmove = (short)value * 4.0;
+	}
+	if (bits & CM_SIDE)
+	{
+		sign = MSG_ReadOneBit();
+		value = 0;
+		for (i = 6; i >= 0; i--)
+		{
+			if (MSG_ReadOneBit())
+				value |= (1 << i) & 0xffff;
+		}
+		if (sign)
+			value = -value;
+		move->sidemove = (short)value * 4.0;
+	}
+	if (bits & CM_UP)
+	{
+		sign = MSG_ReadOneBit();
+		value = 0;
+		for (i = 6; i >= 0; i--)
+		{
+			if (MSG_ReadOneBit())
+				value |= (1 << i) & 0xffff;
+		}
+		if (sign)
+			value = -value;
+		move->upmove = (short)value * 4.0;
+	}
+
+	if (bits & CM_BUTTONS)
+	{
+		value = 0;
+		for (i = 15; i >= 0; i--)
+		{
+			if (MSG_ReadOneBit())
+				value |= (1 << i) & 0xffff;
+		}
+		move->buttons = value;
+	}
+	if (bits & CM_IMPULSE)
+	{
+		value = 0;
+		for (i = 7; i >= 0; i--)
+		{
+			if (MSG_ReadOneBit())
+				value |= (1 << i) & 0xff;
+		}
+		move->impulse = (char)value;
+	}
+
+	value = 0;
+	for (i = 5; i >= 0; i--)
+	{
+		if (MSG_ReadOneBit())
+			value |= (1 << i) & 0xff;
+	}
+	move->lightlevel = (char)(value << 2);
+
+	value = 0;
+	for (i = 7; i >= 0; i--)
+	{
+		if (MSG_ReadOneBit())
+			value |= (1 << i) & 0xff;
+	}
+	move->msec = (char)value;
+}
+
+/*
+============
+MSG_ReadUsercmd
+
+Pick the movement decoder that matches the negotiated protocol version.
+============
+*/
+void MSG_ReadUsercmd( usercmd_t* move, usercmd_t* from )
+{
+	if (PROTOCOL_VERSION == 0x23)
+		MSG_ReadUsercmdGold(move, from);
+	else
+		MSG_ReadUsercmd36(move, from);
+}
+
+//
+// bit-level reading, used by the delta player/entity decoders
+//
+typedef struct bitread_s
+{
+	int			bytecount;		// index of the next byte to consume
+	sizebuf_t*	buf;			// message being read
+	int			startbit;		// byte offset the read started at
+	int			numbits;		// bits consumed so far
+	int			curbit;			// bit position within the current byte
+	byte*		curbyte;		// pointer to the current byte
+} bitread_t;
+
+bitread_t	bitread;
+
+//
+// bit-level writing state
+//
+typedef struct bitwrite_s
+{
+	int			curbit;			// bit position within the current byte
+	byte*		curbyte;		// pointer to the byte being filled
+	sizebuf_t*	buf;			// message being written
+} bitwrite_t;
+
+bitwrite_t	bitwrite;
+
+void MSG_StartBitReading( sizebuf_t* buf )
+{
+	int start;
+
+	start = msg_readcount;
+
+	bitread.bytecount = start;
+	bitread.startbit = start;
+	bitread.curbit = 0;
+	bitread.numbits = 0;
+	bitread.curbyte = buf->data + start;
+	bitread.buf = buf;
+	bitread.bytecount = start + 1;
+
+	if (buf->maxsize < start + 1)
+		msg_badread = TRUE;
+}
+
+void MSG_EndBitReading( sizebuf_t* buf )
+{
+	msg_readcount = bitread.bytecount;
+
+	if (buf->maxsize < bitread.bytecount)
+		msg_badread = TRUE;
+
+	bitread.startbit = 0;
+	bitread.curbit = 0;
+	bitread.numbits = 0;
+	bitread.curbyte = 0;
+	bitread.buf = 0;
+}
+
+qboolean MSG_ReadOneBit( void )
+{
+	int mask;
+
+	if (msg_badread)
+		return TRUE;
+
+	if (bitread.curbit > 7)
+	{
+		bitread.bytecount++;
+		bitread.curbit = 0;
+		bitread.numbits++;
+		bitread.curbyte++;
+	}
+
+	if (bitread.buf->maxsize < bitread.bytecount)
+	{
+		msg_badread = TRUE;
+		return TRUE;
+	}
+
+	mask = 1 << (7 - bitread.curbit);
+	bitread.curbit++;
+
+	return (*bitread.curbyte & mask & 0xff) != 0;
+}
+
+unsigned int MSG_ReadBitField8( unsigned int numbits )
+{
+	unsigned int value;
+
+	value = 0;
+	while ((int)numbits > 0)
+	{
+		numbits--;
+		if (MSG_ReadOneBit())
+			value |= (1 << numbits) & 0xff;
+	}
+
+	return value;
+}
+
+unsigned int MSG_ReadBitField16( unsigned int numbits )
+{
+	unsigned int value;
+
+	value = 0;
+	while ((int)numbits > 0)
+	{
+		numbits--;
+		if (MSG_ReadOneBit())
+			value |= (1 << numbits) & 0xffff;
+	}
+
+	return value;
+}
+
+unsigned int MSG_ReadBitField32( unsigned int numbits )
+{
+	unsigned int value;
+
+	value = 0;
+	while ((int)numbits > 0)
+	{
+		numbits--;
+		if (MSG_ReadOneBit())
+			value |= 1 << numbits;
+	}
+
+	return value;
+}
+
+//
+// bit-level writing, used by the delta player/entity encoders
+//
+void MSG_StartBitWriting( sizebuf_t* buf )
+{
+	bitwrite.curbit = 0;
+	bitwrite.curbyte = buf->data + buf->cursize;
+	bitwrite.buf = buf;
+}
+
+void MSG_WriteOneBit( int value )
+{
+	if (bitwrite.buf->overflowed)
+		return;
+
+	if (bitwrite.curbit > 7)
+	{
+		SZ_GetSpace(bitwrite.buf, 1);
+		bitwrite.curbit = 0;
+		bitwrite.curbyte++;
+		if (bitwrite.buf->overflowed)
+			return;
+	}
+
+	if (value)
+		*bitwrite.curbyte |= 1 << (7 - bitwrite.curbit);
+	else
+		*bitwrite.curbyte &= ~(1 << (7 - bitwrite.curbit));
+
+	bitwrite.curbit++;
+}
+
+void MSG_EndBitWriting( sizebuf_t* buf )
+{
+	int		i;
+	byte	mask;
+
+	if (bitwrite.buf->overflowed)
+		return;
+
+// pad the remainder of the current byte with zero bits
+	mask = 0xff;
+	for (i = 0; i < 8 - bitwrite.curbit; i++)
+		mask &= ~(1 << i);
+
+	*bitwrite.curbyte &= mask;
+
+	SZ_GetSpace(bitwrite.buf, 1);
+	bitwrite.curbyte++;
+
+	bitwrite.curbit = 0;
+	bitwrite.curbyte = 0;
+	bitwrite.buf = 0;
+}
+
+void MSG_WriteBitByte( byte* data, int numbits )
+{
+	while (numbits > 0)
+	{
+		numbits--;
+		MSG_WriteOneBit(*data & (1 << numbits));
+	}
+}
+
+void MSG_WriteBitShort( unsigned short* data, int numbits )
+{
+	while (numbits > 0)
+	{
+		numbits--;
+		MSG_WriteOneBit(*data & (1 << numbits));
+	}
+}
+
+void MSG_WriteBitLong( unsigned int* data, int numbits )
+{
+	while (numbits > 0)
+	{
+		numbits--;
+		MSG_WriteOneBit(*data & (1 << numbits));
+	}
+}
+
+void MSG_WriteSBitByte( char* data, int numbits )
+{
+	byte	value;
+
+	MSG_WriteOneBit(*data < 0);
+
+	value = *data;
+	if ((char)value < 0)
+		value = -value;
+
+	numbits--;
+	while (numbits > 0)
+	{
+		numbits--;
+		MSG_WriteOneBit(value & (1 << numbits));
+	}
+}
+
+void MSG_WriteSBitShort( short* data, int numbits )
+{
+	unsigned short	value;
+
+	MSG_WriteOneBit(*data < 0);
+
+	value = *data;
+	if ((short)value < 0)
+		value = -value;
+
+	numbits--;
+	while (numbits > 0)
+	{
+		numbits--;
+		MSG_WriteOneBit(value & (1 << numbits));
+	}
+}
+
+void MSG_WriteSBitLong( int* data, int numbits )
+{
+	unsigned int	value;
+
+	MSG_WriteOneBit(*data < 0);
+
+	value = *data;
+	if ((int)value < 0)
+		value = -value;
+
+	numbits--;
+	while (numbits > 0)
+	{
+		numbits--;
+		MSG_WriteOneBit(value & (1 << numbits));
+	}
+}
+
+void MSG_WriteBitAngle( float angle, int numbits )
+{
+	unsigned int	shift;
+	unsigned int	value;
+
+	shift = 1 << numbits;
+	value = (int)(angle * shift) / 360;
+	value &= shift - 1;
+
+	while (numbits > 0)
+	{
+		numbits--;
+		if (numbits < 8)
+			MSG_WriteOneBit((value & 0xff) & (1 << numbits));
+		else if (numbits < 16)
+			MSG_WriteOneBit((value & 0xffff) & (1 << numbits));
+		else
+			MSG_WriteOneBit(value & (1 << numbits));
+	}
+}
+
+float MSG_ReadScaledBitValue( unsigned int numbits )
+{
+	unsigned int	shift;
+	unsigned int	value;
+
+	shift = 1 << numbits;
+	value = 0;
+
+	while ((int)numbits > 0)
+	{
+		numbits--;
+		if (MSG_ReadOneBit())
+			value |= 1 << numbits;
+	}
+
+	if (shift <= 0x100)
+		return (char)value * (360.0 / shift);
+	else if (shift <= 0x10000)
+		return (short)value * (360.0 / shift);
+	else
+		return (int)value * (360.0 / shift);
+}
+
+unsigned int MSG_PeekBits( unsigned int numbits )
+{
+	bitread_t		saved;
+	unsigned int	value;
+
+	saved = bitread;
+
+	value = 0;
+	while ((int)numbits > 0)
+	{
+		numbits--;
+		if (MSG_ReadOneBit())
+			value |= 1 << numbits;
+	}
+
+	bitread = saved;
+
+	return value;
+}
+
+int MSG_ReadSignMagnitude8( int numbits )
+{
+	int		sign;
+	char	value;
+
+	sign = MSG_ReadOneBit();
+
+	value = 0;
+	numbits--;
+	while (numbits > 0)
+	{
+		numbits--;
+		if (MSG_ReadOneBit())
+			value |= (1 << numbits) & 0xff;
+	}
+
+	if (sign)
+		value = -value;
+
+	return value;
+}
+
+int MSG_ReadSignMagnitude16( int numbits )
+{
+	int		sign;
+	short	value;
+
+	sign = MSG_ReadOneBit();
+
+	value = 0;
+	numbits--;
+	while (numbits > 0)
+	{
+		numbits--;
+		if (MSG_ReadOneBit())
+			value |= (1 << numbits) & 0xffff;
+	}
+
+	if (sign)
+		value = -value;
+
+	return value;
+}
+
+unsigned int MSG_ReadSignMagnitude32( int numbits )
+{
+	int				sign;
+	unsigned int	value;
+
+	sign = MSG_ReadOneBit();
+
+	value = 0;
+	numbits--;
+	while (numbits > 0)
+	{
+		numbits--;
+		if (MSG_ReadOneBit())
+			value |= 1 << numbits;
+	}
+
+	if (sign)
+		value = -value;
+
+	return value;
+}
+
 
 //===========================================================================
 
@@ -930,8 +1789,8 @@ void SZ_Alloc( sizebuf_t* buf, int startsize )
 
 void SZ_Clear( sizebuf_t* buf )
 {
-	buf->overflowed = FALSE;
 	buf->cursize = 0;
+	buf->overflowed = FALSE;
 }
 
 void* SZ_GetSpace( sizebuf_t* buf, int length )
@@ -953,7 +1812,7 @@ void* SZ_GetSpace( sizebuf_t* buf, int length )
 
 		Con_Printf("SZ_GetSpace: overflow\n");
 
-		SZ_Clear(buf);
+		buf->cursize = 0;
 		buf->overflowed = TRUE;
 	}
 
@@ -1124,7 +1983,7 @@ char* COM_Parse( char* data )
 
 	// skip whitespace
 skipwhite:
-	while ((c = *data) <= ' ')
+	while ((c = *data) <= ' ' || c == ',')
 	{
 		if (c == 0)
 			return NULL;                    // end of file;
@@ -1158,7 +2017,7 @@ skipwhite:
 	}
 
 	// parse single characters
-	if (c == '{' || c == '}' || c == ')' || c == '(' || c == '\'' || c == ':')
+	if (c == '{' || c == '}' || c == ')' || c == '(' || c == '\'' || (!com_ignorecolons && c == ':'))
 	{
 		com_token[len] = c;
 		len++;
@@ -1173,12 +2032,44 @@ skipwhite:
 		data++;
 		len++;
 		c = *data;
-		if (c == '{' || c == '}' || c == ')' || c == '(' || c == '\'' || c == ':')
+		if (c == '{' || c == '}' || c == ')' || c == '(' || c == '\'' || (!com_ignorecolons && c == ':'))
 			break;
 	} while (c > 32);
 
 	com_token[len] = 0;
 	return data;
+}
+
+/*
+================
+COM_HexConvert
+
+Convert a string of hex characters into the equivalent bytes.
+================
+*/
+static int COM_HexDigit( char c )
+{
+	if (c >= '0' && c <= '9')
+		return c - '0';
+	if (c >= 'A' && c <= 'F')
+		return c - 'A' + 10;
+	if (c >= 'a' && c <= 'f')
+		return c - 'a' + 10;
+	return 0;
+}
+
+void COM_HexConvert( char* pszInput, int nInputLength, byte* pOutput )
+{
+	int		i;
+	byte*	out;
+
+	out = pOutput;
+	for (i = 0; i < nInputLength; i += 2)
+	{
+		*out = (COM_HexDigit(pszInput[0]) << 4) | COM_HexDigit(pszInput[1]);
+		out++;
+		pszInput += 2;
+	}
 }
 
 
@@ -1350,6 +2241,24 @@ void COM_InitArgv( int argc, char** argv )
 
 byte	swaptest[2] = { 1, 0 };
 
+int		filelog_level;
+HANDLE	filelog_handle;
+
+void Cmd_filelog_f( void )
+{
+	filelog_level = atoi(Cmd_Argv(1));
+
+	if (filelog_level == 0)
+	{
+		Sys_CloseHandle(filelog_handle);
+		filelog_handle = 0;
+	}
+	else
+	{
+		filelog_handle = Sys_OpenHandle("\\PC\\action.log", "wt");
+	}
+}
+
 /*
 ================
 COM_Init
@@ -1357,7 +2266,7 @@ COM_Init
 */
 void COM_Init( char* basedir )
 {
-// set the byte swapping variables in a portable manner 
+// set the byte swapping variables in a portable manner
 	if (*(short*)swaptest == 1)
 	{
 		bigendien = FALSE;
@@ -1382,9 +2291,12 @@ void COM_Init( char* basedir )
 	Cvar_RegisterVariable(&registered);
 	Cvar_RegisterVariable(&cmdline);
 	Cmd_AddCommand("path", COM_Path_f);
+	Cmd_AddCommand("filelog", Cmd_filelog_f);
+
+	Q_memset(&bitwrite, 0, sizeof(bitwrite));
+	Q_memset(&bitread, 0, sizeof(bitread));
 
 	COM_InitFilesystem();
-	COM_CheckRegistered();
 }
 
 
@@ -2838,4 +3750,112 @@ void COM_GetGameDir( char* szGameDir )
 		return;
 
 	strcpy(szGameDir, com_gamedir);
+}
+
+/*
+============
+COM_FixSlashes
+
+Changes all '/' characters into '\' characters, in place.
+============
+*/
+void COM_FixSlashes( char* pname )
+{
+#ifdef _WIN32
+	while (*pname)
+	{
+		if (*pname == '/')
+			*pname = '\\';
+		pname++;
+	}
+#else
+	while (*pname)
+	{
+		if (*pname == '\\')
+			*pname = '/';
+		pname++;
+	}
+#endif
+}
+
+/*
+============
+COM_StringToLower
+
+Lowercases a string in place, returning a pointer to its terminator.
+============
+*/
+char* COM_StringToLower( char* string )
+{
+	while (*string)
+	{
+		*string = tolower(*string);
+		string++;
+	}
+	return string;
+}
+
+//
+// A directory listing entry, as returned by the file system enumerator.
+//
+typedef struct FileList_s
+{
+	struct FileList_s*	next;
+	char*				fileName;
+} FileList_t;
+
+/*
+============
+COM_FreeDirList
+
+Release a directory listing and reset the caller's head pointer.
+============
+*/
+void COM_FreeDirList( FileList_t** ppList )
+{
+	FileList_t*	cur;
+	FileList_t*	next;
+
+	if (!ppList)
+		return;
+
+	for (cur = *ppList; cur; cur = next)
+	{
+		next = cur->next;
+		if (cur->fileName)
+			free(cur->fileName);
+		free(cur);
+	}
+
+	*ppList = NULL;
+}
+
+/*
+============
+COM_FindFileInSearchPaths
+
+Look for a file across the search paths.  If found, rewrites the caller's
+buffer with the full path and returns true.
+============
+*/
+int COM_FindFileInSearchPaths( char* filename )
+{
+	searchpath_t*	search;
+	char			netpath[MAX_OSPATH];
+
+	for (search = com_searchpaths; search; search = search->next)
+	{
+		if (!search->filename[0])
+			continue;
+
+		sprintf(netpath, "%s/%s", search->filename, filename);
+
+		if (Sys_FileTime(netpath) > 0)
+		{
+			strcpy(filename, netpath);
+			return TRUE;
+		}
+	}
+
+	return FALSE;
 }

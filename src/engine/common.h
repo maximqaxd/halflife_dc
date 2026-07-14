@@ -81,6 +81,10 @@ void MSG_WriteCoord( sizebuf_t* sb, float f );
 void MSG_WriteAngle( sizebuf_t* sb, float f );
 void MSG_WriteHiresAngle( sizebuf_t* sb, float f );
 void MSG_WriteDeltaUsercmd( sizebuf_t* buf, struct usercmd_s* from, struct usercmd_s* cmd );
+void MSG_WriteUsercmdGold( sizebuf_t* buf, struct usercmd_s* cmd, struct usercmd_s* from );
+void MSG_WriteUsercmd36( sizebuf_t* buf, struct usercmd_s* cmd, struct usercmd_s* from );
+void MSG_WriteBitUsercmd( sizebuf_t* buf, struct usercmd_s* cmd, struct usercmd_s* from );
+void MSG_WriteUsercmdByProtocol( sizebuf_t* buf, struct usercmd_s* cmd, struct usercmd_s* from );
 
 extern	int			msg_readcount;
 extern	qboolean	msg_badread;		// set if a read goes beyond end of message
@@ -99,6 +103,33 @@ float MSG_ReadCoord( void );
 float MSG_ReadAngle( void );
 float MSG_ReadHiresAngle( void );
 void MSG_ReadDeltaUsercmd( struct usercmd_s* move, struct usercmd_s* from );
+void MSG_ReadUsercmdGold( struct usercmd_s* move, struct usercmd_s* from );
+void MSG_ReadUsercmd36( struct usercmd_s* move, struct usercmd_s* from );
+void MSG_ReadBitUsercmd( struct usercmd_s* move, struct usercmd_s* from );
+void MSG_ReadUsercmd( struct usercmd_s* move, struct usercmd_s* from );
+
+void MSG_StartBitReading( sizebuf_t* buf );
+void MSG_EndBitReading( sizebuf_t* buf );
+qboolean MSG_ReadOneBit( void );
+unsigned int MSG_ReadBitField8( unsigned int numbits );
+unsigned int MSG_ReadBitField16( unsigned int numbits );
+unsigned int MSG_ReadBitField32( unsigned int numbits );
+unsigned int MSG_PeekBits( unsigned int numbits );
+float MSG_ReadScaledBitValue( unsigned int numbits );
+int MSG_ReadSignMagnitude8( int numbits );
+int MSG_ReadSignMagnitude16( int numbits );
+unsigned int MSG_ReadSignMagnitude32( int numbits );
+
+void MSG_StartBitWriting( sizebuf_t* buf );
+void MSG_EndBitWriting( sizebuf_t* buf );
+void MSG_WriteOneBit( int value );
+void MSG_WriteBitByte( byte* data, int numbits );
+void MSG_WriteBitShort( unsigned short* data, int numbits );
+void MSG_WriteBitLong( unsigned int* data, int numbits );
+void MSG_WriteSBitByte( char* data, int numbits );
+void MSG_WriteSBitShort( short* data, int numbits );
+void MSG_WriteSBitLong( int* data, int numbits );
+void MSG_WriteBitAngle( float angle, int numbits );
 
 //============================================================================
 
@@ -125,6 +156,8 @@ extern qboolean com_ignorecolons;
 
 char* COM_Parse( char* data );
 
+void COM_HexConvert( char* pszInput, int nInputLength, byte* pOutput );
+
 
 extern	int		com_argc;
 extern	char** com_argv;
@@ -139,6 +172,9 @@ char* COM_FileExtension( char* in );
 void COM_FileBase( char* in, char* out );
 void COM_DefaultExtension( char* path, char* extension );
 int COM_FindFile( char *filename, int *handle, FILE **file );
+char* COM_StringToLower( char* string );
+void COM_FixSlashes( char* pname );
+int COM_FindFileInSearchPaths( char* filename );
 
 // does a varargs printf into a temp buffer
 char* va( char* format, ... );

@@ -1049,32 +1049,6 @@ int Host_ValidSave( void )
 }
 
 /*
-============
-COM_FixSlashes
-
-Changes all '/' characters into '\' characters, in place.
-============
-*/
-void COM_FixSlashes( char* pname )
-{
-#ifdef _WIN32
-	while (*pname)
-	{
-		if (*pname == '/')
-			*pname = '\\';
-		pname++;
-	}
-#else
-	while (*pname)
-	{
-		if (*pname == '\\')
-			*pname = '/';
-		pname++;
-	}
-#endif
-}
-
-/*
 ==================
 SaveInit
 
