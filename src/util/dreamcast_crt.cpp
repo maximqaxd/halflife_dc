@@ -353,6 +353,18 @@ char* itoa( int value, char* str, int base )
 	return str;
 }
 
+// Case-insensitive string compares (WinCE lacks these); tolower is resolved
+// through the CRT so the DC build shares one implementation.
+int Q_stricmp( char* s1, char* s2 )
+{
+	return 0;
+}
+
+int Q_strnicmp( char* s1, char* s2, int n )
+{
+	return 0;
+}
+
 } // extern "C"
 
 // Route all dynamic allocation through the game's memory manager instead of the
