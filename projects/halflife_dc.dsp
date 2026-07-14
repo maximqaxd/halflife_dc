@@ -8077,6 +8077,22 @@ SOURCE=..\src\util\Zap.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\util\kzap.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\util\zapsave.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\engine\mnemo.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\util\vmu.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\engine\entityclass.c
 # End Source File
 # Begin Source File
