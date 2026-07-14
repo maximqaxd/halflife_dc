@@ -738,3 +738,26 @@ char* MD5_Print( unsigned char* hash )
 
 	return szReturn;
 }
+
+// Read the stored uncompressed size from the head of a zipped block.
+int Zip_GetUncompressedSize( void* pHeader )
+{
+	return 0;
+}
+
+// Deflate a file into the temporary zip staging file, then swap it into place.
+int Zip_CompressFile( char* pszFileName, int level )
+{
+	return 0;
+}
+
+// Inflate a previously compressed file back to disk.
+int Zip_DecompressFile( char* pszFileName )
+{
+	return 0;
+}
+
+// Grow the deflate output buffer and re-point the stream at the new memory.
+void GrowOutBuffer( void* pStream, void** ppOutBuffer, int* pnOutSize )
+{
+}
