@@ -95,6 +95,25 @@ void MnemoShrink( void* ptr, int newsize );
 typedef int (*mnemo_purge_callback_t)( int aggressive );
 void Mnemo_SetPurgeCallback( mnemo_purge_callback_t callback );
 
+typedef struct memblock_s
+{
+	int		size;           // including the header and possibly tiny fragments
+	int     tag;            // a tag of 0 is a free block
+	int     id;        		// should be ZONEID
+	struct memblock_s* next, * prev;
+	int		pad;			// pad to 64 bit boundary
+} memblock_t;
+
+typedef struct
+{
+	int		size;		// total bytes malloced, including header
+	memblock_t	blocklist;		// start / end cap for linked list
+	memblock_t* rover;
+} memzone_t;
+
+extern memzone_t* mainzone;
+void Z_ClearZone( memzone_t* zone, int size );
+
 void Z_Free( void* ptr );
 void* Z_Malloc( int size );			// returns 0 filled memory
 void* Z_TagMalloc( int size, int tag );
