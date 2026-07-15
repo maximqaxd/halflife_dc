@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 #ifndef OEM_BUILD
 
 #include "extdll.h"
@@ -125,12 +139,12 @@ void CApache :: Spawn( void )
 
 	if (pev->spawnflags & SF_WAITFORTRIGGER)
 	{
-		SetUse( &CApache::StartupUse );
+		SetUse( StartupUse );
 	}
 	else
 	{
-		SetThink( &CApache::HuntThink );
-		SetTouch( &CApache::FlyTouch );
+		SetThink( HuntThink );
+		SetTouch( FlyTouch );
 		pev->nextthink = gpGlobals->time + 1.0;
 	}
 
@@ -172,8 +186,8 @@ void CApache::NullThink( void )
 
 void CApache::StartupUse( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value )
 {
-	SetThink( &CApache::HuntThink );
-	SetTouch( &CApache::FlyTouch );
+	SetThink( HuntThink );
+	SetTouch( FlyTouch );
 	pev->nextthink = gpGlobals->time + 0.1;
 	SetUse( NULL );
 }
@@ -186,8 +200,8 @@ void CApache :: Killed( entvars_t *pevAttacker, int iGib )
 	STOP_SOUND( ENT(pev), CHAN_STATIC, "apache/ap_rotor2.wav" );
 
 	UTIL_SetSize( pev, Vector( -32, -32, -64), Vector( 32, 32, 0) );
-	SetThink( &CApache::DyingThink );
-	SetTouch( &CApache::CrashTouch );
+	SetThink( DyingThink );
+	SetTouch( CrashTouch );
 	pev->nextthink = gpGlobals->time + 0.1;
 	pev->health = 0;
 	pev->takedamage = DAMAGE_NO;
@@ -221,6 +235,7 @@ void CApache :: DyingThink( void )
 			WRITE_SHORT( g_sModelIndexFireball );
 			WRITE_BYTE( RANDOM_LONG(0,29) + 30  ); // scale * 10
 			WRITE_BYTE( 12  ); // framerate
+			WRITE_BYTE( TE_EXPLFLAG_NONE );
 		MESSAGE_END();
 
 		// lots of smoke
@@ -387,7 +402,7 @@ void CApache :: DyingThink( void )
 			WRITE_BYTE( BREAK_METAL );
 		MESSAGE_END();
 
-		SetThink( &CBaseEntity::SUB_Remove );
+		SetThink( SUB_Remove );
 		pev->nextthink = gpGlobals->time + 0.1;
 	}
 }
@@ -957,8 +972,8 @@ void CApacheHVR :: Spawn( void )
 	UTIL_SetSize(pev, Vector( 0, 0, 0), Vector(0, 0, 0));
 	UTIL_SetOrigin( pev, pev->origin );
 
-	SetThink( &CApacheHVR::IgniteThink );
-	SetTouch( &CGrenade::ExplodeTouch );
+	SetThink( IgniteThink );
+	SetTouch( ExplodeTouch );
 
 	UTIL_MakeAimVectors( pev->angles );
 	m_vecForward = gpGlobals->v_forward;
@@ -1004,7 +1019,7 @@ void CApacheHVR :: IgniteThink( void  )
 	MESSAGE_END();  // move PHS/PVS data sending into here (SEND_ALL, SEND_PVS, SEND_PHS)
 
 	// set to accelerate
-	SetThink( &CApacheHVR::AccelerateThink );
+	SetThink( AccelerateThink );
 	pev->nextthink = gpGlobals->time + 0.1;
 }
 

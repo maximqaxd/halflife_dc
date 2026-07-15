@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 //
 // hud_redraw.cpp
 //
@@ -129,9 +143,8 @@ int CHud :: DrawHudNumberString( int xpos, int ypos, int iMinX, int iNumber, int
 // draws a string from right to left (right-aligned)
 int CHud :: DrawHudStringReverse( int xpos, int ypos, int iMinX, char *szString, int r, int g, int b )
 {
-	char* szIt;
 	// find the end of the string
-	for ( szIt = szString; *szIt != 0; szIt++ )
+	for ( char *szIt = szString; *szIt != 0; szIt++ )
 	{ // we should count the length?		
 	}
 
@@ -151,7 +164,7 @@ int CHud :: DrawHudStringReverse( int xpos, int ypos, int iMinX, char *szString,
 
 int CHud :: DrawHudNumber( int x, int y, int iFlags, int iNumber, int r, int g, int b)
 {
-	int iWidth = m_rgrcRects[HUD_number_0].right - m_rgrcRects[HUD_number_0].left;
+	int iWidth = GetSpriteRect(m_HUD_number_0).right - GetSpriteRect(m_HUD_number_0).left;
 	int k;
 	
 	if (iNumber > 0)
@@ -160,8 +173,8 @@ int CHud :: DrawHudNumber( int x, int y, int iFlags, int iNumber, int r, int g, 
 		if (iNumber >= 100)
 		{
 			 k = iNumber/100;
-			SPR_Set(m_rghSprites[HUD_number_0 + k], r, g, b );
-			SPR_DrawAdditive( 0, x, y, &m_rgrcRects[HUD_number_0 + k]);
+			SPR_Set(GetSprite(m_HUD_number_0 + k), r, g, b );
+			SPR_DrawAdditive( 0, x, y, &GetSpriteRect(m_HUD_number_0 + k));
 			x += iWidth;
 		}
 		else if (iFlags & (DHN_3DIGITS))
@@ -174,8 +187,8 @@ int CHud :: DrawHudNumber( int x, int y, int iFlags, int iNumber, int r, int g, 
 		if (iNumber >= 10)
 		{
 			k = (iNumber % 100)/10;
-			SPR_Set(m_rghSprites[HUD_number_0 + k], r, g, b );
-			SPR_DrawAdditive( 0, x, y, &m_rgrcRects[HUD_number_0 + k]);
+			SPR_Set(GetSprite(m_HUD_number_0 + k), r, g, b );
+			SPR_DrawAdditive( 0, x, y, &GetSpriteRect(m_HUD_number_0 + k));
 			x += iWidth;
 		}
 		else if (iFlags & (DHN_3DIGITS | DHN_2DIGITS))
@@ -186,13 +199,13 @@ int CHud :: DrawHudNumber( int x, int y, int iFlags, int iNumber, int r, int g, 
 
 		// SPR_Draw ones
 		k = iNumber % 10;
-		SPR_Set(m_rghSprites[HUD_number_0 + k], r, g, b );
-		SPR_DrawAdditive(0,  x, y, &m_rgrcRects[HUD_number_0 + k]);
+		SPR_Set(GetSprite(m_HUD_number_0 + k), r, g, b );
+		SPR_DrawAdditive(0,  x, y, &GetSpriteRect(m_HUD_number_0 + k));
 		x += iWidth;
 	} 
 	else if (iFlags & DHN_DRAWZERO) 
 	{
-		SPR_Set(m_rghSprites[HUD_number_0], r, g, b );
+		SPR_Set(GetSprite(m_HUD_number_0), r, g, b );
 
 		// SPR_Draw 100's
 		if (iFlags & (DHN_3DIGITS))
@@ -209,11 +222,38 @@ int CHud :: DrawHudNumber( int x, int y, int iFlags, int iNumber, int r, int g, 
 
 		// SPR_Draw ones
 		
-		SPR_DrawAdditive( 0,  x, y, &m_rgrcRects[HUD_number_0]);
+		SPR_DrawAdditive( 0,  x, y, &GetSpriteRect(m_HUD_number_0));
 		x += iWidth;
 	}
 
 	return x;
 }
+
+
+int CHud::GetNumWidth( int iNumber, int iFlags )
+{
+	if (iFlags & (DHN_3DIGITS))
+		return 3;
+
+	if (iFlags & (DHN_2DIGITS))
+		return 2;
+
+	if (iNumber <= 0)
+	{
+		if (iFlags & (DHN_DRAWZERO))
+			return 1;
+		else
+			return 0;
+	}
+
+	if (iNumber < 10)
+		return 1;
+
+	if (iNumber < 100)
+		return 2;
+
+	return 3;
+
+}	
 
 

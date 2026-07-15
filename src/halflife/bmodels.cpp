@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 /*
 
 ===== bmodels.cpp ========================================================
@@ -405,7 +419,7 @@ void CFuncRotating :: Spawn( )
 	UTIL_SetOrigin(pev, pev->origin);
 	SET_MODEL( ENT(pev), STRING(pev->model) );
 
-	SetUse( &CFuncRotating::RotatingUse );
+	SetUse( RotatingUse );
 	// did level designer forget to assign speed?
 	if (pev->speed <= 0)
 		pev->speed = 0;
@@ -417,13 +431,13 @@ void CFuncRotating :: Spawn( )
 	// instant-use brush?
 	if ( FBitSet( pev->spawnflags, SF_BRUSH_ROTATE_INSTANT) )
 	{		
-		SetThink( &CBaseEntity::SUB_CallUseToggle );
+		SetThink( SUB_CallUseToggle );
 		pev->nextthink = pev->ltime + 1.5;	// leave a magic delay for client to start up
 	}	
 	// can this brush inflict pain?
 	if ( FBitSet (pev->spawnflags, SF_BRUSH_HURT) )
 	{
-		SetTouch( &CFuncRotating::HurtTouch );
+		SetTouch( HurtTouch );
 	}
 	
 	Precache( );
@@ -490,7 +504,7 @@ void CFuncRotating :: Precache( void )
 		// if fan was spinning, and we went through transition or save/restore,
 		// make sure we restart the sound.  1.5 sec delay is magic number. KDB
 
-		SetThink ( &CFuncRotating::SpinUp );
+		SetThink ( SpinUp );
 		pev->nextthink = pev->ltime + 1.5;
 	}
 }
@@ -536,13 +550,13 @@ void CFuncRotating :: RampPitchVol (int fUp)
 	
 	// get current angular velocity
 
-	vecCur = fabs(vecAVel.x != 0 ? vecAVel.x : (vecAVel.y != 0 ? vecAVel.y : vecAVel.z));
+	vecCur = abs(vecAVel.x != 0 ? vecAVel.x : (vecAVel.y != 0 ? vecAVel.y : vecAVel.z));
 	
 	// get target angular velocity
 
 	vecFinal = (pev->movedir.x != 0 ? pev->movedir.x : (pev->movedir.y != 0 ? pev->movedir.y : pev->movedir.z));
 	vecFinal *= pev->speed;
-	vecFinal = fabs(vecFinal);
+	vecFinal = abs(vecFinal);
 
 	// calc volume and pitch as % of final vol and pitch
 
@@ -578,15 +592,15 @@ void CFuncRotating :: SpinUp( void )
 	vecAVel = pev->avelocity;// cache entity's rotational velocity
 
 	// if we've met or exceeded target speed, set target speed and stop thinking
-	if (	fabs(vecAVel.x) >= fabs(pev->movedir.x * pev->speed)	&&
-			fabs(vecAVel.y) >= fabs(pev->movedir.y * pev->speed)	&&
-			fabs(vecAVel.z) >= fabs(pev->movedir.z * pev->speed) )
+	if (	abs(vecAVel.x) >= abs(pev->movedir.x * pev->speed)	&&
+			abs(vecAVel.y) >= abs(pev->movedir.y * pev->speed)	&&
+			abs(vecAVel.z) >= abs(pev->movedir.z * pev->speed) )
 	{
 		pev->avelocity = pev->movedir * pev->speed;// set speed in case we overshot
 		EMIT_SOUND_DYN(ENT(pev), CHAN_STATIC, (char *)STRING(pev->noiseRunning), 
 			m_flVolume, m_flAttenuation, SND_CHANGE_PITCH | SND_CHANGE_VOL, FANPITCHMAX);
 		
-		SetThink( &CFuncRotating::Rotate );
+		SetThink( Rotate );
 		Rotate();
 	} 
 	else
@@ -627,7 +641,7 @@ void CFuncRotating :: SpinDown( void )
 		EMIT_SOUND_DYN(ENT(pev), CHAN_STATIC, (char *)STRING(pev->noiseRunning /* Stop */), 
 				0, 0, SND_STOP, m_pitch);
 
-		SetThink( &CFuncRotating::Rotate );
+		SetThink( Rotate );
 		Rotate();
 	} 
 	else
@@ -652,7 +666,7 @@ void CFuncRotating :: RotatingUse( CBaseEntity *pActivator, CBaseEntity *pCaller
 		// fan is spinning, so stop it.
 		if ( pev->avelocity != g_vecZero )
 		{
-			SetThink ( &CFuncRotating::SpinDown );
+			SetThink ( SpinDown );
 			//EMIT_SOUND_DYN(ENT(pev), CHAN_WEAPON, (char *)STRING(pev->noiseStop), 
 			//	m_flVolume, m_flAttenuation, 0, m_pitch);
 
@@ -660,7 +674,7 @@ void CFuncRotating :: RotatingUse( CBaseEntity *pActivator, CBaseEntity *pCaller
 		}
 		else// fan is not moving, so start it
 		{
-			SetThink ( &CFuncRotating::SpinUp );
+			SetThink ( SpinUp );
 			EMIT_SOUND_DYN(ENT(pev), CHAN_STATIC, (char *)STRING(pev->noiseRunning), 
 				0.01, m_flAttenuation, 0, FANPITCHMIN);
 
@@ -672,7 +686,7 @@ void CFuncRotating :: RotatingUse( CBaseEntity *pActivator, CBaseEntity *pCaller
 		if ( pev->avelocity != g_vecZero )
 		{
 			// play stopping sound here
-			SetThink ( &CFuncRotating::SpinDown );
+			SetThink ( SpinDown );
 
 			// EMIT_SOUND_DYN(ENT(pev), CHAN_WEAPON, (char *)STRING(pev->noiseStop), 
 			//	m_flVolume, m_flAttenuation, 0, m_pitch);
@@ -686,7 +700,7 @@ void CFuncRotating :: RotatingUse( CBaseEntity *pActivator, CBaseEntity *pCaller
 				m_flVolume, m_flAttenuation, 0, FANPITCHMAX);
 			pev->avelocity = pev->movedir * pev->speed;
 
-			SetThink( &CFuncRotating::Rotate );
+			SetThink( Rotate );
 			Rotate();
 		}
 	}
@@ -798,15 +812,15 @@ void CPendulum :: Spawn( void )
 
 	if ( FBitSet( pev->spawnflags, SF_BRUSH_ROTATE_INSTANT) )
 	{		
-		SetThink( &CBaseEntity::SUB_CallUseToggle );
+		SetThink( SUB_CallUseToggle );
 		pev->nextthink = gpGlobals->time + 0.1;
 	}
 	pev->speed = 0;
-	SetUse( &CPendulum::PendulumUse );
+	SetUse( PendulumUse );
 
 	if ( FBitSet( pev->spawnflags, SF_PENDULUM_SWING ) )
 	{
-		SetTouch ( &CPendulum::RopeTouch );
+		SetTouch ( RopeTouch );
 	}
 }
 
@@ -823,7 +837,7 @@ void CPendulum :: PendulumUse( CBaseEntity *pActivator, CBaseEntity *pCaller, US
 
 			pev->avelocity = m_maxSpeed * pev->movedir;
 			pev->nextthink = pev->ltime + (delta / m_maxSpeed);
-			SetThink( &CPendulum::Stop );
+			SetThink( Stop );
 		}
 		else
 		{
@@ -836,7 +850,7 @@ void CPendulum :: PendulumUse( CBaseEntity *pActivator, CBaseEntity *pCaller, US
 	{
 		pev->nextthink = pev->ltime + 0.1;		// Start the pendulum moving
 		m_time = gpGlobals->time;		// Save time to calculate dt
-		SetThink( &CPendulum::Swing );
+		SetThink( Swing );
 		m_dampSpeed = m_maxSpeed;
 	}
 }
@@ -925,7 +939,7 @@ void CPendulum :: RopeTouch ( CBaseEntity *pOther )
 {
 	entvars_t	*pevOther = pOther->pev;
 
-	if ( !(pOther->pev->flags & FL_CLIENT) )
+	if ( !pOther->IsPlayer() )
 	{// not a player!
 		ALERT ( at_console, "Not a client\n" );
 		return;

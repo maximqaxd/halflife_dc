@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 #if !defined( OEM_BUILD ) && !defined( HLDEMO_BUILD )
 
 #include "extdll.h"
@@ -59,12 +73,13 @@ void CSatchelCharge :: Spawn( void )
 	pev->solid = SOLID_BBOX;
 
 	SET_MODEL(ENT(pev), "models/w_satchel.mdl");
-	UTIL_SetSize(pev, Vector( -16, -16, -4), Vector(16, 16, 32));
+	//UTIL_SetSize(pev, Vector( -16, -16, -4), Vector(16, 16, 32));	// Old box -- size of headcrab monsters/players get blocked by this
+	UTIL_SetSize(pev, Vector( -4, -4, -4), Vector(4, 4, 4));	// Uses point-sized, and can be stepped over
 	UTIL_SetOrigin( pev, pev->origin );
 
-	SetTouch( &CSatchelCharge::SatchelSlide );
-	SetUse( &CGrenade::DetonateUse );
-	SetThink( &CSatchelCharge::SatchelThink );
+	SetTouch( SatchelSlide );
+	SetUse( DetonateUse );
+	SetThink( SatchelThink );
 	pev->nextthink = gpGlobals->time + 0.1;
 
 	pev->gravity = 0.5;
@@ -166,6 +181,7 @@ public:
 	int AddToPlayer( CBasePlayer *pPlayer );
 	void PrimaryAttack( void );
 	void SecondaryAttack( void );
+	int AddDuplicate( CBasePlayerItem *pOriginal );
 	BOOL CanDeploy( void );
 	BOOL Deploy( void );
 	BOOL IsUseable( void );
@@ -182,6 +198,27 @@ TYPEDESCRIPTION	CSatchel::m_SaveData[] =
 	DEFINE_FIELD( CSatchel, m_chargeReady, FIELD_INTEGER ),
 };
 IMPLEMENT_SAVERESTORE( CSatchel, CBasePlayerWeapon );
+
+//=========================================================
+// CALLED THROUGH the newly-touched weapon's instance. The existing player weapon is pOriginal
+//=========================================================
+int CSatchel::AddDuplicate( CBasePlayerItem *pOriginal )
+{
+	CSatchel *pSatchel;
+
+	if ( g_pGameRules->IsMultiplayer() )
+	{
+		pSatchel = (CSatchel *)pOriginal;
+
+		if ( pSatchel->m_chargeReady != 0 )
+		{
+			// player has some satchels deployed. Refuse to add more.
+			return FALSE;
+		}
+	}
+
+	return CBasePlayerWeapon::AddDuplicate ( pOriginal );
+}
 
 //=========================================================
 //=========================================================
@@ -217,6 +254,7 @@ void CSatchel::Precache( void )
 	PRECACHE_MODEL("models/v_satchel_radio.mdl");
 	PRECACHE_MODEL("models/w_satchel.mdl");
 	PRECACHE_MODEL("models/p_satchel.mdl");
+	PRECACHE_MODEL("models/p_satchel_radio.mdl");
 
 	UTIL_PrecacheOther( "monster_satchel" );
 }
@@ -226,9 +264,9 @@ int CSatchel::GetItemInfo(ItemInfo *p)
 {
 	p->pszName = STRING(pev->classname);
 	p->pszAmmo1 = "Satchel Charge";
-	p->iAmmo1 = SATCHEL_MAX_CARRY;
+	p->iMaxAmmo1 = SATCHEL_MAX_CARRY;
 	p->pszAmmo2 = NULL;
-	p->iAmmo2 = -1;
+	p->iMaxAmmo2 = -1;
 	p->iMaxClip = WEAPON_NOCLIP;
 	p->iSlot = 4;
 	p->iPosition = 1;
@@ -280,15 +318,19 @@ BOOL CSatchel::Deploy( )
 	if (m_chargeReady)
 	{
 		m_pPlayer->pev->viewmodel = MAKE_STRING("models/v_satchel_radio.mdl");
-		m_pPlayer->pev->weaponmodel = NULL;
+		m_pPlayer->pev->weaponmodel = MAKE_STRING("models/p_satchel_radio.mdl");
+		SendWeaponAnim( SATCHEL_RADIO_DRAW );
+		// use hivehand animations
+		strcpy( m_pPlayer->m_szAnimExtention, "hive" );
 	}
 	else
 	{
 		m_pPlayer->pev->viewmodel = MAKE_STRING("models/v_satchel.mdl");
 		m_pPlayer->pev->weaponmodel = MAKE_STRING("models/p_satchel.mdl");
+		SendWeaponAnim( SATCHEL_DRAW );
+		// use tripmine animations
+		strcpy( m_pPlayer->m_szAnimExtention, "trip" );
 	}
-
-	SendWeaponAnim( SATCHEL_DRAW );
 
 	m_pPlayer->m_flNextAttack = gpGlobals->time + 1.0;
 	m_flTimeWeaponIdle = gpGlobals->time + RANDOM_FLOAT ( 10, 15 );
@@ -313,7 +355,7 @@ void CSatchel::Holster( )
 	if ( !m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType] && !m_chargeReady )
 	{
 		m_pPlayer->pev->weapons &= ~(1<<WEAPON_SATCHEL);
-		SetThink( &CBasePlayerItem::DestroyItem );
+		SetThink( DestroyItem );
 		pev->nextthink = gpGlobals->time + 0.1;
 	}
 }
@@ -396,8 +438,11 @@ void CSatchel::Throw( void )
 		pSatchel->pev->avelocity.y = 400;
 
 		m_pPlayer->pev->viewmodel = MAKE_STRING("models/v_satchel_radio.mdl");
-		m_pPlayer->pev->weaponmodel = NULL;
+		m_pPlayer->pev->weaponmodel = MAKE_STRING("models/p_satchel_radio.mdl");
 		SendWeaponAnim( SATCHEL_RADIO_DRAW );
+
+		// player "shoot" animation
+		m_pPlayer->SetAnimation( PLAYER_ATTACK1 );
 
 		m_chargeReady = 1;
 		
@@ -418,6 +463,13 @@ void CSatchel::WeaponIdle( void )
 	{
 	case 0:
 		SendWeaponAnim( SATCHEL_FIDGET1 );
+		// use tripmine animations
+		strcpy( m_pPlayer->m_szAnimExtention, "trip" );
+		break;
+	case 1:
+		SendWeaponAnim( SATCHEL_RADIO_FIDGET1 );
+		// use hivehand animations
+		strcpy( m_pPlayer->m_szAnimExtention, "hive" );
 		break;
 	case 2:
 		if ( !m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType] )
@@ -430,6 +482,9 @@ void CSatchel::WeaponIdle( void )
 		m_pPlayer->pev->viewmodel = MAKE_STRING("models/v_satchel.mdl");
 		m_pPlayer->pev->weaponmodel = MAKE_STRING("models/p_satchel.mdl");
 		SendWeaponAnim( SATCHEL_DRAW );
+
+		// use tripmine animations
+		strcpy( m_pPlayer->m_szAnimExtention, "trip" );
 
 		m_flNextPrimaryAttack = gpGlobals->time + 0.5;
 		m_flNextSecondaryAttack = gpGlobals->time + 0.5;

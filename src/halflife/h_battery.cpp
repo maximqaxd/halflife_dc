@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 /*
 
 ===== h_battery.cpp ========================================================
@@ -115,7 +129,7 @@ void CRecharge::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE use
 	}
 
 	pev->nextthink = pev->ltime + 0.25;
-	SetThink(&CRecharge::Off);
+	SetThink(Off);
 
 	// Time to recharge yet?
 
@@ -130,7 +144,7 @@ void CRecharge::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE use
 
 	//only recharge the player
 
-	if (!(m_hActivator->pev->flags & FL_CLIENT) )
+	if (!m_hActivator->IsPlayer() )
 		return;
 	
 	// Play the on sound or the looping charging sound
@@ -165,7 +179,7 @@ void CRecharge::Recharge(void)
 {
 	m_iJuice = gSkillData.suitchargerCapacity;
 	pev->frame = 0;			
-	SetThink ( &CBaseEntity::SUB_DoNothing );
+	SetThink( SUB_DoNothing );
 }
 
 void CRecharge::Off(void)
@@ -179,8 +193,8 @@ void CRecharge::Off(void)
 	if ((!m_iJuice) &&  ( ( m_iReactivate = g_pGameRules->FlHEVChargerRechargeTime() ) > 0) )
 	{
 		pev->nextthink = pev->ltime + m_iReactivate;
-		SetThink(&CRecharge::Recharge);
+		SetThink(Recharge);
 	}
 	else
-		SetThink ( &CBaseEntity::SUB_DoNothing );
+		SetThink( SUB_DoNothing );
 }

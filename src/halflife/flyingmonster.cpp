@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 #include	"extdll.h"
 #include	"util.h"
 #include	"cbase.h"
@@ -11,7 +25,7 @@
 
 extern DLL_GLOBAL edict_t		*g_pBodyQueueHead;
 
-int CFlyingMonster :: CheckLocalMove ( Vector &vecStart, Vector &vecEnd, CBaseEntity *pTarget, float *pflDist )
+int CFlyingMonster :: CheckLocalMove ( const Vector &vecStart, const Vector &vecEnd, CBaseEntity *pTarget, float *pflDist )
 {
 	// UNDONE: need to check more than the endpoint
 	if (FBitSet(pev->flags, FL_SWIM) && (UTIL_PointContents(vecEnd) != CONTENTS_WATER))
@@ -185,7 +199,7 @@ void CFlyingMonster::MoveExecute( CBaseEntity *pTargetEnt, const Vector &vecDir,
 }
 
 
-float CFlyingMonster::CeilingZ( Vector &position )
+float CFlyingMonster::CeilingZ( const Vector &position )
 {
 	TraceResult tr;
 
@@ -204,7 +218,7 @@ float CFlyingMonster::CeilingZ( Vector &position )
 	return maxUp.z;
 }
 
-BOOL CFlyingMonster::ProbeZ( Vector &position, Vector &probe, float *pFraction)
+BOOL CFlyingMonster::ProbeZ( const Vector &position, const Vector &probe, float *pFraction)
 {
 	int conPosition = UTIL_PointContents(position);
 	if ( (((pev->flags) & FL_SWIM) == FL_SWIM) ^ (conPosition == CONTENTS_WATER))
@@ -250,7 +264,7 @@ BOOL CFlyingMonster::ProbeZ( Vector &position, Vector &probe, float *pFraction)
 	return TRUE;
 }
 
-float CFlyingMonster::FloorZ( Vector &position )
+float CFlyingMonster::FloorZ( const Vector &position )
 {
 	TraceResult tr;
 

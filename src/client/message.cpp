@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 //
 // Message.cpp
 //
@@ -28,6 +42,9 @@ int CHudMessage::Init(void)
 
 int CHudMessage::VidInit( void )
 {
+	m_HUD_title_half = gHUD.GetSpriteIndex( "title_half" );
+	m_HUD_title_life = gHUD.GetSpriteIndex( "title_life" );
+
 	return 1;
 };
 
@@ -317,19 +334,19 @@ int CHudMessage::Draw( float fTime )
 		{
 			brightness = FadeBlend( m_pGameTitle->fadein, m_pGameTitle->fadeout, m_pGameTitle->holdtime, localTime );
 
-			int halfWidth = gHUD.m_rgrcRects[HUD_title_half].right - gHUD.m_rgrcRects[HUD_title_half].left;
-			int fullWidth = halfWidth + gHUD.m_rgrcRects[HUD_title_life].right - gHUD.m_rgrcRects[HUD_title_life].left;
-			int fullHeight = gHUD.m_rgrcRects[HUD_title_half].bottom - gHUD.m_rgrcRects[HUD_title_half].top;
+			int halfWidth = gHUD.GetSpriteRect(m_HUD_title_half).right - gHUD.GetSpriteRect(m_HUD_title_half).left;
+			int fullWidth = halfWidth + gHUD.GetSpriteRect(m_HUD_title_life).right - gHUD.GetSpriteRect(m_HUD_title_life).left;
+			int fullHeight = gHUD.GetSpriteRect(m_HUD_title_half).bottom - gHUD.GetSpriteRect(m_HUD_title_half).top;
 
 			int x = XPosition( m_pGameTitle->x, fullWidth, fullWidth );
 			int y = YPosition( m_pGameTitle->y, fullHeight );
 
 
-			SPR_Set( gHUD.m_rghSprites[HUD_title_half], brightness * m_pGameTitle->r1, brightness * m_pGameTitle->g1, brightness * m_pGameTitle->b1 );
-			SPR_DrawAdditive( 0, x, y, &gHUD.m_rgrcRects[HUD_title_half] );
+			SPR_Set( gHUD.GetSprite(m_HUD_title_half), brightness * m_pGameTitle->r1, brightness * m_pGameTitle->g1, brightness * m_pGameTitle->b1 );
+			SPR_DrawAdditive( 0, x, y, &gHUD.GetSpriteRect(m_HUD_title_half) );
 
-			SPR_Set( gHUD.m_rghSprites[HUD_title_life], brightness * m_pGameTitle->r1, brightness * m_pGameTitle->g1, brightness * m_pGameTitle->b1 );
-			SPR_DrawAdditive( 0, x + halfWidth, y, &gHUD.m_rgrcRects[HUD_title_life] );
+			SPR_Set( gHUD.GetSprite(m_HUD_title_life), brightness * m_pGameTitle->r1, brightness * m_pGameTitle->g1, brightness * m_pGameTitle->b1 );
+			SPR_DrawAdditive( 0, x + halfWidth, y, &gHUD.GetSpriteRect(m_HUD_title_life) );
 
 			drawn = 1;
 		}

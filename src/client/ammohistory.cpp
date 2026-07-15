@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 //
 //  ammohistory.cpp
 //
@@ -25,7 +39,7 @@ int HISTORY_DRAW_TIME = 5;
 struct ITEM_INFO
 {
 	char szName[MAX_ITEM_NAME];
-	HSPRITE_t spr;
+	HSPRITE spr;
 	wrect_t rect;
 };
 
@@ -64,7 +78,7 @@ void HistoryResource :: AddToHistory( int iType, const char *szName, int iCount 
 
 	// I am really unhappy with all the code in this file
 
-	int i = GetSpriteIndex( szName );
+	int i = gHUD.GetSpriteIndex( szName );
 	if ( i == -1 )
 		return;  // unknown sprite name, don't add it to history
 
@@ -107,7 +121,7 @@ int HistoryResource :: DrawAmmoHistory( float flTime )
 			else if ( rgAmmoHistory[i].type == HISTSLOT_AMMO )
 			{
 				wrect_t rcPic;
-				HSPRITE_t *spr = gWR.GetAmmoPicFromWeapon( rgAmmoHistory[i].iId, rcPic );
+				HSPRITE *spr = gWR.GetAmmoPicFromWeapon( rgAmmoHistory[i].iId, rcPic );
 
 				int r, g, b;
 				UnpackRGB(r,g,b, RGB_YELLOWISH);
@@ -154,7 +168,7 @@ int HistoryResource :: DrawAmmoHistory( float flTime )
 				if ( !rgAmmoHistory[i].iId )
 					continue;  // sprite not loaded
 
-				wrect_t rect = gHUD.m_rgrcRects[ rgAmmoHistory[i].iId ];
+				wrect_t rect = gHUD.GetSpriteRect( rgAmmoHistory[i].iId );
 
 				UnpackRGB(r,g,b, RGB_YELLOWISH);
 				float scale = (rgAmmoHistory[i].DisplayTime - flTime) * 80;
@@ -163,7 +177,7 @@ int HistoryResource :: DrawAmmoHistory( float flTime )
 				int ypos = ScreenHeight - (AMMO_PICKUP_PICK_HEIGHT + (AMMO_PICKUP_GAP * i));
 				int xpos = ScreenWidth - (rect.right - rect.left) - 10;
 
-				SPR_Set( gHUD.m_rghSprites[ rgAmmoHistory[i].iId ], r, g, b );
+				SPR_Set( gHUD.GetSprite( rgAmmoHistory[i].iId ), r, g, b );
 				SPR_DrawAdditive( 0, xpos, ypos, &rect );
 			}
 		}

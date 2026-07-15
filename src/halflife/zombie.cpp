@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 //=========================================================
 // Zombie
 //=========================================================
@@ -37,12 +51,12 @@ public:
 	void IdleSound( void );
 	void AttackSound( void );
 
-	static char *pAttackSounds[];
-	static char *pIdleSounds[];
-	static char *pAlertSounds[];
-	static char *pPainSounds[];
-	static char *pAttackHitSounds[];
-	static char *pAttackMissSounds[];
+	static const char *pAttackSounds[];
+	static const char *pIdleSounds[];
+	static const char *pAlertSounds[];
+	static const char *pPainSounds[];
+	static const char *pAttackHitSounds[];
+	static const char *pAttackMissSounds[];
 
 	// No range attacks
 	BOOL CheckRangeAttack1 ( float flDot, float flDist ) { return FALSE; }
@@ -52,26 +66,26 @@ public:
 
 LINK_ENTITY_TO_CLASS( monster_zombie, CZombie );
 
-char *CZombie::pAttackHitSounds[] = 
+const char *CZombie::pAttackHitSounds[] = 
 {
 	"zombie/claw_strike1.wav",
 	"zombie/claw_strike2.wav",
 	"zombie/claw_strike3.wav",
 };
 
-char *CZombie::pAttackMissSounds[] = 
+const char *CZombie::pAttackMissSounds[] = 
 {
 	"zombie/claw_miss1.wav",
 	"zombie/claw_miss2.wav",
 };
 
-char *CZombie::pAttackSounds[] = 
+const char *CZombie::pAttackSounds[] = 
 {
 	"zombie/zo_attack1.wav",
 	"zombie/zo_attack2.wav",
 };
 
-char *CZombie::pIdleSounds[] = 
+const char *CZombie::pIdleSounds[] = 
 {
 	"zombie/zo_idle1.wav",
 	"zombie/zo_idle2.wav",
@@ -79,14 +93,14 @@ char *CZombie::pIdleSounds[] =
 	"zombie/zo_idle4.wav",
 };
 
-char *CZombie::pAlertSounds[] = 
+const char *CZombie::pAlertSounds[] = 
 {
 	"zombie/zo_alert10.wav",
 	"zombie/zo_alert20.wav",
 	"zombie/zo_alert30.wav",
 };
 
-char *CZombie::pPainSounds[] = 
+const char *CZombie::pPainSounds[] = 
 {
 	"zombie/zo_pain1.wav",
 	"zombie/zo_pain2.wav",

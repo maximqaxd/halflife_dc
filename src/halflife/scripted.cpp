@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 /*
 
 
@@ -128,7 +142,7 @@ void CCineMonster :: Spawn( void )
 	// if no targetname, start now
 	if ( FStringNull(pev->targetname) || !FStringNull( m_iszIdle ) )
 	{
-		SetThink( &CCineMonster::CineThink );
+		SetThink( CineThink );
 		pev->nextthink = gpGlobals->time + 1.0;
 		// Wait to be used?
 		if ( pev->targetname )
@@ -184,7 +198,7 @@ void CCineMonster :: Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYP
 	else
 	{
 		// if not, try finding them
-		SetThink( &CCineMonster::CineThink );
+		SetThink( CineThink );
 		pev->nextthink = gpGlobals->time;
 	}
 }
@@ -239,7 +253,7 @@ void CCineMonster :: Touch( CBaseEntity *pOther )
 //
 void CCineMonster :: Die( void )
 {
-	SetThink( &CBaseEntity::SUB_Remove );
+	SetThink( SUB_Remove );
 }
 
 //
@@ -550,7 +564,7 @@ void CCineMonster :: SequenceDone ( CBaseMonster *pMonster )
 
 	if ( !( pev->spawnflags & SF_SCRIPT_REPEATABLE ) )
 	{
-		SetThink( &CBaseEntity::SUB_Remove );
+		SetThink( SUB_Remove );
 		pev->nextthink = gpGlobals->time + 0.1;
 	}
 	
@@ -818,7 +832,11 @@ BOOL CBaseMonster :: CineCleanup( )
 			SetTouch( NULL );
 		}
 		else
-			SUB_StartFadeOut(); // SetThink ( &CBaseEntity::SUB_DoNothing );
+			SUB_StartFadeOut(); // SetThink( SUB_DoNothing );
+		// This turns off animation & physics in case their origin ends up stuck in the world or something
+		StopAnimation();
+		pev->movetype = MOVETYPE_NONE;
+		pev->effects |= EF_NOINTERP;	// Don't interpolate either, assume the corpse is positioned in its final resting place
 		return FALSE;
 	}
 
@@ -885,6 +903,10 @@ BOOL CBaseMonster :: CineCleanup( )
 		// Dropping out because he got killed
 		// Can't call killed() no attacker and weirdness (late gibbing) may result
 		m_IdealMonsterState = MONSTERSTATE_DEAD;
+		SetConditions( bits_COND_LIGHT_DAMAGE );
+		pev->deadflag = DEAD_DYING;
+		FCheckAITrigger();
+		pev->deadflag = DEAD_NO;
 	}
 
 
@@ -1004,7 +1026,7 @@ void CScriptedSentence :: Use( CBaseEntity *pActivator, CBaseEntity *pCaller, US
 	if ( !m_active )
 		return;
 //	ALERT( at_console, "Firing sentence: %s\n", STRING(m_iszSentence) );
-	SetThink( &CScriptedSentence::FindThink );
+	SetThink( FindThink );
 	pev->nextthink = gpGlobals->time;
 }
 
@@ -1017,7 +1039,7 @@ void CScriptedSentence :: Spawn( void )
 	// if no targetname, start now
 	if ( !pev->targetname )
 	{
-		SetThink( &CScriptedSentence::FindThink );
+		SetThink( FindThink );
 		pev->nextthink = gpGlobals->time + 1.0;
 	}
 
@@ -1056,7 +1078,7 @@ void CScriptedSentence :: FindThink( void )
 		StartSentence( pMonster );
 		if ( pev->spawnflags & SF_SENTENCE_ONCE )
 			UTIL_Remove( this );
-		SetThink( &CScriptedSentence::DelayThink );
+		SetThink( DelayThink );
 		pev->nextthink = gpGlobals->time + m_flDuration + m_flRepeat;
 		m_active = FALSE;
 //		ALERT( at_console, "%s: found monster %s\n", STRING(m_iszSentence), STRING(m_iszEntity) );
@@ -1074,7 +1096,7 @@ void CScriptedSentence :: DelayThink( void )
 	m_active = TRUE;
 	if ( !pev->targetname )
 		pev->nextthink = gpGlobals->time + 0.1;
-	SetThink( &CScriptedSentence::FindThink );
+	SetThink( FindThink );
 }
 
 
@@ -1197,7 +1219,7 @@ LINK_ENTITY_TO_CLASS( monster_furniture, CFurniture );
 //=========================================================
 void CFurniture :: Die ( void )
 {
-	SetThink ( &CBaseEntity::SUB_Remove );
+	SetThink ( SUB_Remove );
 	pev->nextthink = gpGlobals->time;
 }
 

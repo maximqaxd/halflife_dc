@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 /*
 
 ===== h_cine.cpp ========================================================
@@ -110,7 +124,7 @@ void CLegacyCineMonster :: CineSpawn( char *szModel )
 	// if no targetname, start now
 	if ( FStringNull(pev->targetname) )	
 	{
-		SetThink( &CLegacyCineMonster::CineThink );
+		SetThink( CineThink );
 		pev->nextthink += 1.0;
 	}
 }
@@ -122,7 +136,7 @@ void CLegacyCineMonster :: CineSpawn( char *szModel )
 void CLegacyCineMonster :: Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value )
 {
 	pev->animtime = 0;	// reset the sequence
-	SetThink( &CLegacyCineMonster::CineThink );
+	SetThink( CineThink );
 	pev->nextthink = gpGlobals->time;
 }
 
@@ -131,7 +145,7 @@ void CLegacyCineMonster :: Use( CBaseEntity *pActivator, CBaseEntity *pCaller, U
 //
 void CLegacyCineMonster :: Die( void )
 {
-	SetThink( &CBaseEntity::SUB_Remove );
+	SetThink( SUB_Remove );
 }
 
 //
@@ -214,14 +228,14 @@ void CCineBlood :: BloodGush ( void )
 
 void CCineBlood :: BloodStart ( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value )
 {
-	SetThink( &CCineBlood::BloodGush );
+	SetThink( BloodGush );
 	pev->nextthink = gpGlobals->time;// now!
 }
 
 void CCineBlood :: Spawn ( void )
 {
 	pev->solid = SOLID_NOT;
-	SetUse ( &CCineBlood::BloodStart );
+	SetUse ( BloodStart );
 	pev->health = 20;//hacked health to count iterations
 }
 

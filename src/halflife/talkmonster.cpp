@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 #include	"extdll.h"
 #include	"util.h"
 #include	"cbase.h"
@@ -862,7 +876,7 @@ int CTalkMonster :: GetVoicePitch( void )
 void CTalkMonster :: Touch( CBaseEntity *pOther )
 {
 	// Did the player touch me?
-	if ( pOther->pev->flags & FL_CLIENT )
+	if ( pOther->IsPlayer() )
 	{
 		// Ignore if pissed at player
 		if ( m_afMemory & bits_MEMORY_PROVOKED )
@@ -1013,8 +1027,8 @@ int CTalkMonster :: FIdleSpeak ( void )
 { 
 	// try to start a conversation, or make statement
 	int pitch;
-	char *szIdleGroup;
-	char *szQuestionGroup;
+	const char *szIdleGroup;
+	const char *szQuestionGroup;
 	float duration;
 
 	if (!FOkToSpeak())
@@ -1044,7 +1058,7 @@ int CTalkMonster :: FIdleSpeak ( void )
 
 	if ( pTarget != NULL )
 	{
-		if ( pTarget->pev->flags & FL_CLIENT )
+		if ( pTarget->IsPlayer() )
 		{
 			if ( pTarget->IsAlive() )
 			{
@@ -1122,7 +1136,7 @@ int CTalkMonster :: FIdleSpeak ( void )
 	return FALSE;
 }
 
-void CTalkMonster::PlayScriptedSentence( char *pszSentence, float duration, float volume, float attenuation, BOOL bConcurrent, CBaseEntity *pListener )
+void CTalkMonster::PlayScriptedSentence( const char *pszSentence, float duration, float volume, float attenuation, BOOL bConcurrent, CBaseEntity *pListener )
 {
 	if ( !bConcurrent )
 		ShutUpFriends();
@@ -1134,7 +1148,7 @@ void CTalkMonster::PlayScriptedSentence( char *pszSentence, float duration, floa
 	m_hTalkTarget = pListener;
 }
 
-void CTalkMonster::PlaySentence( char *pszSentence, float duration, float volume, float attenuation )
+void CTalkMonster::PlaySentence( const char *pszSentence, float duration, float volume, float attenuation )
 {
 	if ( !pszSentence )
 		return;
@@ -1340,7 +1354,7 @@ void CTalkMonster :: TrySmellTalk( void )
 
 int CTalkMonster::IRelationship( CBaseEntity *pTarget )
 {
-	if ( pTarget->pev->flags & FL_CLIENT )
+	if ( pTarget->IsPlayer() )
 		if ( m_afMemory & bits_MEMORY_PROVOKED )
 			return R_HT;
 	return CBaseMonster::IRelationship( pTarget );
@@ -1405,7 +1419,7 @@ void CTalkMonster :: FollowerUse( CBaseEntity *pActivator, CBaseEntity *pCaller,
 	if ( m_useTime > gpGlobals->time )
 		return;
 
-	if ( pCaller != NULL && pCaller->pev->flags & FL_CLIENT )
+	if ( pCaller != NULL && pCaller->IsPlayer() )
 	{
 		// Pre-disaster followers can't be used
 		if ( pev->spawnflags & SF_MONSTER_PREDISASTER )

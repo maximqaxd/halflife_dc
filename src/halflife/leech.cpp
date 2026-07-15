@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 //=========================================================
 // leech - basic little swimming monster
 //=========================================================
@@ -65,7 +79,7 @@ public:
 	void EXPORT DeadThink( void );
 	void Touch( CBaseEntity *pOther )
 	{
-		if ( pOther->pev->flags & FL_CLIENT )
+		if ( pOther->IsPlayer() )
 		{
 			// If the client is pushing me, give me some base velocity
 			if ( gpGlobals->trace_ent && gpGlobals->trace_ent == edict() )
@@ -103,8 +117,8 @@ public:
 	virtual int		Restore( CRestore &restore );
 	static	TYPEDESCRIPTION m_SaveData[];
 
-	static char *pAttackSounds[];
-	static char *pAlertSounds[];
+	static const char *pAttackSounds[];
+	static const char *pAlertSounds[];
 
 private:
 	// UNDONE: Remove unused boid vars, do group behavior
@@ -150,14 +164,14 @@ TYPEDESCRIPTION	CLeech::m_SaveData[] =
 IMPLEMENT_SAVERESTORE( CLeech, CBaseMonster );
 
 
-char *CLeech::pAttackSounds[] =
+const char *CLeech::pAttackSounds[] =
 {
 	"leech/leech_bite1.wav",
 	"leech/leech_bite2.wav",
 	"leech/leech_bite3.wav",
 };
 
-char *CLeech::pAlertSounds[] =
+const char *CLeech::pAlertSounds[] =
 {
 	"leech/leech_alert1.wav",
 	"leech/leech_alert2.wav",
@@ -182,7 +196,7 @@ void CLeech::Spawn( void )
 	m_flFieldOfView		= -0.5;	// 180 degree FOV
 	m_flDistLook		= 750;
 	MonsterInit();
-	SetThink( &CLeech::SwimThink );
+	SetThink( SwimThink );
 	SetUse( NULL );
 	SetTouch( NULL );
 	pev->view_ofs = g_vecZero;
@@ -253,7 +267,7 @@ void CLeech::SwitchLeechState( void )
 
 int CLeech::IRelationship( CBaseEntity *pTarget )
 {
-	if ( pTarget->pev->flags & FL_CLIENT )
+	if ( pTarget->IsPlayer() )
 		return R_DL;
 	return CBaseMonster::IRelationship( pTarget );
 }
@@ -703,7 +717,7 @@ void CLeech::Killed(entvars_t *pevAttacker, int iGib)
 	
 	pev->movetype = MOVETYPE_TOSS;
 	pev->takedamage = DAMAGE_NO;
-	SetThink( &CLeech::DeadThink );
+	SetThink( DeadThink );
 }
 
 

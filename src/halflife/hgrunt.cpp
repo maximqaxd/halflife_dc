@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 //=========================================================
 // hgrunt
 //=========================================================
@@ -433,7 +447,7 @@ BOOL CHGrunt :: CheckRangeAttack1 ( float flDot, float flDist )
 	{
 		TraceResult	tr;
 
-		if ( !(m_hEnemy->pev->flags & FL_CLIENT) && flDist <= 64 )
+		if ( !m_hEnemy->IsPlayer() && flDist <= 64 )
 		{
 			// kick nonclients, but don't shoot at them.
 			return FALSE;
@@ -477,7 +491,7 @@ BOOL CHGrunt :: CheckRangeAttack2 ( float flDot, float flDist )
 		return m_fThrowGrenade;
 	}
 
-	if ( !FBitSet ( m_hEnemy->pev->flags, FL_ONGROUND ) && m_hEnemy->pev->waterlevel == 0 )
+	if ( !FBitSet ( m_hEnemy->pev->flags, FL_ONGROUND ) && m_hEnemy->pev->waterlevel == 0 && m_vecEnemyLKP.z > pev->absmax.z  )
 	{
 		//!!!BUGBUG - we should make this check movetype and make sure it isn't FLY? Players who jump a lot are unlikely to 
 		// be grenaded.
@@ -490,8 +504,17 @@ BOOL CHGrunt :: CheckRangeAttack2 ( float flDot, float flDist )
 
 	if (FBitSet( pev->weapons, HGRUNT_HANDGRENADE))
 	{
-		// magically know where they are
-		vecTarget = Vector( m_hEnemy->pev->origin.x, m_hEnemy->pev->origin.y, m_hEnemy->pev->absmin.z );
+		// find feet
+		if (RANDOM_LONG(0,1))
+		{
+			// magically know where they are
+			vecTarget = Vector( m_hEnemy->pev->origin.x, m_hEnemy->pev->origin.y, m_hEnemy->pev->absmin.z );
+		}
+		else
+		{
+			// toss it to where you last saw them
+			vecTarget = m_vecEnemyLKP;
+		}
 		// vecTarget = m_vecEnemyLKP + (m_hEnemy->BodyTarget( pev->origin ) - m_hEnemy->pev->origin);
 		// estimate position
 		// vecTarget = vecTarget + m_hEnemy->pev->velocity * 2;
@@ -2042,7 +2065,7 @@ Schedule_t *CHGrunt :: GetSchedule( void )
 						// before he starts pluggin away.
 						if (FOkToSpeak())// && RANDOM_LONG(0,1))
 						{
-							if ((m_hEnemy != NULL) && m_hEnemy->pev->flags & FL_CLIENT)
+							if ((m_hEnemy != NULL) && m_hEnemy->IsPlayer())
 								// player
 								SENTENCEG_PlayRndSz( ENT(pev), "HG_ALERT", HGRUNT_SENTENCE_VOLUME, GRUNT_ATTN, 0, m_voicePitch);
 							else if ((m_hEnemy != NULL) &&
@@ -2305,7 +2328,7 @@ Schedule_t* CHGrunt :: GetScheduleOfType ( int Type )
 		}
 	case SCHED_GRUNT_SUPPRESS:
 		{
-			if ( m_hEnemy->pev->flags & FL_CLIENT && m_fFirstEncounter )
+			if ( m_hEnemy->IsPlayer() && m_fFirstEncounter )
 			{
 				m_fFirstEncounter = FALSE;// after first encounter, leader won't issue handsigns anymore when he has a new enemy
 				return &slGruntSignalSuppress[ 0 ];
@@ -2327,10 +2350,14 @@ Schedule_t* CHGrunt :: GetScheduleOfType ( int Type )
 		}
 	case SCHED_GRUNT_REPEL:
 		{
+			if (pev->velocity.z > -128)
+				pev->velocity.z -= 32;
 			return &slGruntRepel[ 0 ];
 		}
 	case SCHED_GRUNT_REPEL_ATTACK:
 		{
+			if (pev->velocity.z > -128)
+				pev->velocity.z -= 32;
 			return &slGruntRepelAttack[ 0 ];
 		}
 	case SCHED_GRUNT_REPEL_LAND:
@@ -2366,7 +2393,7 @@ void CHGruntRepel::Spawn( void )
 	Precache( );
 	pev->solid = SOLID_NOT;
 
-	SetUse( &CHGruntRepel::RepelUse );
+	SetUse( RepelUse );
 }
 
 void CHGruntRepel::Precache( void )
@@ -2396,7 +2423,7 @@ void CHGruntRepel::RepelUse ( CBaseEntity *pActivator, CBaseEntity *pCaller, USE
 	pBeam->PointEntInit( pev->origin + Vector(0,0,112), pGrunt->entindex() );
 	pBeam->SetFlags( BEAM_FSOLID );
 	pBeam->SetColor( 255, 255, 255 );
-	pBeam->SetThink( &CBaseEntity::SUB_Remove );
+	pBeam->SetThink( SUB_Remove );
 	pBeam->pev->nextthink = gpGlobals->time + -4096.0 * tr.flFraction / pGrunt->pev->velocity.z + 0.5;
 
 	UTIL_Remove( this );

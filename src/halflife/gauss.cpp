@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 #if !defined( OEM_BUILD ) && !defined( HLDEMO_BUILD )
 
 #include "extdll.h"
@@ -135,9 +149,9 @@ int CGauss::GetItemInfo(ItemInfo *p)
 {
 	p->pszName = STRING(pev->classname);
 	p->pszAmmo1 = "uranium";
-	p->iAmmo1 = URANIUM_MAX_CARRY;
+	p->iMaxAmmo1 = URANIUM_MAX_CARRY;
 	p->pszAmmo2 = NULL;
-	p->iAmmo2 = -1;
+	p->iMaxAmmo2 = -1;
 	p->iMaxClip = WEAPON_NOCLIP;
 	p->iSlot = 3;
 	p->iPosition = 1;
@@ -151,7 +165,7 @@ int CGauss::GetItemInfo(ItemInfo *p)
 
 BOOL CGauss::Deploy( )
 {
-	return DefaultDeploy( "models/v_gauss.mdl", "models/p_gauss.mdl", GAUSS_DRAW );
+	return DefaultDeploy( "models/v_gauss.mdl", "models/p_gauss.mdl", GAUSS_DRAW, "gauss" );
 }
 
 
@@ -306,7 +320,7 @@ void CGauss::SecondaryAttack()
 			m_pPlayer->m_flNextAttack = gpGlobals->time + 1.0;
 			m_pPlayer->TakeDamage( VARS(eoNullEntity), VARS(eoNullEntity), 50, DMG_SHOCK );
 	
-			UTIL_ScreenFade(Vector(255,128,0), 2, 0.5, 128, FFADE_IN );
+			UTIL_ScreenFade( m_pPlayer, Vector(255,128,0), 2, 0.5, 128, FFADE_IN );
 			SendWeaponAnim( GAUSS_IDLE );
 			
 			// Player may have been killed and this weapon dropped, don't execute any more code after this!
@@ -342,6 +356,7 @@ void CGauss::StartFire( void )
 	{
 		// fixed damage on primary attack
 		flDamage = gSkillData.plrDmgGauss;
+		m_pPlayer->pev->punchangle.x = -2;// punch now, after building aim vector
 	}
 
 	if (m_fInAttack != 3)
@@ -350,11 +365,7 @@ void CGauss::StartFire( void )
 
 		float flZVel = m_pPlayer->pev->velocity.z;
 
-		if ( m_fPrimaryFire )
-		{
-			m_pPlayer->pev->velocity = m_pPlayer->pev->velocity - gpGlobals->v_forward * 300;
-		}
-		else
+		if ( !m_fPrimaryFire )
 		{
 			m_pPlayer->pev->velocity = m_pPlayer->pev->velocity - gpGlobals->v_forward * flDamage * 5;
 		}
@@ -366,8 +377,11 @@ void CGauss::StartFire( void )
 		}
 
 		SendWeaponAnim( GAUSS_FIRE2 );
-	}
 
+		// player "shoot" animation
+		m_pPlayer->SetAnimation( PLAYER_ATTACK1 );
+	}
+	STOP_SOUND( ENT(m_pPlayer->pev), CHAN_WEAPON, "ambience/pulsemachine.wav" );
 	EMIT_SOUND_DYN(ENT(m_pPlayer->pev), CHAN_WEAPON, "weapons/gauss2.wav", 0.5 + flDamage * (1.0 / 400.0), ATTN_NORM, 0, 85 + RANDOM_LONG(0,0x1f)); 
 	// time until aftershock 'static discharge' sound
 	m_flPlayAftershock = gpGlobals->time + RANDOM_FLOAT(0.3, 0.8);
@@ -776,19 +790,27 @@ void CGauss::WeaponIdle( void )
 	}
 	else
 	{
+		int iAnim;
 		float flRand = RANDOM_FLOAT(0, 1);
 		if (flRand <= 0.5)
 		{
+			iAnim = GAUSS_IDLE;
 			m_flTimeWeaponIdle = gpGlobals->time + RANDOM_FLOAT ( 10, 15 );
 		}
 		else if (flRand <= 0.75)
 		{
+			iAnim = GAUSS_IDLE2;
 			m_flTimeWeaponIdle = gpGlobals->time + RANDOM_FLOAT ( 10, 15 );
 		}
 		else
 		{
+			iAnim = GAUSS_FIDGET;
 			m_flTimeWeaponIdle = gpGlobals->time + 3;
-		}		
+		}
+
+		return;
+		SendWeaponAnim( iAnim );
+		
 	}
 }
 
@@ -812,7 +834,7 @@ class CGaussAmmo : public CBasePlayerAmmo
 	}
 	BOOL AddAmmo( CBaseEntity *pOther ) 
 	{ 
-		if (pOther->GiveAmmo( AMMO_URANIUMBOX_GIVE, "uranium", URANIUM_MAX_CARRY, NULL ) != -1)
+		if (pOther->GiveAmmo( AMMO_URANIUMBOX_GIVE, "uranium", URANIUM_MAX_CARRY ) != -1)
 		{
 			EMIT_SOUND(ENT(pev), CHAN_ITEM, "items/9mmclip1.wav", 1, ATTN_NORM);
 			return TRUE;

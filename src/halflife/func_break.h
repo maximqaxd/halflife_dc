@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 #ifndef FUNC_BREAK_H
 #define FUNC_BREAK_H
 
@@ -38,13 +52,13 @@ public:
 
 	static void MaterialSoundPrecache( Materials precacheMaterial );
 	static void MaterialSoundRandom( edict_t *pEdict, Materials soundMaterial, float volume );
-	static char **MaterialSoundList( Materials precacheMaterial, int &soundCount );
+	static const char **MaterialSoundList( Materials precacheMaterial, int &soundCount );
 
-	static char *pSoundsWood[];
-	static char *pSoundsFlesh[];
-	static char *pSoundsGlass[];
-	static char *pSoundsMetal[];
-	static char *pSoundsConcrete[];
+	static const char *pSoundsWood[];
+	static const char *pSoundsFlesh[];
+	static const char *pSoundsGlass[];
+	static const char *pSoundsMetal[];
+	static const char *pSoundsConcrete[];
 	static const char *pSpawnObjects[];
 
 	static	TYPEDESCRIPTION m_SaveData[];

@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 /*
 
 ===== util.cpp ========================================================
@@ -10,9 +24,7 @@
 #include "util.h"
 #include "cbase.h"
 #include "saverestore.h"
-#ifndef _WIN32_WCE
 #include <time.h>
-#endif
 #include "../engine/shake.h"
 #include "decals.h"
 #include "player.h"
@@ -135,7 +147,7 @@ TYPEDESCRIPTION	gEntvarsDescription[] =
 
 
 #ifdef	DEBUG
-edict_t *DBG_EntOfVars( entvars_t *pev )
+edict_t *DBG_EntOfVars( const entvars_t *pev )
 {
 	if (pev->pContainingEntity != NULL)
 		return pev->pContainingEntity;
@@ -340,7 +352,7 @@ CBaseEntity *UTIL_FindEntityInSphere( CBaseEntity *pStartEntity, const Vector &v
 }
 
 
-CBaseEntity *UTIL_FindEntityByString( CBaseEntity *pStartEntity, char *szKeyword, char *szValue )
+CBaseEntity *UTIL_FindEntityByString( CBaseEntity *pStartEntity, const char *szKeyword, const char *szValue )
 {
 	edict_t	*pentEntity;
 
@@ -356,18 +368,18 @@ CBaseEntity *UTIL_FindEntityByString( CBaseEntity *pStartEntity, char *szKeyword
 	return NULL;
 }
 
-CBaseEntity *UTIL_FindEntityByClassname( CBaseEntity *pStartEntity, char *szName )
+CBaseEntity *UTIL_FindEntityByClassname( CBaseEntity *pStartEntity, const char *szName )
 {
 	return UTIL_FindEntityByString( pStartEntity, "classname", szName );
 }
 
-CBaseEntity *UTIL_FindEntityByTargetname( CBaseEntity *pStartEntity, char *szName )
+CBaseEntity *UTIL_FindEntityByTargetname( CBaseEntity *pStartEntity, const char *szName )
 {
 	return UTIL_FindEntityByString( pStartEntity, "targetname", szName );
 }
 
 
-CBaseEntity *UTIL_FindEntityGeneric( char *szWhatever, Vector &vecSrc, float flRadius )
+CBaseEntity *UTIL_FindEntityGeneric( const char *szWhatever, Vector &vecSrc, float flRadius )
 {
 	CBaseEntity *pEntity = NULL;
 
@@ -388,6 +400,26 @@ CBaseEntity *UTIL_FindEntityGeneric( char *szWhatever, Vector &vecSrc, float flR
 		}
 	}
 	return pEntity;
+}
+
+
+// returns a CBaseEntity pointer to a player by index.  Only returns if the player is spawned and connected
+// otherwise returns NULL
+// Index is 1 based
+CBaseEntity	*UTIL_PlayerByIndex( int playerIndex )
+{
+	CBaseEntity *pPlayer = NULL;
+
+	if ( playerIndex > 0 && playerIndex <= gpGlobals->maxClients )
+	{
+		edict_t *pPlayerEdict = INDEXENT( playerIndex );
+		if ( pPlayerEdict && !pPlayerEdict->free )
+		{
+			pPlayer = CBaseEntity::Instance( pPlayerEdict );
+		}
+	}
+	
+	return pPlayer;
 }
 
 
@@ -421,7 +453,7 @@ void UTIL_MakeInvVectors( const Vector &vec, globalvars_t *pgv )
 }
 
 
-void UTIL_EmitAmbientSound( edict_t *entity, const Vector &vecOrigin, char *samp, float vol, float attenuation, int fFlags, int pitch )
+void UTIL_EmitAmbientSound( edict_t *entity, const Vector &vecOrigin, const char *samp, float vol, float attenuation, int fFlags, int pitch )
 {
 	float rgfl[3];
 	vecOrigin.CopyToArray(rgfl);
@@ -449,6 +481,21 @@ static unsigned short FixedUnsigned16( float value, float scale )
 	return (unsigned short)output;
 }
 
+static short FixedSigned16( float value, float scale )
+{
+	int output;
+
+	output = value * scale;
+
+	if ( output > 32767 )
+		output = 32767;
+
+	if ( output < -32768 )
+		output = -32768;
+
+	return (short)output;
+}
+
 // Shake the screen of all clients within radius
 // radius == 0, shake all clients
 // UNDONE: Allow caller to shake clients not ONGROUND?
@@ -459,21 +506,15 @@ void UTIL_ScreenShake( const Vector &center, float amplitude, float frequency, f
 	int			i;
 	float		localAmplitude;
 	ScreenShake	shake;
-	edict_t *pEdict;
 
 	shake.duration = FixedUnsigned16( duration, 1<<12 );		// 4.12 fixed
 	shake.frequency = FixedUnsigned16( frequency, 1<<8 );	// 8.8 fixed
 
-	pEdict = g_engfuncs.pfnPEntityOfEntIndex( 1 );
-	if ( !pEdict )
-		return;
-
-	for ( i = 0; i < gpGlobals->maxClients; i++, pEdict++ )
+	for ( i = 1; i <= gpGlobals->maxClients; i++ )
 	{
-		if ( pEdict->free )	// Not in use
-			continue;
+		CBaseEntity *pPlayer = UTIL_PlayerByIndex( i );
 
-		if ( !(pEdict->v.flags & FL_CLIENT) || !(pEdict->v.flags & FL_ONGROUND) )	// Don't shake if not onground
+		if ( !pPlayer || !(pPlayer->pev->flags & FL_ONGROUND) )	// Don't shake if not onground
 			continue;
 
 		localAmplitude = 0;
@@ -482,7 +523,7 @@ void UTIL_ScreenShake( const Vector &center, float amplitude, float frequency, f
 			localAmplitude = amplitude;
 		else
 		{
-			Vector delta = center - pEdict->v.origin;
+			Vector delta = center - pPlayer->pev->origin;
 			float distance = delta.Length();
 	
 			// Had to get rid of this falloff - it didn't work well
@@ -493,7 +534,7 @@ void UTIL_ScreenShake( const Vector &center, float amplitude, float frequency, f
 		{
 			shake.amplitude = FixedUnsigned16( localAmplitude, 1<<12 );		// 4.12 fixed
 			
-			MESSAGE_BEGIN( MSG_ONE, gmsgShake, NULL, pEdict );		// use the magic #1 for "one client"
+			MESSAGE_BEGIN( MSG_ONE, gmsgShake, NULL, pPlayer->edict() );		// use the magic #1 for "one client"
 				
 				WRITE_SHORT( shake.amplitude );				// shake amount
 				WRITE_SHORT( shake.duration );				// shake lasts this long
@@ -512,12 +553,8 @@ void UTIL_ScreenShakeAll( const Vector &center, float amplitude, float frequency
 }
 
 
-void UTIL_ScreenFade( const Vector &color, float fadeTime, float fadeHold, int alpha, int flags )
+void UTIL_ScreenFadeBuild( ScreenFade &fade, const Vector &color, float fadeTime, float fadeHold, int alpha, int flags )
 {
-	int			i;
-	ScreenFade	fade;
-	edict_t *pEdict;
-
 	fade.duration = FixedUnsigned16( fadeTime, 1<<12 );		// 4.12 fixed
 	fade.holdTime = FixedUnsigned16( fadeHold, 1<<12 );		// 4.12 fixed
 	fade.r = (int)color.x;
@@ -525,80 +562,218 @@ void UTIL_ScreenFade( const Vector &color, float fadeTime, float fadeHold, int a
 	fade.b = (int)color.z;
 	fade.a = alpha;
 	fade.fadeFlags = flags;
+}
 
-	pEdict = g_engfuncs.pfnPEntityOfEntIndex( 1 );
-	if ( !pEdict )
+
+void UTIL_ScreenFadeWrite( const ScreenFade &fade, CBaseEntity *pEntity )
+{
+	if ( !pEntity || !pEntity->IsNetClient() )
 		return;
 
-	for ( i = 0; i < gpGlobals->maxClients; i++, pEdict++ )
+	MESSAGE_BEGIN( MSG_ONE, gmsgFade, NULL, pEntity->edict() );		// use the magic #1 for "one client"
+		
+		WRITE_SHORT( fade.duration );		// fade lasts this long
+		WRITE_SHORT( fade.holdTime );		// fade lasts this long
+		WRITE_SHORT( fade.fadeFlags );		// fade type (in / out)
+		WRITE_BYTE( fade.r );				// fade red
+		WRITE_BYTE( fade.g );				// fade green
+		WRITE_BYTE( fade.b );				// fade blue
+		WRITE_BYTE( fade.a );				// fade blue
+
+	MESSAGE_END();
+}
+
+
+void UTIL_ScreenFadeAll( const Vector &color, float fadeTime, float fadeHold, int alpha, int flags )
+{
+	int			i;
+	ScreenFade	fade;
+
+
+	UTIL_ScreenFadeBuild( fade, color, fadeTime, fadeHold, alpha, flags );
+
+	for ( i = 1; i <= gpGlobals->maxClients; i++ )
 	{
-		if ( pEdict->free )	// Not in use
-			continue;
-
-		if ( !(pEdict->v.flags & FL_CLIENT) )
-			continue;
-
-		MESSAGE_BEGIN( MSG_ONE, gmsgFade, NULL, pEdict );		// use the magic #1 for "one client"
-
-			WRITE_SHORT( fade.duration );		// fade lasts this long
-			WRITE_SHORT( fade.holdTime );		// fade lasts this long
-			WRITE_SHORT( fade.fadeFlags );		// fade type (in / out)
-			WRITE_BYTE( fade.r );				// fade red
-			WRITE_BYTE( fade.g );				// fade green
-			WRITE_BYTE( fade.b );				// fade blue
-			WRITE_BYTE( fade.a );				// fade blue
-
-		MESSAGE_END();
+		CBaseEntity *pPlayer = UTIL_PlayerByIndex( i );
+	
+		UTIL_ScreenFadeWrite( fade, pPlayer );
 	}
 }
 
 
-void UTIL_CenterPrintAll( char *pString )
+void UTIL_ScreenFade( CBaseEntity *pEntity, const Vector &color, float fadeTime, float fadeHold, int alpha, int flags )
 {
-	edict_t *client;
-	edict_t *pFirst = NULL;
+	ScreenFade	fade;
 
-	client = FIND_ENTITY_BY_CLASSNAME( NULL, "player" );
+	UTIL_ScreenFadeBuild( fade, color, fadeTime, fadeHold, alpha, flags );
+	UTIL_ScreenFadeWrite( fade, pEntity );
+}
 
-	while ( client && g_engfuncs.pfnEntOffsetOfPEntity(client) )
+
+void UTIL_HudMessage( CBaseEntity *pEntity, const hudtextparms_t &textparms, const char *pMessage )
+{
+	if ( !pEntity || !pEntity->IsNetClient() )
+		return;
+
+	MESSAGE_BEGIN( MSG_ONE, SVC_TEMPENTITY, NULL, pEntity->edict() );
+		WRITE_BYTE( TE_TEXTMESSAGE );
+		WRITE_BYTE( textparms.channel & 0xFF );
+
+		WRITE_SHORT( FixedSigned16( textparms.x, 1<<13 ) );
+		WRITE_SHORT( FixedSigned16( textparms.y, 1<<13 ) );
+		WRITE_BYTE( textparms.effect );
+
+		WRITE_BYTE( textparms.r1 );
+		WRITE_BYTE( textparms.g1 );
+		WRITE_BYTE( textparms.b1 );
+		WRITE_BYTE( textparms.a1 );
+
+		WRITE_BYTE( textparms.r2 );
+		WRITE_BYTE( textparms.g2 );
+		WRITE_BYTE( textparms.b2 );
+		WRITE_BYTE( textparms.a2 );
+
+		WRITE_SHORT( FixedUnsigned16( textparms.fadeinTime, 1<<8 ) );
+		WRITE_SHORT( FixedUnsigned16( textparms.fadeoutTime, 1<<8 ) );
+		WRITE_SHORT( FixedUnsigned16( textparms.holdTime, 1<<8 ) );
+
+		if ( textparms.effect == 2 )
+			WRITE_SHORT( FixedUnsigned16( textparms.fxTime, 1<<8 ) );
+		
+		if ( strlen( pMessage ) < 512 )
+		{
+			WRITE_STRING( pMessage );
+		}
+		else
+		{
+			char tmp[512];
+			strncpy( tmp, pMessage, 511 );
+			tmp[511] = 0;
+			WRITE_STRING( tmp );
+		}
+	MESSAGE_END();
+}
+
+void UTIL_HudMessageAll( const hudtextparms_t &textparms, const char *pMessage )
+{
+	int			i;
+
+	for ( i = 1; i <= gpGlobals->maxClients; i++ )
 	{
-		if ( !pFirst )
-			pFirst = client;
-
-		if ( !client->free && (client->v.flags & FL_CLIENT) )
-			CLIENT_PRINTF( client, print_center, pString );
-
-		client = FIND_ENTITY_BY_CLASSNAME( client, "player" );
-		if ( pFirst == client )
-			break;
+		CBaseEntity *pPlayer = UTIL_PlayerByIndex( i );
+		if ( pPlayer )
+			UTIL_HudMessage( pPlayer, textparms, pMessage );
 	}
 }
 
-void UTIL_ShowMessage( char *pString, edict_t *pEdict )
+					 
+extern int gmsgTextMsg, gmsgSayText;
+void UTIL_ClientPrintAll( int msg_dest, const char *msg_name, const char *param1, const char *param2, const char *param3, const char *param4 )
 {
-	if ( !pEdict || pEdict->free || !(pEdict->v.flags & FL_CLIENT) )
+	MESSAGE_BEGIN( MSG_ALL, gmsgTextMsg );
+		WRITE_BYTE( msg_dest );
+		WRITE_STRING( msg_name );
+
+		if ( param1 )
+			WRITE_STRING( param1 );
+		if ( param2 )
+			WRITE_STRING( param2 );
+		if ( param3 )
+			WRITE_STRING( param3 );
+		if ( param4 )
+			WRITE_STRING( param4 );
+
+	MESSAGE_END();
+}
+
+void ClientPrint( entvars_t *client, int msg_dest, const char *msg_name, const char *param1, const char *param2, const char *param3, const char *param4 )
+{
+	MESSAGE_BEGIN( MSG_ONE, gmsgTextMsg, NULL, client );
+		WRITE_BYTE( msg_dest );
+		WRITE_STRING( msg_name );
+
+		if ( param1 )
+			WRITE_STRING( param1 );
+		if ( param2 )
+			WRITE_STRING( param2 );
+		if ( param3 )
+			WRITE_STRING( param3 );
+		if ( param4 )
+			WRITE_STRING( param4 );
+
+	MESSAGE_END();
+}
+
+void UTIL_SayText( const char *pText, CBaseEntity *pEntity )
+{
+	if ( !pEntity->IsNetClient() )
 		return;
 
-	MESSAGE_BEGIN( MSG_ONE, gmsgHudText, NULL, pEdict );
+	MESSAGE_BEGIN( MSG_ONE, gmsgSayText, NULL, pEntity->edict() );
+		WRITE_BYTE( pEntity->entindex() );
+		WRITE_STRING( pText );
+	MESSAGE_END();
+}
+
+void UTIL_SayTextAll( const char *pText, CBaseEntity *pEntity )
+{
+	MESSAGE_BEGIN( MSG_ALL, gmsgSayText, NULL );
+		WRITE_BYTE( pEntity->entindex() );
+		WRITE_STRING( pText );
+	MESSAGE_END();
+}
+
+
+char *UTIL_dtos1( int d )
+{
+	static char buf[8];
+	sprintf( buf, "%d", d );
+	return buf;
+}
+
+char *UTIL_dtos2( int d )
+{
+	static char buf[8];
+	sprintf( buf, "%d", d );
+	return buf;
+}
+
+char *UTIL_dtos3( int d )
+{
+	static char buf[8];
+	sprintf( buf, "%d", d );
+	return buf;
+}
+
+char *UTIL_dtos4( int d )
+{
+	static char buf[8];
+	sprintf( buf, "%d", d );
+	return buf;
+}
+
+void UTIL_ShowMessage( const char *pString, CBaseEntity *pEntity )
+{
+	if ( !pEntity || !pEntity->IsNetClient() )
+		return;
+
+	MESSAGE_BEGIN( MSG_ONE, gmsgHudText, NULL, pEntity->edict() );
 	WRITE_STRING( pString );
 	MESSAGE_END();
 }
 
 
-void UTIL_ShowMessageAll( char *pString )
+void UTIL_ShowMessageAll( const char *pString )
 {
 	int		i;
-	edict_s *pEdict;
-
-	pEdict = g_engfuncs.pfnPEntityOfEntIndex( 1 );
-	if ( !pEdict )
-		return;
 
 	// loop through all players
 
-	for ( i = 0; i < gpGlobals->maxClients; i++, pEdict++ )
+	for ( i = 1; i <= gpGlobals->maxClients; i++ )
 	{
-		UTIL_ShowMessage( pString, pEdict );
+		CBaseEntity *pPlayer = UTIL_PlayerByIndex( i );
+		if ( pPlayer )
+			UTIL_ShowMessage( pString, pPlayer );
 	}
 }
 
@@ -618,6 +793,11 @@ void UTIL_TraceLine( const Vector &vecStart, const Vector &vecEnd, IGNORE_MONSTE
 void UTIL_TraceHull( const Vector &vecStart, const Vector &vecEnd, IGNORE_MONSTERS igmon, int hullNumber, edict_t *pentIgnore, TraceResult *ptr )
 {
 	TRACE_HULL( vecStart, vecEnd, (igmon == ignore_monsters ? TRUE : FALSE), hullNumber, pentIgnore, ptr );
+}
+
+void UTIL_TraceModel( const Vector &vecStart, const Vector &vecEnd, int hullNumber, edict_t *pentModel, TraceResult *ptr )
+{
+	g_engfuncs.pfnTraceModel( vecStart, vecEnd, hullNumber, pentModel, ptr );
 }
 
 
@@ -746,20 +926,20 @@ Vector UTIL_GetAimVector( edict_t *pent, float flSpeed )
 	return tmp;
 }
 
-int UTIL_IsMasterTriggered(string_t sMaster)
+int UTIL_IsMasterTriggered(string_t sMaster, CBaseEntity *pActivator)
 {
 	if (sMaster)
 	{
 		edict_t *pentTarget = FIND_ENTITY_BY_TARGETNAME(NULL, STRING(sMaster));
 	
-		if ( !FNullEnt(pentTarget) && FClassnameIs(pentTarget, "multisource") )
+		if ( !FNullEnt(pentTarget) )
 		{
 			CBaseEntity *pMaster = CBaseEntity::Instance(pentTarget);
-			if ( pMaster )
-				return pMaster->IsTriggered();
+			if ( pMaster && (pMaster->ObjectCaps() & FCAP_MASTER) )
+				return pMaster->IsTriggered( pActivator );
 		}
 
-		ALERT(at_console, "Master was null or not a MultiSource!\n");
+		ALERT(at_console, "Master was null or not a master!\n");
 	}
 
 	// if this isn't a master entity, just say yes.
@@ -822,6 +1002,12 @@ void UTIL_BloodDrips( const Vector &origin, const Vector &direction, int color, 
 	if ( g_Language == LANGUAGE_GERMAN && color == BLOOD_COLOR_RED )
 		color = 0;
 
+	if ( g_pGameRules->IsMultiplayer() )
+	{
+		// scale up blood effect in multiplayer for better visibility
+		amount *= 2;
+	}
+
 	if ( amount > 255 )
 		amount = 255;
 
@@ -867,6 +1053,9 @@ void UTIL_DecalTrace( TraceResult *pTrace, int decalNumber )
 	int index;
 	int message;
 
+	if ( decalNumber < 0 )
+		return;
+
 	index = gDecals[ decalNumber ].index;
 
 	if ( index < 0 )
@@ -886,9 +1075,9 @@ void UTIL_DecalTrace( TraceResult *pTrace, int decalNumber )
 	else 
 		entityIndex = 0;
 
+	message = TE_DECAL;
 	if ( entityIndex != 0 )
 	{
-		message = TE_DECAL;
 		if ( index > 255 )
 		{
 			message = TE_DECALHIGH;
@@ -967,7 +1156,7 @@ void UTIL_GunshotDecalTrace( TraceResult *pTrace, int decalNumber )
 	if (pTrace->flFraction == 1.0)
 		return;
 
-	MESSAGE_BEGIN( MSG_BROADCAST, SVC_TEMPENTITY );
+	MESSAGE_BEGIN( MSG_PAS, SVC_TEMPENTITY, pTrace->vecEndPos );
 		WRITE_BYTE( TE_GUNSHOTDECAL );
 		WRITE_COORD( pTrace->vecEndPos.x );
 		WRITE_COORD( pTrace->vecEndPos.y );
@@ -1001,6 +1190,23 @@ void UTIL_Ricochet( const Vector &position, float scale )
 }
 
 
+BOOL UTIL_TeamsMatch( const char *pTeamName1, const char *pTeamName2 )
+{
+	// Everyone matches unless it's teamplay
+	if ( !g_pGameRules->IsTeamplay() )
+		return TRUE;
+
+	// Both on a team?
+	if ( *pTeamName1 != 0 && *pTeamName2 != 0 )
+	{
+		if ( !stricmp( pTeamName1, pTeamName2 ) )	// Same Team?
+			return TRUE;
+	}
+
+	return FALSE;
+}
+
+
 void UTIL_StringToVector( float *pVector, const char *pString )
 {
 	char *pstr, *pfront, tempString[128];
@@ -1031,6 +1237,32 @@ void UTIL_StringToVector( float *pVector, const char *pString )
 	}
 }
 
+
+void UTIL_StringToIntArray( int *pVector, int count, const char *pString )
+{
+	char *pstr, *pfront, tempString[128];
+	int	j;
+
+	strcpy( tempString, pString );
+	pstr = pfront = tempString;
+
+	for ( j = 0; j < count; j++ )			// lifted from pr_edict.c
+	{
+		pVector[j] = atoi( pfront );
+
+		while ( *pstr && *pstr != ' ' )
+			pstr++;
+		if (!*pstr)
+			break;
+		pstr++;
+		pfront = pstr;
+	}
+
+	for ( j++; j < count; j++ )
+	{
+		pVector[j] = 0;
+	}
+}
 
 Vector UTIL_ClampVectorToBox( const Vector &input, const Vector &clampSize )
 {
@@ -1169,6 +1401,7 @@ BOOL UTIL_IsValidEntity( edict_t *pent )
 	return TRUE;
 }
 
+
 void UTIL_PrecacheOther( const char *szClassname )
 {
 	edict_t	*pent;
@@ -1186,25 +1419,21 @@ void UTIL_PrecacheOther( const char *szClassname )
 	REMOVE_ENTITY(pent);
 }
 
-void UTIL_ClientPrintAll( char *szText )
+//=========================================================
+// UTIL_LogPrintf - Prints a logged message to console.
+// Preceded by LOG: ( timestamp ) < message >
+//=========================================================
+void UTIL_LogPrintf( char *fmt, ... )
 {
-	edict_t *client;
-	edict_t *pFirst = NULL;
+	va_list			argptr;
+	static char		string[1024];
+	
+	va_start ( argptr, fmt );
+	vsprintf ( string, fmt, argptr );
+	va_end   ( argptr );
 
-	client = FIND_ENTITY_BY_CLASSNAME( NULL, "player" );
-
-	while ( client && g_engfuncs.pfnEntOffsetOfPEntity(client) )
-	{
-		if ( !pFirst )
-			pFirst = client;
-
-		if ( !client->free && (client->v.flags & FL_CLIENT) )
-			CLIENT_PRINTF( client, print_chat, szText );
-
-		client = FIND_ENTITY_BY_CLASSNAME( client, "player" );
-		if ( pFirst == client )
-			break;
-	}
+	// Print to server console
+	ALERT( at_logged, "%s", string );
 }
 
 //=========================================================

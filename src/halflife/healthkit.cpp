@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 #include "extdll.h"
 #include "util.h"
 #include "cbase.h"
@@ -166,7 +180,7 @@ void CWallHealth::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE u
 	if (!pActivator)
 		return;
 	// if it's not a player, ignore
-	if ( !(pActivator->pev->flags & FL_CLIENT) )
+	if ( !pActivator->IsPlayer() )
 		return;
 
 	// if there is no juice left, turn it off
@@ -188,7 +202,7 @@ void CWallHealth::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE u
 	}
 
 	pev->nextthink = pev->ltime + 0.25;
-	SetThink(&CWallHealth::Off);
+	SetThink(Off);
 
 	// Time to recharge yet?
 
@@ -224,7 +238,7 @@ void CWallHealth::Recharge(void)
 		EMIT_SOUND(ENT(pev), CHAN_ITEM, "items/medshot4.wav", 1.0, ATTN_NORM );
 	m_iJuice = gSkillData.healthchargerCapacity;
 	pev->frame = 0;			
-	SetThink ( &CBaseEntity::SUB_DoNothing );
+	SetThink( SUB_DoNothing );
 }
 
 void CWallHealth::Off(void)
@@ -238,8 +252,8 @@ void CWallHealth::Off(void)
 	if ((!m_iJuice) &&  ( ( m_iReactivate = g_pGameRules->FlHealthChargerRechargeTime() ) > 0) )
 	{
 		pev->nextthink = pev->ltime + m_iReactivate;
-		SetThink(&CWallHealth::Recharge);
+		SetThink(Recharge);
 	}
 	else
-		SetThink ( &CBaseEntity::SUB_DoNothing );
+		SetThink( SUB_DoNothing );
 }

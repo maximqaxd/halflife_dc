@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 #if !defined( OEM_BUILD ) && !defined( HLDEMO_BUILD )
 
 /*
@@ -89,9 +103,9 @@ public:
 	Vector m_vecPrevSound;
 	float m_flPrevSoundTime;
 
-	static char *pHitSilo[];
-	static char *pHitDirt[];
-	static char *pHitWater[];
+	static const char *pHitSilo[];
+	static const char *pHitDirt[];
+	static const char *pHitWater[];
 };
 
 
@@ -107,13 +121,13 @@ LINK_ENTITY_TO_CLASS( monster_tentacle, CTentacle );
 #define TE_DIRT 1
 #define TE_WATER 2
 
-char *CTentacle::pHitSilo[] = 
+const char *CTentacle::pHitSilo[] = 
 {
 	"tentacle/te_strike1.wav",
 	"tentacle/te_strike2.wav",
 };
 
-char *CTentacle::pHitDirt[] = 
+const char *CTentacle::pHitDirt[] = 
 {
 	"player/pl_dirt1.wav",
 	"player/pl_dirt2.wav",
@@ -121,7 +135,7 @@ char *CTentacle::pHitDirt[] =
 	"player/pl_dirt4.wav",
 };
 
-char *CTentacle::pHitWater[] = 
+const char *CTentacle::pHitWater[] = 
 {
 	"player/pl_slosh1.wav",
 	"player/pl_slosh2.wav",
@@ -145,6 +159,10 @@ TYPEDESCRIPTION	CTentacle::m_SaveData[] =
 	DEFINE_FIELD( CTentacle, m_flHitTime, FIELD_TIME ),
 	DEFINE_FIELD( CTentacle, m_flTapRadius, FIELD_FLOAT ),
 	DEFINE_FIELD( CTentacle, m_flNextSong, FIELD_TIME ),
+	DEFINE_FIELD( CTentacle, m_iTapSound, FIELD_INTEGER ),
+	DEFINE_FIELD( CTentacle, m_flMaxYaw, FIELD_FLOAT ),
+	DEFINE_FIELD( CTentacle, m_vecPrevSound, FIELD_POSITION_VECTOR ),
+	DEFINE_FIELD( CTentacle, m_flPrevSoundTime, FIELD_TIME ),
 };
 IMPLEMENT_SAVERESTORE( CTentacle, CBaseMonster );
 
@@ -247,9 +265,9 @@ void CTentacle :: Spawn( )
 	
 	m_bloodColor		= BLOOD_COLOR_GREEN;
 
-	SetThink( &CTentacle::Start );
-	SetTouch( &CTentacle::HitTouch );
-	SetUse( &CTentacle::CommandUse );
+	SetThink( Start );
+	SetTouch( HitTouch );
+	SetUse( CommandUse );
 
 	pev->nextthink = gpGlobals->time + 0.2;
 
@@ -696,7 +714,7 @@ void CTentacle::CommandUse( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_T
 	{
 	case USE_OFF:
 		pev->takedamage = DAMAGE_NO;
-		SetThink( &CTentacle::DieThink );
+		SetThink( DieThink );
 		m_iGoalAnim = TENTACLE_ANIM_Engine_Death1;
 		break;
 	case USE_ON:
@@ -710,7 +728,7 @@ void CTentacle::CommandUse( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_T
 		break;
 	case USE_TOGGLE:
 		pev->takedamage = DAMAGE_NO;
-		SetThink( &CTentacle::DieThink );
+		SetThink( DieThink );
 		m_iGoalAnim = TENTACLE_ANIM_Engine_Idle;
 		break;
 	}
@@ -908,7 +926,7 @@ void CTentacle :: HandleAnimEvent( MonsterEvent_t *pEvent )
 // void CTentacle :: Start( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value )
 void CTentacle :: Start( void )
 {
-	SetThink( &CTentacle::Cycle );
+	SetThink( Cycle );
 
 	if ( !g_fFlySound )
 	{

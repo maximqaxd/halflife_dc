@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 /*
 
 ===== world.cpp ========================================================
@@ -18,6 +32,7 @@
 #include "player.h"
 #include "weapons.h"
 #include "gamerules.h"
+#include "teamplay_gamerules.h"
 
 extern CGraph WorldGraph;
 extern CSoundEnt *pSoundEnt;
@@ -28,8 +43,6 @@ CGlobalState					gGlobalState;
 extern DLL_GLOBAL	int			gDisplayTitle;
 
 extern void W_Precache(void);
-
-int g_DecalIndex;
 
 //
 // This must match the list in util.h
@@ -94,8 +107,8 @@ class CDecal : public CBaseEntity
 public:
 	void	Spawn( void );
 	void	KeyValue( KeyValueData *pkvd );
+	void	EXPORT StaticDecal( void );
 	void	EXPORT TriggerDecal( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value );
-	void	EXPORT SprayDecal(void);
 };
 
 LINK_ENTITY_TO_CLASS( infodecal, CDecal );
@@ -109,27 +122,21 @@ void CDecal :: Spawn( void )
 		return;
 	}
 
-	SetThink( &CDecal::SprayDecal );
-
-	g_DecalIndex++;
 	if ( FStringNull ( pev->targetname ) )
 	{
-		pev->nextthink = g_DecalIndex / 100 + gpGlobals->time + 1.0;
+		SetThink( StaticDecal );
+		// if there's no targetname, the decal will spray itself on as soon as the world is done spawning.
+		pev->nextthink = gpGlobals->time;
 	}
 	else
 	{
 		// if there IS a targetname, the decal sprays itself on when it is triggered.
-		SetThink ( &CBaseEntity::SUB_DoNothing );
-		SetUse(&CDecal::TriggerDecal);
+		SetThink ( SUB_DoNothing );
+		SetUse(TriggerDecal);
 	}
 }
 
 void CDecal :: TriggerDecal ( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value )
-{
-	SprayDecal();
-}
-
-void CDecal :: SprayDecal ( void )
 {
 	// this is set up as a USE function for infodecals that have targetnames, so that the
 	// decal doesn't get applied until it is fired. (usually by a scripted sequence)
@@ -150,8 +157,27 @@ void CDecal :: SprayDecal ( void )
 			WRITE_SHORT( (int)VARS(trace.pHit)->modelindex );
 	MESSAGE_END();
 
-	SetThink( &CBaseEntity::SUB_Remove );
+	SetThink( SUB_Remove );
 	pev->nextthink = gpGlobals->time + 0.1;
+}
+
+
+void CDecal :: StaticDecal( void )
+{
+	TraceResult trace;
+	int			entityIndex, modelIndex;
+
+	UTIL_TraceLine( pev->origin - Vector(5,5,5), pev->origin + Vector(5,5,5),  ignore_monsters, ENT(pev), &trace );
+
+	entityIndex = (short)ENTINDEX(trace.pHit);
+	if ( entityIndex )
+		modelIndex = (int)VARS(trace.pHit)->modelindex;
+	else
+		modelIndex = 0;
+
+	g_engfuncs.pfnStaticDecal( pev->origin, (int)pev->skin, entityIndex, modelIndex );
+
+	SUB_Remove();
 }
 
 
@@ -218,6 +244,8 @@ void CopyToBodyQue(entvars_t *pev)
 	pevHead->velocity	= pev->velocity;
 	pevHead->flags		= 0;
 	pevHead->deadflag	= pev->deadflag;
+	pevHead->renderfx	= kRenderFxDeadPlayer;
+	pevHead->renderamt	= ENTINDEX( ENT( pev ) );
 
 	pevHead->effects    = pev->effects | EF_NOINTERP;
 	//pevHead->goalstarttime = pev->goalstarttime;
@@ -232,33 +260,6 @@ void CopyToBodyQue(entvars_t *pev)
 	g_pBodyQueueHead = pevHead->owner;
 }
 
-//=========================================================
-// instantiate the proper game rules object
-//=========================================================
-
-CGameRules* InstallGameRules( char *szGameName )
-{
-	if ( g_pGameRules )
-		delete g_pGameRules;
-
-	if ( !strcmp( szGameName, "half-life" ) )
-	{
-		// generic half-life
-		return new CHalfLifeRules;
-	}
-
-	if ( !strcmp( szGameName, "half-life multiplay" ) )
-	{
-		// vanilla deathmatch
-		return new CHalfLifeMultiplay;
-	}
-	else
-	{
-		// generic half-life
-		ALERT( at_error, "Could not find game rules for game '%s'! Using Half-Life rules\n", szGameName );
-		return new CHalfLifeRules;
-	}
-}
 
 CGlobalState::CGlobalState( void )
 {
@@ -277,7 +278,7 @@ globalentity_t *CGlobalState :: Find( string_t globalname )
 		return NULL;
 
 	globalentity_t *pTest;
-	char *pEntityName = STRING(globalname);
+	const char *pEntityName = STRING(globalname);
 
 	
 	pTest = m_pList;
@@ -335,7 +336,7 @@ void CGlobalState :: EntitySetState( string_t globalname, GLOBALESTATE state )
 }
 
 
-globalentity_t *CGlobalState :: EntityFromTable( string_t globalname )
+const globalentity_t *CGlobalState :: EntityFromTable( string_t globalname )
 {
 	globalentity_t *pEnt = Find( globalname );
 
@@ -478,6 +479,24 @@ void CWorld :: Spawn( void )
 void CWorld :: Precache( void )
 {
 	g_pLastSpawn = NULL;
+	
+#if 1
+	CVAR_SET_STRING("sv_gravity", "800"); // 67ft/sec
+	CVAR_SET_STRING("sv_stepsize", "18");
+#else
+	CVAR_SET_STRING("sv_gravity", "384"); // 32ft/sec
+	CVAR_SET_STRING("sv_stepsize", "24");
+#endif
+
+	CVAR_SET_STRING("room_type", "0");// clear DSP
+
+	// Set up game rules
+	if (g_pGameRules)
+	{
+		delete g_pGameRules;
+	}
+
+	g_pGameRules = InstallGameRules( );
 
 	//!!!UNDONE why is there so much Spawn code in the Precache function? I'll just keep it here 
 
@@ -492,19 +511,7 @@ void CWorld :: Precache( void )
 	}
 
 	InitBodyQue();
-
-#if 1
-	CVAR_SET_STRING("sv_gravity", "800"); // 67ft/sec
-	CVAR_SET_STRING("sv_stepsize", "18");
-#else
-	CVAR_SET_STRING("sv_gravity", "384"); // 32ft/sec
-	CVAR_SET_STRING("sv_stepsize", "24");
-#endif
-
-	CVAR_SET_STRING("room_type", "0");// clear DSP
 	
-	g_DecalIndex = 0;
-
 // init sentence group playback stuff from sentences.txt.
 // ok to call this multiple times, calls after first are ignored.
 
@@ -531,10 +538,6 @@ void CWorld :: Precache( void )
 	PRECACHE_SOUND( "common/bodydrop3.wav" );// dead bodies hitting the ground (animation events)
 	PRECACHE_SOUND( "common/bodydrop4.wav" );
 	
-	UTIL_PrecacheOther("item_suit");
-	UTIL_PrecacheOther("item_battery");
-	UTIL_PrecacheOther("item_longjump");
-
 	g_Language = (int)CVAR_GET_FLOAT( "sv_language" );
 	if ( g_Language == LANGUAGE_GERMAN )
 	{
@@ -631,7 +634,7 @@ void CWorld :: Precache( void )
 		CBaseEntity *pEntity = CBaseEntity::Create( "env_message", g_vecZero, g_vecZero, NULL );
 		if ( pEntity )
 		{
-			pEntity->SetThink( &CBaseEntity::SUB_CallUseToggle );
+			pEntity->SetThink( SUB_CallUseToggle );
 			pEntity->pev->message = pev->netname;
 			pev->netname = 0;
 			pEntity->pev->nextthink = gpGlobals->time + 0.3;
@@ -649,10 +652,14 @@ void CWorld :: Precache( void )
 	else
 		gDisplayTitle = FALSE;
 
-	if ( gpGlobals->deathmatch )
-		g_pGameRules = InstallGameRules( "half-life multiplay" );
+	if ( pev->spawnflags & SF_WORLD_FORCETEAM )
+	{
+		CVAR_SET_FLOAT( "mp_defaultteam", 1 );
+	}
 	else
-		g_pGameRules = InstallGameRules( "half-life" );
+	{
+		CVAR_SET_FLOAT( "mp_defaultteam", 0 );
+	}
 }
 
 
@@ -710,6 +717,19 @@ void CWorld :: KeyValue( KeyValueData *pkvd )
 		if ( atoi(pkvd->szValue) )
 			pev->spawnflags |= SF_WORLD_TITLE;
 
+		pkvd->fHandled = TRUE;
+	}
+	else if ( FStrEq(pkvd->szKeyName, "mapteams") )
+	{
+		pev->team = ALLOC_STRING( pkvd->szValue );
+		pkvd->fHandled = TRUE;
+	}
+	else if ( FStrEq(pkvd->szKeyName, "defaultteam") )
+	{
+		if ( atoi(pkvd->szValue) )
+		{
+			pev->spawnflags |= SF_WORLD_FORCETEAM;
+		}
 		pkvd->fHandled = TRUE;
 	}
 	else

@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 //=========================================================
 // Alien slave monster
 //=========================================================
@@ -74,10 +88,10 @@ public:
 
 	EHANDLE m_hDead;
 
-	static char *pAttackHitSounds[];
-	static char *pAttackMissSounds[];
-	static char *pPainSounds[];
-	static char *pDeathSounds[];
+	static const char *pAttackHitSounds[];
+	static const char *pAttackMissSounds[];
+	static const char *pPainSounds[];
+	static const char *pDeathSounds[];
 };
 LINK_ENTITY_TO_CLASS( monster_alien_slave, CISlave );
 LINK_ENTITY_TO_CLASS( monster_vortigaunt, CISlave );
@@ -102,26 +116,26 @@ IMPLEMENT_SAVERESTORE( CISlave, CSquadMonster );
 
 
 
-char *CISlave::pAttackHitSounds[] = 
+const char *CISlave::pAttackHitSounds[] = 
 {
 	"zombie/claw_strike1.wav",
 	"zombie/claw_strike2.wav",
 	"zombie/claw_strike3.wav",
 };
 
-char *CISlave::pAttackMissSounds[] = 
+const char *CISlave::pAttackMissSounds[] = 
 {
 	"zombie/claw_miss1.wav",
 	"zombie/claw_miss2.wav",
 };
 
-char *CISlave::pPainSounds[] = 
+const char *CISlave::pPainSounds[] = 
 {
 	"aslave/slv_pain1.wav",
 	"aslave/slv_pain2.wav",
 };
 
-char *CISlave::pDeathSounds[] = 
+const char *CISlave::pDeathSounds[] = 
 {
 	"aslave/slv_die1.wav",
 	"aslave/slv_die2.wav",
@@ -139,7 +153,7 @@ int	CISlave :: Classify ( void )
 
 int CISlave::IRelationship( CBaseEntity *pTarget )
 {
-	if ( (pTarget->pev->flags & FL_CLIENT) )
+	if ( (pTarget->IsPlayer()) )
 		if ( (pev->spawnflags & SF_MONSTER_WAIT_UNTIL_PROVOKED ) && ! (m_afMemory & bits_MEMORY_PROVOKED ))
 			return R_NO;
 	return CBaseMonster::IRelationship( pTarget );

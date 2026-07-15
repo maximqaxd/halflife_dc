@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 /*
 
 ===== doors.cpp ========================================================
@@ -306,7 +320,7 @@ void CBaseDoor::Spawn( )
 		SetTouch ( NULL );
 	}
 	else // touchable button
-		SetTouch( &CBaseDoor::DoorTouch );
+		SetTouch( DoorTouch );
 }
  
 
@@ -479,7 +493,7 @@ void CBaseDoor::DoorTouch( CBaseEntity *pOther )
 	// If door has master, and it's not ready to trigger, 
 	// play 'locked' sound
 
-	if (m_sMaster && !UTIL_IsMasterTriggered(m_sMaster))
+	if (m_sMaster && !UTIL_IsMasterTriggered(m_sMaster, pOther))
 		PlayLockSounds(pev, &m_ls, TRUE, FALSE);
 	
 	// If door is somebody's target, then touching does nothing.
@@ -515,7 +529,7 @@ void CBaseDoor::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE use
 //
 int CBaseDoor::DoorActivate( )
 {
-	if (!UTIL_IsMasterTriggered(m_sMaster))
+	if (!UTIL_IsMasterTriggered(m_sMaster, m_hActivator))
 		return 0;
 
 	if (FBitSet(pev->spawnflags, SF_DOOR_NO_AUTO_RETURN) && m_toggle_state == TS_AT_TOP)
@@ -525,7 +539,7 @@ int CBaseDoor::DoorActivate( )
 	else
 	{// door should open
 
-		if ( m_hActivator != NULL && m_hActivator->pev->flags & FL_CLIENT )
+		if ( m_hActivator != NULL && m_hActivator->IsPlayer() )
 		{// give health if player opened the door (medikit)
 		// VARS( m_eoActivator )->health += m_bHealthValue;
 	
@@ -554,12 +568,14 @@ void CBaseDoor::DoorGoUp( void )
 	// It could be going-down, if blocked.
 	ASSERT(m_toggle_state == TS_AT_BOTTOM || m_toggle_state == TS_GOING_DOWN);
 
+	// emit door moving and stop sounds on CHAN_STATIC so that the multicast doesn't
+	// filter them out and leave a client stuck with looping door sounds!
 	if ( !FBitSet( pev->spawnflags, SF_DOOR_SILENT ) )
-		EMIT_SOUND(ENT(pev), CHAN_BODY, (char*)STRING(pev->noiseMoving), 1, ATTN_NORM);
+		EMIT_SOUND(ENT(pev), CHAN_STATIC, (char*)STRING(pev->noiseMoving), 1, ATTN_NORM);
 
 	m_toggle_state = TS_GOING_UP;
 	
-	SetMoveDone( &CBaseDoor::DoorHitTop );
+	SetMoveDone( DoorHitTop );
 	if ( FClassnameIs(pev, "func_door_rotating"))		// !!! BUGBUG Triggered doors don't work with this yet
 	{
 		float	sign = 1.0;
@@ -596,7 +612,8 @@ void CBaseDoor::DoorHitTop( void )
 {
 	if ( !FBitSet( pev->spawnflags, SF_DOOR_SILENT ) )
 	{
-		EMIT_SOUND(ENT(pev), CHAN_BODY, (char*)STRING(pev->noiseArrived), 1, ATTN_NORM);
+		STOP_SOUND(ENT(pev), CHAN_STATIC, (char*)STRING(pev->noiseMoving) );
+		EMIT_SOUND(ENT(pev), CHAN_STATIC, (char*)STRING(pev->noiseArrived), 1, ATTN_NORM);
 	}
 
 	ASSERT(m_toggle_state == TS_GOING_UP);
@@ -607,13 +624,13 @@ void CBaseDoor::DoorHitTop( void )
 	{
 		// Re-instate touch method, movement is complete
 		if ( !FBitSet ( pev->spawnflags, SF_DOOR_USE_ONLY ) )
-			SetTouch( &CBaseDoor::DoorTouch );
+			SetTouch( DoorTouch );
 	}
 	else
 	{
 		// In flWait seconds, DoorGoDown will fire, unless wait is -1, then door stays open
 		pev->nextthink = pev->ltime + m_flWait;
-		SetThink( &CBaseDoor::DoorGoDown );
+		SetThink( DoorGoDown );
 
 		if ( m_flWait == -1 )
 		{
@@ -635,14 +652,14 @@ void CBaseDoor::DoorHitTop( void )
 void CBaseDoor::DoorGoDown( void )
 {
 	if ( !FBitSet( pev->spawnflags, SF_DOOR_SILENT ) )
-		EMIT_SOUND(ENT(pev), CHAN_BODY, (char*)STRING(pev->noiseMoving), 1, ATTN_NORM);
+		EMIT_SOUND(ENT(pev), CHAN_STATIC, (char*)STRING(pev->noiseMoving), 1, ATTN_NORM);
 	
 #ifdef DOOR_ASSERT
 	ASSERT(m_toggle_state == TS_AT_TOP);
 #endif // DOOR_ASSERT
 	m_toggle_state = TS_GOING_DOWN;
 
-	SetMoveDone( &CBaseDoor::DoorHitBottom );
+	SetMoveDone( DoorHitBottom );
 	if ( FClassnameIs(pev, "func_door_rotating"))//rotating door
 		AngularMove( m_vecAngle1, pev->speed);
 	else
@@ -656,7 +673,8 @@ void CBaseDoor::DoorHitBottom( void )
 {
 	if ( !FBitSet( pev->spawnflags, SF_DOOR_SILENT ) )
 	{
-		EMIT_SOUND(ENT(pev), CHAN_BODY, (char*)STRING(pev->noiseArrived), 1, ATTN_NORM);
+		STOP_SOUND(ENT(pev), CHAN_STATIC, (char*)STRING(pev->noiseMoving) );
+		EMIT_SOUND(ENT(pev), CHAN_STATIC, (char*)STRING(pev->noiseArrived), 1, ATTN_NORM);
 	}
 
 	ASSERT(m_toggle_state == TS_GOING_DOWN);
@@ -668,7 +686,7 @@ void CBaseDoor::DoorHitBottom( void )
 		SetTouch ( NULL );
 	}
 	else // touchable door
-		SetTouch( &CBaseDoor::DoorTouch );
+		SetTouch( DoorTouch );
 
 	SUB_UseTargets( m_hActivator, USE_TOGGLE, 0 ); // this isn't finished
 
@@ -842,7 +860,7 @@ void CRotDoor::Spawn( void )
 		SetTouch ( NULL );
 	}
 	else // touchable button
-		SetTouch( &CBaseDoor::DoorTouch );
+		SetTouch( DoorTouch );
 }
 
 
@@ -1000,7 +1018,7 @@ void CMomentaryDoor::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYP
 		// This entity only thinks when it moves, so if it's thinking, it's in the process of moving
 		// play the sound when it starts moving
 		if ( pev->nextthink < pev->ltime || pev->nextthink == 0 )
-			EMIT_SOUND(ENT(pev), CHAN_BODY, (char*)STRING(pev->noiseMoving), 1, ATTN_NORM);
+			EMIT_SOUND(ENT(pev), CHAN_STATIC, (char*)STRING(pev->noiseMoving), 1, ATTN_NORM);
 
 		LinearMove( move, speed );
 	}

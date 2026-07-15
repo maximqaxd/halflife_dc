@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 /*
 
 ===== subs.cpp ========================================================
@@ -42,10 +56,37 @@ void CNullEntity :: Spawn( void )
 }
 LINK_ENTITY_TO_CLASS(info_null,CNullEntity);
 
+class CBaseDMStart : public CPointEntity
+{
+public:
+	void		KeyValue( KeyValueData *pkvd );
+	BOOL		IsTriggered( CBaseEntity *pEntity );
+
+private:
+};
+
 // These are the new entry points to entities. 
-LINK_ENTITY_TO_CLASS(info_player_deathmatch,CPointEntity);
+LINK_ENTITY_TO_CLASS(info_player_deathmatch,CBaseDMStart);
 LINK_ENTITY_TO_CLASS(info_player_start,CPointEntity);
 LINK_ENTITY_TO_CLASS(info_landmark,CPointEntity);
+
+void CBaseDMStart::KeyValue( KeyValueData *pkvd )
+{
+	if (FStrEq(pkvd->szKeyName, "master"))
+	{
+		pev->netname = ALLOC_STRING(pkvd->szValue);
+		pkvd->fHandled = TRUE;
+	}
+	else
+		CPointEntity::KeyValue( pkvd );
+}
+
+BOOL CBaseDMStart::IsTriggered( CBaseEntity *pEntity )
+{
+	BOOL master = UTIL_IsMasterTriggered( pev->netname, pEntity );
+
+	return master;
+}
 
 // This updates global tables that need to know about entities being removed
 void CBaseEntity::UpdateOnRemove( void )
@@ -145,7 +186,7 @@ void CBaseEntity :: SUB_UseTargets( CBaseEntity *pActivator, USE_TYPE useType, f
 }
 
 
-void FireTargets( char *targetName, CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value )
+void FireTargets( const char *targetName, CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value )
 {
 	edict_t *pentTarget = NULL;
 	if ( !targetName )
@@ -190,7 +231,7 @@ void CBaseDelay :: SUB_UseTargets( CBaseEntity *pActivator, USE_TYPE useType, fl
 
 		pTemp->pev->nextthink = gpGlobals->time + m_flDelay;
 
-		pTemp->SetThink( &CBaseDelay::DelayThink );
+		pTemp->SetThink( DelayThink );
 		
 		// Save the useType
 		pTemp->pev->button = (int)useType;
@@ -202,7 +243,7 @@ void CBaseDelay :: SUB_UseTargets( CBaseEntity *pActivator, USE_TYPE useType, fl
 		// This wasn't in the release build of Half-Life.  We should have moved m_hActivator into this class
 		// but changing member variable hierarchy would break save/restore without some ugly code.
 		// This code is not as ugly as that code
-		if ( pActivator && pActivator->pev->flags & FL_CLIENT )		// If a player activates, then save it
+		if ( pActivator && pActivator->IsPlayer() )		// If a player activates, then save it
 		{
 			pTemp->pev->owner = pActivator->edict();
 		}
@@ -278,8 +319,14 @@ void SetMovedir( entvars_t *pev )
 
 void CBaseDelay::DelayThink( void )
 {
+	CBaseEntity *pActivator = NULL;
+
+	if ( pev->owner != NULL )		// A player activated this on delay
+	{
+		pActivator = CBaseEntity::Instance( pev->owner );	
+	}
 	// The use type is cached (and stashed) in pev->button
-	SUB_UseTargets(this, (USE_TYPE)pev->button, 0 );
+	SUB_UseTargets( pActivator, (USE_TYPE)pev->button, 0 );
 	REMOVE_ENTITY(ENT(pev));
 }
 
@@ -366,7 +413,7 @@ void CBaseToggle ::  LinearMove( Vector	vecDest, float flSpeed )
 
 	// set nextthink to trigger a call to LinearMoveDone when dest is reached
 	pev->nextthink = pev->ltime + flTravelTime;
-	SetThink( &CBaseToggle::LinearMoveDone );
+	SetThink( LinearMoveDone );
 
 	// scale the destdelta vector by the time spent traveling to get velocity
 	pev->velocity = vecDestDelta / flTravelTime;
@@ -389,7 +436,7 @@ void CBaseToggle :: LinearMoveDone( void )
 
 BOOL CBaseToggle :: IsLockedByMaster( void )
 {
-	if (m_sMaster && !UTIL_IsMasterTriggered(m_sMaster))
+	if (m_sMaster && !UTIL_IsMasterTriggered(m_sMaster, m_hActivator))
 		return TRUE;
 	else
 		return FALSE;
@@ -426,7 +473,7 @@ void CBaseToggle :: AngularMove( Vector vecDestAngle, float flSpeed )
 
 	// set nextthink to trigger a call to AngularMoveDone when dest is reached
 	pev->nextthink = pev->ltime + flTravelTime;
-	SetThink( &CBaseToggle::AngularMoveDone );
+	SetThink( AngularMoveDone );
 
 	// scale the destdelta vector by the time spent traveling to get velocity
 	pev->avelocity = vecDestDelta / flTravelTime;

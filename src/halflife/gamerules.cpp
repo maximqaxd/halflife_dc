@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 //=========================================================
 // GameRules.cpp
 //=========================================================
@@ -8,6 +22,7 @@
 #include	"player.h"
 #include	"weapons.h"
 #include	"gamerules.h"
+#include	"teamplay_gamerules.h"
 #include	"skill.h"
 
 extern edict_t *EntSelectSpawnPoint( CBaseEntity *pPlayer );
@@ -61,29 +76,24 @@ edict_t *CGameRules :: GetPlayerSpawnSpot( CBasePlayer *pPlayer )
 //=========================================================
 BOOL CGameRules::CanHavePlayerItem( CBasePlayer *pPlayer, CBasePlayerItem *pWeapon )
 {
-	ItemInfo info;
-
-	if ( pWeapon->GetItemInfo(&info) )
+	if ( pWeapon->pszAmmo1() )
 	{
-		if ( info.pszAmmo1 )
+		if ( !CanHaveAmmo( pPlayer, pWeapon->pszAmmo1(), pWeapon->iMaxAmmo1() ) )
 		{
-			if ( !CanHaveAmmo( pPlayer, info.pszAmmo1, info.iAmmo1 ) )
-			{
-				// we can't carry anymore ammo for this gun. We can only 
-				// have the gun if we aren't already carrying one of this type
-				if ( pPlayer->HasPlayerItem( pWeapon ) )
-				{
-					return FALSE;
-				}
-			}
-		}
-		else
-		{
-			// weapon doesn't use ammo, don't take another if you already have it.
+			// we can't carry anymore ammo for this gun. We can only 
+			// have the gun if we aren't already carrying one of this type
 			if ( pPlayer->HasPlayerItem( pWeapon ) )
 			{
 				return FALSE;
 			}
+		}
+	}
+	else
+	{
+		// weapon doesn't use ammo, don't take another if you already have it.
+		if ( pPlayer->HasPlayerItem( pWeapon ) )
+		{
+			return FALSE;
 		}
 	}
 
@@ -124,9 +134,10 @@ void CGameRules::RefreshSkillData ( void )
 	gSkillData.barneyHealth = GetSkillCvar( "sk_barney_health");
 
 	// Big Momma
-	gSkillData.bigmommaHealthFactor = 1;
-	gSkillData.bigmommaDmgSlash = 45;
-	gSkillData.bigmommaDmgBlast = 150;
+	gSkillData.bigmommaHealthFactor = GetSkillCvar( "sk_bigmomma_health_factor" );
+	gSkillData.bigmommaDmgSlash = GetSkillCvar( "sk_bigmomma_dmg_slash" );
+	gSkillData.bigmommaDmgBlast = GetSkillCvar( "sk_bigmomma_dmg_blast" );
+	gSkillData.bigmommaRadiusBlast = GetSkillCvar( "sk_bigmomma_radius_blast" );
 
 	// Bullsquid
 	gSkillData.bullsquidHealth = GetSkillCvar( "sk_bullsquid_health");
@@ -285,4 +296,40 @@ void CGameRules::RefreshSkillData ( void )
 	gSkillData.plrLeg = GetSkillCvar( "sk_player_leg" );
 	gSkillData.plrArm = GetSkillCvar( "sk_player_arm" );
 }
+
+//=========================================================
+// instantiate the proper game rules object
+//=========================================================
+
+CGameRules *InstallGameRules( void )
+{
+	SERVER_COMMAND( "exec game.cfg\n" );
+	SERVER_EXECUTE( );
+
+	if ( !gpGlobals->deathmatch )
+	{
+		// generic half-life
+		return new CHalfLifeRules;
+	}
+	else
+	{
+		if ( CVAR_GET_FLOAT( "mp_teamplay" ) > 0 )
+		{
+			// teamplay
+			return new CHalfLifeTeamplay;
+		}
+		if ((int)gpGlobals->deathmatch == 1)
+		{
+			// vanilla deathmatch
+			return new CHalfLifeMultiplay;
+		}
+		else
+		{
+			// vanilla deathmatch??
+			return new CHalfLifeMultiplay;
+		}
+	}
+}
+
+
 

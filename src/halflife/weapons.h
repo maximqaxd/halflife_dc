@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 #ifndef WEAPONS_H
 #define WEAPONS_H
 
@@ -181,17 +195,17 @@ typedef	enum
 
 typedef struct
 {
-	int iSlot;
-	int iPosition;
-	char *pszAmmo1;
-	int iAmmo1;
-	char *pszAmmo2;
-	int iAmmo2;
-	char *pszName;
-	int iMaxClip;
-	int iId;
-	int iFlags;
-	int iWeight;
+	int		iSlot;
+	int		iPosition;
+	const char	*pszAmmo1;	// ammo 1 type
+	int		iMaxAmmo1;		// max ammo 1
+	const char	*pszAmmo2;	// ammo 2 type
+	int		iMaxAmmo2;		// max ammo 2
+	const char	*pszName;
+	int		iMaxClip;
+	int		iId;
+	int		iFlags;
+	int		iWeight;// this value used to determine this weapon's importance in autoselection.
 } ItemInfo;
 
 typedef struct
@@ -242,8 +256,8 @@ public:
 
 	virtual int UpdateClientData( CBasePlayer *pPlayer ) { return 0; }
 
-	static ItemInfo ItemInfoArray[ MAX_WEAPONS ]; // TODO: Check for existing
-	static AmmoInfo AmmoInfoArray[ MAX_AMMO_SLOTS ]; // TODO: Check for existing
+	static ItemInfo ItemInfoArray[ MAX_WEAPONS ];
+	static AmmoInfo AmmoInfoArray[ MAX_AMMO_SLOTS ];
 
 	CBasePlayer	*m_pPlayer;
 	CBasePlayerItem *m_pNext;
@@ -251,8 +265,18 @@ public:
 
 	virtual int iItemSlot( void ) { return 0; }			// return 0 to MAX_ITEMS_SLOTS, used in hud
 
-	int		m_iIdPrimary;										// Unique Id for primary ammo
-	int		m_iIdSecondary;										// Unique Id for secondary ammo
+	int			iItemPosition( void ) { return ItemInfoArray[ m_iId ].iPosition; }
+	const char	*pszAmmo1( void )	{ return ItemInfoArray[ m_iId ].pszAmmo1; }
+	int			iMaxAmmo1( void )	{ return ItemInfoArray[ m_iId ].iMaxAmmo1; }
+	const char	*pszAmmo2( void )	{ return ItemInfoArray[ m_iId ].pszAmmo2; }
+	int			iMaxAmmo2( void )	{ return ItemInfoArray[ m_iId ].iMaxAmmo2; }
+	const char	*pszName( void )	{ return ItemInfoArray[ m_iId ].pszName; }
+	int			iMaxClip( void )	{ return ItemInfoArray[ m_iId ].iMaxClip; }
+	int			iWeight( void )		{ return ItemInfoArray[ m_iId ].iWeight; }
+	int			iFlags( void )		{ return ItemInfoArray[ m_iId ].iFlags; }
+
+	// int		m_iIdPrimary;										// Unique Id for primary ammo
+	// int		m_iIdSecondary;										// Unique Id for secondary ammo
 };
 
 
@@ -290,7 +314,7 @@ public:
 
 	virtual BOOL CanDeploy( void );
 	virtual BOOL IsUseable( void );
-	BOOL DefaultDeploy( char *szViewModel, char *szWeaponModel, int iAnim );
+	BOOL DefaultDeploy( char *szViewModel, char *szWeaponModel, int iAnim, char *szAnimExt );
 	int DefaultReload( int iClipSize, int iAnim, float fDelay );
 
 	virtual void ItemPostFrame( void );	// called each frame by the player PostThink
@@ -302,6 +326,7 @@ public:
 	virtual int UpdateClientData( CBasePlayer *pPlayer );		// sends hud info to client dll, if things have changed
 	virtual void RetireWeapon( void );
 	virtual BOOL ShouldWeaponIdle( void ) {return FALSE; };
+	virtual void Holster( void );
 	
 	int	PrimaryAmmoIndex(); 
 	int	SecondaryAmmoIndex(); 
@@ -409,7 +434,7 @@ public:
 	int		Restore( CRestore &restore );
 	static	TYPEDESCRIPTION m_SaveData[];
 
-	BOOL HasWeapon( CBasePlayerItem *pCheckItem );
+	HasWeapon( CBasePlayerItem *pCheckItem );
 	BOOL PackWeapon( CBasePlayerItem *pWeapon );
 	BOOL PackAmmo( int iszName, int iCount );
 	

@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 #include "extdll.h"
 #include "util.h"
 #include "cbase.h"
@@ -138,7 +152,7 @@ void CXenPLight :: Think( void )
 
 void CXenPLight :: Touch( CBaseEntity *pOther )
 {
-	if ( pOther->pev->flags & FL_CLIENT )
+	if ( pOther->IsPlayer() )
 	{
 		pev->dmgtime = gpGlobals->time + XEN_PLANT_HIDE_TIME;
 		if ( GetActivity() == ACT_IDLE || GetActivity() == ACT_STAND )
@@ -260,8 +274,8 @@ public:
 	virtual int	Restore( CRestore &restore );
 	static	TYPEDESCRIPTION m_SaveData[];
 
-	static char *pAttackHitSounds[];
-	static char *pAttackMissSounds[];
+	static const char *pAttackHitSounds[];
+	static const char *pAttackMissSounds[];
 
 private:
 	CXenTreeTrigger	*m_pTrigger;
@@ -289,6 +303,8 @@ void CXenTree :: Spawn( void )
 	UTIL_SetSize( pev, Vector(-30,-30,0), Vector(30,30,188));
 	SetActivity( ACT_IDLE );
 	pev->nextthink = gpGlobals->time + 0.1;
+	pev->frame = RANDOM_FLOAT(0,255);
+	pev->framerate = RANDOM_FLOAT( 0.7, 1.4 );
 
 	Vector triggerPosition;
 	UTIL_MakeVectorsPrivate( pev->angles, triggerPosition, NULL, NULL );
@@ -298,14 +314,14 @@ void CXenTree :: Spawn( void )
 	UTIL_SetSize( m_pTrigger->pev, Vector( -24, -24, 0 ), Vector( 24, 24, 128 ) );
 }
 
-char *CXenTree::pAttackHitSounds[] = 
+const char *CXenTree::pAttackHitSounds[] = 
 {
 	"zombie/claw_strike1.wav",
 	"zombie/claw_strike2.wav",
 	"zombie/claw_strike3.wav",
 };
 
-char *CXenTree::pAttackMissSounds[] = 
+const char *CXenTree::pAttackMissSounds[] = 
 {
 	"zombie/claw_miss1.wav",
 	"zombie/claw_miss2.wav",
@@ -322,7 +338,7 @@ void CXenTree :: Precache( void )
 
 void CXenTree :: Touch( CBaseEntity *pOther )
 {
-	if ( !(pOther->pev->flags & FL_CLIENT) && FClassnameIs( pOther->pev, "monster_bigmomma" ) )
+	if ( !pOther->IsPlayer() && FClassnameIs( pOther->pev, "monster_bigmomma" ) )
 		return;
 
 	Attack();
@@ -390,6 +406,7 @@ void CXenTree :: Think( void )
 		if ( m_fSequenceFinished )
 		{
 			SetActivity( ACT_IDLE );
+			pev->framerate = RANDOM_FLOAT( 0.6, 1.4 );
 		}
 		break;
 
@@ -415,11 +432,11 @@ public:
 	void		Precache( void );
 	void		Touch( CBaseEntity *pOther );
 	void		Think( void );
-	int			TakeDamage( entvars_t *pevInflictor, entvars_t *pevAttacker, float flDamage, int bitsDamageType ) { return 0; }
+	int			TakeDamage( entvars_t *pevInflictor, entvars_t *pevAttacker, float flDamage, int bitsDamageType ) { Attack(); return 0; }
 //	void		HandleAnimEvent( MonsterEvent_t *pEvent );
 	void		Attack( void ) {}
 
-	static char *pModelNames[];
+	static const char *pModelNames[];
 };
 
 class CXenSporeSmall : public CXenSpore
@@ -443,11 +460,11 @@ class CXenSporeLarge : public CXenSpore
 class CXenHull : public CPointEntity
 {
 public:
-	static CXenHull	*CreateHull( CBaseEntity *source, Vector &mins, Vector &maxs, const Vector &offset );
+	static CXenHull	*CreateHull( CBaseEntity *source, const Vector &mins, const Vector &maxs, const Vector &offset );
 	int			Classify( void ) { return CLASS_BARNACLE; }
 };
 
-CXenHull *CXenHull :: CreateHull( CBaseEntity *source, Vector &mins, Vector &maxs, const Vector &offset )
+CXenHull *CXenHull :: CreateHull( CBaseEntity *source, const Vector &mins, const Vector &maxs, const Vector &offset )
 {
 	CXenHull *pHull = GetClassPtr( (CXenHull *)NULL );
 
@@ -527,7 +544,7 @@ void CXenSpore :: Spawn( void )
 	pev->nextthink = gpGlobals->time + RANDOM_FLOAT( 0.1, 0.4 );	// Load balance these a bit
 }
 
-char *CXenSpore::pModelNames[] = 
+const char *CXenSpore::pModelNames[] = 
 {
 	"models/fungus(small).mdl",
 	"models/fungus.mdl",

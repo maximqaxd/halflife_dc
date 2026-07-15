@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 // Implementation in UTIL.CPP
 #ifndef SAVERESTORE_H
 #define SAVERESTORE_H
@@ -96,7 +110,7 @@ private:
 
 #define MAX_ENTITYARRAY 64
 
-#define ARRAYSIZE(p)		(sizeof(p)/sizeof(p[0]))
+//#define ARRAYSIZE(p)		(sizeof(p)/sizeof(p[0]))
 
 #define IMPLEMENT_SAVERESTORE(derivedClass,baseClass) \
 	int derivedClass::Save( CSave &save )\
@@ -134,7 +148,7 @@ public:
 	void			EntityAdd( string_t globalname, string_t mapName, GLOBALESTATE state );
 	void			EntitySetState( string_t globalname, GLOBALESTATE state );
 	void			EntityUpdate( string_t globalname, string_t mapname );
-	globalentity_t	*EntityFromTable( string_t globalname );
+	const globalentity_t	*EntityFromTable( string_t globalname );
 	GLOBALESTATE	EntityGetState( string_t globalname );
 	int				EntityInTable( string_t globalname ) { return (Find( globalname ) != NULL) ? 1 : 0; }
 	int				Save( CSave &save );

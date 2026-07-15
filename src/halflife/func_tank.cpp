@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 #include "extdll.h"
 #include "util.h"
 #include "cbase.h"
@@ -53,14 +67,14 @@ public:
 
 	inline BOOL IsActive( void ) { return (pev->spawnflags & SF_TANK_ACTIVE)?TRUE:FALSE; }
 	inline void TankActivate( void ) { pev->spawnflags |= SF_TANK_ACTIVE; pev->nextthink = pev->ltime + 0.1; m_fireLast = 0; }
-	inline void TankDeactivate( void ) { pev->spawnflags &= ~SF_TANK_ACTIVE; m_fireLast = 0; }
+	inline void TankDeactivate( void ) { pev->spawnflags &= ~SF_TANK_ACTIVE; m_fireLast = 0; StopRotSound(); }
 	inline BOOL CanFire( void ) { return (gpGlobals->time - m_lastSightTime) < m_persist; }
 	BOOL		InRange( float range );
 
 	// Acquire a target.  pPlayer is a player in the PVS
 	edict_t		*FindTarget( edict_t *pPlayer );
 
-	void		TankTrace( Vector &vecStart, const Vector &vecForward, const Vector &vecSpread, TraceResult &tr );
+	void		TankTrace( const Vector &vecStart, const Vector &vecForward, const Vector &vecSpread, TraceResult &tr );
 
 	Vector		BarrelPosition( void )
 	{
@@ -113,6 +127,7 @@ protected:
 	
 	Vector		m_sightOrigin;	// Last sight of target
 	int			m_spread;		// firing spread
+	int			m_iszMaster;	// Master entity (game_team_master or multisource)
 };
 
 
@@ -143,6 +158,7 @@ TYPEDESCRIPTION	CFuncTank::m_SaveData[] =
 	DEFINE_FIELD( CFuncTank, m_vecControllerUsePos, FIELD_VECTOR ),
 	DEFINE_FIELD( CFuncTank, m_flNextAttack, FIELD_TIME ),
 	DEFINE_FIELD( CFuncTank, m_iBulletDamage, FIELD_INTEGER ),
+	DEFINE_FIELD( CFuncTank, m_iszMaster, FIELD_STRING ),
 };
 
 IMPLEMENT_SAVERESTORE( CFuncTank, CBaseEntity );
@@ -297,6 +313,11 @@ void CFuncTank :: KeyValue( KeyValueData *pkvd )
 		m_maxRange = atof(pkvd->szValue);
 		pkvd->fHandled = TRUE;
 	}
+	else if (FStrEq(pkvd->szKeyName, "master"))
+	{
+		m_iszMaster = ALLOC_STRING(pkvd->szValue);
+		pkvd->fHandled = TRUE;
+	}
 	else
 		CBaseEntity::KeyValue( pkvd );
 }
@@ -322,6 +343,13 @@ BOOL CFuncTank :: StartControl( CBasePlayer *pController )
 {
 	if ( m_pController != NULL )
 		return FALSE;
+
+	// Team only or disabled?
+	if ( m_iszMaster )
+	{
+		if ( !UTIL_IsMasterTriggered( m_iszMaster, pController ) )
+			return FALSE;
+	}
 
 	ALERT( at_console, "using TANK!\n");
 
@@ -379,7 +407,7 @@ void CFuncTank :: ControllerPostFrame( void )
 		Fire( BarrelPosition(), vecForward, m_pController->pev );
 		
 		// HACKHACK -- make some noise (that the AI can hear)
-		if ( m_pController && m_pController->pev->flags & FL_CLIENT )
+		if ( m_pController && m_pController->IsPlayer() )
 			((CBasePlayer *)m_pController)->m_iWeaponVolume = LOUD_GUN_VOLUME;
 
 		m_flNextAttack = gpGlobals->time + (1/m_fireRate);
@@ -645,7 +673,7 @@ void CFuncTank::Fire( const Vector &barrelEnd, const Vector &forward, entvars_t 
 }
 
 
-void CFuncTank::TankTrace( Vector &vecStart, const Vector &vecForward, const Vector &vecSpread, TraceResult &tr )
+void CFuncTank::TankTrace( const Vector &vecStart, const Vector &vecForward, const Vector &vecSpread, TraceResult &tr )
 {
 	// get circular gaussian spread
 	float x, y, z;
@@ -734,7 +762,7 @@ class CFuncTankLaser : public CFuncTank
 public:
 	void	Activate( void );
 	void	KeyValue( KeyValueData *pkvd );
-	void	Fire( Vector &barrelEnd, const Vector &forward, entvars_t *pevAttacker );
+	void	Fire( const Vector &barrelEnd, const Vector &forward, entvars_t *pevAttacker );
 	void	Think( void );
 	CLaser *GetLaser( void );
 
@@ -815,7 +843,7 @@ void CFuncTankLaser::Think( void )
 }
 
 
-void CFuncTankLaser::Fire( Vector &barrelEnd, const Vector &forward, entvars_t *pevAttacker )
+void CFuncTankLaser::Fire( const Vector &barrelEnd, const Vector &forward, entvars_t *pevAttacker )
 {
 	int i;
 	TraceResult tr;
@@ -889,7 +917,7 @@ class CFuncTankMortar : public CFuncTank
 {
 public:
 	void KeyValue( KeyValueData *pkvd );
-	void Fire( Vector &barrelEnd, const Vector &forward, entvars_t *pevAttacker );
+	void Fire( const Vector &barrelEnd, const Vector &forward, entvars_t *pevAttacker );
 };
 LINK_ENTITY_TO_CLASS( func_tankmortar, CFuncTankMortar );
 
@@ -906,7 +934,7 @@ void CFuncTankMortar::KeyValue( KeyValueData *pkvd )
 }
 
 
-void CFuncTankMortar::Fire( Vector &barrelEnd, const Vector &forward, entvars_t *pevAttacker )
+void CFuncTankMortar::Fire( const Vector &barrelEnd, const Vector &forward, entvars_t *pevAttacker )
 {
 	if ( m_fireLast != 0 )
 	{

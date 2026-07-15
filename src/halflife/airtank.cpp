@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 #include "extdll.h"
 #include "util.h"
 #include "cbase.h"
@@ -44,8 +58,8 @@ void CAirtank :: Spawn( void )
 	UTIL_SetSize(pev, Vector( -16, -16, 0), Vector(16, 16, 36));
 	UTIL_SetOrigin( pev, pev->origin );
 
-	SetTouch( &CAirtank::TankTouch );
-	SetThink( &CAirtank::TankThink );
+	SetTouch( TankTouch );
+	SetThink( TankThink );
 
 	pev->flags |= FL_MONSTER;
 	pev->takedamage		= DAMAGE_YES;
@@ -81,7 +95,7 @@ void CAirtank::TankThink( void )
 
 void CAirtank::TankTouch( CBaseEntity *pOther )
 {
-	if ( !(pOther->pev->flags & FL_CLIENT) )
+	if ( !pOther->IsPlayer() )
 		return;
 
 	if (!m_state)

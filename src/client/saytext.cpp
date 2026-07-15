@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 //
 // saytext.cpp
 //
@@ -35,7 +49,7 @@ int CHudSayText :: Init( void )
 
 	InitHUDData();
 
-	CVAR_CREATE( "hud_saytext_time", "5" );
+	CVAR_CREATE( "hud_saytext_time", "5", 0 );
 
 	return 1;
 }
@@ -68,6 +82,12 @@ int CHudSayText :: Draw( float flTime )
 {
 	int y = Y_START;
 
+	// make sure the scrolltime is within reasonable bounds,  to guard against the clock being reset
+	flScrollTime = min( flScrollTime, flTime + SCROLL_SPEED );
+
+	// make sure the scrolltime is within reasonable bounds,  to guard against the clock being reset
+	flScrollTime = min( flScrollTime, flTime + SCROLL_SPEED );
+
 	if ( flScrollTime <= flTime )
 	{
 		if ( *g_szLineBuffer[0] )
@@ -99,44 +119,47 @@ int CHudSayText :: MsgFunc_SayText( const char *pszName, int iSize, void *pbuf )
 	BEGIN_READ( pbuf, iSize );
 
 	int client_index = READ_BYTE();		// the client who spoke the message
-	char* pszBuf = READ_STRING();		// the message
+	SayTextPrint( READ_STRING(), iSize - 1 );
+	
+	return 1;
+}
 
+void CHudSayText :: SayTextPrint( const char *pszBuf, int iBufSize )
+{
 	// find an empty string slot
-	int i;
-	for (i = 0; i < MAX_LINES; i++)
+	for ( int i = 0; i < MAX_LINES; i++ )
 	{
-		if (!*g_szLineBuffer[i])
+		if ( ! *g_szLineBuffer[i] )
 			break;
 	}
-	if (i == MAX_LINES)
+	if ( i == MAX_LINES )
 	{
 		// force scroll buffer up
 		ScrollTextUp();
 		i = MAX_LINES - 1;
 	}
 
-	strncpy(g_szLineBuffer[i], pszBuf, MAX_CHARS_PER_LINE - 1);
+	strncpy( g_szLineBuffer[i], pszBuf, max(iBufSize -1, MAX_CHARS_PER_LINE-1) );
 
 	// make sure the text fits in one line
-	EnsureTextFitsInOneLineAndWrapIfHaveTo(i);
+	EnsureTextFitsInOneLineAndWrapIfHaveTo( i );
 
 	// Set scroll time
-	if (i == 0)
+	if ( i == 0 )
 	{
-		SCROLL_SPEED = CVAR_GET_FLOAT("hud_saytext_time");
+		SCROLL_SPEED = CVAR_GET_FLOAT( "hud_saytext_time" );
 		flScrollTime = gHUD.m_flTime + SCROLL_SPEED;
 	}
 
 	m_iFlags |= HUD_ACTIVE;
-	PlaySound("common/menu2.wav", 0.5);
+	PlaySound( "misc/talk.wav", 1 );
 
-	if (ScreenHeight >= 480)
+	if ( ScreenHeight >= 480 )
 		Y_START = ScreenHeight - 45;
 	else
 		Y_START = ScreenHeight - 35;
-	Y_START -= (line_height * MAX_LINES);
-	
-	return 1;
+	Y_START -= (line_height * (MAX_LINES+1));
+
 }
 
 void CHudSayText :: EnsureTextFitsInOneLineAndWrapIfHaveTo( int line )
@@ -170,8 +193,7 @@ void CHudSayText :: EnsureTextFitsInOneLineAndWrapIfHaveTo( int line )
 				x = last_break;
 
 				// find an empty string slot
-				int j;
-				for ( j = 0; j < MAX_LINES; j++ )
+				for ( int j = 0; j < MAX_LINES; j++ )
 				{
 					if ( ! *g_szLineBuffer[j] )
 						break;

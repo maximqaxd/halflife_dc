@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 /*
 
 ===== explode.cpp ========================================================
@@ -180,6 +194,7 @@ void CEnvExplosion::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE
 			WRITE_SHORT( g_sModelIndexFireball );
 			WRITE_BYTE( (BYTE)m_spriteScale ); // scale * 10
 			WRITE_BYTE( 15  ); // framerate
+			WRITE_BYTE( TE_EXPLFLAG_NONE );
 		MESSAGE_END();
 	}
 	else
@@ -192,6 +207,7 @@ void CEnvExplosion::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE
 			WRITE_SHORT( g_sModelIndexFireball );
 			WRITE_BYTE( 0 ); // no sprite
 			WRITE_BYTE( 15  ); // framerate
+			WRITE_BYTE( TE_EXPLFLAG_NONE );
 		MESSAGE_END();
 	}
 
@@ -201,7 +217,7 @@ void CEnvExplosion::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE
 		RadiusDamage ( pev, pev, m_iMagnitude, CLASS_NONE, DMG_BLAST );
 	}
 
-	SetThink( &CEnvExplosion::Smoke );
+	SetThink( Smoke );
 	pev->nextthink = gpGlobals->time + 0.3;
 
 	// draw sparks

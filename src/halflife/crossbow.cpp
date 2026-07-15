@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 #if !defined( OEM_BUILD ) && !defined( HLDEMO_BUILD )
 
 #include "extdll.h"
@@ -27,7 +41,7 @@ class CCrossbowBolt : public CBaseEntity
 	void EXPORT ExplodeThink( void );
 
 	int m_iTrail;
-	int m_iPoison;
+
 public:
 	static CCrossbowBolt *BoltCreate( void );
 };
@@ -56,8 +70,8 @@ void CCrossbowBolt::Spawn( )
 	UTIL_SetOrigin( pev, pev->origin );
 	UTIL_SetSize(pev, Vector(0, 0, 0), Vector(0, 0, 0));
 
-	SetTouch( &CCrossbowBolt::BoltTouch );
-	SetThink( &CCrossbowBolt::BubbleThink );
+	SetTouch( BoltTouch );
+	SetThink( BubbleThink );
 	pev->nextthink = gpGlobals->time + 0.2;
 }
 
@@ -71,7 +85,6 @@ void CCrossbowBolt::Precache( )
 	PRECACHE_SOUND("weapons/xbow_hit1.wav");
 	PRECACHE_SOUND("fvox/beep.wav");
 	m_iTrail = PRECACHE_MODEL("sprites/streak.spr");
-	m_iPoison = PRECACHE_MODEL("sprites/poison.spr");
 }
 
 
@@ -95,7 +108,7 @@ void CCrossbowBolt::BoltTouch( CBaseEntity *pOther )
 		// UNDONE: this needs to call TraceAttack instead
 		ClearMultiDamage( );
 
-		if ( pOther->pev->flags & FL_CLIENT )
+		if ( pOther->IsPlayer() )
 		{
 			pOther->TraceAttack(pevOwner, gSkillData.plrDmgCrossbowClient, pev->velocity.Normalize(), &tr, DMG_NEVERGIB ); 
 		}
@@ -125,7 +138,7 @@ void CCrossbowBolt::BoltTouch( CBaseEntity *pOther )
 	{
 		EMIT_SOUND_DYN(ENT(pev), CHAN_WEAPON, "weapons/xbow_hit1.wav", RANDOM_FLOAT(0.95, 1.0), ATTN_NORM, 0, 98 + RANDOM_LONG(0,7));
 
-		SetThink( &CBaseEntity::SUB_Remove );
+		SetThink( SUB_Remove );
 		pev->nextthink = gpGlobals->time;// this will get changed below if the bolt is allowed to stick in what it hit.
 
 		if ( FClassnameIs( pOther->pev, "worldspawn" ) )
@@ -150,7 +163,7 @@ void CCrossbowBolt::BoltTouch( CBaseEntity *pOther )
 
 	if ( g_pGameRules->IsMultiplayer() )
 	{
-		SetThink( &CCrossbowBolt::ExplodeThink );
+		SetThink( ExplodeThink );
 		pev->nextthink = gpGlobals->time + 0.1;
 	}
 }
@@ -169,12 +182,7 @@ void CCrossbowBolt::ExplodeThink( void )
 {
 	int iContents = UTIL_PointContents ( pev->origin );
 	int iScale;
-	Vector vecOrigin = pev->origin - gpGlobals->v_forward * 16;
 	
-	UTIL_MakeVectors(pev->angles);
-
-	UTIL_SetOrigin(pev, vecOrigin);
-
 	pev->dmg = 40;
 	iScale = 10;
 
@@ -193,6 +201,7 @@ void CCrossbowBolt::ExplodeThink( void )
 		}
 		WRITE_BYTE( iScale  ); // scale * 10
 		WRITE_BYTE( 15  ); // framerate
+		WRITE_BYTE( TE_EXPLFLAG_NONE );
 	MESSAGE_END();
 
 	entvars_t *pevOwner;
@@ -288,9 +297,9 @@ int CCrossbow::GetItemInfo(ItemInfo *p)
 {
 	p->pszName = STRING(pev->classname);
 	p->pszAmmo1 = "bolts";
-	p->iAmmo1 = BOLT_MAX_CARRY;
+	p->iMaxAmmo1 = BOLT_MAX_CARRY;
 	p->pszAmmo2 = NULL;
-	p->iAmmo2 = -1;
+	p->iMaxAmmo2 = -1;
 	p->iMaxClip = CROSSBOW_MAX_CLIP;
 	p->iSlot = 2;
 	p->iPosition = 2;
@@ -304,8 +313,8 @@ int CCrossbow::GetItemInfo(ItemInfo *p)
 BOOL CCrossbow::Deploy( )
 {
 	if (m_iClip)
-		return DefaultDeploy( "models/v_crossbow.mdl", "models/p_crossbow.mdl", CROSSBOW_DRAW1 );
-	return DefaultDeploy( "models/v_crossbow.mdl", "models/p_crossbow.mdl", CROSSBOW_DRAW2 );
+		return DefaultDeploy( "models/v_crossbow.mdl", "models/p_crossbow.mdl", CROSSBOW_DRAW1, "bow" );
+	return DefaultDeploy( "models/v_crossbow.mdl", "models/p_crossbow.mdl", CROSSBOW_DRAW2, "bow" );
 }
 
 void CCrossbow::Holster( )
@@ -363,6 +372,9 @@ void CCrossbow::FireSniperBolt()
 	{
 		SendWeaponAnim( CROSSBOW_FIRE3 );
 	}
+
+	// player "shoot" animation
+	m_pPlayer->SetAnimation( PLAYER_ATTACK1 );
 	
 	Vector anglesAim = m_pPlayer->pev->v_angle + m_pPlayer->pev->punchangle;
 	UTIL_MakeVectors( anglesAim );
@@ -393,7 +405,7 @@ void CCrossbow::FireSniperBolt()
 		pBolt->pev->angles = UTIL_VecToAngles( vecDir );
 		pBolt->pev->solid = SOLID_NOT;
 		pBolt->SetTouch( NULL );
-		pBolt->SetThink( &CBaseEntity::SUB_Remove );
+		pBolt->SetThink( SUB_Remove );
 
 		EMIT_SOUND( pBolt->edict(), CHAN_WEAPON, "weapons/xbow_hit1.wav", RANDOM_FLOAT(0.95, 1.0), ATTN_NORM );
 
@@ -441,6 +453,9 @@ void CCrossbow::FireBolt()
 	{
 		SendWeaponAnim( CROSSBOW_FIRE3 );
 	}
+
+	// player "shoot" animation
+	m_pPlayer->SetAnimation( PLAYER_ATTACK1 );
 
 	Vector anglesAim = m_pPlayer->pev->v_angle + m_pPlayer->pev->punchangle;
 	UTIL_MakeVectors( anglesAim );
@@ -518,6 +533,8 @@ void CCrossbow::Reload( void )
 
 void CCrossbow::WeaponIdle( void )
 {
+	m_pPlayer->GetAutoaimVector( AUTOAIM_2DEGREES );  // get the autoaim vector but ignore it;  used for autoaim crosshair in DM
+
 	ResetEmptySound( );
 	
 	if (m_flTimeWeaponIdle < gpGlobals->time)
@@ -568,7 +585,7 @@ class CCrossbowAmmo : public CBasePlayerAmmo
 	}
 	BOOL AddAmmo( CBaseEntity *pOther ) 
 	{ 
-		if (pOther->GiveAmmo( AMMO_CROSSBOWCLIP_GIVE, "bolts", BOLT_MAX_CARRY, NULL ) != -1)
+		if (pOther->GiveAmmo( AMMO_CROSSBOWCLIP_GIVE, "bolts", BOLT_MAX_CARRY ) != -1)
 		{
 			EMIT_SOUND(ENT(pev), CHAN_ITEM, "items/9mmclip1.wav", 1, ATTN_NORM);
 			return TRUE;

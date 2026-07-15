@@ -1,13 +1,25 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 // hack into header files that we can ship
-typedef short qboolean;
+typedef int qboolean;
 typedef unsigned char byte;
-#include "platform.h"
-#include "mathlib.h"
-#include "math.h"
+#include "../utils/common/mathlib.h"
 #include "const.h"
 #include "progs.h"
 #include "progdefs.h"
@@ -37,9 +49,6 @@ extern globalvars_t				*gpGlobals;
 
 #pragma warning( disable : 4244 )
 
-#ifdef _WIN32_WCE
-#include "../util/dreamcast_crt.h"
-#endif
 
 
 int ExtractBbox( void *pmodel, int sequence, float *mins, float *maxs )
@@ -314,8 +323,7 @@ float SetController( void *pmodel, entvars_t *pev, int iController, float flValu
 	mstudiobonecontroller_t	*pbonecontroller = (mstudiobonecontroller_t *)((byte *)pstudiohdr + pstudiohdr->bonecontrollerindex);
 
 	// find first controller that matches the index
-	int i;
-	for (i = 0; i < pstudiohdr->numbonecontrollers; i++, pbonecontroller++)
+	for (int i = 0; i < pstudiohdr->numbonecontrollers; i++, pbonecontroller++)
 	{
 		if (pbonecontroller->index == iController)
 			break;

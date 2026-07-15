@@ -1,3 +1,18 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
+
 #include "extdll.h"
 #include "util.h"
 #include "cbase.h"
@@ -73,9 +88,9 @@ int CCrowbar::GetItemInfo(ItemInfo *p)
 {
 	p->pszName = STRING(pev->classname);
 	p->pszAmmo1 = NULL;
-	p->iAmmo1 = -1;
+	p->iMaxAmmo1 = -1;
 	p->pszAmmo2 = NULL;
-	p->iAmmo2 = -1;
+	p->iMaxAmmo2 = -1;
 	p->iMaxClip = WEAPON_NOCLIP;
 	p->iSlot = 0;
 	p->iPosition = 0;
@@ -88,7 +103,7 @@ int CCrowbar::GetItemInfo(ItemInfo *p)
 
 BOOL CCrowbar::Deploy( )
 {
-	return DefaultDeploy( "models/v_crowbar.mdl", "models/p_crowbar.mdl", CROWBAR_DRAW );
+	return DefaultDeploy( "models/v_crowbar.mdl", "models/p_crowbar.mdl", CROWBAR_DRAW, "crowbar" );
 }
 
 void CCrowbar::Holster( )
@@ -98,7 +113,7 @@ void CCrowbar::Holster( )
 }
 
 
-void FindHullIntersection( Vector &vecSrc, TraceResult &tr, float *mins, float *maxs, edict_t *pEntity )
+void FindHullIntersection( const Vector &vecSrc, TraceResult &tr, float *mins, float *maxs, edict_t *pEntity )
 {
 	int			i, j, k;
 	float		distance;
@@ -147,7 +162,7 @@ void CCrowbar::PrimaryAttack()
 {
 	if (! Swing( 1 ))
 	{
-		SetThink( &CCrowbar::SwingAgain );
+		SetThink( SwingAgain );
 		pev->nextthink = gpGlobals->time + 0.1;
 	}
 }
@@ -208,6 +223,9 @@ int CCrowbar::Swing( int fFirst )
 			m_flNextPrimaryAttack = gpGlobals->time + 0.5;
 			// play wiff or swish sound
 			EMIT_SOUND_DYN(ENT(m_pPlayer->pev), CHAN_WEAPON, "weapons/cbar_miss1.wav", 1, ATTN_NORM, 0, 94 + RANDOM_LONG(0,0xF));
+
+			// player "shoot" animation
+			m_pPlayer->SetAnimation( PLAYER_ATTACK1 );
 		}
 	}
 	else
@@ -226,6 +244,9 @@ int CCrowbar::Swing( int fFirst )
 		case 2:
 			SendWeaponAnim( CROWBAR_ATTACK3HIT ); break;
 		}
+
+		// player "shoot" animation
+		m_pPlayer->SetAnimation( PLAYER_ATTACK1 );
 
 		ClearMultiDamage( );
 		if ( (m_flNextPrimaryAttack + 1 < gpGlobals->time) || g_pGameRules->IsMultiplayer() )
@@ -301,7 +322,7 @@ int CCrowbar::Swing( int fFirst )
 
 		// delay the decal a bit
 		m_trHit = tr;
-		SetThink( &CCrowbar::Smack );
+		SetThink( Smack );
 		pev->nextthink = gpGlobals->time + 0.2;
 
 		m_pPlayer->m_iWeaponVolume = flVol * CROWBAR_WALLHIT_VOLUME;

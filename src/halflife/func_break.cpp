@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 /*
 
 ===== bmodels.cpp ========================================================
@@ -144,7 +158,7 @@ void CBreakable::Spawn( void )
 	
 	SET_MODEL(ENT(pev), STRING(pev->model) );//set size and link into world.
 
-	SetTouch( &CBreakable::BreakTouch );
+	SetTouch( BreakTouch );
 	if ( FBitSet( pev->spawnflags, SF_BREAK_TRIGGER_ONLY ) )		// Only break on trigger
 		SetTouch( NULL );
 
@@ -154,14 +168,14 @@ void CBreakable::Spawn( void )
 }
 
 
-char *CBreakable::pSoundsWood[] = 
+const char *CBreakable::pSoundsWood[] = 
 {
 	"debris/wood1.wav",
 	"debris/wood2.wav",
 	"debris/wood3.wav",
 };
 
-char *CBreakable::pSoundsFlesh[] = 
+const char *CBreakable::pSoundsFlesh[] = 
 {
 	"debris/flesh1.wav",
 	"debris/flesh2.wav",
@@ -171,14 +185,14 @@ char *CBreakable::pSoundsFlesh[] =
 	"debris/flesh7.wav",
 };
 
-char *CBreakable::pSoundsMetal[] = 
+const char *CBreakable::pSoundsMetal[] = 
 {
 	"debris/metal1.wav",
 	"debris/metal2.wav",
 	"debris/metal3.wav",
 };
 
-char *CBreakable::pSoundsConcrete[] = 
+const char *CBreakable::pSoundsConcrete[] = 
 {
 	"debris/concrete1.wav",
 	"debris/concrete2.wav",
@@ -186,16 +200,16 @@ char *CBreakable::pSoundsConcrete[] =
 };
 
 
-char *CBreakable::pSoundsGlass[] = 
+const char *CBreakable::pSoundsGlass[] = 
 {
 	"debris/glass1.wav",
 	"debris/glass2.wav",
 	"debris/glass3.wav",
 };
 
-char **CBreakable::MaterialSoundList( Materials precacheMaterial, int &soundCount )
+const char **CBreakable::MaterialSoundList( Materials precacheMaterial, int &soundCount )
 {
-	char	**pSoundList = NULL;
+	const char	**pSoundList = NULL;
 
     switch ( precacheMaterial ) 
 	{
@@ -238,7 +252,7 @@ char **CBreakable::MaterialSoundList( Materials precacheMaterial, int &soundCoun
 
 void CBreakable::MaterialSoundPrecache( Materials precacheMaterial )
 {
-	char	**pSoundList;
+	const char	**pSoundList;
 	int			i, soundCount = 0;
 
 	pSoundList = MaterialSoundList( precacheMaterial, soundCount );
@@ -251,7 +265,7 @@ void CBreakable::MaterialSoundPrecache( Materials precacheMaterial )
 
 void CBreakable::MaterialSoundRandom( edict_t *pEdict, Materials soundMaterial, float volume )
 {
-	char	**pSoundList;
+	const char	**pSoundList;
 	int			soundCount = 0;
 
 	pSoundList = MaterialSoundList( soundMaterial, soundCount );
@@ -414,7 +428,7 @@ void CBreakable::BreakTouch( CBaseEntity *pOther )
 	entvars_t*	pevToucher = pOther->pev;
 	
 	// only players can break these right now
-	if ( !(pOther->pev->flags & FL_CLIENT) || !IsBreakable() )
+	if ( !pOther->IsPlayer() || !IsBreakable() )
 	{
         return;
 	}
@@ -439,7 +453,7 @@ void CBreakable::BreakTouch( CBaseEntity *pOther )
 		// play creaking sound here.
 		DamageSound();
 
-		SetThink ( &CBreakable::Die );
+		SetThink ( Die );
 		SetTouch( NULL );
 		
 		if ( m_flDelay == 0 )
@@ -576,7 +590,7 @@ void CBreakable::Die( void )
 	// The more negative pev->health, the louder
 	// the sound should be.
 
-	fvol = RANDOM_FLOAT(0.85, 1.0) + (fabs(pev->health) / 100.0);
+	fvol = RANDOM_FLOAT(0.85, 1.0) + (abs(pev->health) / 100.0);
 
 	if (fvol > 1.0)
 		fvol = 1.0;
@@ -723,7 +737,7 @@ void CBreakable::Die( void )
 	// Fire targets on break
 	SUB_UseTargets( NULL, USE_TOGGLE, 0 );
 
-	SetThink( &CBaseEntity::SUB_Remove );
+	SetThink( SUB_Remove );
 	pev->nextthink = pev->ltime + 0.1;
 	if ( m_iszSpawnObject )
 		CBaseEntity::Create( (char *)STRING(m_iszSpawnObject), VecBModelOrigin(pev), pev->angles, edict() );
@@ -875,7 +889,7 @@ void CPushable :: KeyValue( KeyValueData *pkvd )
 // Pull the func_pushable
 void CPushable :: Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value )
 {
-	if ( !pActivator || !(pActivator->pev->flags & FL_CLIENT) )
+	if ( !pActivator || !pActivator->IsPlayer() )
 	{
 		if ( pev->spawnflags & SF_PUSH_BREAKABLE )
 			this->CBreakable::Use( pActivator, pCaller, useType, value );
@@ -912,7 +926,7 @@ void CPushable :: Move( CBaseEntity *pOther, int push )
 	}
 
 
-	if ( pOther->pev->flags & FL_CLIENT )
+	if ( pOther->IsPlayer() )
 	{
 		if ( push && !(pevToucher->button & (IN_FORWARD|IN_USE)) )	// Don't push unless the player is pushing forward and NOT use (pull)
 			return;

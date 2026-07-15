@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 /*
 
 ===== turret.cpp ========================================================
@@ -126,6 +140,12 @@ TYPEDESCRIPTION	CBaseTurret::m_SaveData[] =
 	DEFINE_FIELD( CBaseTurret, m_flMaxSpin, FIELD_FLOAT ),
 	DEFINE_FIELD( CBaseTurret, m_iSpin, FIELD_INTEGER ),
 
+	DEFINE_FIELD( CBaseTurret, m_pEyeGlow, FIELD_CLASSPTR ),
+	DEFINE_FIELD( CBaseTurret, m_eyeBrightness, FIELD_INTEGER ),
+	DEFINE_FIELD( CBaseTurret, m_iDeployHeight, FIELD_INTEGER ),
+	DEFINE_FIELD( CBaseTurret, m_iRetractHeight, FIELD_INTEGER ),
+	DEFINE_FIELD( CBaseTurret, m_iMinPitch, FIELD_INTEGER ),
+
 	DEFINE_FIELD( CBaseTurret, m_iBaseTurnRate, FIELD_INTEGER ),
 	DEFINE_FIELD( CBaseTurret, m_fTurnRate, FIELD_FLOAT ),
 	DEFINE_FIELD( CBaseTurret, m_iOrientation, FIELD_INTEGER ),
@@ -133,8 +153,6 @@ TYPEDESCRIPTION	CBaseTurret::m_SaveData[] =
 	DEFINE_FIELD( CBaseTurret, m_fBeserk, FIELD_INTEGER ),
 	DEFINE_FIELD( CBaseTurret, m_iAutoStart, FIELD_INTEGER ),
 
-	DEFINE_FIELD( CBaseTurret, m_iDeployHeight, FIELD_INTEGER ),
-	DEFINE_FIELD( CBaseTurret, m_iRetractHeight, FIELD_INTEGER ),
 
 	DEFINE_FIELD( CBaseTurret, m_vecLastSight, FIELD_POSITION_VECTOR ),
 	DEFINE_FIELD( CBaseTurret, m_flLastSight, FIELD_TIME ),
@@ -146,8 +164,6 @@ TYPEDESCRIPTION	CBaseTurret::m_SaveData[] =
 	DEFINE_FIELD( CBaseTurret, m_vecGoalAngles, FIELD_VECTOR ),
 
 	DEFINE_FIELD( CBaseTurret, m_flPingTime, FIELD_TIME ),
-	DEFINE_FIELD( CBaseTurret, m_pEyeGlow, FIELD_CLASSPTR ),
-	DEFINE_FIELD( CBaseTurret, m_eyeBrightness, FIELD_INTEGER ),
 	DEFINE_FIELD( CBaseTurret, m_flSpinUpTime, FIELD_TIME ),
 };
 
@@ -241,7 +257,7 @@ void CBaseTurret::Spawn()
 	pev->takedamage		= DAMAGE_AIM;
 
 	SetBits (pev->flags, FL_MONSTER);
-	SetUse( &CBaseTurret::TurretUse );
+	SetUse( TurretUse );
 
 	if (( pev->spawnflags & SF_MONSTER_TURRET_AUTOACTIVATE ) 
 		 && !( pev->spawnflags & SF_MONSTER_TURRET_STARTINACTIVE ))
@@ -291,7 +307,7 @@ void CTurret::Spawn()
 	m_iMinPitch	= -15;
 	UTIL_SetSize(pev, Vector(-32, -32, -m_iRetractHeight), Vector(32, 32, m_iRetractHeight));
 	
-	SetThink(&CBaseTurret::Initialize);	
+	SetThink(Initialize);	
 
 	m_pEyeGlow = CSprite::SpriteCreate( TURRET_GLOW_SPRITE, pev->origin, FALSE );
 	m_pEyeGlow->SetTransparency( kRenderGlow, 255, 0, 0, 0, kRenderFxNoDissipation );
@@ -323,7 +339,7 @@ void CMiniTurret::Spawn()
 	m_iMinPitch	= -15;
 	UTIL_SetSize(pev, Vector(-16, -16, -m_iRetractHeight), Vector(16, 16, m_iRetractHeight));
 
-	SetThink(&CBaseTurret::Initialize);
+	SetThink(Initialize);	
 	pev->nextthink = gpGlobals->time + 0.3; 
 }
 
@@ -365,11 +381,11 @@ void CBaseTurret::Initialize(void)
 	if (m_iAutoStart)
 	{
 		m_flLastSight = gpGlobals->time + m_flMaxWait;
-		SetThink(&CBaseTurret::AutoSearchThink);
+		SetThink(AutoSearchThink);		
 		pev->nextthink = gpGlobals->time + .1;
 	}
 	else
-		SetThink (&CBaseEntity::SUB_DoNothing);
+		SetThink(SUB_DoNothing);
 }
 
 void CBaseTurret::TurretUse( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value )
@@ -383,7 +399,7 @@ void CBaseTurret::TurretUse( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_
 		pev->nextthink = gpGlobals->time + 0.1;
 		m_iAutoStart = FALSE;// switching off a turret disables autostart
 		//!!!! this should spin down first!!BUGBUG
-		SetThink(&CBaseTurret::Retire);
+		SetThink(Retire);
 	}
 	else 
 	{
@@ -395,7 +411,7 @@ void CBaseTurret::TurretUse( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_
 			m_iAutoStart = TRUE;
 		}
 		
-		SetThink(&CBaseTurret::Deploy);
+		SetThink(Deploy);
 	}
 }
 
@@ -456,7 +472,7 @@ void CBaseTurret::ActiveThink(void)
 	{
 		m_hEnemy = NULL;
 		m_flLastSight = gpGlobals->time + m_flMaxWait;
-		SetThink(&CBaseTurret::SearchThink);
+		SetThink(SearchThink);
 		return;
 	}
 	
@@ -473,7 +489,7 @@ void CBaseTurret::ActiveThink(void)
 			{	
 				m_hEnemy = NULL;
 				m_flLastSight = gpGlobals->time + m_flMaxWait;
-				SetThink(&CBaseTurret::SearchThink);
+				SetThink(SearchThink);
 				return;
 			}
 		}
@@ -502,7 +518,7 @@ void CBaseTurret::ActiveThink(void)
 			{
 				m_hEnemy = NULL;
 				m_flLastSight = gpGlobals->time + m_flMaxWait;
-				SetThink(&CBaseTurret::SearchThink);
+				SetThink(SearchThink);
 				return;
 			}
 		}
@@ -654,7 +670,7 @@ void CBaseTurret::Deploy(void)
 
 		SetTurretAnim(TURRET_ANIM_SPIN);
 		pev->framerate = 0;
-		SetThink(&CBaseTurret::SearchThink);
+		SetThink(SearchThink);
 	}
 
 	m_flLastSight = gpGlobals->time + m_flMaxWait;
@@ -694,11 +710,11 @@ void CBaseTurret::Retire(void)
 			UTIL_SetSize(pev, pev->mins, pev->maxs);
 			if (m_iAutoStart)
 			{
-				SetThink(&CBaseTurret::AutoSearchThink);
+				SetThink(AutoSearchThink);		
 				pev->nextthink = gpGlobals->time + .1;
 			}
 			else
-				SetThink (&CBaseEntity::SUB_DoNothing);
+				SetThink(SUB_DoNothing);
 		}
 	}
 	else
@@ -730,7 +746,7 @@ void CTurret::SpinUpCall(void)
 		{
 			pev->nextthink = gpGlobals->time + 0.1; // retarget delay
 			EMIT_SOUND(ENT(pev), CHAN_STATIC, "turret/tu_active2.wav", TURRET_MACHINE_VOLUME, ATTN_NORM);
-			SetThink(&CBaseTurret::ActiveThink);
+			SetThink(ActiveThink);
 			m_iStartSpin = 0;
 			m_iSpin = 1;
 		} 
@@ -742,7 +758,7 @@ void CTurret::SpinUpCall(void)
 
 	if (m_iSpin)
 	{
-		SetThink(&CBaseTurret::ActiveThink);
+		SetThink(ActiveThink);
 	}
 }
 
@@ -840,7 +856,7 @@ void CBaseTurret::SearchThink(void)
 	{
 		m_flLastSight = 0;
 		m_flSpinUpTime = 0;
-		SetThink(&CBaseTurret::ActiveThink);
+		SetThink(ActiveThink);
 	}
 	else
 	{
@@ -850,7 +866,7 @@ void CBaseTurret::SearchThink(void)
 			//Before we retrace, make sure that we are spun down.
 			m_flLastSight = 0;
 			m_flSpinUpTime = 0;
-			SetThink(&CBaseTurret::Retire);
+			SetThink(Retire);
 		}
 		// should we stop the spin?
 		else if ((m_flSpinUpTime) && (gpGlobals->time > m_flSpinUpTime))
@@ -895,7 +911,7 @@ void CBaseTurret::AutoSearchThink(void)
 
 	if (m_hEnemy != NULL)
 	{
-		SetThink(&CBaseTurret::Deploy);
+		SetThink(Deploy);
 		EMIT_SOUND(ENT(pev), CHAN_BODY, "turret/tu_alert.wav", TURRET_MACHINE_VOLUME, ATTN_NORM);
 	}
 }
@@ -1009,7 +1025,7 @@ int CBaseTurret::TakeDamage(entvars_t *pevInflictor, entvars_t *pevAttacker, flo
 		ClearBits (pev->flags, FL_MONSTER); // why are they set in the first place???
 
 		SetUse(NULL);
-		SetThink(&CBaseTurret::TurretDeath);
+		SetThink(TurretDeath);
 		SUB_UseTargets( this, USE_ON, 0 ); // wake up others
 		pev->nextthink = gpGlobals->time + 0.1;
 
@@ -1021,7 +1037,7 @@ int CBaseTurret::TakeDamage(entvars_t *pevInflictor, entvars_t *pevAttacker, flo
 		if (m_iOn && (1 || RANDOM_LONG(0, 0x7FFF) > 800))
 		{
 			m_fBeserk = 1;
-			SetThink(&CBaseTurret::SearchThink);
+			SetThink(SearchThink);
 		}
 	}
 
@@ -1163,8 +1179,8 @@ void CSentry::Spawn()
 	m_iMinPitch	= -60;
 	UTIL_SetSize(pev, Vector(-16, -16, -m_iRetractHeight), Vector(16, 16, m_iRetractHeight));
 
-	SetTouch(&CSentry::SentryTouch);
-	SetThink(&CBaseTurret::Initialize);	
+	SetTouch(SentryTouch);
+	SetThink(Initialize);	
 	pev->nextthink = gpGlobals->time + 0.3; 
 }
 
@@ -1188,7 +1204,7 @@ int CSentry::TakeDamage(entvars_t *pevInflictor, entvars_t *pevAttacker, float f
 
 	if (!m_iOn)
 	{
-		SetThink( &CBaseTurret::Deploy );
+		SetThink( Deploy );
 		SetUse( NULL );
 		pev->nextthink = gpGlobals->time + 0.1;
 	}
@@ -1203,7 +1219,7 @@ int CSentry::TakeDamage(entvars_t *pevInflictor, entvars_t *pevAttacker, float f
 		ClearBits (pev->flags, FL_MONSTER); // why are they set in the first place???
 
 		SetUse(NULL);
-		SetThink(&CSentry::SentryDeath);
+		SetThink(SentryDeath);
 		SUB_UseTargets( this, USE_ON, 0 ); // wake up others
 		pev->nextthink = gpGlobals->time + 0.1;
 
@@ -1216,7 +1232,7 @@ int CSentry::TakeDamage(entvars_t *pevInflictor, entvars_t *pevAttacker, float f
 
 void CSentry::SentryTouch( CBaseEntity *pOther )
 {
-	if ( pOther && (pOther->pev->flags & FL_CLIENT || (pOther->pev->flags & FL_MONSTER)) )
+	if ( pOther && (pOther->IsPlayer() || (pOther->pev->flags & FL_MONSTER)) )
 	{
 		TakeDamage(pOther->pev, pOther->pev, 0, 0 );
 	}

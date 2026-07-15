@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 //
 // Health.cpp
 //
@@ -32,6 +46,10 @@ int giDmgFlags[NUM_DMG_TYPES] =
 	DMG_NERVEGAS, 
 	DMG_RADIATION,
 	DMG_SHOCK,
+	DMG_CALTROP,
+	DMG_TRANQ,
+	DMG_CONCUSS,
+	DMG_HALLUC
 };
 
 int CHudHealth::Init(void)
@@ -57,14 +75,25 @@ void CHudHealth::Reset( void )
 {
 	// make sure the pain compass is cleared when the player respawns
 	m_fAttackFront = m_fAttackRear = m_fAttackRight = m_fAttackLeft = 0;
+
+
+	// force all the flashing damage icons to expire
+	m_bitsDamage = 0;
+	for ( int i = 0; i < NUM_DMG_TYPES; i++ )
+	{
+		m_dmg[i].fExpire = 0;
+	}
 }
 
 int CHudHealth::VidInit(void)
 {
-	m_hSprite = LoadSprite( PAIN_NAME );
+	m_hSprite = 0;
 
-	giDmgHeight = gHUD.m_rgrcRects[HUD_dmg_bio].right - gHUD.m_rgrcRects[HUD_dmg_bio].left;
-	giDmgWidth = gHUD.m_rgrcRects[HUD_dmg_bio].bottom - gHUD.m_rgrcRects[HUD_dmg_bio].top;
+	m_HUD_dmg_bio = gHUD.GetSpriteIndex( "dmg_bio" ) + 1;
+	m_HUD_cross = gHUD.GetSpriteIndex( "cross" );
+
+	giDmgHeight = gHUD.GetSpriteRect(m_HUD_dmg_bio).right - gHUD.GetSpriteRect(m_HUD_dmg_bio).left;
+	giDmgWidth = gHUD.GetSpriteRect(m_HUD_dmg_bio).bottom - gHUD.GetSpriteRect(m_HUD_dmg_bio).top;
 	return 1;
 }
 
@@ -116,6 +145,10 @@ void CHudHealth::GetPainColor( int &r, int &g, int &b )
 {
 	int iHealth = m_iHealth;
 
+	if (iHealth > 25)
+		iHealth -= 25;
+	else if ( iHealth < 0 )
+		iHealth = 0;
 #if 0
 	g = iHealth * 255 / 100;
 	r = 255 - g;
@@ -145,6 +178,9 @@ int CHudHealth::Draw(float flTime)
 
 	if ( gHUD.m_iHideHUDDisplay & HIDEHUD_HEALTH )
 		return 1;
+
+	if ( !m_hSprite )
+		m_hSprite = LoadSprite(PAIN_NAME);
 	
 	// Has health changed? Flash the health #
 	if (m_fFade)
@@ -174,14 +210,14 @@ int CHudHealth::Draw(float flTime)
 	// Only draw health if we have the suit.
 	if (gHUD.m_iWeaponBits & (1<<(WEAPON_SUIT)))
 	{
-		HealthWidth = gHUD.m_rgrcRects[HUD_number_0].right - gHUD.m_rgrcRects[HUD_number_0].left;
-		int CrossWidth = gHUD.m_rgrcRects[HUD_cross].right - gHUD.m_rgrcRects[HUD_cross].left;
+		HealthWidth = gHUD.GetSpriteRect(gHUD.m_HUD_number_0).right - gHUD.GetSpriteRect(gHUD.m_HUD_number_0).left;
+		int CrossWidth = gHUD.GetSpriteRect(m_HUD_cross).right - gHUD.GetSpriteRect(m_HUD_cross).left;
 
 		y = ScreenHeight - gHUD.m_iFontHeight - gHUD.m_iFontHeight / 2;
 		x = CrossWidth /2;
 
-		SPR_Set(gHUD.m_rghSprites[HUD_cross], r, g, b);
-		SPR_DrawAdditive(0, x, y, &gHUD.m_rgrcRects[HUD_cross]);
+		SPR_Set(gHUD.GetSprite(m_HUD_cross), r, g, b);
+		SPR_DrawAdditive(0, x, y, &gHUD.GetSpriteRect(m_HUD_cross));
 
 		x = CrossWidth + HealthWidth / 2;
 
@@ -346,14 +382,13 @@ int CHudHealth::DrawDamage(float flTime)
 	ScaleColors(r, g, b, a);
 
 	// Draw all the items
-	int i;
-	for (i = 0; i < NUM_DMG_TYPES; i++)
+	for (int i = 0; i < NUM_DMG_TYPES; i++)
 	{
 		if (m_bitsDamage & giDmgFlags[i])
 		{
 			pdmg = &m_dmg[i];
-			SPR_Set(gHUD.m_rghSprites[HUD_dmg_bio + i], r, g, b );
-			SPR_DrawAdditive(0, pdmg->x, pdmg->y, &gHUD.m_rgrcRects[HUD_dmg_bio + i]);
+			SPR_Set(gHUD.GetSprite(m_HUD_dmg_bio + i), r, g, b );
+			SPR_DrawAdditive(0, pdmg->x, pdmg->y, &gHUD.GetSpriteRect(m_HUD_dmg_bio + i));
 		}
 	}
 

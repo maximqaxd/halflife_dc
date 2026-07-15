@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 //
 // flashlight.cpp
 //
@@ -15,6 +29,8 @@
 
 DECLARE_MESSAGE(m_Flash, FlashBat)
 DECLARE_MESSAGE(m_Flash, Flashlight)
+
+#define BAT_NAME "sprites/%d_Flashlight.spr"
 
 int CHudFlashlight::Init(void)
 {
@@ -39,10 +55,16 @@ void CHudFlashlight::Reset(void)
 
 int CHudFlashlight::VidInit(void)
 {
-	m_hSprite1 = gHUD.m_rghSprites[HUD_flash_empty];
-	m_hSprite2 = gHUD.m_rghSprites[HUD_flash_full];
-	m_prc1 = &gHUD.m_rgrcRects[HUD_flash_empty];
-	m_prc2 = &gHUD.m_rgrcRects[HUD_flash_full];
+	int HUD_flash_empty = gHUD.GetSpriteIndex( "flash_empty" );
+	int HUD_flash_full = gHUD.GetSpriteIndex( "flash_full" );
+	int HUD_flash_beam = gHUD.GetSpriteIndex( "flash_beam" );
+
+	m_hSprite1 = gHUD.GetSprite(HUD_flash_empty);
+	m_hSprite2 = gHUD.GetSprite(HUD_flash_full);
+	m_hBeam = gHUD.GetSprite(HUD_flash_beam);
+	m_prc1 = &gHUD.GetSpriteRect(HUD_flash_empty);
+	m_prc2 = &gHUD.GetSpriteRect(HUD_flash_full);
+	m_prcBeam = &gHUD.GetSpriteRect(HUD_flash_beam);
 	m_iWidth = m_prc2->right - m_prc2->left;
 
 	return 1;
@@ -102,12 +124,12 @@ int CHudFlashlight::Draw(float flTime)
 	SPR_Set(m_hSprite1, r, g, b );
 	SPR_DrawAdditive( 0,  x, y, m_prc1);
 
-	if (m_fOn)
-	{ // draw the flashlight beam
+	if ( m_fOn )
+	{  // draw the flashlight beam
 		x = ScreenWidth - m_iWidth/2;
 
-		SPR_Set( gHUD.m_rghSprites[ HUD_flash_beam ], r, g, b );
-		SPR_DrawAdditive( 0, x, y, &gHUD.m_rgrcRects[HUD_flash_beam] );
+		SPR_Set( m_hBeam, r, g, b );
+		SPR_DrawAdditive( 0, x, y, m_prcBeam );
 	}
 
 	// draw the flashlight energy level

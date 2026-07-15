@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 //=========================================================
 // bullsquid - big, spotty tentacle-mouthed meanie.
 //=========================================================
@@ -106,7 +120,7 @@ void CSquidSpit::Shoot( entvars_t *pevOwner, Vector vecStart, Vector vecVelocity
 	pSpit->pev->velocity = vecVelocity;
 	pSpit->pev->owner = ENT(pevOwner);
 
-	pSpit->SetThink ( &CSquidSpit::Animate );
+	pSpit->SetThink ( Animate );
 	pSpit->pev->nextthink = gpGlobals->time + 0.1;
 }
 
@@ -157,7 +171,7 @@ void CSquidSpit :: Touch ( CBaseEntity *pOther )
 		pOther->TakeDamage ( pev, pev, gSkillData.bullsquidDmgSpit, DMG_GENERIC );
 	}
 
-	SetThink ( &CBaseEntity::SUB_Remove );
+	SetThink ( SUB_Remove );
 	pev->nextthink = gpGlobals->time;
 }
 
@@ -634,7 +648,7 @@ void CBullsquid :: HandleAnimEvent( MonsterEvent_t *pEvent )
 					// screeshake transforms the viewmodel as well as the viewangle. No problems with seeing the ends of the viewmodels.
 					UTIL_ScreenShake( pHurt->pev->origin, 25.0, 1.5, 0.7, 2 );
 
-					if ( pHurt->pev->flags & FL_CLIENT )
+					if ( pHurt->IsPlayer() )
 					{
 						UTIL_MakeVectors( pev->angles );
 						pHurt->pev->velocity = pHurt->pev->velocity + gpGlobals->v_forward * 300 + gpGlobals->v_up * 300;

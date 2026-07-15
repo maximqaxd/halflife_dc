@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 //=========================================================
 // Agrunt - Dominant, warlike alien grunt monster
 //=========================================================
@@ -90,13 +104,13 @@ public:
 	virtual int		Restore( CRestore &restore );
 	static	TYPEDESCRIPTION m_SaveData[];
 
-	static char *pAttackHitSounds[];
-	static char *pAttackMissSounds[];
-	static char *pAttackSounds[];
-	static char *pDieSounds[];
-	static char *pPainSounds[];
-	static char *pIdleSounds[];
-	static char *pAlertSounds[];
+	static const char *pAttackHitSounds[];
+	static const char *pAttackMissSounds[];
+	static const char *pAttackSounds[];
+	static const char *pDieSounds[];
+	static const char *pPainSounds[];
+	static const char *pIdleSounds[];
+	static const char *pAlertSounds[];
 
 	BOOL	m_fCanHornetAttack;
 	float	m_flNextHornetAttackCheck;
@@ -114,42 +128,42 @@ TYPEDESCRIPTION	CAGrunt::m_SaveData[] =
 {
 	DEFINE_FIELD( CAGrunt, m_fCanHornetAttack, FIELD_BOOLEAN ),
 	DEFINE_FIELD( CAGrunt, m_flNextHornetAttackCheck, FIELD_TIME ),
-	DEFINE_FIELD( CAGrunt, m_flNextPainTime, FIELD_FLOAT ),
-	DEFINE_FIELD( CAGrunt, m_flNextSpeakTime, FIELD_FLOAT ),
-	DEFINE_FIELD( CAGrunt, m_flNextWordTime, FIELD_FLOAT ),
+	DEFINE_FIELD( CAGrunt, m_flNextPainTime, FIELD_TIME ),
+	DEFINE_FIELD( CAGrunt, m_flNextSpeakTime, FIELD_TIME ),
+	DEFINE_FIELD( CAGrunt, m_flNextWordTime, FIELD_TIME ),
 	DEFINE_FIELD( CAGrunt, m_iLastWord, FIELD_INTEGER ),
 };
 
 IMPLEMENT_SAVERESTORE( CAGrunt, CSquadMonster );
 
-char *CAGrunt::pAttackHitSounds[] = 
+const char *CAGrunt::pAttackHitSounds[] = 
 {
 	"zombie/claw_strike1.wav",
 	"zombie/claw_strike2.wav",
 	"zombie/claw_strike3.wav",
 };
 
-char *CAGrunt::pAttackMissSounds[] = 
+const char *CAGrunt::pAttackMissSounds[] = 
 {
 	"zombie/claw_miss1.wav",
 	"zombie/claw_miss2.wav",
 };
 
-char *CAGrunt::pAttackSounds[] =
+const char *CAGrunt::pAttackSounds[] =
 {
 	"agrunt/ag_attack1.wav",
 	"agrunt/ag_attack2.wav",
 	"agrunt/ag_attack3.wav",
 };
 
-char *CAGrunt::pDieSounds[] =
+const char *CAGrunt::pDieSounds[] =
 {
 	"agrunt/ag_die1.wav",
 	"agrunt/ag_die4.wav",
 	"agrunt/ag_die5.wav",
 };
 
-char *CAGrunt::pPainSounds[] =
+const char *CAGrunt::pPainSounds[] =
 {
 	"agrunt/ag_pain1.wav",
 	"agrunt/ag_pain2.wav",
@@ -158,7 +172,7 @@ char *CAGrunt::pPainSounds[] =
 	"agrunt/ag_pain5.wav",
 };
 
-char *CAGrunt::pIdleSounds[] =
+const char *CAGrunt::pIdleSounds[] =
 {
 	"agrunt/ag_idle1.wav",
 	"agrunt/ag_idle2.wav",
@@ -166,7 +180,7 @@ char *CAGrunt::pIdleSounds[] =
 	"agrunt/ag_idle4.wav",
 };
 
-char *CAGrunt::pAlertSounds[] =
+const char *CAGrunt::pAlertSounds[] =
 {
 	"agrunt/ag_alert1.wav",
 	"agrunt/ag_alert3.wav",
@@ -490,7 +504,7 @@ void CAGrunt :: HandleAnimEvent( MonsterEvent_t *pEvent )
 				pHurt->pev->punchangle.x = 8;
 
 				// OK to use gpGlobals without calling MakeVectors, cause CheckTraceHullAttack called it above.
-				if ( pHurt->pev->flags & FL_CLIENT )
+				if ( pHurt->IsPlayer() )
 				{
 					// this is a player. Knock him around.
 					pHurt->pev->velocity = pHurt->pev->velocity + gpGlobals->v_right * 250;
@@ -520,7 +534,7 @@ void CAGrunt :: HandleAnimEvent( MonsterEvent_t *pEvent )
 				pHurt->pev->punchangle.x = 8;
 
 				// OK to use gpGlobals without calling MakeVectors, cause CheckTraceHullAttack called it above.
-				if ( pHurt->pev->flags & FL_CLIENT )
+				if ( pHurt->IsPlayer() )
 				{
 					// this is a player. Knock him around.
 					pHurt->pev->velocity = pHurt->pev->velocity + gpGlobals->v_right * -250;

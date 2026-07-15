@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 //=========================================================
 // Squadmonster  functions
 //=========================================================
@@ -359,6 +373,12 @@ int CSquadMonster :: SquadRecruit( int searchRadius, int maxMembers )
 		}
 	}
 
+	// no single member squads
+	if (squadCount == 1)
+	{
+		m_hSquadLeader = NULL;
+	}
+
 	return squadCount;
 }
 
@@ -415,7 +435,7 @@ void CSquadMonster :: StartMonster( void )
 		  ALERT ( at_aiconsole, "Squad of %d %s formed\n", iSquadSize, STRING( pev->classname ) );
 		}
 
-		if ( FClassnameIs ( pev, "monster_human_grunt" ) )
+		if ( IsLeader() && FClassnameIs ( pev, "monster_human_grunt" ) )
 		{
 			SetBodygroup( 1, 1 ); // UNDONE: truly ugly hack
 			pev->skin = 0;
@@ -582,3 +602,22 @@ BOOL CSquadMonster :: SquadMemberInRange ( const Vector &vecLocation, float flDi
 	}
 	return FALSE;
 }
+
+
+extern Schedule_t	slChaseEnemyFailed[];
+
+Schedule_t *CSquadMonster::GetScheduleOfType( int iType )
+{
+	switch ( iType )
+	{
+
+	case SCHED_CHASE_ENEMY_FAILED:
+		{
+			return &slChaseEnemyFailed[ 0 ];
+		}
+	
+	default:
+		return CBaseMonster::GetScheduleOfType( iType );
+	}
+}
+

@@ -1,11 +1,27 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 #ifndef ENGINECALLBACK_H
 #define ENGINECALLBACK_H
 // Must be provided by user of this code
 extern enginefuncs_t g_engfuncs;
 
 // The actual engine callbacks
+#define GETPLAYERUSERID (*g_engfuncs.pfnGetPlayerUserId)
 #define PRECACHE_MODEL	(*g_engfuncs.pfnPrecacheModel)
 #define PRECACHE_SOUND	(*g_engfuncs.pfnPrecacheSound)
+#define PRECACHE_GENERIC	(*g_engfuncs.pfnPrecacheGeneric)
 #define SET_MODEL		(*g_engfuncs.pfnSetModel)
 #define MODEL_INDEX		(*g_engfuncs.pfnModelIndex)
 #define MODEL_FRAMES	(*g_engfuncs.pfnModelFrames)
@@ -28,12 +44,14 @@ extern enginefuncs_t g_engfuncs;
 #define WALK_MOVE		(*g_engfuncs.pfnWalkMove)
 #define SET_ORIGIN		(*g_engfuncs.pfnSetOrigin)
 #define EMIT_SOUND_DYN2 (*g_engfuncs.pfnEmitSound)
+#define BUILD_SOUND_MSG (*g_engfuncs.pfnBuildSoundMsg)
 #define TRACE_LINE		(*g_engfuncs.pfnTraceLine)
 #define TRACE_TOSS		(*g_engfuncs.pfnTraceToss)
 #define TRACE_MONSTER_HULL		(*g_engfuncs.pfnTraceMonsterHull)
 #define TRACE_HULL		(*g_engfuncs.pfnTraceHull)
 #define GET_AIM_VECTOR	(*g_engfuncs.pfnGetAimVector)
 #define SERVER_COMMAND	(*g_engfuncs.pfnServerCommand)
+#define SERVER_EXECUTE	(*g_engfuncs.pfnServerExecute)
 #define CLIENT_COMMAND	(*g_engfuncs.pfnClientCommand)
 #define PARTICLE_EFFECT	(*g_engfuncs.pfnParticleEffect)
 #define LIGHT_STYLE		(*g_engfuncs.pfnLightStyle)
@@ -58,6 +76,7 @@ inline void MESSAGE_BEGIN( int msg_dest, int msg_type, const float *pOrigin = NU
 #define WRITE_COORD		(*g_engfuncs.pfnWriteCoord)
 #define WRITE_STRING	(*g_engfuncs.pfnWriteString)
 #define WRITE_ENTITY	(*g_engfuncs.pfnWriteEntity)
+#define CVAR_REGISTER	(*g_engfuncs.pfnCVarRegister)
 #define CVAR_GET_FLOAT	(*g_engfuncs.pfnCVarGetFloat)
 #define CVAR_GET_STRING	(*g_engfuncs.pfnCVarGetString)
 #define CVAR_SET_FLOAT	(*g_engfuncs.pfnCVarSetFloat)
@@ -99,5 +118,6 @@ inline void *GET_PRIVATE( edict_t *pent )
 #define GET_GAME_DIR			(*g_engfuncs.pfnGetGameDir)
 #define IS_MAP_VALID			(*g_engfuncs.pfnIsMapValid)
 #define NUMBER_OF_ENTITIES		(*g_engfuncs.pfnNumberOfEntities)
+#define IS_DEDICATED_SERVER		(*g_engfuncs.pfnIsDedicatedServer)
 
 #endif		//ENGINECALLBACK_H

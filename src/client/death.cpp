@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 //
 // death notice
 //
@@ -16,6 +30,7 @@ struct DeathNoticeItem {
 	char szVictim[MAX_PLAYER_NAME_LENGTH];
 	int iId;	// the index number of the associated sprite
 	int iSuicide;
+	int iTeamKill;
 	float flDisplayTime;
 };
 
@@ -33,7 +48,7 @@ int CHudDeathNotice :: Init( void )
 
 	HOOK_MESSAGE( DeathMsg );
 
-	CVAR_CREATE( "hud_deathnotice_time", "6" );
+	CVAR_CREATE( "hud_deathnotice_time", "6", 0 );
 
 	return 1;
 }
@@ -47,6 +62,8 @@ void CHudDeathNotice :: InitHUDData( void )
 
 int CHudDeathNotice :: VidInit( void )
 {
+	m_HUD_d_skull = gHUD.GetSpriteIndex( "d_skull" );
+
 	return 1;
 }
 
@@ -73,8 +90,8 @@ int CHudDeathNotice :: Draw( float flTime )
 
 		y = DEATHNOTICE_TOP + (20 * i);  //!!!
 
-		int id = (rgDeathNoticeList[i].iId == -1) ? HUD_d_skull : rgDeathNoticeList[i].iId;
-		x = ScreenWidth - ConsoleStringLen(rgDeathNoticeList[i].szVictim) - (gHUD.m_rgrcRects[id].right - gHUD.m_rgrcRects[id].left);
+		int id = (rgDeathNoticeList[i].iId == -1) ? m_HUD_d_skull : rgDeathNoticeList[i].iId;
+		x = ScreenWidth - ConsoleStringLen(rgDeathNoticeList[i].szVictim) - (gHUD.GetSpriteRect(id).right - gHUD.GetSpriteRect(id).left);
 
 		if ( !rgDeathNoticeList[i].iSuicide )
 		{
@@ -85,12 +102,16 @@ int CHudDeathNotice :: Draw( float flTime )
 		}
 
 		r = 255;  g = 80;	b = 0;
+		if ( rgDeathNoticeList[i].iTeamKill )
+		{
+			r = 10;	g = 240; b = 10;  // display it in sickly green
+		}
 
 		// Draw death weapon
-		SPR_Set( gHUD.m_rghSprites[id], r, g, b );
-		SPR_DrawAdditive( 0, x, y, &gHUD.m_rgrcRects[id] );
+		SPR_Set( gHUD.GetSprite(id), r, g, b );
+		SPR_DrawAdditive( 0, x, y, &gHUD.GetSpriteRect(id) );
 
-		x += (gHUD.m_rgrcRects[id].right - gHUD.m_rgrcRects[id].left);
+		x += (gHUD.GetSpriteRect(id).right - gHUD.GetSpriteRect(id).left);
 
 		// Draw victims name
 		x = DrawConsoleString( x, y, rgDeathNoticeList[i].szVictim );
@@ -115,13 +136,11 @@ int CHudDeathNotice :: MsgFunc_DeathMsg( const char *pszName, int iSize, void *p
 
 	gHUD.m_Scoreboard.DeathMsg( killer, victim );
 
-	int i;
-	for ( i = 0; i < MAX_DEATHNOTICES; i++ )
+	for ( int i = 0; i < MAX_DEATHNOTICES; i++ )
 	{
 		if ( rgDeathNoticeList[i].iId == 0 )
 			break;
 	}
-
 	if ( i == MAX_DEATHNOTICES )
 	{ // move the rest of the list forward to make room for this item
 		memmove( rgDeathNoticeList, rgDeathNoticeList+1, sizeof(DeathNoticeItem) * MAX_DEATHNOTICES );
@@ -143,8 +162,11 @@ int CHudDeathNotice :: MsgFunc_DeathMsg( const char *pszName, int iSize, void *p
 	if ( killer == victim || killer == 0 )
 		rgDeathNoticeList[i].iSuicide = TRUE;
 
+	if ( !strcmp( killedwith, "d_teammate" ) )
+		rgDeathNoticeList[i].iTeamKill = TRUE;
+
 	// Find the sprite in the list
-	int spr = GetSpriteIndex( killedwith );
+	int spr = gHUD.GetSpriteIndex( killedwith );
 
 	rgDeathNoticeList[i].iId = spr;
 
@@ -165,6 +187,12 @@ int CHudDeathNotice :: MsgFunc_DeathMsg( const char *pszName, int iSize, void *p
 			ConsolePrint( " killed self" );
 		}
 	}
+	else if ( rgDeathNoticeList[i].iTeamKill )
+	{
+		ConsolePrint( rgDeathNoticeList[i].szKiller );
+		ConsolePrint( " killed his teammate " );
+		ConsolePrint( rgDeathNoticeList[i].szVictim );
+	}
 	else
 	{
 		ConsolePrint( rgDeathNoticeList[i].szKiller );
@@ -172,9 +200,16 @@ int CHudDeathNotice :: MsgFunc_DeathMsg( const char *pszName, int iSize, void *p
 		ConsolePrint( rgDeathNoticeList[i].szVictim );
 	}
 
-	if ( killedwith && *killedwith && (*killedwith > 13 ) && strcmp( killedwith, "d_world" ) )
+	if ( killedwith && *killedwith && (*killedwith > 13 ) && strcmp( killedwith, "d_world" ) && !rgDeathNoticeList[i].iTeamKill )
 	{
 		ConsolePrint( " with " );
+
+		// replace the code names with the 'real' names
+		if ( !strcmp( killedwith+2, "egon" ) )
+			strcpy( killedwith, "d_gluon gun" );
+		if ( !strcmp( killedwith+2, "gauss" ) )
+			strcpy( killedwith, "d_tau cannon" );
+
 		ConsolePrint( killedwith+2 ); // skip over the "d_" part
 	}
 

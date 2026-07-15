@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 //=========================================================
 // Default behaviors.
 //=========================================================
@@ -595,10 +609,10 @@ Schedule_t	slSpecialAttack2[] =
 // Chase enemy schedule
 Task_t tlChaseEnemy1[] = 
 {
-	{ TASK_SET_FAIL_SCHEDULE,	(float)SCHED_TAKE_COVER_FROM_ENEMY		},
-	{ TASK_GET_PATH_TO_ENEMY,	(float)0								},
-	{ TASK_RUN_PATH,			(float)0								},
-	{ TASK_WAIT_FOR_MOVEMENT,	(float)0								},
+	{ TASK_SET_FAIL_SCHEDULE,	(float)SCHED_CHASE_ENEMY_FAILED	},
+	{ TASK_GET_PATH_TO_ENEMY,	(float)0		},
+	{ TASK_RUN_PATH,			(float)0		},
+	{ TASK_WAIT_FOR_MOVEMENT,	(float)0		},
 };
 
 Schedule_t slChaseEnemy[] =
@@ -618,6 +632,39 @@ Schedule_t slChaseEnemy[] =
 		"Chase Enemy"
 	},
 };
+
+
+// Chase enemy failure schedule
+Task_t	tlChaseEnemyFailed[] =
+{
+	{ TASK_STOP_MOVING,				(float)0					},
+	{ TASK_WAIT,					(float)0.2					},
+	{ TASK_FIND_COVER_FROM_ENEMY,	(float)0					},
+	{ TASK_RUN_PATH,				(float)0					},
+	{ TASK_WAIT_FOR_MOVEMENT,		(float)0					},
+	{ TASK_REMEMBER,				(float)bits_MEMORY_INCOVER	},
+//	{ TASK_TURN_LEFT,				(float)179					},
+	{ TASK_FACE_ENEMY,				(float)0					},
+	{ TASK_WAIT,					(float)1					},
+};
+
+Schedule_t	slChaseEnemyFailed[] =
+{
+	{ 
+		tlChaseEnemyFailed,
+		ARRAYSIZE ( tlChaseEnemyFailed ), 
+		bits_COND_NEW_ENEMY			|
+		bits_COND_CAN_RANGE_ATTACK1	|
+		bits_COND_CAN_MELEE_ATTACK1	|
+		bits_COND_CAN_RANGE_ATTACK2	|
+		bits_COND_CAN_MELEE_ATTACK2	|
+		bits_COND_HEAR_SOUND,
+
+		bits_SOUND_DANGER,
+		"tlChaseEnemyFailed"
+	},
+};
+
 
 //=========================================================
 // small flinch, played when minor damage is taken.
@@ -955,6 +1002,7 @@ Schedule_t *CBaseMonster::m_scheduleList[] =
 	slSpecialAttack1,
 	slSpecialAttack2,
 	slChaseEnemy,
+	slChaseEnemyFailed,
 	slSmallFlinch,
 	slDie,
 	slVictoryDance,
@@ -1078,6 +1126,10 @@ Schedule_t* CBaseMonster :: GetScheduleOfType ( int Type )
 	case SCHED_CHASE_ENEMY:
 		{
 			return &slChaseEnemy[ 0 ];
+		}
+	case SCHED_CHASE_ENEMY_FAILED:
+		{
+			return &slFail[ 0 ];
 		}
 	case SCHED_SMALL_FLINCH:
 		{

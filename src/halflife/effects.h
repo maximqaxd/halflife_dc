@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 #ifndef EFFECTS_H
 #define EFFECTS_H
 
@@ -65,7 +79,7 @@ public:
 
 	inline void AnimateAndDie( float framerate ) 
 	{ 
-		SetThink(&CSprite::AnimateUntilDead); 
+		SetThink(AnimateUntilDead); 
 		pev->framerate = framerate;
 		pev->dmgtime = gpGlobals->time + (m_maxFrame / framerate); 
 		pev->nextthink = gpGlobals->time; 
@@ -125,8 +139,8 @@ public:
 	inline int	GetStartEntity( void ) { return pev->sequence & 0xFFF; }
 	inline int	GetEndEntity( void ) { return pev->skin & 0xFFF; }
 
-	Vector &GetStartPos( void );
-	Vector &GetEndPos( void );
+	const Vector &GetStartPos( void );
+	const Vector &GetEndPos( void );
 
 	Vector Center( void ) { return (GetStartPos() + GetEndPos()) * 0.5; }; // center point of beam
 
@@ -142,8 +156,8 @@ public:
 	void		RelinkBeam( void );
 //	void		SetObjectCollisionBox( void );
 
-	void		DoSparks( Vector &start, Vector &end );
-	CBaseEntity *RandomTargetname( char *szName );
+	void		DoSparks( const Vector &start, const Vector &end );
+	CBaseEntity *RandomTargetname( const char *szName );
 	void		BeamDamage( TraceResult *ptr );
 	// Init after BeamCreate()
 	void		BeamInit( const char *pSpriteName, int width );
@@ -154,7 +168,7 @@ public:
 
 	static CBeam *BeamCreate( const char *pSpriteName, int width );
 
-	inline void LiveForTime( float time ) { SetThink (&CBaseEntity::SUB_Remove); pev->nextthink = gpGlobals->time + time; }
+	inline void LiveForTime( float time ) { SetThink(SUB_Remove); pev->nextthink = gpGlobals->time + time; }
 	inline void	BeamDamageInstant( TraceResult *ptr, float damage ) 
 	{ 
 		pev->dmg = damage; 

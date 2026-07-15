@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 //=========================================================
 // Hornets
 //=========================================================
@@ -79,16 +93,18 @@ void CHornet :: Spawn( void )
 	SET_MODEL(ENT( pev ), "models/hornet.mdl");
 	UTIL_SetSize( pev, Vector( -4, -4, -4 ), Vector( 4, 4, 4 ) );
 
-	SetTouch( &CHornet::DieTouch );
-	SetThink( &CHornet::StartTrack );
+	SetTouch( DieTouch );
+	SetThink( StartTrack );
 
-	edict_t *pSoundEnt = edict();
+	edict_t *pSoundEnt = pev->owner;
+	if ( !pSoundEnt )
+		pSoundEnt = edict();
 
 	switch (RANDOM_LONG(0,2))
 	{
-	case 0:	EMIT_SOUND( pSoundEnt, CHAN_VOICE, "agrunt/ag_fire1.wav", 1, ATTN_NORM);	break;
-	case 1:	EMIT_SOUND( pSoundEnt, CHAN_VOICE, "agrunt/ag_fire2.wav", 1, ATTN_NORM);	break;
-	case 2:	EMIT_SOUND( pSoundEnt, CHAN_VOICE, "agrunt/ag_fire3.wav", 1, ATTN_NORM);	break;
+	case 0:	EMIT_SOUND( pSoundEnt, CHAN_WEAPON, "agrunt/ag_fire1.wav", 1, ATTN_NORM);	break;
+	case 1:	EMIT_SOUND( pSoundEnt, CHAN_WEAPON, "agrunt/ag_fire2.wav", 1, ATTN_NORM);	break;
+	case 2:	EMIT_SOUND( pSoundEnt, CHAN_WEAPON, "agrunt/ag_fire3.wav", 1, ATTN_NORM);	break;
 	}
 
 	if ( !FNullEnt(pev->owner) && (pev->owner->v.flags & FL_CLIENT) )
@@ -160,8 +176,8 @@ void CHornet :: StartTrack ( void )
 {
 	IgniteTrail();
 
-	SetTouch( &CHornet::TrackTouch );
-	SetThink( &CHornet::TrackTarget );
+	SetTouch( TrackTouch );
+	SetThink( TrackTarget );
 
 	pev->nextthink = gpGlobals->time + 0.1;
 }
@@ -173,9 +189,9 @@ void CHornet :: StartDart ( void )
 {
 	IgniteTrail();
 
-	SetTouch( &CHornet::DartTouch );
+	SetTouch( DartTouch );
 
-	SetThink( &CBaseEntity::SUB_Remove );
+	SetThink( SUB_Remove );
 	pev->nextthink = gpGlobals->time + 4;
 }
 
@@ -248,7 +264,7 @@ void CHornet :: TrackTarget ( void )
 	if (gpGlobals->time > m_flStopAttack)
 	{
 		SetTouch( NULL );
-		SetThink( &CBaseEntity::SUB_Remove );
+		SetThink( SUB_Remove );
 		pev->nextthink = gpGlobals->time + 0.1;
 		return;
 	}
@@ -404,7 +420,7 @@ void CHornet::DieTouch ( CBaseEntity *pOther )
 	pev->modelindex = 0;// so will disappear for the 0.1 secs we wait until NEXTTHINK gets rid
 	pev->solid = SOLID_NOT;
 
-	SetThink ( &CBaseEntity::SUB_Remove );
+	SetThink ( SUB_Remove );
 	pev->nextthink = gpGlobals->time + 1;// stick around long enough for the sound to finish!
 }
 

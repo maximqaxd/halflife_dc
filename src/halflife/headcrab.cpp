@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 //=========================================================
 // headcrab.cpp - tiny, jumpy alien parasite
 //=========================================================
@@ -85,12 +99,12 @@ public:
 
 	CUSTOM_SCHEDULES;
 
-	static char *pIdleSounds[];
-	static char *pAlertSounds[];
-	static char *pPainSounds[];
-	static char *pAttackSounds[];
-	static char *pDeathSounds[];
-	static char *pBiteSounds[];
+	static const char *pIdleSounds[];
+	static const char *pAlertSounds[];
+	static const char *pPainSounds[];
+	static const char *pAttackSounds[];
+	static const char *pDeathSounds[];
+	static const char *pBiteSounds[];
 };
 LINK_ENTITY_TO_CLASS( monster_headcrab, CHeadCrab );
 
@@ -102,36 +116,36 @@ DEFINE_CUSTOM_SCHEDULES( CHeadCrab )
 
 IMPLEMENT_CUSTOM_SCHEDULES( CHeadCrab, CBaseMonster );
 
-char *CHeadCrab::pIdleSounds[] = 
+const char *CHeadCrab::pIdleSounds[] = 
 {
 	"headcrab/hc_idle1.wav",
 	"headcrab/hc_idle2.wav",
 	"headcrab/hc_idle3.wav",
 };
-char *CHeadCrab::pAlertSounds[] = 
+const char *CHeadCrab::pAlertSounds[] = 
 {
 	"headcrab/hc_alert1.wav",
 };
-char *CHeadCrab::pPainSounds[] = 
+const char *CHeadCrab::pPainSounds[] = 
 {
 	"headcrab/hc_pain1.wav",
 	"headcrab/hc_pain2.wav",
 	"headcrab/hc_pain3.wav",
 };
-char *CHeadCrab::pAttackSounds[] = 
+const char *CHeadCrab::pAttackSounds[] = 
 {
 	"headcrab/hc_attack1.wav",
 	"headcrab/hc_attack2.wav",
 	"headcrab/hc_attack3.wav",
 };
 
-char *CHeadCrab::pDeathSounds[] = 
+const char *CHeadCrab::pDeathSounds[] = 
 {
 	"headcrab/hc_die1.wav",
 	"headcrab/hc_die2.wav",
 };
 
-char *CHeadCrab::pBiteSounds[] = 
+const char *CHeadCrab::pBiteSounds[] = 
 {
 	"headcrab/hc_headbite.wav",
 };
@@ -371,7 +385,7 @@ void CHeadCrab :: StartTask ( Task_t *pTask )
 		{
 			EMIT_SOUND_DYN( edict(), CHAN_WEAPON, pAttackSounds[0], GetSoundVolue(), ATTN_IDLE, 0, GetVoicePitch() );
 			m_IdealActivity = ACT_RANGE_ATTACK1;
-			SetTouch ( &CHeadCrab::LeapTouch );
+			SetTouch ( LeapTouch );
 			break;
 		}
 	default:

@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 //
 // hud.cpp
 //
@@ -9,64 +23,6 @@
 #include <string.h>
 #include <stdio.h>
 #include "parsemsg.h"
-
-const char* g_rgszSpriteNames[] =
-{
-	"selection",
-	"bucket1",
-	"bucket2",
-	"bucket3",
-	"bucket4",
-	"bucket5",
-	"bucket0",
-	"dmg_bio",
-	"dmg_chem",
-	"dmg_cold",
-	"dmg_drown",
-	"dmg_heat",
-	"dmg_gas",
-	"dmg_rad",
-	"dmg_shock",
-	"number_0",
-	"number_1",
-	"number_2",
-	"number_3",
-	"number_4",
-	"number_5",
-	"number_6",
-	"number_7",
-	"number_8",
-	"number_9",
-	"divider",
-	"cross",
-	"suit_full",
-	"suit_empty",
-	"flash_full",
-	"flash_empty",
-	"flash_beam",
-	"title_half",
-	"title_life",
-	"item_longjump",
-	"item_battery",
-	"item_healthkit",
-	"d_skull",
-	"d_crowbar",
-	"d_9mmhandgun",
-	"d_357",
-	"d_9mmAR",
-	"d_shotgun",
-	"d_bolt",
-	"d_crossbow",
-	"d_rpg_rocket",
-	"d_gauss",
-	"d_egon",
-	"d_hornet",
-	"d_satchel",
-	"d_tripmine",
-	"d_snark",
-	"d_grenade",
-	"d_tracktrain"
-};
 
 extern client_sprite_t *GetSpriteList(client_sprite_t *pList, const char *psz, int iRes, int iCount);
 
@@ -93,21 +49,32 @@ int __MsgFunc_SetFOV(const char *pszName, int iSize, void *pbuf)
 	return gHUD.MsgFunc_SetFOV( pszName, iSize, pbuf );
 }
 
+int __MsgFunc_Concuss(const char *pszName, int iSize, void *pbuf)
+{
+	return gHUD.MsgFunc_Concuss( pszName, iSize, pbuf );
+}
+
+int __MsgFunc_GameMode(const char *pszName, int iSize, void *pbuf )
+{
+	return gHUD.MsgFunc_GameMode( pszName, iSize, pbuf );
+}
+
 
 // This is called every time the DLL is loaded
 void CHud :: Init( void )
 {
 	HOOK_MESSAGE( Logo );
 	HOOK_MESSAGE( ResetHUD );
+	HOOK_MESSAGE( GameMode );
 	HOOK_MESSAGE( InitHUD );
 	HOOK_MESSAGE( SetFOV );
+	HOOK_MESSAGE( Concuss );
 
 	m_iLogo = 0;
 	m_iFOV = 0;
-	m_flOldSensitivity = 0;
 
-	CVAR_CREATE( "zoom_sensitivity_ratio", "1.2" );
-	CVAR_CREATE( "default_fov", "90" );
+	CVAR_CREATE( "zoom_sensitivity_ratio", "1.2", 0 );
+	CVAR_CREATE( "default_fov", "90", 0 );
 
 	m_pSpriteList = NULL;
 
@@ -136,11 +103,41 @@ void CHud :: Init( void )
 	m_Message.Init();
 	m_Scoreboard.Init();
 	m_MOTD.Init();
+	m_StatusBar.Init();
 	m_DeathNotice.Init();
+	m_AmmoSecondary.Init();
+	m_TextMessage.Init();
+	m_StatusIcons.Init();
 
 	m_SayText.Init();
+	m_Menu.Init();
 
 	MsgFunc_ResetHUD(0, 0, NULL );
+}
+
+// CHud destructor
+// cleans up memory allocated for m_rg* arrays
+CHud :: ~CHud()
+{
+	delete [] m_rghSprites;
+	delete [] m_rgrcRects;
+	delete [] m_rgszSpriteNames;
+}
+
+// GetSpriteIndex()
+// searches through the sprite list loaded from hud.txt for a name matching SpriteName
+// returns an index into the gHUD.m_rghSprites[] array
+// returns 0 if sprite not found
+int CHud :: GetSpriteIndex( const char *SpriteName )
+{
+	// look through the loaded sprite name list for SpriteName
+	for ( int i = 0; i < m_iSpriteCount; i++ )
+	{
+		if ( strncmp( SpriteName, m_rgszSpriteNames + (i * MAX_SPRITE_NAME_LENGTH), MAX_SPRITE_NAME_LENGTH ) == 0 )
+			return i;
+	}
+
+	return -1; // invalid sprite
 }
 
 void CHud :: VidInit( void )
@@ -155,36 +152,77 @@ void CHud :: VidInit( void )
 	
 	m_hsprLogo = 0;	
 
-	int iRes;
 	if (ScreenWidth < 640)
-		iRes = 320;
+		m_iRes = 320;
 	else
-		iRes = 640;
+		m_iRes = 640;
 
-	m_pSpriteList = gEngfuncs.pfnSPR_GetList("sprites/hud.txt", &m_iSpriteCount);
-
-	if (m_pSpriteList)
+	// Only load this once
+	if ( !m_pSpriteList )
 	{
-		for (int i = 0; i < HUD_SPRITE_COUNT; i++)
+		// we need to load the hud.txt, and all sprites within
+		m_pSpriteList = SPR_GetList("sprites/hud.txt", &m_iSpriteCountAllRes);
+
+		if (m_pSpriteList)
 		{
-			client_sprite_s* p = GetSpriteList(m_pSpriteList, g_rgszSpriteNames[i], iRes, m_iSpriteCount);
-
-			if (p)
+			// count the number of sprites of the appropriate res
+			m_iSpriteCount = 0;
+			client_sprite_t *p = m_pSpriteList;
+			for ( int j = 0; j < m_iSpriteCountAllRes; j++ )
 			{
-				char buffer[256];
-				sprintf(buffer, "sprites/%s.spr", p->szSprite);
-
-				m_rghSprites[i] = SPR_Load(buffer);
-				m_rgrcRects[i] = p->rc;
+				if ( p->iRes == m_iRes )
+					m_iSpriteCount++;
+				p++;
 			}
-			else
+
+			// allocated memory for sprite handle arrays
+ 			m_rghSprites = new HSPRITE[m_iSpriteCount];
+			m_rgrcRects = new wrect_t[m_iSpriteCount];
+			m_rgszSpriteNames = new char[m_iSpriteCount * MAX_SPRITE_NAME_LENGTH];
+
+			p = m_pSpriteList;
+			int index = 0;
+			for ( j = 0; j < m_iSpriteCountAllRes; j++ )
 			{
-				m_rghSprites[i] = NULL;
+				if ( p->iRes == m_iRes )
+				{
+					char sz[256];
+					sprintf(sz, "sprites/%s.spr", p->szSprite);
+					m_rghSprites[index] = SPR_Load(sz);
+					m_rgrcRects[index] = p->rc;
+					strncpy( &m_rgszSpriteNames[index * MAX_SPRITE_NAME_LENGTH], p->szName, MAX_SPRITE_NAME_LENGTH );
+
+					index++;
+				}
+
+				p++;
 			}
 		}
 	}
+	else
+	{
+		// we have already have loaded the sprite reference from hud.txt, but
+		// we need to make sure all the sprites have been loaded (we've gone through a transition, or loaded a save game)
+		client_sprite_t *p = m_pSpriteList;
+		int index = 0;
+		for ( int j = 0; j < m_iSpriteCountAllRes; j++ )
+		{
+			if ( p->iRes == m_iRes )
+			{
+				char sz[256];
+				sprintf( sz, "sprites/%s.spr", p->szSprite );
+				m_rghSprites[index] = SPR_Load(sz);
+				index++;
+			}
 
-	m_iFontHeight = m_rgrcRects[HUD_number_0].bottom - m_rgrcRects[HUD_number_0].top;
+			p++;
+		}
+	}
+
+	// assumption: number_1, number_2, etc, are all listed and loaded sequentially
+	m_HUD_number_0 = GetSpriteIndex( "number_0" );
+
+	m_iFontHeight = m_rgrcRects[m_HUD_number_0].bottom - m_rgrcRects[m_HUD_number_0].top;
 
 	m_Ammo.VidInit();
 	m_Health.VidInit();
@@ -195,8 +233,13 @@ void CHud :: VidInit( void )
 	m_Message.VidInit();
 	m_Scoreboard.VidInit();
 	m_MOTD.VidInit();
+	m_StatusBar.VidInit();
 	m_DeathNotice.VidInit();
 	m_SayText.VidInit();
+	m_Menu.VidInit();
+	m_AmmoSecondary.VidInit();
+	m_TextMessage.VidInit();
+	m_StatusIcons.VidInit();
 }
 
 int CHud::MsgFunc_Logo(const char *pszName,  int iSize, void *pbuf)
@@ -214,31 +257,29 @@ int CHud::MsgFunc_SetFOV(const char *pszName,  int iSize, void *pbuf)
 	BEGIN_READ( pbuf, iSize );
 
 	int newfov = READ_BYTE();
-	int oldfov = m_iFOV;
 	int def_fov = CVAR_GET_FLOAT( "default_fov" );
-	float flSensitivity;
-
-	// the clients fov is actually set in the client data update section of the hud
-	m_iFOV = newfov;
 
 	if ( newfov == 0 )
 	{
 		m_iFOV = def_fov;
-		// Set a new sensitivity
-		flSensitivity = m_flOldSensitivity;
 	}
 	else
 	{
-		m_flOldSensitivity = CVAR_GET_FLOAT( "sensitivity" );
-		// set a new sensitivity that is proportional to the change from the FOV default
-		flSensitivity = m_flOldSensitivity * ((float)newfov / (float)oldfov) * CVAR_GET_FLOAT("zoom_sensitivity_ratio");
+		m_iFOV = newfov;
 	}
 
-	if ( flSensitivity != 0 )
-	{
-		char buffer[32];
-		sprintf(buffer, "sensitivity %.2f\n", flSensitivity);
-		ClientCmd(buffer);
+	// the clients fov is actually set in the client data update section of the hud
+
+	// Set a new sensitivity
+	if ( m_iFOV == def_fov )
+	{  
+		// reset to saved sensitivity
+		m_flMouseSensitivity = 0;
+	}
+	else
+	{  
+		// set a new sensitivity that is proportional to the change from the FOV default
+		m_flMouseSensitivity = CVAR_GET_FLOAT("sensitivity") * ((float)newfov / (float)def_fov) * CVAR_GET_FLOAT("zoom_sensitivity_ratio");
 	}
 
 	return 1;

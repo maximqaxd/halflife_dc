@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 #ifndef TALKMONSTER_H
 #define TALKMONSTER_H
 
@@ -96,8 +110,8 @@ public:
 	void			Killed( entvars_t *pevAttacker, int iGib );
 	int				IRelationship ( CBaseEntity *pTarget );
 	virtual int		CanPlaySentence( BOOL fDisregardState );
-	virtual void	PlaySentence( char *pszSentence, float duration, float volume, float attenuation );
-	void			PlayScriptedSentence( char *pszSentence, float duration, float volume, float attenuation, BOOL bConcurrent, CBaseEntity *pListener );
+	virtual void	PlaySentence( const char *pszSentence, float duration, float volume, float attenuation );
+	void			PlayScriptedSentence( const char *pszSentence, float duration, float volume, float attenuation, BOOL bConcurrent, CBaseEntity *pListener );
 	void			KeyValue( KeyValueData *pkvd );
 
 	// AI functions
@@ -125,7 +139,7 @@ public:
 	void			Talk( float flDuration );	
 	// For following
 	BOOL			CanFollow( void );
-	BOOL			IsFollowing( void ) { return m_hTargetEnt != NULL && m_hTargetEnt->pev->flags & FL_CLIENT; }
+	BOOL			IsFollowing( void ) { return m_hTargetEnt != NULL && m_hTargetEnt->IsPlayer(); }
 	void			StopFollowing( BOOL clearSchedule );
 	void			StartFollowing( CBaseEntity *pLeader );
 	virtual void	DeclineFollowing( void ) {}
@@ -147,7 +161,7 @@ public:
 	int			m_bitsSaid;						// set bits for sentences we don't want repeated
 	int			m_nSpeak;						// number of times initiated talking
 	int			m_voicePitch;					// pitch of voice for this head
-	char	*m_szGrp[TLK_CGROUPS];			// sentence group names
+	const char	*m_szGrp[TLK_CGROUPS];			// sentence group names
 	float		m_useTime;						// Don't allow +USE until this time
 	int			m_iszUse;						// Custom +USE sentence group (follow)
 	int			m_iszUnUse;						// Custom +USE sentence group (stop following)

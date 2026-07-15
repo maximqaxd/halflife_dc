@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 #if !defined( OEM_BUILD ) && !defined( HLDEMO_BUILD )
 
 //=========================================================
@@ -150,8 +164,8 @@ IMPLEMENT_SAVERESTORE( CBMortar, CBaseEntity );
 #define bits_MEMORY_FIRED_NODE		(bits_MEMORY_CUSTOM4)
 
 int gSpitSprite, gSpitDebrisSprite;
-Vector VecCheckSplatToss( entvars_t *pev, Vector &vecSpot1, Vector vecSpot2, float maxHeight );
-void MortarSpray( Vector &position, const Vector &direction, int spriteModel, int count );
+Vector VecCheckSplatToss( entvars_t *pev, const Vector &vecSpot1, Vector vecSpot2, float maxHeight );
+void MortarSpray( const Vector &position, const Vector &direction, int spriteModel, int count );
 
 
 // UNDONE:	
@@ -279,15 +293,15 @@ public:
 	virtual int	Restore( CRestore &restore );
 	static	TYPEDESCRIPTION m_SaveData[];
 
-	static char *pChildDieSounds[];
-	static char *pSackSounds[];
-	static char *pDeathSounds[];
-	static char *pAttackSounds[];
-	static char *pAttackHitSounds[];
-	static char *pBirthSounds[];
-	static char *pAlertSounds[];
-	static char *pPainSounds[];
-	static char *pFootSounds[];
+	static const char *pChildDieSounds[];
+	static const char *pSackSounds[];
+	static const char *pDeathSounds[];
+	static const char *pAttackSounds[];
+	static const char *pAttackHitSounds[];
+	static const char *pBirthSounds[];
+	static const char *pAlertSounds[];
+	static const char *pPainSounds[];
+	static const char *pFootSounds[];
 
 	CUSTOM_SCHEDULES;
 
@@ -311,60 +325,60 @@ TYPEDESCRIPTION	CBigMomma::m_SaveData[] =
 
 IMPLEMENT_SAVERESTORE( CBigMomma, CBaseMonster );
 
-char *CBigMomma::pChildDieSounds[] = 
+const char *CBigMomma::pChildDieSounds[] = 
 {
 	"gonarch/gon_childdie1.wav",
 	"gonarch/gon_childdie2.wav",
 	"gonarch/gon_childdie3.wav",
 };
 
-char *CBigMomma::pSackSounds[] = 
+const char *CBigMomma::pSackSounds[] = 
 {
 	"gonarch/gon_sack1.wav",
 	"gonarch/gon_sack2.wav",
 	"gonarch/gon_sack3.wav",
 };
 
-char *CBigMomma::pDeathSounds[] = 
+const char *CBigMomma::pDeathSounds[] = 
 {
 	"gonarch/gon_die1.wav",
 };
 
-char *CBigMomma::pAttackSounds[] = 
+const char *CBigMomma::pAttackSounds[] = 
 {
 	"gonarch/gon_attack1.wav",
 	"gonarch/gon_attack2.wav",
 	"gonarch/gon_attack3.wav",
 };
-char *CBigMomma::pAttackHitSounds[] = 
+const char *CBigMomma::pAttackHitSounds[] = 
 {
 	"zombie/claw_strike1.wav",
 	"zombie/claw_strike2.wav",
 	"zombie/claw_strike3.wav",
 };
 
-char *CBigMomma::pBirthSounds[] = 
+const char *CBigMomma::pBirthSounds[] = 
 {
 	"gonarch/gon_birth1.wav",
 	"gonarch/gon_birth2.wav",
 	"gonarch/gon_birth3.wav",
 };
 
-char *CBigMomma::pAlertSounds[] = 
+const char *CBigMomma::pAlertSounds[] = 
 {
 	"gonarch/gon_alert1.wav",
 	"gonarch/gon_alert2.wav",
 	"gonarch/gon_alert3.wav",
 };
 
-char *CBigMomma::pPainSounds[] = 
+const char *CBigMomma::pPainSounds[] = 
 {
 	"gonarch/gon_pain2.wav",
 	"gonarch/gon_pain4.wav",
 	"gonarch/gon_pain5.wav",
 };
 
-char *CBigMomma::pFootSounds[] = 
+const char *CBigMomma::pFootSounds[] = 
 {
 	"gonarch/gon_step1.wav",
 	"gonarch/gon_step2.wav",
@@ -1068,7 +1082,7 @@ void CBigMomma::RunTask( Task_t *pTask )
 
 
 
-Vector VecCheckSplatToss( entvars_t *pev, Vector &vecSpot1, Vector vecSpot2, float maxHeight )
+Vector VecCheckSplatToss( entvars_t *pev, const Vector &vecSpot1, Vector vecSpot2, float maxHeight )
 {
 	TraceResult		tr;
 	Vector			vecMidPoint;// halfway point between Spot1 and Spot2
@@ -1119,7 +1133,7 @@ Vector VecCheckSplatToss( entvars_t *pev, Vector &vecSpot1, Vector vecSpot2, flo
 // Mortar
 //
 // ---------------------------------
-void MortarSpray( Vector &position, const Vector &direction, int spriteModel, int count )
+void MortarSpray( const Vector &position, const Vector &direction, int spriteModel, int count )
 {
 	MESSAGE_BEGIN( MSG_PVS, SVC_TEMPENTITY, position );
 		WRITE_BYTE( TE_SPRITE_SPRAY );
@@ -1184,7 +1198,7 @@ CBMortar *CBMortar::Shoot( edict_t *pOwner, Vector vecStart, Vector vecVelocity 
 	pSpit->pev->velocity = vecVelocity;
 	pSpit->pev->owner = pOwner;
 	pSpit->pev->scale = 2.5;
-	pSpit->SetThink ( &CBMortar::Animate );
+	pSpit->SetThink ( Animate );
 	pSpit->pev->nextthink = gpGlobals->time + 0.1;
 
 	return pSpit;
@@ -1230,7 +1244,7 @@ void CBMortar::Touch( CBaseEntity *pOther )
 	if ( pev->owner )
 		pevOwner = VARS(pev->owner);
 
-	RadiusDamage( pev->origin, pev, pevOwner, 100, 250, CLASS_NONE, DMG_ACID );
+	RadiusDamage( pev->origin, pev, pevOwner, gSkillData.bigmommaDmgBlast, gSkillData.bigmommaRadiusBlast, CLASS_NONE, DMG_ACID );
 	UTIL_Remove( this );
 }
 

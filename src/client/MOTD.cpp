@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 //
 // MOTD.cpp
 //
@@ -21,7 +35,7 @@ int CHudMOTD :: Init( void )
 
 	HOOK_MESSAGE( MOTD );
 
-	CVAR_CREATE( "motd_display_time", "6" );
+	CVAR_CREATE( "motd_display_time", "6", 0 );
 
 	m_iFlags &= ~HUD_ACTIVE;  // start out inactive
 	m_szMOTD[0] = 0;
@@ -67,8 +81,7 @@ int CHudMOTD :: Draw( float fTime )
 	while ( *ch )
 	{
 		int line_length = 0;  // count the length of the current line
-		char* next_line;
-		for ( next_line = ch; *next_line != '\n' && *next_line != 0; next_line++ )
+		for ( char *next_line = ch; *next_line != '\n' && *next_line != 0; next_line++ )
 			line_length += gHUD.m_scrinfo.charWidths[ *next_line ];
 		char *top = next_line;
 		if ( *top == '\n' )

@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 //
 // util.h
 //
@@ -23,7 +37,7 @@
 
 inline float CVAR_GET_FLOAT( const char *x ) {	return gEngfuncs.pfnGetCvarFloat( (char*)x ); }
 inline char* CVAR_GET_STRING( const char *x ) {	return gEngfuncs.pfnGetCvarString( (char*)x ); }
-inline void CVAR_CREATE( const char *cv, const char *val ) {	gEngfuncs.pfnRegisterVariable( (char*)cv, (char*)val ); }
+inline void CVAR_CREATE( const char *cv, const char *val, const int flags ) {	gEngfuncs.pfnRegisterVariable( (char*)cv, (char*)val, flags ); }
 
 #define SPR_Load (*gEngfuncs.pfnSPR_Load)
 #define SPR_Set (*gEngfuncs.pfnSPR_Set)
@@ -58,8 +72,8 @@ inline void CVAR_CREATE( const char *cv, const char *val ) {	gEngfuncs.pfnRegist
 
 
 // Gets the height & width of a sprite,  at the specified frame
-inline int SPR_Height( HSPRITE_t x, int f )	{ return gEngfuncs.pfnSPR_Height(x, f); }
-inline int SPR_Width( HSPRITE_t x, int f )	{ return gEngfuncs.pfnSPR_Width(x, f); }
+inline int SPR_Height( HSPRITE x, int f )	{ return gEngfuncs.pfnSPR_Height(x, f); }
+inline int SPR_Width( HSPRITE x, int f )	{ return gEngfuncs.pfnSPR_Width(x, f); }
 
 inline 	client_textmessage_t	*TextMessageGet( const char *pName ) { return gEngfuncs.pfnTextMessageGet( pName ); }
 inline 	int						TextMessageDrawChar( int x, int y, int number, int r, int g, int b ) 
@@ -89,6 +103,11 @@ inline void ConsolePrint( const char *string )
 	gEngfuncs.pfnConsolePrint( string );
 }
 
+inline void CenterPrint( const char *string )
+{
+	gEngfuncs.pfnCenterPrint( string );
+}
+
 // returns the players name of entity no.
 #define GetPlayerInfo (*gEngfuncs.pfnGetPlayerInfo)
 
@@ -112,23 +131,6 @@ void ScaleColors( int &r, int &g, int &b, int a );
 // disable 'truncation from 'const double' to 'float' warning message
 #pragma warning( disable: 4305 )
 
-extern const char* g_rgszSpriteNames[HUD_SPRITE_COUNT];
-
-// GetSpriteIndex()
-// searches through the sprite list loaded from hud.txt for a name matching SpriteName
-// returns an index into the gHUD.m_rghSprites[] array
-// returns -1 if sprite not found
-inline int GetSpriteIndex(const char* SpriteName)
-{
-	// look through the loaded sprite name list for SpriteName
-	for (int i = 0; i < HUD_SPRITE_COUNT; i++)
-	{
-		if (!strcmp(SpriteName, g_rgszSpriteNames[i]))
-			return i;
-	}
-	return -1; // invalid sprite
-}
-
 inline void UnpackRGB(int &r, int &g, int &b, unsigned long ulRGB)\
 {\
 	r = (ulRGB & 0xFF0000) >>16;\
@@ -136,4 +138,4 @@ inline void UnpackRGB(int &r, int &g, int &b, unsigned long ulRGB)\
 	b = ulRGB & 0xFF;\
 }
 
-HSPRITE_t LoadSprite(const char *pszName);
+HSPRITE LoadSprite(const char *pszName);

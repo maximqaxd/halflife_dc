@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 #include	"extdll.h"
 #include	"util.h"
 #include	"cbase.h"
@@ -5,6 +19,7 @@
 #include	"client.h"
 #include	"decals.h"
 #include	"gamerules.h"
+#include	"game.h"
 
 void EntvarsKeyvalue( entvars_t *pev, KeyValueData *pkvd );
 
@@ -14,6 +29,7 @@ extern DLL_GLOBAL int			g_iSkillLevel;
 
 static DLL_FUNCTIONS gFunctionTable = 
 {
+	GameDLLInit,				//pfnGameInit
 	DispatchSpawn,				//pfnSpawn
 	DispatchThink,				//pfnThink
 	DispatchUse,				//pfnUse
@@ -36,6 +52,7 @@ static DLL_FUNCTIONS gFunctionTable =
 	ClientKill,					//pfnClientKill
 	ClientPutInServer,			//pfnClientPutInServer
 	ClientCommand,				//pfnClientCommand
+	ClientUserInfoChanged,		//pfnClientUserInfoChanged
 	ServerActivate,				//pfnServerActivate
 
 	PlayerPreThink,				//pfnPlayerPreThink
@@ -54,108 +71,6 @@ static DLL_FUNCTIONS gFunctionTable =
 };
 
 static void SetObjectCollisionBox( entvars_t *pev );
-
-//
-// Dreamcast static-link export registry.  There is no PE export table to
-// walk, so at startup every game module registers its savable function
-// pointers here (GameDLL_RegisterModules, called by the engine from
-// Host_Init); save/restore then resolves pointers by name through
-// FunctionFromName / NameForFunction.
-//
-
-extern "C" void Con_Printf( char *fmt, ... );
-extern "C" void Sys_Error( char *error, ... );
-
-#define MAX_EXPORTS 512
-
-typedef struct
-{
-	unsigned int  function;
-	const char   *pName;
-} export_entry_t;
-
-static export_entry_t gExportTable[MAX_EXPORTS];
-
-extern "C" void Sys_RegisterExport( const char *pName, unsigned int function )
-{
-	int i;
-
-	for (i = 0; i < MAX_EXPORTS; i++)
-	{
-		if (gExportTable[i].pName && !strcmp(pName, gExportTable[i].pName))
-		{
-			if (function == gExportTable[i].function)
-				return;
-			Sys_Error("Different function pointers registered with same name! %s @ %p vs %p\n",
-			          pName, function, gExportTable[i].function);
-		}
-	}
-
-	for (i = 0; i < MAX_EXPORTS; i++)
-	{
-		if (!gExportTable[i].pName)
-		{
-			gExportTable[i].function = function;
-			gExportTable[i].pName = pName;
-			return;
-		}
-	}
-
-	//Sys_Error
-	("Out of function registration slots!\n");
-}
-
-extern "C" unsigned int FunctionFromName( const char *pName )
-{
-	int  i;
-	BOOL bWarn = TRUE;
-
-	for (i = 0; i < MAX_EXPORTS; i++)
-	{
-		if (!gExportTable[i].pName && bWarn)
-		{
-			//Con_Printf
-			("Checking function registration table for %s, I hit a null. Does that seem weird to you?\n", pName);
-			bWarn = FALSE;
-		}
-		if (!strcmp(pName, gExportTable[i].pName))
-			return gExportTable[i].function;
-	}
-
-	return 0;
-}
-
-extern "C" char *NameForFunction( unsigned int function )
-{
-	int i;
-
-	for (i = 0; i < MAX_EXPORTS; i++)
-	{
-		if (function == gExportTable[i].function)
-			return (char *)gExportTable[i].pName;
-	}
-
-	Con_Printf("NameForFunction failed: %p\n", function);
-	return 0;
-}
-
-extern "C" void GameDLL_RegisterModules( void )
-{
-	int i;
-
-	for (i = 0; i < MAX_EXPORTS; i++)
-	{
-		gExportTable[i].function = 0;
-		gExportTable[i].pName = 0;
-	}
-
-	gExportTable[0].function = 0;
-	gExportTable[0].pName = "(null)";
-
-	// TODO(dc-regen): the real build appends a generated registrar to every
-	// game .cpp (registering each savable function pointer under a generated
-	// two-character name) and calls all ~130 of them here in link order.
-}
 
 int GetEntityAPI( DLL_FUNCTIONS *pFunctionTable, int interfaceVersion )
 {
@@ -188,13 +103,15 @@ int DispatchSpawn( edict_t *pent )
 		{
 			if ( g_pGameRules && !g_pGameRules->IsAllowedToSpawn( pEntity ) )
 				return -1;	// return that this entity should be deleted
+			if ( pEntity->pev->flags & FL_KILLME )
+				return -1;
 		}
 
 
 		// Handle global stuff here
 		if ( pEntity && pEntity->pev->globalname ) 
 		{
-			globalentity_t *pGlobal = gGlobalState.EntityFromTable( pEntity->pev->globalname );
+			const globalentity_t *pGlobal = gGlobalState.EntityFromTable( pEntity->pev->globalname );
 			if ( pGlobal )
 			{
 				// Already dead? delete
@@ -359,7 +276,7 @@ int DispatchRestore( edict_t *pent, SAVERESTOREDATA *pSaveData, int globalEntity
 			// -------------------
 
 
-			globalentity_t *pGlobal = gGlobalState.EntityFromTable( tmpVars.globalname );
+			const globalentity_t *pGlobal = gGlobalState.EntityFromTable( tmpVars.globalname );
 			
 			// Don't overlay any instance of the global that isn't the latest
 			// pSaveData->szCurrentMapName is the level this entity is coming from
@@ -425,7 +342,7 @@ int DispatchRestore( edict_t *pent, SAVERESTOREDATA *pSaveData, int globalEntity
 		}
 		else if ( pEntity && pEntity->pev->globalname ) 
 		{
-			globalentity_t *pGlobal = gGlobalState.EntityFromTable( pEntity->pev->globalname );
+			const globalentity_t *pGlobal = gGlobalState.EntityFromTable( pEntity->pev->globalname );
 			if ( pGlobal )
 			{
 				// Already dead? delete
@@ -461,14 +378,14 @@ void DispatchObjectCollsionBox( edict_t *pent )
 }
 
 
-void SaveWriteFields( SAVERESTOREDATA *pSaveData, char *pname, void *pBaseData, TYPEDESCRIPTION *pFields, int fieldCount )
+void SaveWriteFields( SAVERESTOREDATA *pSaveData, const char *pname, void *pBaseData, TYPEDESCRIPTION *pFields, int fieldCount )
 {
 	CSave saveHelper( pSaveData );
 	saveHelper.WriteFields( pname, pBaseData, pFields, fieldCount );
 }
 
 
-void SaveReadFields( SAVERESTOREDATA *pSaveData, char *pname, void *pBaseData, TYPEDESCRIPTION *pFields, int fieldCount )
+void SaveReadFields( SAVERESTOREDATA *pSaveData, const char *pname, void *pBaseData, TYPEDESCRIPTION *pFields, int fieldCount )
 {
 	CRestore restoreHelper( pSaveData );
 	restoreHelper.ReadFields( pname, pBaseData, pFields, fieldCount );

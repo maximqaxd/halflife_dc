@@ -1,3 +1,20 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
+//
+// teamplay_gamerules.cpp
+//
 #include	"extdll.h"
 #include	"util.h"
 #include	"cbase.h"
@@ -75,9 +92,9 @@ BOOL CHalfLifeRules :: GetNextBestWeapon( CBasePlayer *pPlayer, CBasePlayerItem 
 
 //=========================================================
 //=========================================================
-void CHalfLifeRules :: ClientConnected( edict_t *pEntity )
+BOOL CHalfLifeRules :: ClientConnected( edict_t *pEntity, const char *pszName, const char *pszAddress, char szRejectReason[ 128 ] )
 {
-	;
+	return TRUE;
 }
 
 void CHalfLifeRules :: InitHUD( CBasePlayer *pl )
@@ -138,7 +155,7 @@ float CHalfLifeRules :: FlPlayerSpawnTime( CBasePlayer *pPlayer )
 // IPointsForKill - how many points awarded to anyone
 // that kills this player?
 //=========================================================
-int CHalfLifeRules :: IPointsForKill( CBasePlayer *pKilled )
+int CHalfLifeRules :: IPointsForKill( CBasePlayer *pAttacker, CBasePlayer *pKilled )
 {
 	return 1;
 }
@@ -297,8 +314,15 @@ int CHalfLifeRules::DeadPlayerAmmo( CBasePlayer *pPlayer )
 
 //=========================================================
 //=========================================================
-int CHalfLifeRules::PlayerRelationship( CBasePlayer *pPlayer, CBaseEntity *pTarget )
+int CHalfLifeRules::PlayerRelationship( CBaseEntity *pPlayer, CBaseEntity *pTarget )
 {
 	// why would a single player in half life need this? 
 	return GR_NOTTEAMMATE;
+}
+
+//=========================================================
+//=========================================================
+BOOL CHalfLifeRules :: FAllowMonsters( void )
+{
+	return TRUE;
 }

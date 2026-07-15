@@ -1,3 +1,18 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
+
 #ifndef __AMMO_H__
 #define __AMMO_H__
 
@@ -5,6 +20,8 @@
 
 
 #define WEAPON_FLAGS_SELECTONEMPTY	1
+
+#define WEAPON_IS_ONTARGET 0x40
 
 struct WEAPON
 {
@@ -21,21 +38,21 @@ struct WEAPON
 
 	int		iCount;		// # of itesm in plist
 
-	HSPRITE_t hActive;
+	HSPRITE hActive;
 	wrect_t rcActive;
-	HSPRITE_t hInactive;
+	HSPRITE hInactive;
 	wrect_t rcInactive;
-	HSPRITE_t	hAmmo;
+	HSPRITE	hAmmo;
 	wrect_t rcAmmo;
-	HSPRITE_t hAmmo2;
+	HSPRITE hAmmo2;
 	wrect_t rcAmmo2;
-	HSPRITE_t hCrosshair;
+	HSPRITE hCrosshair;
 	wrect_t rcCrosshair;
-	HSPRITE_t hAutoaim;
+	HSPRITE hAutoaim;
 	wrect_t rcAutoaim;
-	HSPRITE_t hZoomedCrosshair;
+	HSPRITE hZoomedCrosshair;
 	wrect_t rcZoomedCrosshair;
-	HSPRITE_t hZoomedAutoaim;
+	HSPRITE hZoomedAutoaim;
 	wrect_t rcZoomedAutoaim;
 };
 

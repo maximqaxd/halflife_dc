@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 //=========================================================
 // cockroach
 //=========================================================
@@ -72,7 +86,7 @@ void CRoach :: Touch ( CBaseEntity *pOther )
 	Vector		vecSpot;
 	TraceResult	tr;
 
-	if ( pOther->pev->velocity == g_vecZero || !(pOther->pev->flags & FL_CLIENT) )
+	if ( pOther->pev->velocity == g_vecZero || !pOther->IsPlayer() )
 	{
 		return;
 	}
@@ -248,7 +262,7 @@ void CRoach :: MonsterThink( void  )
 					pSound = CSoundEnt::SoundPointerForIndex( m_iAudibleList );
 
 					// roach smells food and is just standing around. Go to food unless food isn't on same z-plane.
-					if ( pSound && fabs( pSound->m_vecOrigin.z - pev->origin.z ) <= 3 )
+					if ( pSound && abs( pSound->m_vecOrigin.z - pev->origin.z ) <= 3 )
 					{
 						PickNewDest( ROACH_SMELL_FOOD );
 						SetActivity ( ACT_WALK );
@@ -411,7 +425,7 @@ void CRoach :: Look ( int iDistance )
 	while ((pSightEnt = UTIL_FindEntityInSphere( pSightEnt, pev->origin, iDistance )) != NULL)
 	{
 		// only consider ents that can be damaged. !!!temporarily only considering other monsters and clients
-		if (  pSightEnt->pev->flags & FL_CLIENT || FBitSet ( pSightEnt->pev->flags, FL_MONSTER ) )
+		if (  pSightEnt->IsPlayer() || FBitSet ( pSightEnt->pev->flags, FL_MONSTER ) )
 		{
 			if ( /*FVisible( pSightEnt ) &&*/ !FBitSet( pSightEnt->pev->flags, FL_NOTARGET ) && pSightEnt->pev->health > 0 )
 			{

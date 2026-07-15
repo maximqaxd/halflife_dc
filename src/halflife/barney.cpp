@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 //=========================================================
 // monster template
 //=========================================================
@@ -211,7 +225,7 @@ void CBarney :: RunTask( Task_t *pTask )
 	switch ( pTask->iTask )
 	{
 	case TASK_RANGE_ATTACK1:
-		if (m_hEnemy != NULL && (m_hEnemy->pev->flags & FL_CLIENT))
+		if (m_hEnemy != NULL && (m_hEnemy->IsPlayer()))
 		{
 			pev->framerate = 1.5;
 		}
@@ -410,7 +424,7 @@ void CBarney :: Spawn()
 	m_afCapability		= bits_CAP_HEAR | bits_CAP_TURN_HEAD | bits_CAP_DOORS_GROUP;
 
 	MonsterInit();
-	SetUse( &CTalkMonster::FollowerUse );
+	SetUse( FollowerUse );
 }
 
 //=========================================================
@@ -523,7 +537,7 @@ int CBarney :: TakeDamage( entvars_t* pevInflictor, entvars_t* pevAttacker, floa
 				Remember( bits_MEMORY_SUSPICIOUS );
 			}
 		}
-		else if ( !(m_hEnemy->pev->flags & FL_CLIENT) && pev->deadflag == DEAD_NO )
+		else if ( !(m_hEnemy->IsPlayer()) && pev->deadflag == DEAD_NO )
 		{
 			PlaySentence( "BA_SHOT", 4, VOL_NORM, ATTN_NORM );
 		}

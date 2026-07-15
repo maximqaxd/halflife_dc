@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 #if !defined( OEM_BUILD ) && !defined( HLDEMO_BUILD )
 
 #include "extdll.h"
@@ -49,7 +63,7 @@ public:
 	BOOL AbsorbSphere( void );
 	BOOL EmitSphere( void );
 	void TargetSphere( USE_TYPE useType, float value );
-	CBaseEntity *RandomTargetname( char *szName );
+	CBaseEntity *RandomTargetname( const char *szName );
 	void ShootBalls( void );
 	void MakeFriend( Vector vecPos );
 	
@@ -59,13 +73,13 @@ public:
 	void PainSound( void );
 	void DeathSound( void );
 
-	static char *pAttackSounds[];	// vocalization: play sometimes when he launches an attack
-	static char *pBallSounds[];	// the sound of the lightening ball launch
-	static char *pShootSounds[];	// grunting vocalization: play sometimes when he launches an attack
-	static char *pRechargeSounds[];	// vocalization: play when he recharges
-	static char *pLaughSounds[];	// vocalization: play sometimes when hit and still has lots of health
-	static char *pPainSounds[];	// vocalization: play sometimes when hit and has much less health and no more chargers
-	static char *pDeathSounds[];	// vocalization: play as he dies
+	static const char *pAttackSounds[];	// vocalization: play sometimes when he launches an attack
+	static const char *pBallSounds[];	// the sound of the lightening ball launch
+	static const char *pShootSounds[];	// grunting vocalization: play sometimes when he launches an attack
+	static const char *pRechargeSounds[];	// vocalization: play when he recharges
+	static const char *pLaughSounds[];	// vocalization: play sometimes when hit and still has lots of health
+	static const char *pPainSounds[];	// vocalization: play sometimes when hit and has much less health and no more chargers
+	static const char *pDeathSounds[];	// vocalization: play as he dies
 	
 	// x_teleattack1.wav	the looping sound of the teleport attack ball.
 
@@ -183,7 +197,7 @@ public:
 	void EXPORT BounceTouch( CBaseEntity *pOther );
 	void EXPORT ZapTouch( CBaseEntity *pOther );
 
-	CBaseEntity *RandomClassname( char *szName );
+	CBaseEntity *RandomClassname( const char *szName );
 
 	// void EXPORT SphereUse( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value );
 
@@ -220,43 +234,43 @@ IMPLEMENT_SAVERESTORE( CNihilanthHVR, CBaseMonster );
 // Nihilanth, final Boss monster
 //=========================================================
 
-char *CNihilanth::pAttackSounds[] = 
+const char *CNihilanth::pAttackSounds[] = 
 {
 	"X/x_attack1.wav",
 	"X/x_attack2.wav",
 	"X/x_attack3.wav",
 };
 
-char *CNihilanth::pBallSounds[] = 
+const char *CNihilanth::pBallSounds[] = 
 {
 	"X/x_ballattack1.wav",
 };
 
-char *CNihilanth::pShootSounds[] = 
+const char *CNihilanth::pShootSounds[] = 
 {
 	"X/x_shoot1.wav",
 };
 
-char *CNihilanth::pRechargeSounds[] = 
+const char *CNihilanth::pRechargeSounds[] = 
 {
 	"X/x_recharge1.wav",
 	"X/x_recharge2.wav",
 	"X/x_recharge3.wav",
 };
 
-char *CNihilanth::pLaughSounds[] = 
+const char *CNihilanth::pLaughSounds[] = 
 {
 	"X/x_laugh1.wav",
 	"X/x_laugh2.wav",
 };
 
-char *CNihilanth::pPainSounds[] = 
+const char *CNihilanth::pPainSounds[] = 
 {
 	"X/x_pain1.wav",
 	"X/x_pain2.wav",
 };
 
-char *CNihilanth::pDeathSounds[] = 
+const char *CNihilanth::pDeathSounds[] = 
 {
 	"X/x_die1.wav",
 };
@@ -277,16 +291,16 @@ void CNihilanth :: Spawn( void )
 	pev->flags			|= FL_MONSTER;
 	pev->takedamage		= DAMAGE_AIM;
 	pev->health			= gSkillData.nihilanthHealth;
-	pev->view_ofs		= Vector( 0, 0, 512 );
+	pev->view_ofs		= Vector( 0, 0, 300 );
 
-	m_flFieldOfView = -0.707; // 270 degrees
+	m_flFieldOfView = -1; // 360 degrees
 
 	pev->sequence = 0;
 	ResetSequenceInfo( );
 
 	InitBoneControllers();
 
-	SetThink( &CNihilanth::StartupThink );
+	SetThink( StartupThink );
 	pev->nextthink = gpGlobals->time + 0.1;
 
 	m_vecDesired = Vector( 1, 0, 0 );
@@ -317,6 +331,8 @@ void CNihilanth::Precache( void )
 	PRECACHE_MODEL("models/nihilanth.mdl");
 	PRECACHE_MODEL("sprites/lgtning.spr");
 	UTIL_PrecacheOther( "nihilanth_energy_ball" );
+	UTIL_PrecacheOther( "monster_alien_controller" );
+	UTIL_PrecacheOther( "monster_alien_slave" );
 
 	PRECACHE_SOUND_ARRAY( pAttackSounds );
 	PRECACHE_SOUND_ARRAY( pBallSounds );
@@ -362,9 +378,9 @@ void CNihilanth::NullThink( void )
 
 void CNihilanth::StartupUse( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value )
 {
-	SetThink( &CNihilanth::HuntThink );
+	SetThink( HuntThink );
 	pev->nextthink = gpGlobals->time + 0.1;
-	SetUse( &CNihilanth::CommandUse );
+	SetUse( CommandUse );
 }
 
 
@@ -394,8 +410,8 @@ void CNihilanth::StartupThink( void )
 	}
 	m_hRecharger = NULL;
 
-	SetThink( &CNihilanth::HuntThink);
-	SetUse( &CNihilanth::CommandUse );
+	SetThink( HuntThink);
+	SetUse( CommandUse );
 	pev->nextthink = gpGlobals->time + 0.1;
 }
 
@@ -830,7 +846,7 @@ void CNihilanth :: HuntThink( void )
 	// if dead, force cancelation of current animation
 	if (pev->health <= 0)
 	{
-		SetThink( &CNihilanth::DyingThink );
+		SetThink( DyingThink );
 		m_fSequenceFinished = TRUE;
 		return;
 	}
@@ -1003,8 +1019,7 @@ BOOL CNihilanth :: EmitSphere( void )
 void CNihilanth :: 	TargetSphere( USE_TYPE useType, float value )
 {
 	CBaseMonster *pSphere;
-	int i;
-	for (i = 0; i < N_SPHERES; i++)
+	for (int i = 0; i < N_SPHERES; i++)
 	{
 		if (m_hSphere[i] != NULL)
 		{
@@ -1182,7 +1197,7 @@ void CNihilanth::CommandUse( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_
 	case USE_OFF:
 		{
 		CBaseEntity *pTouch = UTIL_FindEntityByTargetname( NULL, m_szDeadTouch );
-		if ( pTouch )
+		if ( pTouch && m_hEnemy != NULL )
 			pTouch->Touch( m_hEnemy );
 		}
 		break;
@@ -1241,7 +1256,7 @@ void CNihilanth::TraceAttack( entvars_t *pevAttacker, float flDamage, Vector vec
 
 
 
-CBaseEntity *CNihilanth::RandomTargetname( char *szName )
+CBaseEntity *CNihilanth::RandomTargetname( const char *szName )
 {
 	int total = 0;
 
@@ -1315,15 +1330,15 @@ void CNihilanthHVR :: CircleInit( CBaseEntity *pTarget )
 	UTIL_SetSize(pev, Vector( 0, 0, 0), Vector(0, 0, 0));
 	UTIL_SetOrigin( pev, pev->origin );
 
-	SetThink( &CNihilanthHVR::HoverThink );
-	SetTouch( &CNihilanthHVR::BounceTouch );
+	SetThink( HoverThink );
+	SetTouch( BounceTouch );
 	pev->nextthink = gpGlobals->time + 0.1;
 	
 	m_hTargetEnt = pTarget;
 }
 
 
-CBaseEntity *CNihilanthHVR::RandomClassname( char *szName )
+CBaseEntity *CNihilanthHVR::RandomClassname( const char *szName )
 {
 	int total = 0;
 
@@ -1418,8 +1433,8 @@ void CNihilanthHVR :: ZapInit( CBaseEntity *pEnemy )
 	pev->velocity = (pEnemy->pev->origin - pev->origin).Normalize() * 200;
 
 	m_hEnemy = pEnemy;
-	SetThink( &CNihilanthHVR::ZapThink );
-	SetTouch( &CNihilanthHVR::ZapTouch );
+	SetThink( ZapThink );
+	SetTouch( ZapTouch );
 	pev->nextthink = gpGlobals->time + 0.1;
 
 	EMIT_SOUND_DYN( edict(), CHAN_WEAPON, "debris/zap4.wav", 1, ATTN_NORM, 0, 100 );
@@ -1544,8 +1559,8 @@ void CNihilanthHVR :: TeleportInit( CNihilanth *pOwner, CBaseEntity *pEnemy, CBa
 	m_hTargetEnt = pTarget;
 	m_hTouch = pTouch;
 
-	SetThink( &CNihilanthHVR::TeleportThink );
-	SetTouch( &CNihilanthHVR::TeleportTouch );
+	SetThink( TeleportThink );
+	SetTouch( TeleportTouch );
 	pev->nextthink = gpGlobals->time + 0.1;
 
 	EMIT_SOUND_DYN( edict(), CHAN_WEAPON, "x/x_teleattack1.wav", 1, 0.2, 0, 100 );
@@ -1564,7 +1579,7 @@ void CNihilanthHVR :: GreenBallInit( )
 
 	SET_MODEL(edict(), "sprites/exit1.spr");
 
-	SetTouch( &CNihilanthHVR::RemoveTouch );
+	SetTouch( RemoveTouch );
 }
 
 
@@ -1588,7 +1603,7 @@ void CNihilanthHVR :: TeleportThink( void  )
 		if (m_hTargetEnt != NULL)
 			m_hTargetEnt->Use( m_hEnemy, m_hEnemy, USE_ON, 1.0 );
 
-		if ( m_hTouch != NULL )
+		if ( m_hTouch != NULL && m_hEnemy != NULL )
 			m_hTouch->Touch( m_hEnemy );
 	}
 	else 
@@ -1616,7 +1631,7 @@ void CNihilanthHVR :: TeleportThink( void  )
 
 void CNihilanthHVR :: AbsorbInit( void  )
 {
-	SetThink( &CNihilanthHVR::DissipateThink );
+	SetThink( DissipateThink );
 	pev->renderamt = 255;
 
 	MESSAGE_BEGIN( MSG_BROADCAST, SVC_TEMPENTITY );
@@ -1646,7 +1661,7 @@ void CNihilanthHVR::TeleportTouch( CBaseEntity *pOther )
 		if (m_hTargetEnt != NULL)
 			m_hTargetEnt->Use( pEnemy, pEnemy, USE_ON, 1.0 );
 
-		if (m_hTouch != NULL )
+		if (m_hTouch != NULL && pEnemy != NULL )
 			m_hTouch->Touch( pEnemy );
 	}
 	else

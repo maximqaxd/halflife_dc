@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 #ifndef MONSTERS_H
 #include "skill.h"
 #define MONSTERS_H
@@ -58,13 +72,13 @@
 // spawn flags 256 and above are already taken by the engine
 extern void UTIL_MoveToOrigin( edict_t* pent, const Vector &vecGoal, float flDist, int iMoveType ); 
 
-Vector VecCheckToss ( entvars_t *pev, Vector &vecSpot1, Vector vecSpot2, float flGravityAdj = 1.0 );
-Vector VecCheckThrow ( entvars_t *pev, Vector &vecSpot1, Vector vecSpot2, float flSpeed, float flGravityAdj = 1.0 );
+Vector VecCheckToss ( entvars_t *pev, const Vector &vecSpot1, Vector vecSpot2, float flGravityAdj = 1.0 );
+Vector VecCheckThrow ( entvars_t *pev, const Vector &vecSpot1, Vector vecSpot2, float flSpeed, float flGravityAdj = 1.0 );
 extern DLL_GLOBAL Vector		g_vecAttackDir;
 extern DLL_GLOBAL CONSTANT float g_flMeleeRange;
 extern DLL_GLOBAL CONSTANT float g_flMediumRange;
 extern DLL_GLOBAL CONSTANT float g_flLongRange;
-extern void EjectBrass ( const Vector &vecOrigin, const Vector &vecVelocity, float rotation, int model, int soundtype );
+extern void EjectBrass (const Vector &vecOrigin, const Vector &vecVelocity, float rotation, int model, int soundtype );
 extern void ExplodeModel( const Vector &vecOrigin, float speed, int model, int count );
 
 BOOL FBoxVisible ( entvars_t *pevLooker, entvars_t *pevTarget );
@@ -130,7 +144,7 @@ enum
 class CGib : public CBaseEntity
 {
 public:
-	void Spawn( char *szGibModel );
+	void Spawn( const char *szGibModel );
 	void EXPORT BounceGibTouch ( CBaseEntity *pOther );
 	void EXPORT StickyGibTouch ( CBaseEntity *pOther );
 	void EXPORT WaitTillLand( void );

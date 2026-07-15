@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 #if !defined( OEM_BUILD ) && !defined( HLDEMO_BUILD )
 
 //=========================================================
@@ -66,11 +80,11 @@ public:
 	void AttackSound( void );
 	void DeathSound( void );
 
-	static char *pAttackSounds[];
-	static char *pIdleSounds[];
-	static char *pAlertSounds[];
-	static char *pPainSounds[];
-	static char *pDeathSounds[];
+	static const char *pAttackSounds[];
+	static const char *pIdleSounds[];
+	static const char *pAlertSounds[];
+	static const char *pPainSounds[];
+	static const char *pDeathSounds[];
 
 	int TakeDamage( entvars_t *pevInflictor, entvars_t *pevAttacker, float flDamage, int bitsDamageType );
 	void Killed( entvars_t *pevAttacker, int iGib );
@@ -100,14 +114,14 @@ TYPEDESCRIPTION	CController::m_SaveData[] =
 IMPLEMENT_SAVERESTORE( CController, CSquadMonster );
 
 
-char *CController::pAttackSounds[] = 
+const char *CController::pAttackSounds[] = 
 {
 	"controller/con_attack1.wav",
 	"controller/con_attack2.wav",
 	"controller/con_attack3.wav",
 };
 
-char *CController::pIdleSounds[] = 
+const char *CController::pIdleSounds[] = 
 {
 	"controller/con_idle1.wav",
 	"controller/con_idle2.wav",
@@ -116,21 +130,21 @@ char *CController::pIdleSounds[] =
 	"controller/con_idle5.wav",
 };
 
-char *CController::pAlertSounds[] = 
+const char *CController::pAlertSounds[] = 
 {
 	"controller/con_alert1.wav",
 	"controller/con_alert2.wav",
 	"controller/con_alert3.wav",
 };
 
-char *CController::pPainSounds[] = 
+const char *CController::pPainSounds[] = 
 {
 	"controller/con_pain1.wav",
 	"controller/con_pain2.wav",
 	"controller/con_pain3.wav",
 };
 
-char *CController::pDeathSounds[] = 
+const char *CController::pDeathSounds[] = 
 {
 	"controller/con_die1.wav",
 	"controller/con_die2.wav",
@@ -974,7 +988,7 @@ void CController :: Move ( float flInterval )
 			{
 				DispatchBlocked( edict(), pBlocker->edict() );
 			}
-			if ( pBlocker && m_moveWaitTime > 0 && pBlocker->IsMoving() && !(pBlocker->pev->flags & FL_CLIENT) && (gpGlobals->time-m_flMoveWaitFinished) > 3.0 )
+			if ( pBlocker && m_moveWaitTime > 0 && pBlocker->IsMoving() && !pBlocker->IsPlayer() && (gpGlobals->time-m_flMoveWaitFinished) > 3.0 )
 			{
 				// Can we still move toward our target?
 				if ( flDist < m_flGroundSpeed )
@@ -1156,8 +1170,8 @@ void CControllerHeadBall :: Spawn( void )
 	UTIL_SetSize(pev, Vector( 0, 0, 0), Vector(0, 0, 0));
 	UTIL_SetOrigin( pev, pev->origin );
 
-	SetThink( &CControllerHeadBall::HuntThink );
-	SetTouch( &CControllerHeadBall::BounceTouch );
+	SetThink( HuntThink );
+	SetTouch( BounceTouch );
 
 	m_vecIdeal = Vector( 0, 0, 0 );
 
@@ -1243,7 +1257,7 @@ void CControllerHeadBall :: HuntThink( void  )
 
 		m_flNextAttack = gpGlobals->time + 3.0;
 
-		SetThink( &CControllerHeadBall::DieThink );
+		SetThink( DieThink );
 		pev->nextthink = gpGlobals->time + 0.3;
 	}
 
@@ -1350,8 +1364,8 @@ void CControllerZapBall :: Spawn( void )
 	UTIL_SetSize(pev, Vector( 0, 0, 0), Vector(0, 0, 0));
 	UTIL_SetOrigin( pev, pev->origin );
 
-	SetThink( &CControllerZapBall::AnimateThink );
-	SetTouch( &CControllerZapBall::ExplodeTouch );
+	SetThink( AnimateThink );
+	SetTouch( ExplodeTouch );
 
 	m_hOwner = Instance( pev->owner );
 	pev->dmgtime = gpGlobals->time; // keep track of when ball spawned

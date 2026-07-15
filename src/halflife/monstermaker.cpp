@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 //=========================================================
 // Monster Maker - this is an entity that creates monsters
 // in the game.
@@ -97,29 +111,29 @@ void CMonsterMaker :: Spawn( )
 	{
 		if ( pev->spawnflags & SF_MONSTERMAKER_CYCLIC )
 		{
-			SetUse ( &CMonsterMaker::CyclicUse );// drop one monster each time we fire
+			SetUse ( CyclicUse );// drop one monster each time we fire
 		}
 		else
 		{
-			SetUse ( &CMonsterMaker::ToggleUse );// so can be turned on/off
+			SetUse ( ToggleUse );// so can be turned on/off
 		}
 
 		if ( FBitSet ( pev->spawnflags, SF_MONSTERMAKER_START_ON ) )
 		{// start making monsters as soon as monstermaker spawns
 			m_fActive = TRUE;
-			SetThink ( &CMonsterMaker::MakerThink );
+			SetThink ( MakerThink );
 		}
 		else
 		{// wait to be activated.
 			m_fActive = FALSE;
-			SetThink ( &CBaseEntity::SUB_DoNothing );
+			SetThink ( SUB_DoNothing );
 		}
 	}
 	else
 	{// no targetname, just start.
 			pev->nextthink = gpGlobals->time + m_flDelay;
 			m_fActive = TRUE;
-			SetThink ( &CMonsterMaker::MakerThink );
+			SetThink ( MakerThink );
 	}
 
 	if ( m_cNumMonsters == 1 )
@@ -245,7 +259,7 @@ void CMonsterMaker :: ToggleUse ( CBaseEntity *pActivator, CBaseEntity *pCaller,
 	else
 	{
 		m_fActive = TRUE;
-		SetThink ( &CMonsterMaker::MakerThink );
+		SetThink ( MakerThink );
 	}
 
 	pev->nextthink = gpGlobals->time;

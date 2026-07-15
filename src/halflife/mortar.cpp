@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 /*
 
 ===== mortar.cpp ========================================================
@@ -91,7 +105,7 @@ void CFuncMortarField :: Spawn( void )
 	SET_MODEL(ENT(pev), STRING(pev->model));    // set size and link into world
 	pev->movetype = MOVETYPE_NONE;
 	SetBits( pev->effects, EF_NODRAW );
-	SetUse( &CFuncMortarField::FieldUse );
+	SetUse( FieldUse );
 	Precache();
 }
 
@@ -195,7 +209,7 @@ void CMortar::Spawn( )
 
 	pev->dmg		= 200;
 
-	SetThink( &CMortar::MortarExplode );
+	SetThink( MortarExplode );
 	pev->nextthink = 0;
 
 	Precache( );
@@ -286,7 +300,7 @@ void CMortar::MortarExplode( void )
 	}
 	*/
 
-	SetThink( &CBaseEntity::SUB_Remove );
+	SetThink( SUB_Remove );
 	pev->nextthink = gpGlobals->time + 0.1;
 #endif
 

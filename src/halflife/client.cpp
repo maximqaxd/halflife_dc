@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 // Robin, 4-22-98: Moved set_suicide_frame() here from player.cpp to allow us to 
 //				   have one without a hardcoded player.mdl in tf_client.cpp
 
@@ -53,9 +67,9 @@ ClientConnect
 called when a player connects to a server
 ============
 */
-void ClientConnect( edict_t *pEntity  )
+BOOL ClientConnect( edict_t *pEntity, const char *pszName, const char *pszAddress, char szRejectReason[ 128 ]  )
 {	
-	g_pGameRules->ClientConnected( pEntity );
+	return g_pGameRules->ClientConnected( pEntity, pszName, pszAddress, szRejectReason );
 
 // a client connecting during an intermission can cause problems
 //	if (intermission_running)
@@ -78,6 +92,13 @@ void ClientDisconnect( edict_t *pEntity )
 	if (g_fGameOver)
 		return;
 
+	char text[256];
+	sprintf( text, "- %s has left the game\n", STRING(pEntity->v.netname) );
+	MESSAGE_BEGIN( MSG_ALL, gmsgSayText, NULL );
+		WRITE_BYTE( ENTINDEX(pEntity) );
+		WRITE_STRING( text );
+	MESSAGE_END();
+
 	CSound *pSound;
 	pSound = CSoundEnt::SoundPointerForIndex( CSoundEnt::ClientSoundIndex( pEntity ) );
 	{
@@ -88,17 +109,25 @@ void ClientDisconnect( edict_t *pEntity )
 		}
 	}
 
+// since the edict doesn't get deleted, fix it so it doesn't interfere.
+	pEntity->v.takedamage = DAMAGE_NO;// don't attract autoaim
+	pEntity->v.solid = SOLID_NOT;// nonsolid
+	UTIL_SetOrigin ( &pEntity->v, pEntity->v.origin );
+
 	g_pGameRules->ClientDisconnected( pEntity );
 }
 
 
 // called by ClientKill and DeadThink
-void respawn(entvars_t* pev)
+void respawn(entvars_t* pev, BOOL fCopyCorpse)
 {
 	if (gpGlobals->coop || gpGlobals->deathmatch)
 	{
-		// make a copy of the dead body for appearances sake
-		CopyToBodyQue(pev);
+		if ( fCopyCorpse )
+		{
+			// make a copy of the dead body for appearances sake
+			CopyToBodyQue(pev);
+		}
 
 		// respawn player
 		GetClassPtr( (CBasePlayer *)pev)->Spawn( );
@@ -213,8 +242,7 @@ void Host_Say( edict_t *pEntity, int teamonly )
 	}
 
 // make sure the text has content
-	char *pc;
-	for ( pc = p; pc != NULL && *pc != 0; pc++ )
+	for ( char *pc = p; pc != NULL && *pc != 0; pc++ )
 	{
 		if ( isprint( *pc ) && !isspace( *pc ) )
 		{
@@ -225,7 +253,11 @@ void Host_Say( edict_t *pEntity, int teamonly )
 	if ( pc != NULL )
 		return;  // no character found, so say nothing
 
-	sprintf( text, "%c%s: ", 2, STRING( pEntity->v.netname ) );
+// turn on color set 2  (color on,  no sound)
+	if ( teamonly )
+		sprintf( text, "%c(TEAM) %s: ", 2, STRING( pEntity->v.netname ) );
+	else
+		sprintf( text, "%c%s: ", 2, STRING( pEntity->v.netname ) );
 
 	j = sizeof(text) - 2 - strlen(text);  // -2 for /n and null terminator
 	if ( (int)strlen(p) > j )
@@ -248,7 +280,7 @@ void Host_Say( edict_t *pEntity, int teamonly )
 		if ( client->edict() == pEntity )
 			continue;
 
-		if ( !(client->pev->flags & FL_CLIENT) )	// Not a client ? (should never be true)
+		if ( !(client->IsNetClient()) )	// Not a client ? (should never be true)
 			continue;
 
 		if ( teamonly && g_pGameRules->PlayerRelationship(client, CBaseEntity::Instance(pEntity)) != GR_TEAMMATE )
@@ -266,6 +298,9 @@ void Host_Say( edict_t *pEntity, int teamonly )
 		WRITE_BYTE( ENTINDEX(pEntity) );
 		WRITE_STRING( text );
 	MESSAGE_END();
+
+	// echo to server console
+	g_engfuncs.pfnServerPrint( text );
 }
 
 
@@ -280,8 +315,8 @@ extern float g_flWeaponCheat;
 // Use CMD_ARGV,  CMD_ARGV, and CMD_ARGC to get pointers the character string command.
 void ClientCommand( edict_t *pEntity )
 {
-	char *pcmd = CMD_ARGV(0);
-	char *pstr;
+	const char *pcmd = CMD_ARGV(0);
+	const char *pstr;
 
 	// Is the client spawned yet?
 	if ( !pEntity->pvPrivateData )
@@ -313,7 +348,7 @@ void ClientCommand( edict_t *pEntity )
 	}
 	else if ( FStrEq(pcmd, "fov" ) )
 	{
-		if ( CMD_ARGC() > 1)
+		if ( g_flWeaponCheat && CMD_ARGC() > 1)
 		{
 			GetClassPtr((CBasePlayer *)pev)->m_iFOV = atoi( CMD_ARGV(1) );
 		}
@@ -334,12 +369,49 @@ void ClientCommand( edict_t *pEntity )
 	{
 		GetClassPtr((CBasePlayer *)pev)->SelectLastItem();
 	}
+	else if ( g_pGameRules->ClientCommand( GetClassPtr((CBasePlayer *)pev), pcmd ) )
+	{
+		// MenuSelect returns true only if the command is properly handled,  so don't print a warning
+	}
 	else
 	{
 		// tell the user they entered an unknown command
-		CLIENT_PRINTF(pEntity, print_console, UTIL_VarArgs("Unknown command: %s\n", pcmd));
+		ClientPrint( &pEntity->v, HUD_PRINTCONSOLE, UTIL_VarArgs( "Unknown command: %s\n", pcmd ) );
 	}
 }
+
+
+/*
+========================
+ClientUserInfoChanged
+
+called after the player changes
+userinfo - gives dll a chance to modify it before
+it gets sent into the rest of the engine.
+========================
+*/
+void ClientUserInfoChanged( edict_t *pEntity, char *infobuffer )
+{
+	// Is the client spawned yet?
+	if ( !pEntity->pvPrivateData )
+		return;
+
+	// msg everyone if someone changes their name,  and it isn't the first time (changing no name to current name)
+	if ( pEntity->v.netname && STRING(pEntity->v.netname)[0] != 0 && !FStrEq( STRING(pEntity->v.netname), g_engfuncs.pfnInfoKeyValue( infobuffer, "name" )) )
+	{
+		char text[256];
+		sprintf( text, "* %s changed name to %s\n", STRING(pEntity->v.netname), g_engfuncs.pfnInfoKeyValue( infobuffer, "name" ) );
+		MESSAGE_BEGIN( MSG_ALL, gmsgSayText, NULL );
+			WRITE_BYTE( ENTINDEX(pEntity) );
+			WRITE_STRING( text );
+		MESSAGE_END();
+
+		UTIL_LogPrintf( "\"%s<%i>\" changed name to \"%s<%i>\"\n", STRING( pEntity->v.netname ), GETPLAYERUSERID( pEntity ), g_engfuncs.pfnInfoKeyValue( infobuffer, "name" ), GETPLAYERUSERID( pEntity ) );
+	}
+
+	g_pGameRules->ClientUserInfoChanged( GetClassPtr((CBasePlayer *)&pEntity->v), infobuffer );
+}
+
 
 void ServerActivate( edict_t *pEdictList, int edictCount, int clientMax )
 {
@@ -553,14 +625,17 @@ void ClientPrecache( void )
 
 /*
 ===============
-char *GetGameDescription()
+const char *GetGameDescription()
 
 Returns the descriptive name of this .dll.  E.g., Half-Life, or Team Fortress 2
 ===============
 */
-char *GetGameDescription()
+const char *GetGameDescription()
 {
-	return "Half-Life";
+	if ( g_pGameRules ) // this function may be called before the world has spawned, and the game rules initialized
+		return g_pGameRules->GetGameDescription();
+	else
+		return "Half-Life";
 }
 
 /*

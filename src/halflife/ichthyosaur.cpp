@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   This source code contains proprietary and confidential information of
+*   Valve LLC and its suppliers.  Access to this code is restricted to
+*   persons who have executed a written SDK license with Valve.  Any access,
+*   use or distribution of this code by or to any unlicensed person is illegal.
+*
+****/
 #if !defined( OEM_BUILD ) && !defined( HLDEMO_BUILD )
 
 //=========================================================
@@ -72,9 +86,8 @@ public:
 	void  MonsterThink( void );
 	void  Stop( void );
 	void  Swim( void );
-	Vector DoProbe(Vector &Probe);
+	Vector DoProbe(const Vector &Probe);
 
-	void  Vector2String( const Vector &vec, char *str );
 	float VectorToPitch( const Vector &vec);
 	float FlPitchDiff( void );
 	float ChangePitch( int speed );
@@ -95,12 +108,12 @@ public:
 
 	float m_flNextAlert;
 
-	static char *pIdleSounds[];
-	static char *pAlertSounds[];
-	static char *pAttackSounds[];
-	static char *pBiteSounds[];
-	static char *pDieSounds[];
-	static char *pPainSounds[];
+	static const char *pIdleSounds[];
+	static const char *pAlertSounds[];
+	static const char *pAttackSounds[];
+	static const char *pBiteSounds[];
+	static const char *pDieSounds[];
+	static const char *pPainSounds[];
 
 	void IdleSound( void );
 	void AlertSound( void );
@@ -128,7 +141,7 @@ TYPEDESCRIPTION	CIchthyosaur::m_SaveData[] =
 IMPLEMENT_SAVERESTORE( CIchthyosaur, CFlyingMonster );
 
 
-char *CIchthyosaur::pIdleSounds[] = 
+const char *CIchthyosaur::pIdleSounds[] = 
 {
 	"ichy/ichy_idle1.wav",
 	"ichy/ichy_idle2.wav",
@@ -136,32 +149,32 @@ char *CIchthyosaur::pIdleSounds[] =
 	"ichy/ichy_idle4.wav",
 };
 
-char *CIchthyosaur::pAlertSounds[] = 
+const char *CIchthyosaur::pAlertSounds[] = 
 {
 	"ichy/ichy_alert2.wav",
 	"ichy/ichy_alert3.wav",
 };
 
-char *CIchthyosaur::pAttackSounds[] = 
+const char *CIchthyosaur::pAttackSounds[] = 
 {
 	"ichy/ichy_attack1.wav",
 	"ichy/ichy_attack2.wav",
 };
 
-char *CIchthyosaur::pBiteSounds[] = 
+const char *CIchthyosaur::pBiteSounds[] = 
 {
 	"ichy/ichy_bite1.wav",
 	"ichy/ichy_bite2.wav",
 };
 
-char *CIchthyosaur::pPainSounds[] = 
+const char *CIchthyosaur::pPainSounds[] = 
 {
 	"ichy/ichy_pain2.wav",
 	"ichy/ichy_pain3.wav",
 	"ichy/ichy_pain5.wav",
 };
 
-char *CIchthyosaur::pDieSounds[] = 
+const char *CIchthyosaur::pDieSounds[] = 
 {
 	"ichy/ichy_die2.wav",
 	"ichy/ichy_die4.wav",
@@ -429,7 +442,7 @@ void CIchthyosaur :: HandleAnimEvent( MonsterEvent_t *pEvent )
 					pHurt->pev->punchangle.z = -18;
 					pHurt->pev->punchangle.x = 5;
 					pHurt->pev->velocity = pHurt->pev->velocity - gpGlobals->v_right * 300;
-					if (pHurt->pev->flags & FL_CLIENT)
+					if (pHurt->IsPlayer())
 					{
 						pHurt->pev->angles.x += RANDOM_FLOAT( -35, 35 );
 						pHurt->pev->angles.y += RANDOM_FLOAT( -90, 90 );
@@ -481,8 +494,8 @@ void CIchthyosaur :: Spawn()
 
 	MonsterInit();
 
-	SetTouch( &CIchthyosaur::BiteTouch );
-	SetUse( &CIchthyosaur::CombatUse );
+	SetTouch( BiteTouch );
+	SetUse( CombatUse );
 
 	m_idealDist = 384;
 	m_flMinSpeed = 80;
@@ -614,8 +627,6 @@ void CIchthyosaur::StartTask(Task_t *pTask)
 		break;
 	}
 }
-
-extern Vector CrossProduct( const Vector& a, const Vector& b );
 
 void CIchthyosaur :: RunTask ( Task_t *pTask )
 {
@@ -1055,7 +1066,7 @@ void CIchthyosaur::Swim( )
 }
 
 
-Vector CIchthyosaur::DoProbe(Vector &Probe)
+Vector CIchthyosaur::DoProbe(const Vector &Probe)
 {
 	Vector WallNormal = Vector(0,0,-1); // WATER normal is Straight Down for fish.
 	float frac;
@@ -1091,26 +1102,7 @@ Vector CIchthyosaur::DoProbe(Vector &Probe)
 		
 		return SteeringVector;
 	}
-	return Vector(RANDOM_FLOAT(0,0) * m_flightSpeed, RANDOM_FLOAT(0,0) * m_flightSpeed, RANDOM_FLOAT(0,0) * m_flightSpeed); // ScriptedSnark: WTF?
-}
-
-void CIchthyosaur::Vector2String( const Vector &vec, char *str )
-{
-	char strx[30];
-	char stry[30];
-	char strz[30];
-
-	_gcvt(vec.x, 20, strx);
-	_gcvt(vec.y, 20, stry);
-	_gcvt(vec.z, 20, strz);
-
-	strcpy(str, "( ");
-	strcat(str, strx);
-	strcat(str, ", ");
-	strcat(str, stry);
-	strcat(str, ", ");
-	strcat(str, strz);
-	strcat(str, " )");
+	return Vector(0, 0, 0);
 }
 
 #endif

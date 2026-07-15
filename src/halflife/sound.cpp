@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 //=========================================================
 // sound.cpp 
 //=========================================================
@@ -179,7 +193,7 @@ void CAmbientGeneric :: Spawn( void )
 	{
 		ALERT( at_error, "EMPTY AMBIENT AT: %f, %f, %f\n", pev->origin.x, pev->origin.y, pev->origin.z );
 		pev->nextthink = gpGlobals->time + 0.1;
-		SetThink( &CBaseEntity::SUB_Remove );
+		SetThink( SUB_Remove );
 		return;
 	}
     pev->solid		= SOLID_NOT;
@@ -189,12 +203,12 @@ void CAmbientGeneric :: Spawn( void )
 	// of ambient sound's pitch or volume. Don't
 	// start thinking yet.
 
-	SetThink(&CAmbientGeneric::RampThink);
+	SetThink(RampThink);
 	pev->nextthink = 0;
 
 	// allow on/off switching via 'use' function.
 
-	SetUse ( &CAmbientGeneric::ToggleUse );
+	SetUse ( ToggleUse );
 	
 	m_fActive = FALSE;
 
@@ -1395,7 +1409,7 @@ int SENTENCEG_Lookup(const char *sample, char *sentencenum)
 	return -1;
 }
 
-void EMIT_SOUND_DYN(edict_t *entity, int channel, char *sample, float volume, float attenuation,
+void EMIT_SOUND_DYN(edict_t *entity, int channel, const char *sample, float volume, float attenuation,
 						   int flags, int pitch)
 {
 	if (sample && *sample == '!')
@@ -1412,7 +1426,7 @@ void EMIT_SOUND_DYN(edict_t *entity, int channel, char *sample, float volume, fl
 
 // play a specific sentence over the HEV suit speaker - just pass player entity, and !sentencename
 
-void EMIT_SOUND_SUIT(edict_t *entity, char *sample)
+void EMIT_SOUND_SUIT(edict_t *entity, const char *sample)
 {
 	float fvol;
 	int pitch = PITCH_NORM;
@@ -1442,7 +1456,7 @@ void EMIT_GROUPID_SUIT(edict_t *entity, int isentenceg)
 
 // play a sentence, randomly selected from the passed in groupname
 
-void EMIT_GROUPNAME_SUIT(edict_t *entity, char *groupname)
+void EMIT_GROUPNAME_SUIT(edict_t *entity, const char *groupname)
 {
 	float fvol;
 	int pitch = PITCH_NORM;
@@ -1527,8 +1541,7 @@ void TEXTURETYPE_Init()
 	char buffer[512];
 	int i, j;
 	byte *pMemFile;
-	int fileSize = 0;
-	int filePos = 0;
+	int fileSize, filePos;
 
 	if (fTextureTypeInit)
 		return;
@@ -1815,19 +1828,19 @@ void CSpeaker :: Spawn( void )
 	{
 		ALERT( at_error, "SPEAKER with no Level/Sentence! at: %f, %f, %f\n", pev->origin.x, pev->origin.y, pev->origin.z );
 		pev->nextthink = gpGlobals->time + 0.1;
-		SetThink( &CBaseEntity::SUB_Remove );
+		SetThink( SUB_Remove );
 		return;
 	}
     pev->solid		= SOLID_NOT;
     pev->movetype	= MOVETYPE_NONE;
 
 	
-	SetThink(&CSpeaker::SpeakerThink);
+	SetThink(SpeakerThink);
 	pev->nextthink = 0.0;
 
 	// allow on/off switching via 'use' function.
 
-	SetUse ( &CSpeaker::ToggleUse );
+	SetUse ( ToggleUse );
 
 	Precache( );
 }

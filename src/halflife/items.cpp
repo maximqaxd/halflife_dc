@@ -1,3 +1,17 @@
+/***
+*
+*	Copyright (c) 1999, Valve LLC. All rights reserved.
+*	
+*	This product contains software technology licensed from Id 
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*	All Rights Reserved.
+*
+*   Use, distribution, and modification of this source code and/or resulting
+*   object code is restricted to non-commercial enhancements to products from
+*   Valve LLC.  All other use, distribution, or modification is prohibited
+*   without written permission from Valve LLC.
+*
+****/
 /*
 
 ===== items.cpp ========================================================
@@ -47,6 +61,12 @@ void CWorldItem::Spawn( void )
 	case 44: // ITEM_BATTERY:
 		pEntity = CBaseEntity::Create( "item_battery", pev->origin, pev->angles );
 		break;
+	case 42: // ITEM_ANTIDOTE:
+		pEntity = CBaseEntity::Create( "item_antidote", pev->origin, pev->angles );
+		break;
+	case 43: // ITEM_SECURITY:
+		pEntity = CBaseEntity::Create( "item_security", pev->origin, pev->angles );
+		break;
 	case 45: // ITEM_SUIT:
 		pEntity = CBaseEntity::Create( "item_suit", pev->origin, pev->angles );
 		break;
@@ -73,7 +93,7 @@ void CItem::Spawn( void )
 	pev->solid = SOLID_TRIGGER;
 	UTIL_SetOrigin( pev, pev->origin );
 	UTIL_SetSize(pev, Vector(-16, -16, 0), Vector(16, 16, 16));
-	SetTouch(&CItem::ItemTouch);
+	SetTouch(ItemTouch);
 
 	if (DROP_TO_FLOOR(ENT(pev)) == 0)
 	{
@@ -88,7 +108,7 @@ extern int gEvilImpulse101;
 void CItem::ItemTouch( CBaseEntity *pOther )
 {
 	// if it's not a player, ignore
-	if ( !(pOther->pev->flags & FL_CLIENT) )
+	if ( !pOther->IsPlayer() )
 	{
 		return;
 	}
@@ -131,7 +151,7 @@ CBaseEntity* CItem::Respawn( void )
 
 	UTIL_SetOrigin( pev, g_pGameRules->VecItemRespawnSpot( this ) );// blip to whereever you should respawn.
 
-	SetThink ( &CItem::Materialize );
+	SetThink ( Materialize );
 	pev->nextthink = g_pGameRules->FlItemRespawnTime( this ); 
 	return this;
 }
@@ -146,7 +166,7 @@ void CItem::Materialize( void )
 		pev->effects |= EF_MUZZLEFLASH;
 	}
 
-	SetTouch( &CItem::ItemTouch );
+	SetTouch( ItemTouch );
 }
 
 #define SF_SUIT_SHORTLOGON		0x0001
@@ -237,9 +257,13 @@ class CItemAntidote : public CItem
 {
 	void Spawn( void )
 	{ 
+		Precache( );
+		SET_MODEL(ENT(pev), "models/w_antidote.mdl");
+		CItem::Spawn( );
 	}
 	void Precache( void )
 	{
+		PRECACHE_MODEL ("models/w_antidote.mdl");
 	}
 	BOOL MyTouch( CBasePlayer *pPlayer )
 	{
@@ -250,13 +274,20 @@ class CItemAntidote : public CItem
 	}
 };
 
+LINK_ENTITY_TO_CLASS(item_antidote, CItemAntidote);
+
+
 class CItemSecurity : public CItem
 {
 	void Spawn( void )
 	{ 
+		Precache( );
+		SET_MODEL(ENT(pev), "models/w_security.mdl");
+		CItem::Spawn( );
 	}
 	void Precache( void )
 	{
+		PRECACHE_MODEL ("models/w_security.mdl");
 	}
 	BOOL MyTouch( CBasePlayer *pPlayer )
 	{
@@ -265,6 +296,7 @@ class CItemSecurity : public CItem
 	}
 };
 
+LINK_ENTITY_TO_CLASS(item_security, CItemSecurity);
 
 class CItemLongJump : public CItem
 {
