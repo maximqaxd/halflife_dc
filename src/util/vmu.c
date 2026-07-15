@@ -9,11 +9,6 @@ void GDROM_SetDoorBehavior( void )
 {
 }
 
-// Open \Device\CDROM0 and release the GD-ROM door; reset to firmware if requested.
-void GDROM_ConfigureDoorBehavior( void )
-{
-}
-
 // Return a human-readable string for an ELF/VMU device error code.
 char *ES_ErrorTypeToString( int errorCode )
 {

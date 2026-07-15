@@ -31,7 +31,7 @@ static int  g_bBfileAlloc;      // set while a Bfile owns a Mnemo allocation
 static char g_bfileName[64];    // scratch for the Mnemo tag
 
 // Build a Mnemo allocation tag from the file's basename.
-static char *Bmakename( char *path, unsigned int type )
+char *Bmakename( char *path, unsigned int type )
 {
 	char *p;
 

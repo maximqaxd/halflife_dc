@@ -2246,6 +2246,10 @@ NODEP_CPP_CMODE=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\engine\info.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\engine\common.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"

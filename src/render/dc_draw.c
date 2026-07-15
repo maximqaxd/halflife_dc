@@ -146,7 +146,6 @@ extern float g_flHudDepth;
 
 static void DC_DecacheTextureSlot( dctexture_t *slot );
 static void DC_CacheTextureToRam( dctexture_t *slot );
-static char* Bmakename( const char* name, int n );	/* tagged alloc-name helper */
 static __inline void DCV_UnlinkTextureSlot( dctexture_t *slot );
 static __inline void DCV_LinkTextureSlotFront( dctexture_t *slot );
 static void DCV_TouchTextureSlot( dctexture_t *slot );
@@ -161,29 +160,6 @@ extern void		Sys_CloseHandle( int handle );
 }
 #endif
 
-static char texAllocName[64];		/* scratch for the tagged alloc name */
-
-/* Build a tagged Mnemo allocation name from a texture's basename. */
-static char* Bmakename( const char* name, int n )
-{
-	const char* p;
-
-	p = strrchr( name, '\\' );
-	if (!p)
-		p = strrchr( name, '/' );
-	if (p)
-		name = p + 1;
-
-	switch (n)
-	{
-	case 0:  sprintf( texAllocName, "|%s|", name ); break;
-	case 1:  sprintf( texAllocName, "}%s{", name ); break;
-	case 2:  sprintf( texAllocName, "(%s)", name ); break;
-	case 3:  sprintf( texAllocName, ">%s<", name ); break;
-	default: sprintf( texAllocName, "%c:%s", n, name ); break;
-	}
-	return texAllocName;
-}
 
 /* Remove a slot from the LRU list. Callers have already validated the slot. */
 static __inline void DCV_UnlinkTextureSlot( dctexture_t *slot )

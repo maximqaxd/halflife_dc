@@ -37,8 +37,6 @@ void		DirectoryExtract( FILE* pFile, int fileCount );
 int			DirectoryCount( const char* pPath );
 void		DirectoryClear( const char* pPath );
 
-void COM_HexConvert( const char* pszInput, int nInputLength, unsigned char* pOutput );
-
 #ifdef __cplusplus
 }
 #endif

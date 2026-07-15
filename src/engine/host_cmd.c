@@ -3730,30 +3730,6 @@ unsigned char COM_Nibble( char c )
 
 /*
 ==================
-COM_HexConvert
-
-Converts pszInput Hex string to nInputLength/2 binary
-==================
-*/
-void COM_HexConvert( const char* pszInput, int nInputLength, unsigned char* pOutput )
-{
-	unsigned char* p;
-	int i;
-	const char* pIn;
-
-	p = pOutput;
-	for (i = 0; i < nInputLength; i += 2)
-	{
-		pIn = &pszInput[i];
-
-		*p = COM_Nibble(pIn[0]) << 4 | COM_Nibble(pIn[1]);
-
-		p++;
-	}
-}
-
-/*
-==================
 SV_BeginDownload_f
 
 Starts file download to client, handles both normal files and MD5-hashed resources
