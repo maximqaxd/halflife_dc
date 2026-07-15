@@ -2221,3 +2221,84 @@ void PF_SetClientMaxspeed( const edict_t* clientent, float fNewMaxspeed )
 	MSG_WriteByte(&sv.datagram, (byte)(entnum - 1));
 	MSG_WriteFloat(&sv.datagram, fNewMaxspeed);
 }
+
+/*
+===============
+RegUserMsg
+
+Registers a server->client user message by name and returns its id (or the
+existing id if already registered). New messages queue in sv_gpNewUserMsgs and
+are moved to the active list when the level starts.
+===============
+*/
+#define MAX_USER_MESSAGES	255
+
+int gmsgMax = svc_lastmsg + 1;
+
+int RegUserMsg( const char* pszName, int iSize )
+{
+	UserMsg* pMsg;
+
+	if (gmsgMax > MAX_USER_MESSAGES)
+		return 0;
+	if (!pszName)
+		return 0;
+	if (strlen(pszName) >= sizeof(pMsg->szName))
+		return 0;
+	if (iSize > MAX_USER_MSG_DATA)
+		return 0;
+
+	for (pMsg = sv_gpUserMsgs; pMsg; pMsg = pMsg->next)
+	{
+		if (!strcmp(pszName, pMsg->szName))
+			return pMsg->iMsg;
+	}
+
+	pMsg = (UserMsg*)MnemoAllocDbg(sizeof(UserMsg), __FILE__, __LINE__);
+	if (!pMsg)
+		return 0;
+
+	pMsg->iMsg = gmsgMax++;
+	pMsg->iSize = iSize;
+	strcpy(pMsg->szName, pszName);
+	pMsg->next = sv_gpNewUserMsgs;
+	sv_gpNewUserMsgs = pMsg;
+
+	return pMsg->iMsg;
+}
+
+extern void Sys_FPrintf( int handle, const char* fmt, ... );
+
+void EngineFprintf( void* pfile, char* szFmt, ... )
+{
+	va_list		argptr;
+	static char	string[1024];
+
+	va_start(argptr, szFmt);
+	vsprintf(string, szFmt, argptr);
+	va_end(argptr);
+
+	Sys_FPrintf((int)pfile, "%s", string);
+}
+
+/* Studio server-side queries are not reconstructed yet; return zeroed results
+   so game code that reads bone/attachment positions runs without faulting. */
+void PF_AnimationAutomove( const edict_t* pEdict, float flTime )
+{
+}
+
+void PF_GetBonePosition( const edict_t* pEdict, int iBone, float* rgflOrigin, float* rgflAngles )
+{
+	if (rgflOrigin)
+		rgflOrigin[0] = rgflOrigin[1] = rgflOrigin[2] = 0;
+	if (rgflAngles)
+		rgflAngles[0] = rgflAngles[1] = rgflAngles[2] = 0;
+}
+
+void PF_GetAttachment( const edict_t* pEdict, int iAttachment, float* rgflOrigin, float* rgflAngles )
+{
+	if (rgflOrigin)
+		rgflOrigin[0] = rgflOrigin[1] = rgflOrigin[2] = 0;
+	if (rgflAngles)
+		rgflAngles[0] = rgflAngles[1] = rgflAngles[2] = 0;
+}
