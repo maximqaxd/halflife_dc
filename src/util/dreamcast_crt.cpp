@@ -357,11 +357,41 @@ char* itoa( int value, char* str, int base )
 // through the CRT so the DC build shares one implementation.
 int Q_stricmp( char* s1, char* s2 )
 {
-	return 0;
+	int c1, c2;
+
+	while (*s1)
+	{
+		c1 = tolower(*s1);
+		c2 = tolower(*s2);
+		if (c1 != c2)
+			break;
+		s1++;
+		s2++;
+	}
+
+	c1 = tolower(*s1);
+	c2 = tolower(*s2);
+	if (c1 < c2)
+		return -1;
+	return (c2 < c1);
 }
 
 int Q_strnicmp( char* s1, char* s2, int n )
 {
+	int c1, c2;
+
+	while (n-- > 0)
+	{
+		c1 = tolower(*s1);
+		c2 = tolower(*s2);
+		if (c1 != c2)
+			return (c1 < c2) ? -1 : 1;
+		if (!*s1)
+			return 0;
+		s1++;
+		s2++;
+	}
+
 	return 0;
 }
 

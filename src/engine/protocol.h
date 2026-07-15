@@ -6,7 +6,12 @@
 #pragma once
 #endif
 
-#define	PROTOCOL_VERSION	39
+// The active network protocol version. Defaults to PROTOCOL_VERSION_CURRENT and
+// can be forced back to the legacy PROTOCOL_VERSION_OLD with the -protocol option.
+#define	PROTOCOL_VERSION_CURRENT	39
+#define	PROTOCOL_VERSION_OLD		35
+
+extern int PROTOCOL_VERSION;
 
 // This is used, unless overridden in the registry
 #define DEFAULT_MASTER_ADDRESS "207.153.132.168:27010"
