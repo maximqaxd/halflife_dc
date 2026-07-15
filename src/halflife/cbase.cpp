@@ -21,6 +21,108 @@
 #include	"gamerules.h"
 #include	"game.h"
 
+//
+// Dreamcast static-link export registry.  There is no PE export table to
+// walk, so at startup every game module registers its savable function
+// pointers here (GameDLL_RegisterModules, called by the engine from
+// Host_Init); save/restore then resolves pointers by name through
+// FunctionFromName / NameForFunction.
+//
+
+extern "C" void Con_Printf( char *fmt, ... );
+extern "C" void Sys_Error( char *error, ... );
+
+#define MAX_EXPORTS 512
+
+typedef struct
+{
+	unsigned int  function;
+	const char   *pName;
+} export_entry_t;
+
+static export_entry_t gExportTable[MAX_EXPORTS];
+
+extern "C" void Sys_RegisterExport( const char *pName, unsigned int function )
+{
+	int i;
+
+	for (i = 0; i < MAX_EXPORTS; i++)
+	{
+		if (gExportTable[i].pName && !strcmp(pName, gExportTable[i].pName))
+		{
+			if (function == gExportTable[i].function)
+				return;
+			Sys_Error("Different function pointers registered with same name! %s @ %p vs %p\n",
+			          pName, function, gExportTable[i].function);
+		}
+	}
+
+	for (i = 0; i < MAX_EXPORTS; i++)
+	{
+		if (!gExportTable[i].pName)
+		{
+			gExportTable[i].function = function;
+			gExportTable[i].pName = pName;
+			return;
+		}
+	}
+
+	//Sys_Error
+	("Out of function registration slots!\n");
+}
+
+extern "C" unsigned int FunctionFromName( const char *pName )
+{
+	int  i;
+	BOOL bWarn = TRUE;
+
+	for (i = 0; i < MAX_EXPORTS; i++)
+	{
+		if (!gExportTable[i].pName && bWarn)
+		{
+			//Con_Printf
+			("Checking function registration table for %s, I hit a null. Does that seem weird to you?\n", pName);
+			bWarn = FALSE;
+		}
+		if (!strcmp(pName, gExportTable[i].pName))
+			return gExportTable[i].function;
+	}
+
+	return 0;
+}
+
+extern "C" char *NameForFunction( unsigned int function )
+{
+	int i;
+
+	for (i = 0; i < MAX_EXPORTS; i++)
+	{
+		if (function == gExportTable[i].function)
+			return (char *)gExportTable[i].pName;
+	}
+
+	Con_Printf("NameForFunction failed: %p\n", function);
+	return 0;
+}
+
+extern "C" void GameDLL_RegisterModules( void )
+{
+	int i;
+
+	for (i = 0; i < MAX_EXPORTS; i++)
+	{
+		gExportTable[i].function = 0;
+		gExportTable[i].pName = 0;
+	}
+
+	gExportTable[0].function = 0;
+	gExportTable[0].pName = "(null)";
+
+	// TODO(dc-regen): the real build appends a generated registrar to every
+	// game .cpp (registering each savable function pointer under a generated
+	// two-character name) and calls all ~130 of them here in link order.
+}
+
 void EntvarsKeyvalue( entvars_t *pev, KeyValueData *pkvd );
 
 extern Vector VecBModelOrigin( entvars_t* pevBModel );
