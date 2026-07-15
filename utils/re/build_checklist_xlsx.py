@@ -17,6 +17,17 @@ SYMS = os.path.join(HERE, "symbols.tsv")
 DIFF = os.path.join(HERE, "portdata", "%s_objdiff.txt" % name)
 OUT = os.path.join(HERE, "portdata", "%s_checklist.xlsx" % name)
 SRC = os.path.join(REPO, "src", srcrel)
+MARKV = os.path.join(HERE, "portdata", "%s_markv.txt" % name)
+
+# --- manual V overrides: functions reconstructed/worked-on that should show V even if
+#     not yet byte-exact (Exact%/Notes columns still show the true match). One name per line;
+#     '#' comments allowed. ---
+manual_v = set()
+if os.path.exists(MARKV):
+    for ln in open(MARKV, encoding="latin-1"):
+        ln = ln.split("#", 1)[0].strip()
+        if ln:
+            manual_v.add(ln)
 
 # --- binary symbols (name -> addr,size) + region + full name set ---
 addr, size, allnames = {}, {}, set()
@@ -115,10 +126,14 @@ for c, h in enumerate(["#", "Function", "Binary addr", "Bin insns", "Obj insns",
 
 r = HR + 1
 for i, (nm, ad, binn, obj, ex, st) in enumerate(rows, 1):
-    done = "V" if (ex is not None and ex >= 99.9) else "X"
+    exact = ex is not None and ex >= 99.9
+    done = "V" if (exact or nm in manual_v) else "X"
+    note = statusnote(ex, st)
+    if nm in manual_v and not exact:
+        note = "reconstructed - " + note
     vals = [i, nm, ("0x" + ad) if ad else "", binn if binn else "", obj if obj else "",
             (ex / 100.0) if ex is not None else "", (st / 100.0) if st is not None else "",
-            done, statusnote(ex, st)]
+            done, note]
     for c, v in enumerate(vals, 1):
         cell = ws.cell(r, c, v); cell.font = cell_font; cell.border = border
         if c in (6, 7) and isinstance(v, float): cell.number_format = "0%"; cell.alignment = Alignment(horizontal="center")

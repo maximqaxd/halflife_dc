@@ -14,7 +14,7 @@
 #define MULTI_MTX_1_SIZE    2048
 
 static short    *g_pQuadTable[QUAD_TABLE_ROWS + 1];
-static short     g_QuadIndexData[7350 / sizeof(short)];
+static short     g_QuadIndexData[7500 / sizeof(short)];
 
 // shared with the inline render-state helpers in dc_accum.h
 D3DLVERTEX      *g_pAccumVerts;
@@ -99,7 +99,7 @@ void DCV_AccumInit( void )
 		}
 
 		row_start = (short *)((byte *)row_start + row_stride);
-		row_stride += ROW_STRIDE_SHORTS * (int)sizeof(short);
+		row_stride += ROW_STRIDE_SHORTS;
 	}
 	g_pQuadTable[QUAD_TABLE_ROWS] = NULL;
 
