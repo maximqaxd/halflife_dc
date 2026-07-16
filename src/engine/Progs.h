@@ -74,7 +74,16 @@ typedef struct edict_s
 //============================================================================
 
 extern	char* pr_strings;
+
+// gGlobalVariables is defined in C (sv_main.c); keep C linkage so the C++ game
+// DLL resolves the same symbol when it points gpGlobals at the engine globals.
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern	globalvars_t	gGlobalVariables;
+#ifdef __cplusplus
+}
+#endif
 
 //============================================================================
 

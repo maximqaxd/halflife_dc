@@ -3,6 +3,7 @@
 #include "cmodel.h"
 #include "decal.h"
 #include "pr_cmds.h"
+#include "info.h"
 
 /*
 ===============================================================================
@@ -2222,51 +2223,6 @@ void PF_SetClientMaxspeed( const edict_t* clientent, float fNewMaxspeed )
 	MSG_WriteFloat(&sv.datagram, fNewMaxspeed);
 }
 
-/*
-===============
-RegUserMsg
-
-Registers a server->client user message by name and returns its id (or the
-existing id if already registered). New messages queue in sv_gpNewUserMsgs and
-are moved to the active list when the level starts.
-===============
-*/
-#define MAX_USER_MESSAGES	255
-
-int gmsgMax = svc_lastmsg + 1;
-
-int RegUserMsg( const char* pszName, int iSize )
-{
-	UserMsg* pMsg;
-
-	if (gmsgMax > MAX_USER_MESSAGES)
-		return 0;
-	if (!pszName)
-		return 0;
-	if (strlen(pszName) >= sizeof(pMsg->szName))
-		return 0;
-	if (iSize > MAX_USER_MSG_DATA)
-		return 0;
-
-	for (pMsg = sv_gpUserMsgs; pMsg; pMsg = pMsg->next)
-	{
-		if (!strcmp(pszName, pMsg->szName))
-			return pMsg->iMsg;
-	}
-
-	pMsg = (UserMsg*)MnemoAllocDbg(sizeof(UserMsg), __FILE__, __LINE__);
-	if (!pMsg)
-		return 0;
-
-	pMsg->iMsg = gmsgMax++;
-	pMsg->iSize = iSize;
-	strcpy(pMsg->szName, pszName);
-	pMsg->next = sv_gpNewUserMsgs;
-	sv_gpNewUserMsgs = pMsg;
-
-	return pMsg->iMsg;
-}
-
 extern void Sys_FPrintf( int handle, const char* fmt, ... );
 
 void EngineFprintf( void* pfile, char* szFmt, ... )
@@ -2301,4 +2257,105 @@ void PF_GetAttachment( const edict_t* pEdict, int iAttachment, float* rgflOrigin
 		rgflOrigin[0] = rgflOrigin[1] = rgflOrigin[2] = 0;
 	if (rgflAngles)
 		rgflAngles[0] = rgflAngles[1] = rgflAngles[2] = 0;
+}
+
+// Run any commands the game DLL has stuffed into the server command buffer.
+void PF_localexec_I( void )
+{
+	Cbuf_Execute();
+}
+
+// Register a console variable the game DLL owns.
+void CVarRegister( cvar_t* pCvar )
+{
+	if (!pCvar)
+		return;
+
+	Cvar_RegisterVariable(pCvar);
+}
+
+// Echo a message to the server console.
+void ServerPrint( const char* szMsg )
+{
+	Con_Printf("%s", szMsg);
+}
+
+// Info strings not carried on a client edict share this scratch buffer.
+static char localinfo[MAX_INFO_STRING];
+
+char* PF_GetInfoKeyBuffer_I( edict_t* e )
+{
+	if (e == NULL || e == &sv.edicts[0])
+		return serverinfo;
+
+	return localinfo;
+}
+
+char* PF_InfoKeyValue( char* infobuffer, char* key )
+{
+	return Info_ValueForKey(infobuffer, key);
+}
+
+void PF_SetKeyValue( char* infobuffer, char* key, char* value )
+{
+	Info_SetValueForKey(infobuffer, key, value, MAX_INFO_STRING);
+}
+
+void PF_SetClientKeyValue( int clientIndex, char* infobuffer, char* key, char* value )
+{
+	Info_SetValueForKey(infobuffer, key, value, MAX_INFO_STRING);
+}
+
+void PF_StaticDecal( const float* origin, int decalIndex, int entityIndex, int modelIndex )
+{
+}
+
+#define MAX_GENERIC 512
+static char* sv_generic_precache[MAX_GENERIC];
+
+int PF_precache_generic_I( char* s )
+{
+	int i;
+
+	if (sv.state == ss_loading)
+	{
+		for (i = 0; i < MAX_GENERIC; i++)
+		{
+			if (!sv_generic_precache[i])
+			{
+				sv_generic_precache[i] = s;
+				return i;
+			}
+
+			if (!strcmp(sv_generic_precache[i], s))
+				return i;
+		}
+
+		Host_Error("PF_precache_generic_I: '%s' overflow", s);
+		return 0;
+	}
+
+	for (i = 0; i < MAX_GENERIC; i++)
+	{
+		if (sv_generic_precache[i] && !strcmp(sv_generic_precache[i], s))
+			return i;
+	}
+
+	Host_Error("PF_precache_generic_I: '%s' Precache can only be done in spawn functions", s);
+	return 0;
+}
+
+int PF_GetPlayerUserId( edict_t* e )
+{
+	return -1;
+}
+
+void PF_BuildSoundMsg( edict_t* entity, int channel, const char* sample, float volume, float attenuation, int fFlags, int pitch, int msg_dest, int msg_type, const float* pOrigin, edict_t* ed )
+{
+}
+
+// The Dreamcast client is always a listen server, never dedicated.
+int PF_IsDedicatedServer( void )
+{
+	return 0;
 }

@@ -316,6 +316,7 @@ typedef struct
 } TYPEDESCRIPTION;
 
 #define ARRAYSIZE(p)		(sizeof(p)/sizeof(p[0]))
+#define Q_ARRAYSIZE(p)		(sizeof(p)/sizeof(p[0]))
 
 typedef struct 
 {
@@ -337,7 +338,7 @@ typedef struct
 	void			(*pfnRestoreGlobalState)	( SAVERESTOREDATA * );
 	void			(*pfnResetGlobalState)		( void );
 
-	qboolean		(*pfnClientConnect)		( edict_t *pEntity, const char *pszName, const char *pszAddress, char szRejectReason[ 128 ] );
+	int			(*pfnClientConnect)		( edict_t *pEntity, const char *pszName, const char *pszAddress, char szRejectReason[ 128 ] );
 	void			(*pfnClientDisconnect)	( edict_t *pEntity );
 	void			(*pfnClientKill)		( edict_t *pEntity );
 	void			(*pfnClientPutInServer)	( edict_t *pEntity );
@@ -364,7 +365,7 @@ typedef struct
 	void			(*pfnSpectatorThink)		( edict_t *pEntity );
 } DLL_FUNCTIONS;
 
-extern DLL_FUNCTIONS	gEntityInterface;
+// gEntityInterface is defined as a link-time constant table in game_entity_api.h
 
 typedef int	(*APIFUNCTION)( DLL_FUNCTIONS *pFunctionTable, int interfaceVersion );
 

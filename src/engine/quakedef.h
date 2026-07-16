@@ -142,6 +142,7 @@ typedef struct _UserMsg
 #include "bspfile.h"
 #include "dll_state.h"
 #include "eiface.h"
+#include "game_entity_api.h"
 #include "pr_dlls.h"
 #include "color.h"
 #include "vid.h"

@@ -27,7 +27,6 @@ char				g_szProfileName[MAX_QPATH];
 qboolean			g_bForceReloadOnCA_Active = FALSE;
 qboolean			Win32AtLeastV4;
 int					gHasMMXTechnology;
-DLL_FUNCTIONS		gEntityInterface;
 
 int giActive    = DLL_INACTIVE;
 int giStateInfo = 1;

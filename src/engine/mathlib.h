@@ -38,6 +38,10 @@ extern	int nanmask;
 #define VectorCopy(a,b) {(b)[0]=(a)[0];(b)[1]=(a)[1];(b)[2]=(a)[2];}
 #define VectorClear(a) {(a)[0]=0.0;(a)[1]=0.0;(a)[2]=0.0;}
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void VectorMA( const vec_t* veca, float scale, const vec_t* vecb, vec_t* vecc );
 
 vec_t _DotProduct( vec_t* v1, vec_t* v2 );
@@ -86,6 +90,10 @@ void VectorAngles( const vec_t* forward, vec_t* angles );
 void BOPS_Error( void );
 int BoxOnPlaneSide( vec_t * emins, vec_t * emaxs, struct mplane_s* p );
 float	anglemod( float a );
+
+#ifdef __cplusplus
+}
+#endif
 
 
 
