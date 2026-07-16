@@ -43,6 +43,13 @@ unsigned long timeGetTime( void );
 unsigned int  joyGetNumDevs( void );
 
 char* itoa( int value, char* str, int base );
+
+/* WinCE has no ANSI CreateDirectory; route narrow paths through a converter */
+int DC_CreateDirectoryA( const char* path );
+#ifdef CreateDirectory
+#undef CreateDirectory
+#endif
+#define CreateDirectory( path, attrs ) DC_CreateDirectoryA( path )
 #ifdef __cplusplus
 }
 #endif

@@ -11,7 +11,8 @@
 // this file is included by both the engine and the client-dll,
 // so make sure engine declarations aren't done twice
 
-typedef int HSPRITE_t;	// handle to a graphic
+typedef int HSPRITE;	// handle to a graphic
+typedef int HSPRITE_t;	// engine alias (avoids the Win32 HSPRITE handle name)
 
 #define SCRINFO_SCREENFLASH 1
 #define SCRINFO_STRETCHED	2
@@ -40,6 +41,8 @@ typedef struct client_data_s
 	int		iKeyBits; // Keyboard bits
 	int		iWeaponBits;
 	float	fov;	// field of view
+	float	view_idlescale; // view shake/rotate
+	float   mouse_sensitivity;
 } client_data_t;
 
 typedef struct client_sprite_s
@@ -100,7 +103,7 @@ typedef struct cl_enginefuncs_s
 	void	(*pfnSetCrosshair)		(HSPRITE_t hspr, wrect_t rc, int r, int g, int b);
 
 	// cvar handlers
-	int		(*pfnRegisterVariable)  (char* szName, char* szValue);
+	int		(*pfnRegisterVariable)  (char* szName, char* szValue, int flags);
 	float	(*pfnGetCvarFloat)		(char* szName);
 	char* (*pfnGetCvarString)		(char* szName);
 
@@ -125,7 +128,8 @@ typedef struct cl_enginefuncs_s
 	int   (*pfnDrawConsoleString)	( int x, int y, char *string );
 	void  (*pfnDrawConsoleStringLen) (  const char *string, int *length, int *height );
 	void  (*pfnConsolePrint) ( const char *string );
-	
+	void  (*pfnCenterPrint) ( const char *string );
+
 } cl_enginefunc_t;
 
 
@@ -145,9 +149,11 @@ typedef struct cl_enginefuncs_s
 #define IN_ATTACK2		(1<<11)
 #define IN_RUN			(1<<12)
 #define IN_RELOAD		(1<<13)
+#define IN_ALT1			(1<<14)
+#define IN_ALT2			(1<<15)
 
 
-#define CLDLL_INTERFACE_VERSION		3
+#define CLDLL_INTERFACE_VERSION		6
 
 extern void ClientDLL_Init( void ); // from cdll_int.c
 extern void ClientDLL_Shutdown( void );

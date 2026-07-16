@@ -21,7 +21,9 @@
 #include "hud.h"
 #include "util.h"
 #include <string.h>
+#ifndef _WIN32_WCE
 #include <time.h>
+#endif
 #include <stdio.h>
 
 #include "parsemsg.h"

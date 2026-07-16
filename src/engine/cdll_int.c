@@ -57,7 +57,8 @@ cl_enginefunc_t cl_enginefuncs =
 	TextMessageDrawCharacter,
 	Draw_String,
 	hudDrawConsoleStringLen,
-	hudConsolePrint
+	hudConsolePrint,
+	hudCenterPrint
 };
 
 // Pointers to the exported client functions themselves

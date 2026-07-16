@@ -61,6 +61,19 @@ int _unlink( const char* path )
 	return -1;
 }
 
+int DC_CreateDirectoryA( const char* path )
+{
+	TCHAR wszPath[MAX_PATH];
+
+	if ( !path )
+		return 0;
+
+	wszPath[0] = 0;
+	MultiByteToWideChar( CP_ACP, 0, path, -1, wszPath, MAX_PATH );
+
+	return CreateDirectory( wszPath, NULL );
+}
+
 int rename( const char* oldname, const char* newname )
 {
 	if ( !oldname || !newname )

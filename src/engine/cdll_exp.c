@@ -162,3 +162,8 @@ void hudConsolePrint( const char* string )
 {
 	Con_Print((char*)string);
 }
+
+void hudCenterPrint( const char* string )
+{
+	SCR_CenterPrint((char*)string);
+}

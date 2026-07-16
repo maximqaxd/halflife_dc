@@ -21,4 +21,8 @@ typedef unsigned long long uint64;
 
 #endif // else _WIN32
 
+#ifdef _WIN32_WCE
+#include "dreamcast_crt.h"
+#endif
+
 #endif /* PLATFORM_H */
