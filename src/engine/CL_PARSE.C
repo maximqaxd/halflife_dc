@@ -1196,58 +1196,14 @@ Returns the size of needed resources to download
 int CL_EstimateNeededResources( void )
 {
 	resource_t* p;
-	FILE* fp;
 
-	int nTotalSize = 0;
-	int nSize, nDownloadSize;
-
+	// Everything the game needs already ships on the disc, so nothing is ever
+	// downloaded. Walk the list but report no download size.
 	for (p = cl.resourcesneeded.pNext; p != &cl.resourcesneeded; p = p->pNext)
 	{
-		nSize = 0;
-		fp = NULL;
-
-		switch (p->type)
-		{
-		case t_sound:
-			if (p->szFileName[0] != '*')
-			{
-				nSize = COM_FindFile(va("sound/%s", p->szFileName), NULL, &fp);
-			}
-			break;
-		case t_skin:
-			nSize = COM_FindFile(p->szFileName, NULL, &fp);
-			break;
-		case t_model:
-			if (p->szFileName[0] != '*')
-			{
-				nSize = COM_FindFile(p->szFileName, NULL, &fp);
-			}
-			break;
-		case t_decal:
-			if (p->ucFlags & RES_CUSTOM)
-			{
-				nSize = -1;
-			}
-			break;
-		}
-
-		if (nSize == -1)
-		{
-			nDownloadSize = p->nDownloadSize;
-			p->ucFlags |= RES_WASMISSING;
-		}
-		else
-		{
-			nDownloadSize = 0;
-		}
-
-		if (fp)
-			fclose(fp);
-
-		nTotalSize += nDownloadSize;
 	}
 
-	return nTotalSize;
+	return 0;
 }
 
 /*

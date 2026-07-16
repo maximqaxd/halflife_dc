@@ -1755,6 +1755,10 @@ void GL_BindStage( int texnum, int stage )
 {
 	dctexture_t *slot;
 
+	// A texnum of -1 is the "no texture" sentinel used to unbind a stage.
+	if ((unsigned)texnum >= DC_MAXTEXTURES)
+		return;
+
 	if (texnum == s_nD3dCurrentTexnum)
 		return;
 

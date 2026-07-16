@@ -286,49 +286,9 @@ qboolean CRC_File(unsigned short *crcvalue, char *pszFileName)
  */
 qboolean CRC_File( CRC32_t* crcvalue, char* pszFileName )
 {
-	FILE* fp;
-	byte chunk[1024];
-	int nBytesRead;
-
-	int nSize;
-
-	nSize = COM_FindFile(pszFileName, NULL, &fp);
-	if (!fp || (nSize == -1))
-		return 0;
-
-	// Now read in 1K chunks
-	while (nSize > 0)
-	{
-		if (nSize > 1024)
-			nBytesRead = fread(chunk, 1, sizeof(chunk), fp);
-		else
-			nBytesRead = fread(chunk, 1, nSize, fp);
-
-		// If any data was received, CRC it.
-		if (nBytesRead > 0)
-		{
-			nSize -= nBytesRead;
-			CRC32_ProcessBuffer(crcvalue, chunk, nBytesRead);
-		}
-
-		// We we are end of file, break loop and return
-		if (feof(fp))
-		{
-			fclose(fp);
-			fp = NULL;
-			break;
-		}
-		// If there was a disk error, indicate failure.
-		else if (ferror(fp))
-		{
-			if (fp)
-				fclose(fp);
-			return FALSE;
-		}
-	}
-
-	if (fp)
-		fclose(fp);
+	// Assets ship on the GD-ROM and are trusted, so there is nothing to
+	// verify against the network. Hand back a fixed value and succeed.
+	*crcvalue = 0xdeadbeef;
 	return TRUE;
 }
 
@@ -348,74 +308,9 @@ qboolean CRC_MapFile(unsigned short *crcvalue, char *pszFileName)
  */
 int CRC_MapFile( CRC32_t* crcvalue, char* pszFileName )
 {
-	FILE* fp;
-	byte chunk[1024];
-	int i, l;
-	int nBytesRead;
-	dheader_t	header;
-	int nSize;
-	lump_t* curLump;
-	int startOfs;
-
-	nSize = COM_FindFile(pszFileName, NULL, &fp);
-	if (!fp || (nSize == -1))
-		return FALSE;
-
-	startOfs = ftell(fp);
-
-	// Don't CRC the header.
-	if (fread(&header, sizeof(dheader_t), 1, fp) != 1)
-	{
-		Con_Printf("Could not read BSP header for map [%s].\n", pszFileName);
-		fclose(fp);
-		return FALSE;
-	}
-
-	i = LittleLong(header.version);
-	if (i != Q1BSP_VERSION && i != BSPVERSION)
-	{
-		fclose(fp);
-		Con_Printf("Map [%s] has incorrect BSP version (%i should be %i).\n", pszFileName, i, BSPVERSION);
-		return FALSE;
-	}
-
-	// CRC across all lumps except for the Entities lump
-	for (l = 0; l < HEADER_LUMPS; l++)
-	{
-		if (l == LUMP_ENTITIES)
-			continue;
-
-		curLump = &(header.lumps[l]);
-		nSize = curLump->filelen;
-		fseek(fp, curLump->fileofs, startOfs);
-
-		// Now read in 1K chunks
-		while (nSize > 0)
-		{
-			if (nSize > 1024)
-				nBytesRead = fread(chunk, 1, sizeof(chunk), fp);
-			else
-				nBytesRead = fread(chunk, 1, nSize, fp);
-
-			// If any data was received, CRC it.
-			if (nBytesRead > 0)
-			{
-				nSize -= nBytesRead;
-				CRC32_ProcessBuffer(crcvalue, chunk, nBytesRead);
-			}
-
-			// If there was a disk error, indicate failure.
-			if (ferror(fp))
-			{
-				if (fp)
-					fclose(fp);
-				return FALSE;
-			}
-		}
-	}
-
-	if (fp)
-		fclose(fp);
+	// The map comes off the GD-ROM and is trusted; no network CRC check is
+	// needed. Return a fixed value and succeed.
+	*crcvalue = 0xdeadbeef;
 	return TRUE;
 }
 

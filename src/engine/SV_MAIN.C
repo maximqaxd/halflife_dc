@@ -646,8 +646,22 @@ void SV_New_f( void )
 	}
 	else
 	{
-		// call the spawn function
-		gEntityInterface.pfnClientConnect(ent);
+		char	szName[32];
+		char	szAddress[64];
+		char	szRejectReason[128];
+
+		sprintf(szName, "%s", host_client->name);
+		sprintf(szAddress, "%s", NET_AdrToString(host_client->netchan.remote_address));
+		sprintf(szRejectReason, "Connection rejected by game\n");
+
+		// let the game refuse the connection and tell the client why
+		if (!gEntityInterface.pfnClientConnect(ent, szName, szAddress, szRejectReason))
+		{
+			MSG_WriteByte(&host_client->netchan.message, svc_stufftext);
+			MSG_WriteString(&host_client->netchan.message, va("echo %s", szRejectReason));
+			SV_DropClient(host_client, FALSE);
+			return;
+		}
 	}
 
 	size4 = host_client->netchan.message.cursize;

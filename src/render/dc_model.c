@@ -16,7 +16,7 @@ void Mod_LoadSpriteModel( model_t* mod, void* buffer );
 void Mod_LoadBrushModel( model_t* mod, void* buffer );
 void Mod_LoadAliasModel( model_t* mod, void* buffer );
 void Mod_LoadStudioModel( model_t* mod, void* buffer );
-model_t* Mod_LoadModel( model_t* mod, qboolean crash );
+model_t* Mod_LoadModel( model_t* mod, qboolean crash, qboolean bDefer );
 
 model_t* mod_known[MAX_MODELS];
 int		mod_numknown;
@@ -39,8 +39,8 @@ void* Mod_Extradata( model_t* mod )
 	r = Cache_Check(&mod->cache);
 	if (r)
 		return r;
-	
-	Mod_LoadModel(mod, TRUE);
+
+	Mod_LoadModel(mod, TRUE, FALSE);
 
 	if (!mod->cache.data)
 		Sys_Error("Mod_Extradata: caching failed");
@@ -153,7 +153,7 @@ Mod_LoadModel
 Loads a model into the cache
 ==================
 */
-model_t* Mod_LoadModel( model_t* mod, qboolean crash )
+model_t* Mod_LoadModel( model_t* mod, qboolean crash, qboolean bDefer )
 {
 	unsigned* buf;
 	byte	stackbuf[1024];		// avoid dirtying the cache heap
@@ -173,11 +173,15 @@ model_t* Mod_LoadModel( model_t* mod, qboolean crash )
 	}
 
 //
-// because the world is so huge, load it one piece at a time
+// studio models are streamed off the disc on demand, so a precache only needs
+// to register the name; the file itself is read the first time the model is
+// drawn (through Mod_Extradata).
 //
-	if (!crash)
+	if (bDefer && !strstr(mod->name, ".bsp") && strstr(mod->name, ".mdl"))
 	{
-
+		mod->type = mod_studio;
+		mod->needload = NL_PRESENT;
+		return mod;
 	}
 
 //
@@ -243,7 +247,7 @@ model_t* Mod_ForName( char* name, qboolean crash )
 
 	mod = Mod_FindName(name);
 
-	return Mod_LoadModel(mod, crash);
+	return Mod_LoadModel(mod, crash, TRUE);
 }
 
 void Mod_MarkClient( model_t* pModel )

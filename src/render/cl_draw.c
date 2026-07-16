@@ -95,7 +95,7 @@ HSPRITE_t SPR_Load( const char* pTextureName )
 	gSpriteMipMap = FALSE;
 
 	pSprite->needload = TRUE;
-	pModel = Mod_LoadModel(pSprite, FALSE);
+	pModel = Mod_LoadModel(pSprite, FALSE, FALSE);
 
 	gSpriteMipMap = TRUE;
 

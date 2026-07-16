@@ -501,7 +501,7 @@ void Mod_MarkClient( model_t* pModel );
 
 mleaf_t* Mod_PointInLeaf( vec_t* p, model_t* model );
 
-model_t* Mod_LoadModel( model_t* mod, qboolean crash );
+model_t* Mod_LoadModel( model_t* mod, qboolean crash, qboolean bDefer );
 
 void Mod_Print( void );
 

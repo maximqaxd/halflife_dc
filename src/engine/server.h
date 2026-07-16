@@ -66,8 +66,8 @@ typedef struct
 
 	qboolean	loadgame;			// handle connections specially
 
-	double		time;
-	double		oldtime;
+	float		time;
+	float		oldtime;
 
 	int			lastcheck;
 	double		lastchecktime;
