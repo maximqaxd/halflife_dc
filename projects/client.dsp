@@ -44,7 +44,7 @@ CFG=client - Win32 (WCE SH4) Debug
 # PROP Target_Dir ""
 CPP=shcl.exe
 # ADD BASE CPP /nologo /MC /W3 /Zi /Ox /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "NDEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /YX /Qsh4r7 /Qs /Qfast /Qgvp /c
-# ADD CPP /nologo /MC /W3 /Zi /O2 /Ob2 /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "NDEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /YX /Qsh4r7 /Qs /Qfast /Qgvp /c
+# ADD CPP /nologo /MC /W3 /Zi /O2 /Ob2 /I "../src/client" /I "../src/common" /I "../src/engine" /I "../src/render" /I "../src/util" /I "../src/network" /I "../src/halflife" /I "../src/audio" /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "NDEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /YX /Qsh4r7 /Qs /Qfast /Qgvp /c
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
@@ -66,7 +66,7 @@ LIB32=link.exe -lib
 # PROP Target_Dir ""
 CPP=shcl.exe
 # ADD BASE CPP /nologo /MC /W3 /Zi /Od /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "DEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /YX /Qsh4r7 /Qs /Qfast /c
-# ADD CPP /nologo /MC /W3 /Zi /O2 /Ob2 /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "DEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /YX /Qsh4r7 /Qs /Qfast /c
+# ADD CPP /nologo /MC /W3 /Zi /O2 /Ob2 /I "../src/client" /I "../src/common" /I "../src/engine" /I "../src/render" /I "../src/util" /I "../src/network" /I "../src/halflife" /I "../src/audio" /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "DEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /YX /Qsh4r7 /Qs /Qfast /c
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
@@ -826,6 +826,26 @@ DEP_CPP_UTIL_=\
 
 !ENDIF 
 
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\client\ammo_secondary.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\client\menu.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\client\status_icons.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\client\statusbar.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\client\text_message.cpp
 # End Source File
 # End Group
 # Begin Group "Header Files"
