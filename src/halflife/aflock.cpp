@@ -61,6 +61,23 @@ IMPLEMENT_SAVERESTORE( CFlockingFlyerFlock, CBaseMonster );
 //=========================================================
 class CFlockingFlyer : public CBaseMonster
 {
+	friend void SR_Register_aflock( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void Precache( void );
@@ -908,3 +925,15 @@ void CFlockingFlyer :: SquadDisband( void )
 		pList = pNext;
 	}
 }
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_aflock( void )
+{
+	SR_REGISTER( "AE", CFlockingFlyer, IdleThink );
+	SR_REGISTER( "AD", CFlockingFlyer, FormFlock );
+	SR_REGISTER( "AF", CFlockingFlyer, Start );
+	SR_REGISTER( "AC", CFlockingFlyer, FlockLeaderThink );
+	SR_REGISTER( "AB", CFlockingFlyer, FlockFollowerThink );
+	SR_REGISTER( "AA", CFlockingFlyer, FallHack );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

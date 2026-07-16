@@ -395,21 +395,3 @@ class CMP5AmmoGrenade : public CBasePlayerAmmo
 };
 LINK_ENTITY_TO_CLASS( ammo_mp5grenades, CMP5AmmoGrenade );
 LINK_ENTITY_TO_CLASS( ammo_ARgrenades, CMP5AmmoGrenade );
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

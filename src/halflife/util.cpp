@@ -24,7 +24,9 @@
 #include "util.h"
 #include "cbase.h"
 #include "saverestore.h"
+#ifndef _WIN32_WCE
 #include <time.h>
+#endif
 #include "../engine/shake.h"
 #include "decals.h"
 #include "player.h"

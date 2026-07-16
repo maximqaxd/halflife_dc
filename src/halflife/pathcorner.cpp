@@ -425,4 +425,3 @@ void CPathTrack :: Sparkle( void )
 		UTIL_ParticleEffect(pev->origin, Vector(0,0,100), 84, 10);
 }
 #endif
-

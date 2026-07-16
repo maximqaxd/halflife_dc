@@ -1443,4 +1443,16 @@ void CWeaponBox::SetObjectCollisionBox( void )
 	pev->absmax = pev->origin + Vector(16, 16, 16); 
 }
 
-
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_weapons( void )
+{
+	SR_REGISTER( "JB", CBasePlayerItem, DestroyItem );
+	SR_REGISTER( "JA", CBasePlayerItem, DefaultTouch );
+	SR_REGISTER( "JC", CBasePlayerItem, FallThink );
+	SR_REGISTER( "JD", CBasePlayerItem, Materialize );
+	SR_REGISTER( "IZ", CBasePlayerItem, AttemptToMaterialize );
+	SR_REGISTER( "IX", CBasePlayerAmmo, DefaultTouch );
+	SR_REGISTER( "IY", CBasePlayerAmmo, Materialize );
+	SR_REGISTER( "JE", CWeaponBox, Kill );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

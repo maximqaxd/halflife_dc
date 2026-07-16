@@ -620,4 +620,3 @@ Schedule_t *CSquadMonster::GetScheduleOfType( int iType )
 		return CBaseMonster::GetScheduleOfType( iType );
 	}
 }
-

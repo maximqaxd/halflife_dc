@@ -2379,6 +2379,23 @@ Schedule_t* CHGrunt :: GetScheduleOfType ( int Type )
 
 class CHGruntRepel : public CBaseMonster
 {
+	friend void SR_Register_hgrunt( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void Precache( void );
@@ -2515,3 +2532,10 @@ void CDeadHGrunt :: Spawn( void )
 
 	MonsterInitDead();
 }
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_hgrunt( void )
+{
+	SR_REGISTER( "DY", CHGruntRepel, RepelUse );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

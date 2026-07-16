@@ -36,6 +36,23 @@
 //=========================================================
 class CRoach : public CBaseMonster
 {
+	friend void SR_Register_roach( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void Precache( void );
@@ -458,3 +475,10 @@ void CRoach :: Look ( int iDistance )
 // AI Schedules Specific to this monster
 //=========================================================
 
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_roach( void )
+{
+	SR_REGISTER( "GN", CRoach, MonsterThink );
+	SR_REGISTER( "GO", CRoach, Touch );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

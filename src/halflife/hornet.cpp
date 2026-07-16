@@ -424,3 +424,14 @@ void CHornet::DieTouch ( CBaseEntity *pOther )
 	pev->nextthink = gpGlobals->time + 1;// stick around long enough for the sound to finish!
 }
 
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_hornet( void )
+{
+	SR_REGISTER( "EC", CHornet, StartTrack );
+	SR_REGISTER( "EB", CHornet, StartDart );
+	SR_REGISTER( "ED", CHornet, TrackTarget );
+	SR_REGISTER( "EE", CHornet, TrackTouch );
+	SR_REGISTER( "DZ", CHornet, DartTouch );
+	SR_REGISTER( "EA", CHornet, DieTouch );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

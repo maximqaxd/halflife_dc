@@ -29,6 +29,23 @@
 
 class CRecharge : public CBaseToggle
 {
+	friend void SR_Register_h_battery( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( );
 	void Precache( void );
@@ -198,3 +215,11 @@ void CRecharge::Off(void)
 	else
 		SetThink( SUB_DoNothing );
 }
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_h_battery( void )
+{
+	SR_REGISTER( "DQ", CRecharge, Off );
+	SR_REGISTER( "DR", CRecharge, Recharge );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

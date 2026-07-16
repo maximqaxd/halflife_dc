@@ -116,6 +116,23 @@ dynpitchvol_t rgdpvpreset[CDPVPRESETMAX] =
 
 class CAmbientGeneric : public CBaseEntity
 {
+	friend void SR_Register_sound( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void KeyValue( KeyValueData* pkvd);
 	void Spawn( void );
@@ -1793,6 +1810,23 @@ float TEXTURETYPE_PlaySound(TraceResult *ptr,  Vector vecSrc, Vector vecEnd, int
 
 class CSpeaker : public CBaseEntity
 {
+	friend void SR_Register_sound( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void KeyValue( KeyValueData* pkvd);
 	void Spawn( void );
@@ -1980,3 +2014,13 @@ void CSpeaker :: KeyValue( KeyValueData *pkvd )
 	else
 		CBaseEntity::KeyValue( pkvd );
 }
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_sound( void )
+{
+	SR_REGISTER( "HA", CAmbientGeneric, ToggleUse );
+	SR_REGISTER( "GZ", CAmbientGeneric, RampThink );
+	SR_REGISTER( "HC", CSpeaker, ToggleUse );
+	SR_REGISTER( "HB", CSpeaker, SpeakerThink );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

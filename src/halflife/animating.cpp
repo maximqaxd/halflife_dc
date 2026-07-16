@@ -310,4 +310,3 @@ void CBaseAnimating :: SetSequenceBox( void )
 		UTIL_SetSize( pev, rmin, rmax );
 	}
 }
-

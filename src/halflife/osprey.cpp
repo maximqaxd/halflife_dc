@@ -39,6 +39,23 @@ typedef struct
 
 class COsprey : public CBaseMonster
 {
+	friend void SR_Register_osprey( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	int		Save( CSave &save );
 	int		Restore( CRestore &restore );
@@ -799,7 +816,16 @@ void COsprey::TraceAttack( entvars_t *pevAttacker, float flDamage, Vector vecDir
 	}
 }
 
-
-
-
-
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_osprey( void )
+{
+	SR_REGISTER( "FP", COsprey, FlyThink );
+	SR_REGISTER( "FM", COsprey, DeployThink );
+	SR_REGISTER( "FQ", COsprey, HitTouch );
+	SR_REGISTER( "FO", COsprey, FindAllThink );
+	SR_REGISTER( "FR", COsprey, HoverThink );
+	SR_REGISTER( "FL", COsprey, CrashTouch );
+	SR_REGISTER( "FN", COsprey, DyingThink );
+	SR_REGISTER( "FK", COsprey, CommandUse );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

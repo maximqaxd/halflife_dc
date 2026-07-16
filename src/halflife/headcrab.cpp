@@ -72,6 +72,23 @@ Schedule_t	slHCRangeAttack1Fast[] =
 
 class CHeadCrab : public CBaseMonster
 {
+	friend void SR_Register_headcrab( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void Precache( void );
@@ -553,3 +570,10 @@ Schedule_t* CBabyCrab :: GetScheduleOfType ( int Type )
 
 	return CHeadCrab::GetScheduleOfType( Type );
 }
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_headcrab( void )
+{
+	SR_REGISTER( "DV", CHeadCrab, LeapTouch );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

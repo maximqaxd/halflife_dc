@@ -22,6 +22,19 @@ typedef enum { matGlass = 0, matWood, matMetal, matFlesh, matCinderBlock, matCei
 
 class CBreakable : public CBaseDelay
 {
+	friend void SR_Register_func_break( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	// basic functions
 	void Spawn( void );

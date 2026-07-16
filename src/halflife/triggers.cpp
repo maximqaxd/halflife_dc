@@ -42,6 +42,23 @@ extern Vector VecBModelOrigin( entvars_t* pevBModel );
 
 class CFrictionModifier : public CBaseEntity
 {
+	friend void SR_Register_triggers( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void		Spawn( void );
 	void		KeyValue( KeyValueData *pkvd );
@@ -262,6 +279,15 @@ void CTriggerRelay::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE
 
 class CMultiManager : public CBaseToggle
 {
+	friend void SR_Register_triggers( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
 public:
 	void KeyValue( KeyValueData *pkvd );
 	void Spawn ( void );
@@ -520,6 +546,15 @@ void CRenderFxManager :: Use ( CBaseEntity *pActivator, CBaseEntity *pCaller, US
 
 class CBaseTrigger : public CBaseToggle
 {
+	friend void SR_Register_triggers( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
 public:
 	void EXPORT TeleportTouch ( CBaseEntity *pOther );
 	void KeyValue( KeyValueData *pkvd );
@@ -583,6 +618,23 @@ void CBaseTrigger :: KeyValue( KeyValueData *pkvd )
 
 class CTriggerHurt : public CBaseTrigger
 {
+	friend void SR_Register_triggers( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void EXPORT RadiationThink( void );
@@ -1324,6 +1376,23 @@ void CFireAndDie::Think( void )
 #define SF_CHANGELEVEL_USEONLY		0x0002
 class CChangeLevel : public CBaseTrigger
 {
+	friend void SR_Register_triggers( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void KeyValue( KeyValueData *pkvd );
@@ -1943,6 +2012,23 @@ LINK_ENTITY_TO_CLASS( info_teleport_destination, CPointEntity );
 
 class CTriggerSave : public CBaseTrigger
 {
+	friend void SR_Register_triggers( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void EXPORT SaveTouch( CBaseEntity *pOther );
@@ -1979,6 +2065,23 @@ void CTriggerSave::SaveTouch( CBaseEntity *pOther )
 
 class CTriggerEndSection : public CBaseTrigger
 {
+	friend void SR_Register_triggers( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void EXPORT EndSectionTouch( CBaseEntity *pOther );
@@ -2050,6 +2153,23 @@ void CTriggerEndSection :: KeyValue( KeyValueData *pkvd )
 
 class CTriggerGravity : public CBaseTrigger
 {
+	friend void SR_Register_triggers( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void EXPORT GravityTouch( CBaseEntity *pOther );
@@ -2143,6 +2263,23 @@ void CTriggerChangeTarget::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, U
 
 class CTriggerCamera : public CBaseDelay
 {
+	friend void SR_Register_triggers( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void KeyValue( KeyValueData *pkvd );
@@ -2427,3 +2564,27 @@ void CTriggerCamera::Move()
 	float fraction = 2 * gpGlobals->frametime;
 	pev->velocity = ((pev->movedir * pev->speed) * fraction) + (pev->velocity * (1-fraction));
 }
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_triggers( void )
+{
+	SR_REGISTER( "HY", CFrictionModifier, ChangeFriction );
+	SR_REGISTER( "HZ", CMultiManager, ManagerThink );
+	SR_REGISTER( "IA", CMultiManager, ManagerUse );
+	SR_REGISTER( "HT", CBaseTrigger, TeleportTouch );
+	SR_REGISTER( "HR", CBaseTrigger, MultiTouch );
+	SR_REGISTER( "HQ", CBaseTrigger, HurtTouch );
+	SR_REGISTER( "HS", CBaseTrigger, MultiWaitOver );
+	SR_REGISTER( "HP", CBaseTrigger, CounterUse );
+	SR_REGISTER( "HU", CBaseTrigger, ToggleUse );
+	SR_REGISTER( "IF", CTriggerHurt, RadiationThink );
+	SR_REGISTER( "HX", CChangeLevel, UseChangeLevel );
+	SR_REGISTER( "HV", CChangeLevel, ExecuteChangeLevel );
+	SR_REGISTER( "HW", CChangeLevel, TouchChangeLevel );
+	SR_REGISTER( "IG", CTriggerSave, SaveTouch );
+	SR_REGISTER( "IC", CTriggerEndSection, EndSectionTouch );
+	SR_REGISTER( "ID", CTriggerEndSection, EndSectionUse );
+	SR_REGISTER( "IE", CTriggerGravity, GravityTouch );
+	SR_REGISTER( "IB", CTriggerCamera, FollowTarget );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

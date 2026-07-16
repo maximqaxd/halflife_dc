@@ -55,6 +55,18 @@ CBaseEntity
 
 extern "C" EXPORT int GetEntityAPI( DLL_FUNCTIONS *pFunctionTable, int interfaceVersion );
 
+extern "C" void Sys_RegisterExport( const char *pName, unsigned int function );
+extern "C" void GameDLL_RegisterSaveExports( void );
+
+// Register a savable member function pointer with the save/restore name table.
+// Single-inheritance non-virtual member pointers are just the code address, so
+// the union hands the raw address to Sys_RegisterExport.
+#define SR_REGISTER( code, cls, fn ) \
+	{ union { void (cls::*mfp)(); unsigned int addr; } _u; _u.addr = 0; \
+	  _u.mfp = (void (cls::*)())&cls::fn; \
+	  Sys_RegisterExport( code, _u.addr ); }
+
+extern "C" {
 extern int DispatchSpawn( edict_t *pent );
 extern void DispatchKeyValue( edict_t *pentKeyvalue, KeyValueData *pkvd );
 extern void DispatchTouch( edict_t *pentTouched, edict_t *pentOther );
@@ -69,6 +81,7 @@ extern void SaveReadFields( SAVERESTOREDATA *pSaveData, const char *pname, void 
 extern void SaveGlobalState( SAVERESTOREDATA *pSaveData );
 extern void RestoreGlobalState( SAVERESTOREDATA *pSaveData );
 extern void ResetGlobalState( void );
+}
 
 typedef enum { USE_OFF = 0, USE_ON = 1, USE_SET = 2, USE_TOGGLE = 3 } USE_TYPE;
 
@@ -129,6 +142,23 @@ public:
 //
 class CBaseEntity 
 {
+	friend void SR_Register_cbase( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	// Constructor.  Set engine to use C/C++ callback functions
 	// pointers to engine data
@@ -403,6 +433,23 @@ void PlayLockSounds(entvars_t *pev, locksound_t *pls, int flocked, int fbutton);
 
 class CMultiSource : public CPointEntity
 {
+	friend void SR_Register_buttons( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( );
 	void KeyValue( KeyValueData *pkvd );
@@ -428,6 +475,23 @@ public:
 //
 class CBaseDelay : public CBaseEntity
 {
+	friend void SR_Register_subs( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	float		m_flDelay;
 	int			m_iszKillTarget;
@@ -488,6 +552,23 @@ public:
 
 class CBaseToggle : public CBaseAnimating
 {
+	friend void SR_Register_subs( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void				KeyValue( KeyValueData *pkvd );
 
@@ -661,6 +742,23 @@ char *ButtonSound( int sound );				// get string of button sound number
 //
 class CBaseButton : public CBaseToggle
 {
+	friend void SR_Register_buttons( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	virtual void Precache( void );

@@ -143,6 +143,19 @@ enum
 //
 class CGib : public CBaseEntity
 {
+	friend void SR_Register_combat( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( const char *szGibModel );
 	void EXPORT BounceGibTouch ( CBaseEntity *pOther );

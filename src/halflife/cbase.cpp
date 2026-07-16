@@ -71,7 +71,7 @@ extern "C" void Sys_RegisterExport( const char *pName, unsigned int function )
 	("Out of function registration slots!\n");
 }
 
-extern "C" unsigned int FunctionFromName( const char *pName )
+extern "C" unsigned long FunctionFromName( const char *pName )
 {
 	int  i;
 	BOOL bWarn = TRUE;
@@ -91,7 +91,7 @@ extern "C" unsigned int FunctionFromName( const char *pName )
 	return 0;
 }
 
-extern "C" char *NameForFunction( unsigned int function )
+extern "C" const char *NameForFunction( unsigned long function )
 {
 	int i;
 
@@ -109,6 +109,10 @@ extern "C" void GameDLL_RegisterModules( void )
 {
 	int i;
 
+	// The engine and game share one image, so point the game's globals at the
+	// engine's directly rather than receiving them through GiveFnptrsToDll.
+	gpGlobals = &gGlobalVariables;
+
 	for (i = 0; i < MAX_EXPORTS; i++)
 	{
 		gExportTable[i].function = 0;
@@ -118,9 +122,7 @@ extern "C" void GameDLL_RegisterModules( void )
 	gExportTable[0].function = 0;
 	gExportTable[0].pName = "(null)";
 
-	// TODO(dc-regen): the real build appends a generated registrar to every
-	// game .cpp (registering each savable function pointer under a generated
-	// two-character name) and calls all ~130 of them here in link order.
+	GameDLL_RegisterSaveExports();
 }
 
 void EntvarsKeyvalue( entvars_t *pev, KeyValueData *pkvd );
@@ -826,4 +828,13 @@ CBaseEntity * CBaseEntity::Create( char *szName, const Vector &vecOrigin, const 
 	return pEntity;
 }
 
-
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_cbase( void )
+{
+	SR_REGISTER( "BS", CBaseEntity, SUB_Remove );
+	SR_REGISTER( "BQ", CBaseEntity, SUB_DoNothing );
+	SR_REGISTER( "BT", CBaseEntity, SUB_StartFadeOut );
+	SR_REGISTER( "BR", CBaseEntity, SUB_FadeOut );
+	SR_REGISTER( "BP", CBaseEntity, SUB_CallUseToggle );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

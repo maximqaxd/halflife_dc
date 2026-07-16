@@ -53,6 +53,23 @@ typedef enum
 
 class CBaseTurret : public CBaseMonster
 {
+	friend void SR_Register_turret( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn(void);
 	virtual void Precache(void);
@@ -1144,6 +1161,23 @@ int	CBaseTurret::Classify ( void )
 //=========================================================
 class CSentry : public CBaseTurret
 {
+	friend void SR_Register_turret( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( );
 	void Precache(void);
@@ -1303,3 +1337,20 @@ void CSentry ::	SentryDeath( void )
 	}
 }
 
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_turret( void )
+{
+	SR_REGISTER( "IU", CBaseTurret, TurretUse );
+	SR_REGISTER( "IL", CBaseTurret, ActiveThink );
+	SR_REGISTER( "IQ", CBaseTurret, SearchThink );
+	SR_REGISTER( "IM", CBaseTurret, AutoSearchThink );
+	SR_REGISTER( "IT", CBaseTurret, TurretDeath );
+	SR_REGISTER( "IR", CBaseTurret, SpinDownCall );
+	SR_REGISTER( "IS", CBaseTurret, SpinUpCall );
+	SR_REGISTER( "IN", CBaseTurret, Deploy );
+	SR_REGISTER( "IP", CBaseTurret, Retire );
+	SR_REGISTER( "IO", CBaseTurret, Initialize );
+	SR_REGISTER( "IW", CSentry, SentryTouch );
+	SR_REGISTER( "IV", CSentry, SentryDeath );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

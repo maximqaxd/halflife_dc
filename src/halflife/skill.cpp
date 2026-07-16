@@ -44,4 +44,3 @@ float GetSkillCvar( char *pName )
 
 	return flValue;
 }
-

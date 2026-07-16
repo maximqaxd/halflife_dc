@@ -27,6 +27,23 @@
 
 class CNihilanth : public CBaseMonster
 {
+	friend void SR_Register_nihilanth( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	int		Save( CSave &save );
 	int		Restore( CRestore &restore );
@@ -171,6 +188,23 @@ IMPLEMENT_SAVERESTORE( CNihilanth, CBaseMonster );
 
 class CNihilanthHVR : public CBaseMonster
 {
+	friend void SR_Register_nihilanth( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	int		Save( CSave &save );
 	int		Restore( CRestore &restore );
@@ -1834,3 +1868,24 @@ void CNihilanthHVR::BounceTouch( CBaseEntity *pOther )
 
 
 #endif
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_nihilanth( void )
+{
+	SR_REGISTER( "EV", CNihilanth, StartupThink );
+	SR_REGISTER( "ET", CNihilanth, HuntThink );
+	SR_REGISTER( "ER", CNihilanth, CrashTouch );
+	SR_REGISTER( "ES", CNihilanth, DyingThink );
+	SR_REGISTER( "EW", CNihilanth, StartupUse );
+	SR_REGISTER( "EU", CNihilanth, NullThink );
+	SR_REGISTER( "EQ", CNihilanth, CommandUse );
+	SR_REGISTER( "EZ", CNihilanthHVR, HoverThink );
+	SR_REGISTER( "EY", CNihilanthHVR, DissipateThink );
+	SR_REGISTER( "FD", CNihilanthHVR, ZapThink );
+	SR_REGISTER( "FB", CNihilanthHVR, TeleportThink );
+	SR_REGISTER( "FC", CNihilanthHVR, TeleportTouch );
+	SR_REGISTER( "FA", CNihilanthHVR, RemoveTouch );
+	SR_REGISTER( "EX", CNihilanthHVR, BounceTouch );
+	SR_REGISTER( "FE", CNihilanthHVR, ZapTouch );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

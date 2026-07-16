@@ -3518,9 +3518,11 @@ void CSprayCan::Think( void )
 
 class	CBloodSplat : public CBaseEntity
 {
+	friend void SR_Register_player( void ); //SR_FRIEND
+
 public:
 	void	Spawn ( entvars_t *pevOwner );
-	void	Spray ( void );
+	void	EXPORT Spray ( void );
 };
 
 void CBloodSplat::Spawn ( entvars_t *pevOwner )
@@ -4960,6 +4962,23 @@ void CStripWeapons :: Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TY
 
 class CRevertSaved : public CPointEntity
 {
+	friend void SR_Register_player( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void	Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value );
 	void	EXPORT MessageThink( void );
@@ -5088,3 +5107,12 @@ void CInfoIntermission::Think ( void )
 
 LINK_ENTITY_TO_CLASS( info_intermission, CInfoIntermission );
 
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_player( void )
+{
+	SR_REGISTER( "GK", CBloodSplat, Spray );
+	SR_REGISTER( "GM", CRevertSaved, MessageThink );
+	SR_REGISTER( "GL", CRevertSaved, LoadThink );
+	SR_REGISTER( "GJ", CBasePlayer, PlayerDeathThink );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

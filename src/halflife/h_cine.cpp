@@ -31,6 +31,23 @@
 
 class CLegacyCineMonster : public CBaseMonster
 {
+	friend void SR_Register_h_cine( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void CineSpawn( char *szModel );
 	void Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value );
@@ -184,6 +201,23 @@ void CLegacyCineMonster :: CineThink( void )
 // e3/prealpha only. 
 class CCineBlood : public CBaseEntity
 {
+	friend void SR_Register_h_cine( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void EXPORT BloodStart ( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value );
@@ -239,3 +273,11 @@ void CCineBlood :: Spawn ( void )
 	pev->health = 20;//hacked health to count iterations
 }
 
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_h_cine( void )
+{
+	SR_REGISTER( "DU", CLegacyCineMonster, CineThink );
+	SR_REGISTER( "DT", CCineBlood, BloodStart );
+	SR_REGISTER( "DS", CCineBlood, BloodGush );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

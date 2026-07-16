@@ -34,6 +34,23 @@ LINK_ENTITY_TO_CLASS( info_target, CPointEntity );
 
 class CBubbling : public CBaseEntity
 {
+	friend void SR_Register_effects( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void	Spawn( void );
 	void	Precache( void );
@@ -370,6 +387,23 @@ void CBeam::DoSparks( const Vector &start, const Vector &end )
 
 class CLightning : public CBeam
 {
+	friend void SR_Register_effects( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void	Spawn( void );
 	void	Precache( void );
@@ -1342,6 +1376,23 @@ void CSprite::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useTy
 
 class CGibShooter : public CBaseDelay
 {
+	friend void SR_Register_effects( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void	Spawn( void );
 	void	Precache( void );
@@ -1608,6 +1659,23 @@ CGib *CEnvShooter :: CreateGib ( void )
 
 class CTestEffect : public CBaseDelay
 {
+	friend void SR_Register_effects( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void	Spawn( void );
 	void	Precache( void );
@@ -2202,6 +2270,23 @@ void CEnvBeverage::Spawn( void )
 //=========================================================
 class CItemSoda : public CBaseEntity
 {
+	friend void SR_Register_effects( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void	Spawn( void );
 	void	Precache( void );
@@ -2262,3 +2347,23 @@ void CItemSoda::CanTouch ( CBaseEntity *pOther )
 	SetThink ( SUB_Remove );
 	pev->nextthink = gpGlobals->time;
 }
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_effects( void )
+{
+	SR_REGISTER( "CR", CBubbling, FizzThink );
+	SR_REGISTER( "CX", CLightning, StrikeThink );
+	SR_REGISTER( "CW", CLightning, DamageThink );
+	SR_REGISTER( "CY", CLightning, StrikeUse );
+	SR_REGISTER( "CZ", CLightning, ToggleUse );
+	SR_REGISTER( "CS", CGibShooter, ShootThink );
+	SR_REGISTER( "DD", CTestEffect, TestThink );
+	SR_REGISTER( "CT", CItemSoda, CanThink );
+	SR_REGISTER( "CU", CItemSoda, CanTouch );
+	SR_REGISTER( "DA", CSprite, AnimateThink );
+	SR_REGISTER( "DC", CSprite, ExpandThink );
+	SR_REGISTER( "DB", CSprite, AnimateUntilDead );
+	SR_REGISTER( "CQ", CBeam, TriggerTouch );
+	SR_REGISTER( "CV", CLaser, StrikeThink );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

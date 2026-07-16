@@ -874,6 +874,23 @@ void CRotButton::Spawn( void )
 
 class CMomentaryRotButton : public CBaseToggle
 {
+	friend void SR_Register_buttons( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void	Spawn ( void );
 	void	KeyValue( KeyValueData *pkvd );
@@ -1118,6 +1135,23 @@ void CMomentaryRotButton::UpdateSelfReturn( float value )
 
 class CEnvSpark : public CBaseEntity
 {
+	friend void SR_Register_buttons( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void	Spawn(void);
 	void	Precache(void);
@@ -1274,3 +1308,21 @@ int CButtonTarget::TakeDamage( entvars_t* pevInflictor, entvars_t* pevAttacker, 
 
 	return 1;
 }
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_buttons( void )
+{
+	SR_REGISTER( "BM", CMomentaryRotButton, Off );
+	SR_REGISTER( "BN", CMomentaryRotButton, Return );
+	SR_REGISTER( "BL", CEnvSpark, SparkThink );
+	SR_REGISTER( "BJ", CEnvSpark, SparkStart );
+	SR_REGISTER( "BK", CEnvSpark, SparkStop );
+	SR_REGISTER( "BO", CMultiSource, Register );
+	SR_REGISTER( "BG", CBaseButton, ButtonTouch );
+	SR_REGISTER( "BF", CBaseButton, ButtonSpark );
+	SR_REGISTER( "BI", CBaseButton, TriggerAndWait );
+	SR_REGISTER( "BE", CBaseButton, ButtonReturn );
+	SR_REGISTER( "BD", CBaseButton, ButtonBackHome );
+	SR_REGISTER( "BH", CBaseButton, ButtonUse );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

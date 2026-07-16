@@ -42,6 +42,23 @@ enum satchel_radio_e {
 
 class CSatchelCharge : public CGrenade
 {
+	friend void SR_Register_satchel( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	void Spawn( void );
 	void Precache( void );
 	void BounceSound( void );
@@ -524,3 +541,11 @@ void DeactivateSatchels( CBasePlayer *pOwner )
 }
 
 #endif
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_satchel( void )
+{
+	SR_REGISTER( "GT", CSatchelCharge, SatchelSlide );
+	SR_REGISTER( "GU", CSatchelCharge, SatchelThink );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

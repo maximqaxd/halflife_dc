@@ -36,6 +36,11 @@
 //#define PATH_SPARKLE_DEBUG		1	// This makes a particle effect around path_track entities for debugging
 class CPathTrack : public CPointEntity
 {
+
+
+
+
+
 public:
 	void		Spawn( void );
 	void		Activate( void );
@@ -74,6 +79,19 @@ public:
 
 class CFuncTrackTrain : public CBaseEntity
 {
+	friend void SR_Register_plats( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void Precache( void );

@@ -57,6 +57,23 @@ enum
 //=========================================================
 class CSquidSpit : public CBaseEntity
 {
+	friend void SR_Register_bullsquid( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 
@@ -1272,3 +1289,9 @@ MONSTERSTATE CBullsquid :: GetIdealState ( void )
 	return m_IdealMonsterState;
 }
 
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_bullsquid( void )
+{
+	SR_REGISTER( "BC", CSquidSpit, Animate );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

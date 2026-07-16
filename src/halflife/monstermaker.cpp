@@ -33,6 +33,23 @@
 //=========================================================
 class CMonsterMaker : public CBaseMonster
 {
+	friend void SR_Register_monstermaker( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void Precache( void );
@@ -289,4 +306,11 @@ void CMonsterMaker :: DeathNotice ( entvars_t *pevChild )
 	}
 }
 
-
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_monstermaker( void )
+{
+	SR_REGISTER( "EN", CMonsterMaker, ToggleUse );
+	SR_REGISTER( "EL", CMonsterMaker, CyclicUse );
+	SR_REGISTER( "EM", CMonsterMaker, MakerThink );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

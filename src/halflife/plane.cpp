@@ -57,4 +57,3 @@ BOOL CPlane :: PointInFront ( const Vector &vecPoint )
 
 	return FALSE;
 }
-

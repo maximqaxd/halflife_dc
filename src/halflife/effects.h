@@ -32,6 +32,19 @@
 
 class CSprite : public CPointEntity
 {
+	friend void SR_Register_effects( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void Precache( void );
@@ -101,6 +114,19 @@ private:
 
 class CBeam : public CBaseEntity
 {
+	friend void SR_Register_effects( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void	Spawn( void );
 	void	Precache( void );
@@ -184,6 +210,19 @@ public:
 
 class CLaser : public CBeam
 {
+	friend void SR_Register_effects( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void	Spawn( void );
 	void	Precache( void );

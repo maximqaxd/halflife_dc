@@ -97,6 +97,19 @@ enum
 
 class CTalkMonster : public CBaseMonster
 {
+	friend void SR_Register_talkmonster( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void			TalkInit( void );				
 	CBaseEntity		*FindNearestFriend(BOOL fPlayer);

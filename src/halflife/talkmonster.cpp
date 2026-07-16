@@ -1470,3 +1470,9 @@ void CTalkMonster::Precache( void )
 		m_szGrp[TLK_UNUSE] = STRING( m_iszUnUse );
 }
 
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_talkmonster( void )
+{
+	SR_REGISTER( "HI", CTalkMonster, FollowerUse );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

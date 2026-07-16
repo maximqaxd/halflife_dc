@@ -18,6 +18,19 @@
 
 class CItem : public CBaseEntity
 {
+	friend void SR_Register_items( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void	Spawn( void );
 	CBaseEntity*	Respawn( void );

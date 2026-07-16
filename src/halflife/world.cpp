@@ -104,6 +104,23 @@ BODY QUE
 
 class CDecal : public CBaseEntity
 {
+	friend void SR_Register_world( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void	Spawn( void );
 	void	KeyValue( KeyValueData *pkvd );
@@ -735,3 +752,11 @@ void CWorld :: KeyValue( KeyValueData *pkvd )
 	else
 		CBaseEntity::KeyValue( pkvd );
 }
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_world( void )
+{
+	SR_REGISTER( "JF", CDecal, StaticDecal );
+	SR_REGISTER( "JG", CDecal, TriggerDecal );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

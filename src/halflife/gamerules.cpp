@@ -330,6 +330,3 @@ CGameRules *InstallGameRules( void )
 		}
 	}
 }
-
-
-

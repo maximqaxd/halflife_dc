@@ -207,6 +207,12 @@ A simple entity that looks solid but lets you walk through it.
 */
 class CFuncIllusionary : public CBaseToggle 
 {
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void EXPORT SloshTouch( CBaseEntity *pOther );
@@ -273,6 +279,23 @@ void CFuncMonsterClip::Spawn( void )
 // =================== FUNC_ROTATING ==============================================
 class CFuncRotating : public CBaseEntity
 {
+	friend void SR_Register_bmodels( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	// basic functions
 	void Spawn( void  );
@@ -726,6 +749,23 @@ void CFuncRotating :: Blocked( CBaseEntity *pOther )
 
 class CPendulum : public CBaseEntity
 {
+	friend void SR_Register_bmodels( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void	Spawn ( void );
 	void	KeyValue( KeyValueData *pkvd );
@@ -955,4 +995,17 @@ void CPendulum :: RopeTouch ( CBaseEntity *pOther )
 	pevOther->movetype = MOVETYPE_NONE;
 }
 
-
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_bmodels( void )
+{
+	SR_REGISTER( "AX", CFuncRotating, SpinUp );
+	SR_REGISTER( "AW", CFuncRotating, SpinDown );
+	SR_REGISTER( "AT", CFuncRotating, HurtTouch );
+	SR_REGISTER( "AV", CFuncRotating, RotatingUse );
+	SR_REGISTER( "AU", CFuncRotating, Rotate );
+	SR_REGISTER( "BB", CPendulum, Swing );
+	SR_REGISTER( "AY", CPendulum, PendulumUse );
+	SR_REGISTER( "BA", CPendulum, Stop );
+	SR_REGISTER( "AZ", CPendulum, RopeTouch );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

@@ -222,6 +222,23 @@ void CBasePlatTrain::Precache( void )
 
 class CFuncPlat : public CBasePlatTrain
 {
+	friend void SR_Register_plats( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void Precache( void );
@@ -627,6 +644,23 @@ void CFuncPlatRot :: RotMove( Vector &destAngle, float time )
 
 class CFuncTrain : public CBasePlatTrain
 {
+	friend void SR_Register_plats( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void Precache( void );
@@ -1524,6 +1558,23 @@ void CFuncTrackTrain :: Precache( void )
 // This class defines the volume of space that the player must stand in to control the train
 class CFuncTrainControls : public CBaseEntity
 {
+	friend void SR_Register_plats( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	virtual int	ObjectCaps( void ) { return CBaseEntity :: ObjectCaps() & ~FCAP_ACROSS_TRANSITION; }
 	void Spawn( void );
@@ -1590,6 +1641,23 @@ typedef enum { TRAIN_SAFE, TRAIN_BLOCKING, TRAIN_FOLLOWING } TRAIN_CODE;
 
 class CFuncTrackChange : public CFuncPlatRot
 {
+	friend void SR_Register_plats( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void Precache( void );
@@ -2078,6 +2146,23 @@ void CFuncTrackAuto :: Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_T
 
 class CGunTarget : public CBaseMonster
 {
+	friend void SR_Register_plats( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void			Spawn( void );
 	void			Activate( void );
@@ -2254,5 +2339,25 @@ void CGunTarget::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE us
 	}
 }
 
-
-
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_plats( void )
+{
+	SR_REGISTER( "FV", CFuncPlat, PlatUse );
+	SR_REGISTER( "FS", CFuncPlat, CallGoDown );
+	SR_REGISTER( "FU", CFuncPlat, CallHitTop );
+	SR_REGISTER( "FT", CFuncPlat, CallHitBottom );
+	SR_REGISTER( "GE", CFuncTrain, Wait );
+	SR_REGISTER( "GD", CFuncTrain, Next );
+	SR_REGISTER( "GF", CFuncTrainControls, Find );
+	SR_REGISTER( "FY", CFuncTrackChange, GoUp );
+	SR_REGISTER( "FX", CFuncTrackChange, GoDown );
+	SR_REGISTER( "FW", CFuncTrackChange, Find );
+	SR_REGISTER( "GG", CGunTarget, Next );
+	SR_REGISTER( "GH", CGunTarget, Start );
+	SR_REGISTER( "GI", CGunTarget, Wait );
+	SR_REGISTER( "GC", CFuncTrackTrain, Next );
+	SR_REGISTER( "GA", CFuncTrackTrain, Find );
+	SR_REGISTER( "GB", CFuncTrackTrain, NearestPath );
+	SR_REGISTER( "FZ", CFuncTrackTrain, DeadEnd );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

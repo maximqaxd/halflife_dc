@@ -51,6 +51,23 @@ extern CGraph WorldGraph;
 // UNDONE: Save/restore here
 class CIchthyosaur : public CFlyingMonster
 {
+	friend void SR_Register_ichthyosaur( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void  Spawn( void );
 	void  Precache( void );
@@ -1106,3 +1123,11 @@ Vector CIchthyosaur::DoProbe(const Vector &Probe)
 }
 
 #endif
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_ichthyosaur( void )
+{
+	SR_REGISTER( "EG", CIchthyosaur, CombatUse );
+	SR_REGISTER( "EF", CIchthyosaur, BiteTouch );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

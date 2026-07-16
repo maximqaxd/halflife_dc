@@ -29,6 +29,19 @@ extern DLL_GLOBAL int		g_iSkillLevel;
 
 class CApache : public CBaseMonster
 {
+	friend void SR_Register_apache( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
 	int		Save( CSave &save );
 	int		Restore( CRestore &restore );
 	static	TYPEDESCRIPTION m_SaveData[];
@@ -939,6 +952,19 @@ void CApache::TraceAttack( entvars_t *pevAttacker, float flDamage, Vector vecDir
 
 class CApacheHVR : public CGrenade
 {
+	friend void SR_Register_apache( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
 	void Spawn( void );
 	void Precache( void );
 	void EXPORT IgniteThink( void );
@@ -1048,3 +1074,17 @@ void CApacheHVR :: AccelerateThink( void  )
 
 
 #endif
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_apache( void )
+{
+	SR_REGISTER( "AL", CApache, HuntThink );
+	SR_REGISTER( "AK", CApache, FlyTouch );
+	SR_REGISTER( "AI", CApache, CrashTouch );
+	SR_REGISTER( "AJ", CApache, DyingThink );
+	SR_REGISTER( "AN", CApache, StartupUse );
+	SR_REGISTER( "AM", CApache, NullThink );
+	SR_REGISTER( "AP", CApacheHVR, IgniteThink );
+	SR_REGISTER( "AO", CApacheHVR, AccelerateThink );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

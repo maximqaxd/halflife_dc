@@ -488,30 +488,11 @@ struct {const char *name;void *func;} lib_hl_exports[] = {
 extern "C" {
 
 // effects.cpp
-void env_blood( entvars_t *pev ) {}
-void env_smoker( entvars_t *pev ) {}
 void env_warpball( entvars_t *pev ) {}
-void streak_spiral( entvars_t *pev ) {}
 
-// game.cpp (CGamePlayer* rules entities)
-void game_text( entvars_t *pev ) {}
-void game_team_master( entvars_t *pev ) {}
-void game_team_set( entvars_t *pev ) {}
-void game_zone_player( entvars_t *pev ) {}
-void game_player_hurt( entvars_t *pev ) {}
-void game_counter( entvars_t *pev ) {}
-void game_counter_set( entvars_t *pev ) {}
-void game_player_equip( entvars_t *pev ) {}
-void game_player_team( entvars_t *pev ) {}
-
-// items.cpp / world.cpp
-void item_antidote( entvars_t *pev ) {}
-void item_security( entvars_t *pev ) {}
+// items.cpp
 void item_helmet( entvars_t *pev ) {}
 void item_armorvest( entvars_t *pev ) {}
-
-// world.cpp
-void info_intermission( entvars_t *pev ) {}
 
 // player.cpp / scientist.cpp
 void monster_player( entvars_t *pev ) {}

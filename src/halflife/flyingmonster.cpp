@@ -278,4 +278,3 @@ float CFlyingMonster::FloorZ( const Vector &position )
 
 	return down.z;
 }
-

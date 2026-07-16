@@ -837,5 +837,3 @@ void CDeadBarney :: Spawn( )
 
 	MonsterInitDead();
 }
-
-

@@ -1664,3 +1664,16 @@ void CBaseMonster :: MakeDamageBloodDecal ( int cCount, float flNoise, TraceResu
 		}
 	}
 }
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_combat( void )
+{
+	SR_REGISTER( "BX", CBaseMonster, MonsterUse );
+	SR_REGISTER( "BU", CBaseMonster, CallMonsterThink );
+	SR_REGISTER( "BV", CBaseMonster, CorpseFallThink );
+	SR_REGISTER( "BW", CBaseMonster, MonsterInitThink );
+	SR_REGISTER( "BY", CGib, BounceGibTouch );
+	SR_REGISTER( "BZ", CGib, StickyGibTouch );
+	SR_REGISTER( "CA", CGib, WaitTillLand );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

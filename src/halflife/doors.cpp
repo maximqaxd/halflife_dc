@@ -31,6 +31,23 @@ extern void SetMovedir(entvars_t* ev);
 
 class CBaseDoor : public CBaseToggle
 {
+	friend void SR_Register_doors( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void Precache( void );
@@ -1024,3 +1041,14 @@ void CMomentaryDoor::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYP
 	}
 
 }
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_doors( void )
+{
+	SR_REGISTER( "CP", CBaseDoor, DoorTouch );
+	SR_REGISTER( "CM", CBaseDoor, DoorGoUp );
+	SR_REGISTER( "CL", CBaseDoor, DoorGoDown );
+	SR_REGISTER( "CO", CBaseDoor, DoorHitTop );
+	SR_REGISTER( "CN", CBaseDoor, DoorHitBottom );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

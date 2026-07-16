@@ -42,6 +42,23 @@ enum tripmine_e {
 
 class CTripmineGrenade : public CGrenade
 {
+	friend void SR_Register_tripmine( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	void Spawn( void );
 	void Precache( void );
 
@@ -533,6 +550,12 @@ void CTripmine::WeaponIdle( void )
 	
 }
 
-
-
-
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_tripmine( void )
+{
+	SR_REGISTER( "IK", CTripmineGrenade, WarningThink );
+	SR_REGISTER( "IJ", CTripmineGrenade, PowerupThink );
+	SR_REGISTER( "IH", CTripmineGrenade, BeamBreakThink );
+	SR_REGISTER( "II", CTripmineGrenade, DelayDeathThink );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

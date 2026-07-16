@@ -1164,6 +1164,23 @@ void CDeadScientist :: Spawn( )
 
 class CSittingScientist : public CScientist // kdb: changed from public CBaseMonster so he can speak
 {
+	friend void SR_Register_scientist( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void  Precache( void );
@@ -1426,3 +1443,10 @@ int CSittingScientist :: FIdleSpeak ( void )
 	CTalkMonster::g_talkWaitTime = 0;
 	return FALSE;
 }
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_scientist( void )
+{
+	SR_REGISTER( "GV", CSittingScientist, SittingThink );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

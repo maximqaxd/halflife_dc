@@ -194,5 +194,3 @@ Vector VecCheckThrow ( entvars_t *pev, const Vector &vecSpot1, Vector vecSpot2, 
 
 	return vecGrenadeVel;
 }
-
-

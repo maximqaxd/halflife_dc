@@ -70,6 +70,19 @@ typedef enum
 
 class CBasePlayer : public CBaseMonster
 {
+	friend void SR_Register_player( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	int					m_iPlayerSound;// the index of the sound list slot reserved for this player
 	int					m_iTargetVolume;// ideal sound volume. 

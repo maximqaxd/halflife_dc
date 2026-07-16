@@ -556,4 +556,11 @@ FEntIsVisible(
 	return FALSE;
 	}
 
-
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_subs( void )
+{
+	SR_REGISTER( "HF", CBaseDelay, DelayThink );
+	SR_REGISTER( "HH", CBaseToggle, LinearMoveDone );
+	SR_REGISTER( "HG", CBaseToggle, AngularMoveDone );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

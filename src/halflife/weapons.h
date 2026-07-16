@@ -24,6 +24,19 @@ void DeactivateSatchels( CBasePlayer *pOwner );
 // Contact Grenade / Timed grenade / Satchel Charge
 class CGrenade : public CBaseMonster
 {
+	friend void SR_Register_ggrenade( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 
@@ -217,6 +230,19 @@ typedef struct
 // Items that the player has in their inventory that they can use
 class CBasePlayerItem : public CBaseAnimating
 {
+	friend void SR_Register_weapons( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	virtual void SetObjectCollisionBox( void );
 
@@ -347,6 +373,19 @@ public:
 
 class CBasePlayerAmmo : public CBaseEntity
 {
+	friend void SR_Register_weapons( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	virtual void Spawn( void );
 	void EXPORT DefaultTouch( CBaseEntity *pOther ); // default weapon touch
@@ -420,6 +459,17 @@ extern MULTIDAMAGE gMultiDamage;
 //=========================================================
 class CWeaponBox : public CBaseEntity
 {
+	friend void SR_Register_weapons( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
 	void Precache( void );
 	void Spawn( void );
 	void Touch( CBaseEntity *pOther );

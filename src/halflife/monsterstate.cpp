@@ -231,4 +231,3 @@ MONSTERSTATE CBaseMonster :: GetIdealState ( void )
 
 	return m_IdealMonsterState;
 }
-

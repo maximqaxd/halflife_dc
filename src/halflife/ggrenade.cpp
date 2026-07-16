@@ -486,3 +486,17 @@ void CGrenade :: UseSatchelCharges( entvars_t *pevOwner, SATCHELCODE code )
 
 //======================end grenade
 
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_ggrenade( void )
+{
+	SR_REGISTER( "DO", CGrenade, Smoke );
+	SR_REGISTER( "DH", CGrenade, BounceTouch );
+	SR_REGISTER( "DN", CGrenade, SlideTouch );
+	SR_REGISTER( "DL", CGrenade, ExplodeTouch );
+	SR_REGISTER( "DI", CGrenade, DangerSoundThink );
+	SR_REGISTER( "DM", CGrenade, PreDetonate );
+	SR_REGISTER( "DJ", CGrenade, Detonate );
+	SR_REGISTER( "DK", CGrenade, DetonateUse );
+	SR_REGISTER( "DP", CGrenade, TumbleThink );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

@@ -1424,6 +1424,23 @@ int	CGraph :: RejectInlineLinks ( CLink *pLinkPool, FILE *file )
 //=========================================================
 class CTestHull : public CBaseMonster
 {
+	friend void SR_Register_nodes( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 public:
 	void Spawn( entvars_t *pevMasterNode );
@@ -3463,6 +3480,23 @@ EnoughSaid:
 //=========================================================
 class CNodeViewer : public CBaseEntity
 {
+	friend void SR_Register_nodes( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 
@@ -3634,4 +3668,13 @@ void CNodeViewer :: DrawThink( void )
 	}
 }
 
-
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_nodes( void )
+{
+	SR_REGISTER( "FG", CTestHull, CallBuildNodeGraph );
+	SR_REGISTER( "FJ", CTestHull, ShowBadNode );
+	SR_REGISTER( "FH", CTestHull, DropDelay );
+	SR_REGISTER( "FI", CTestHull, PathFind );
+	SR_REGISTER( "FF", CNodeViewer, DrawThink );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

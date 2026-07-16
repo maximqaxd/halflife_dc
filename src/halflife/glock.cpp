@@ -280,18 +280,3 @@ class CGlockAmmo : public CBasePlayerAmmo
 };
 LINK_ENTITY_TO_CLASS( ammo_glockclip, CGlockAmmo );
 LINK_ENTITY_TO_CLASS( ammo_9mmclip, CGlockAmmo );
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

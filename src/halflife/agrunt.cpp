@@ -1174,4 +1174,3 @@ Schedule_t* CAGrunt :: GetScheduleOfType ( int Type )
 
 	return CSquadMonster :: GetScheduleOfType( Type );
 }
-

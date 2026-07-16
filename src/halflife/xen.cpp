@@ -580,5 +580,3 @@ void CXenSpore :: Think( void )
 	}
 #endif
 }
-
-

@@ -21,6 +21,19 @@
 //
 class CBaseMonster : public CBaseToggle
 {
+	friend void SR_Register_combat( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
 private:
 		int					m_afConditions;
 

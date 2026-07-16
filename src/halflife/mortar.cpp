@@ -30,6 +30,23 @@
 
 class CFuncMortarField : public CBaseToggle
 {
+	friend void SR_Register_mortar( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void Precache( void );
@@ -191,6 +208,23 @@ void CFuncMortarField :: FieldUse( CBaseEntity *pActivator, CBaseEntity *pCaller
 
 class CMortar : public CGrenade
 {
+	friend void SR_Register_mortar( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public:
 	void Spawn( void );
 	void Precache( void );
@@ -321,3 +355,11 @@ void CMortar::ShootTimed( EVARS *pevOwner, Vector vecStart, float time )
 	UTIL_SetOrigin( pMortar->pev, tr.vecEndPos );
 }
 #endif
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_mortar( void )
+{
+	SR_REGISTER( "EO", CFuncMortarField, FieldUse );
+	SR_REGISTER( "EP", CMortar, MortarExplode );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

@@ -239,7 +239,3 @@ void CHandGrenade::WeaponIdle( void )
 		SendWeaponAnim( iAnim );
 	}
 }
-
-
-
-

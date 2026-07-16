@@ -1136,6 +1136,23 @@ void CController::MoveExecute( CBaseEntity *pTargetEnt, const Vector &vecDir, fl
 //=========================================================
 class CControllerHeadBall : public CBaseMonster
 {
+	friend void SR_Register_controller( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	void Spawn( void );
 	void Precache( void );
 	void EXPORT HuntThink( void );
@@ -1336,6 +1353,23 @@ void CControllerHeadBall::BounceTouch( CBaseEntity *pOther )
 
 class CControllerZapBall : public CBaseMonster
 {
+	friend void SR_Register_controller( void ); //SR_FRIEND
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	void Spawn( void );
 	void Precache( void );
 	void EXPORT AnimateThink( void );
@@ -1425,3 +1459,14 @@ void CControllerZapBall::ExplodeTouch( CBaseEntity *pOther )
 
 
 #endif		// !OEM && !HLDEMO
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_controller( void )
+{
+	SR_REGISTER( "CD", CControllerHeadBall, HuntThink );
+	SR_REGISTER( "CC", CControllerHeadBall, DieThink );
+	SR_REGISTER( "CB", CControllerHeadBall, BounceTouch );
+	SR_REGISTER( "CE", CControllerZapBall, AnimateThink );
+	SR_REGISTER( "CF", CControllerZapBall, ExplodeTouch );
+}
+// END GENERATED SAVE-RESTORE EXPORTS
