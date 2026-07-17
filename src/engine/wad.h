@@ -61,7 +61,6 @@ typedef struct lumpinfo_s lumpinfo_t;
 void	W_LoadWadFile( char* filename );
 void	W_CleanupName( char* in, char* out );
 void*	W_GetLumpinfo( char* name );
-void*	W_GetLumpNum( int num );
 
 void SwapPic( qpic_t* pic );
 

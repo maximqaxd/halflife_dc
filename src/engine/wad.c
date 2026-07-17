@@ -56,7 +56,7 @@ void W_LoadWadFile( char* filename )
 
 	wad_base = COM_LoadHunkFile(filename);
 	if (!wad_base)
-		Sys_Error("W_LoadWadFile: couldn't load %s", filename);
+		Sys_ErrorColor(RGB565_GREEN, "W_LoadWadFile: couldn't load %s", filename);
 
 	header = (wadinfo_t*)wad_base;
 
@@ -105,18 +105,6 @@ void* W_GetLumpinfo( char* name )
 
 found:
 	return (void*)(wad_base + lump_p->filepos);
-}
-
-void* W_GetLumpNum( int num )
-{
-	lumpinfo_t* lump;
-
-	if (num < 0 || num > wad_numlumps)
-		Sys_Error("W_GetLumpNum: bad number: %i", num);
-
-	lump = wad_lumps + num;
-
-	return (void*)(wad_base + lump->filepos);
 }
 
 /*

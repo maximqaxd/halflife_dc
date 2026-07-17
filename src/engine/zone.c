@@ -40,8 +40,6 @@ void Z_ClearZone( memzone_t* zone, int size )
 	memblock_t* block;
 
 // set the entire zone to one free block
-	zone->size = size;
-
 	zone->blocklist.next = zone->blocklist.prev = block =
 		(memblock_t*)((byte*)zone + sizeof(memzone_t));
 	zone->blocklist.tag = 1;	// in use block
