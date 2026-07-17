@@ -123,7 +123,7 @@ void Draw_FreeWad( cachewad_t* pWad )
 			for (i = 0, pic = pWad->cache; i < pWad->cacheCount; i++, pic++)
 			{
 				if (Cache_Check(&pic->cache))
-					Cache_Free(&pic->cache);
+					Cache_Free(&pic->cache, 0);
 			}
 		}
 

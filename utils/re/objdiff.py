@@ -372,7 +372,11 @@ def main():
     for sym, insns in ofuncs.items():
         if not insns:
             continue
-        gname = demangle(sym)
+        # obj_functions() keys are already Ghidra names (label_to_gname strips the
+        # single compiler-added leading underscore). Do NOT strip again here or a
+        # Valve name that is itself underscore-prefixed (e.g. _FreeBlock_Coalesce,
+        # emitted as __FreeBlock_Coalesce) loses its real leading underscore.
+        gname = sym
         if args.func and gname != args.func:
             continue
         if gname not in syms:

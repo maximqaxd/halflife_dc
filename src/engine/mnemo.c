@@ -6,19 +6,20 @@
 #include "quakedef.h"
 #include "winquake.h"
 #include "studio.h"
+#include "afile.h"
+#include "kzap.h"
 
 #define	DYNAMIC_SIZE	0xc000
 
 void Cache_FreeLow( int new_low_hunk );
 void Cache_FreeHigh( int new_high_hunk );
-void Cache_Free( cache_user_t* c );
+void Cache_Free( cache_user_t* c, int keep );
 void Cache_Compact( void );
 void Cache_Flush( void );
 void MnemoFree( void* ptr );
 
 cvar_t mem_dbgfile = { "mem_dbgfile", ".\\mem.txt" };
-cvar_t mnemo_cache = { "mnemo_cache", "1" };
-cvar_t mnemo_report_file = { "mnemo_report_file", "\\PC\\mnemo_report.txt" };
+cvar_t mnemo_cache = { "mnemo_cache", "5000000" };
 
 /*
 ==============================================================================
@@ -49,28 +50,44 @@ on the hunk where appropriate;
 #define MNEMO_SPLIT_MIN 0x120
 #define MNEMO_PAGE_SIZE 4096
 
+#define MNEMO_MAX_ALLOC    4000000	// sanity cap on a single allocation
+#define MNEMO_PEZ_MAX      0x100	// largest allocation served from a pez pool
+#define MNEMO_TAG_LEN      11		// chars copied into a block tag (last byte terminates)
+#define MNEMO_SLOPPY_MAX   1000		// smaller hunk/zone allocations bump off the sloppy pool
+#define MNEMO_SLOPPY_CHUNK 0x1000	// sloppy pool replenish size
+#define CACHE_FREE_MIN     0x800	// Cache_FreeLRU skips smaller blocks unless aggressive
+#define CACHE_NAME_LEN     15		// chars kept of a resource name in a cache block
+
+#define MNEMO_FIT_SLACK    0x1020	// a free block within this of the request is "good enough"
+#define MNEMO_HUGE_SIZE    10000000	// best-fit seed: larger than any real block
+#define MNEMO_PEZ_OVERHEAD 0x38		// per-pool bytes beyond the slab + free-stack arrays
+#define MNEMO_PEZ_SLAB_PAD 0x18		// free-stack size padding before the 32-aligned slab
+
+/* Every arena payload is 32-byte aligned. */
+#define MNEMO_ALIGN( x )   (((x) + 0x1f) & ~0x1f)
+
+/* ARGB colors and bar scales for the profilemeter overlay. */
+#define METER_ARGB_TOTAL  0x80b03e80
+#define METER_ARGB_USED   0x800000ff
+#define METER_ARGB_BIG    0x80b00000
+#define METER_ARGB_CLASS  0x80b000ff
+#define METER_ARGB_TAG    0x8000ff00
+#define METER_ARGB_SOUND  0x80ff8000
+#define METER_ARGB_SPU    0x80ff00ff
+#define METER_SCALE_TOTAL 0x03ff3e80
+#define METER_SCALE_CLASS 15
+#define METER_SCALE_TAG   5
+
 typedef struct mnemo_header_s
 {
 	struct mnemo_header_s* prev;
 	struct mnemo_header_s* next;
 	int payload_size;
-	unsigned short flags;
+	short flags;
 	short alloc_class;
 	int sequence;
 	char tag[12];
 } mnemo_header_t;
-
-typedef struct
-{
-	int alloc_calls;
-	int free_calls;
-	int failed_allocs;
-	int live_allocs;
-	int live_bytes;
-	int peak_live_bytes;
-	int live_arena_allocs;
-	int live_pez_allocs;
-} mnemo_stats_t;
 
 typedef struct mnemo_pez_pool_s
 {
@@ -84,73 +101,68 @@ typedef struct mnemo_pez_pool_s
 	int _pad1;
 } mnemo_pez_pool_t;
 
-static mnemo_header_t mnemo_head;
-static mnemo_stats_t mnemo_stats;
-static mnemo_pez_pool_t* mnemo_pez_buckets[8];
-static int mnemo_sequence;
-static byte* mnemo_arena_base;
-static int mnemo_arena_size;
+// The whole allocator state is one struct so field offsets match the image.
+typedef struct mnemo_state_s
+{
+	int				arena_size;			/* 0x00 */
+	byte*			arena_base;			/* 0x04 */
+	mnemo_header_t	head;				/* 0x08 - block-list sentinel ("Root Node") */
+	mnemo_header_t*	rover_cache;		/* 0x28 */
+	mnemo_header_t*	rover_hunk;			/* 0x2c */
+	mnemo_header_t*	rover_malloc;		/* 0x30 */
+	mnemo_header_t*	last_temp;			/* 0x34 */
+	int				reserved_38;		/* 0x38 - cleared at init, never read */
+	int				reserved_3c;		/* 0x3c - unused */
+	int				alloc_seq;			/* 0x40 - next block sequence number */
+	mnemo_purge_callback_t purge_callback;	/* 0x44 */
+	int				cache_bytes;		/* 0x48 - live cache bytes */
+	struct cache_system_s* cache_mru;	/* 0x4c - LRU list, newest */
+	struct cache_system_s* cache_lru;	/* 0x50 - LRU list, oldest */
+	mnemo_pez_pool_t* pez_buckets[8];	/* 0x54 */
+	int				cache_epoch_frame;			/* 0x74 */
+	int				cache_epoch_bytes;			/* 0x78 */
+	int				alloc_attempts;			/* 0x7c */
+	int				last_chance;			/* 0x80 */
+} mnemo_state_t;
+
+static mnemo_state_t g_mnemo;
+
 static qboolean mnemo_arena_precommitted;
-static unsigned int cs_epoch_frame;
-static int          cs_epoch_bytes;
-static int mnemo_alloc_attempts;
-static mnemo_header_t* mnemo_last_temp;
-static int mnemo_last_chance_active;
 static int mnemo_temp_danger;
-static void* mnemo_zone_sloppy_ptr;
+static byte* mnemo_zone_sloppy_ptr;
 static int mnemo_zone_sloppy_left;
 static int hunk_alloc_class;
-static mnemo_purge_callback_t mnemo_purge_callback;
-static mnemo_header_t* mnemo_rover_cache;
-static mnemo_header_t* mnemo_rover_hunk;
-static mnemo_header_t* mnemo_rover_malloc;
-static mnemo_header_t* mnemo_rover_generic;
 
-extern byte* hunk_base;
-extern int hunk_size;
-extern int hunk_low_used;
 extern int hunk_high_used;
 
-static void Mnemo_PezReset( void );
-static qboolean Mnemo_PezEligible( int alignedSize, unsigned int flags, int allocClass );
-static int Mnemo_PezBucketIndex( int alignedSize );
+static __forceinline int Mnemo_PezBucketIndex( int alignedSize );
 static mnemo_pez_pool_t* Mnemo_PezCreatePool( int elemSize, int elemCount );
-static void* Mnemo_PezAlloc( int alignedSize );
-static qboolean Mnemo_PezFreePayload( void* payload );
-static void Mnemo_SetTag( mnemo_header_t* hdr, const char* tag );
+static __forceinline void* Mnemo_PezPopBucket( int bucketIdx );
 static void Mnemo_InitArena( void *buf, int size );
-static int Mnemo_SelectAllocMode( unsigned int flags, int allocClass );
-static mnemo_header_t* Mnemo_PickFreeBlock( int payload_size, unsigned int flags, int allocClass );
-static mnemo_header_t* MnemoSelectByHunkNeighbor( int payload_size, int allocClass );
-static mnemo_header_t* MnemoSelectByCacheNeighbor( int payload_size );
-static mnemo_header_t* MnemoSelectByMallocNeighbor( int payload_size );
-static mnemo_header_t* MnemoSelectGeneric( int payload_size );
-static void* MnemoAllocFromFreeBlock( int payload_size, int request_size, unsigned int flags, int allocClass, const char* tag, int allocMode );
-static void Mnemo_UpdateRovers( mnemo_header_t* hdr );
-static void Mnemo_FreeArenaBlock( mnemo_header_t* hdr );
-static mnemo_header_t* MnemoCoalesceFreeBlock( mnemo_header_t* hdr );
-static void* MnemoAllocInternal( int payload_size, int request_size, unsigned int flags, int allocClass, const char* tag, int allocMode );
-extern int DC_ReclaimTextureSlot( void );
-static qboolean Mnemo_CommitRange( byte* base, int size );
-static qboolean Mnemo_CommitBlockHeader( mnemo_header_t* hdr );
-static void Mnemo_DecommitPages( mnemo_header_t* hdr );
-static const char* Mnemo_FlagsToString( unsigned short flags );
+static __forceinline int Mnemo_SelectAllocMode( unsigned int flags, int allocClass );
+static __forceinline mnemo_header_t* Mnemo_PickFreeBlock( int payload_size, unsigned int flags, int allocClass );
+static mnemo_header_t* Mnemo_FindFreeBlock( int payload_size, unsigned int flags, int allocClass );
+static mnemo_header_t* Mnemo_FindCacheBlockByTag( int payload_size, unsigned int flags, int allocClass );
+static mnemo_header_t* Mnemo_FindZoneBlock( int payload_size, unsigned int flags, int allocClass );
+static mnemo_header_t* Mnemo_FindLockedBlock( int payload_size, unsigned int flags, int allocClass );
+static mnemo_header_t* _AllocBlock( mnemo_header_t* block, int payload_size, unsigned int flags, int allocClass, const char* tag, int allocMode );
+static void Mnemo_UpdateBlockLinks( mnemo_header_t* hdr );
+static __forceinline void Mnemo_FreeArenaBlock( mnemo_header_t* hdr );
+static mnemo_header_t* _FreeBlock_Coalesce( mnemo_header_t* hdr );
+static mnemo_header_t* MnemoAlloc_Internal( int payload_size, unsigned int flags, int allocClass );
+static __forceinline void Mnemo_FreeInline( void* ptr );
+qboolean Mnemo_IsInArena( void* p );
+static void Mnemo_DecommitBlock( mnemo_header_t* hdr );
+static const char* Mnemo_FlagsToString( short flags );
 static void Mnemo_Summary_f( void );
 void Mnemo_ReportToFile( void );
-static void Mnemo_FreeByClass( int allocClass );
-static int MnemoPurge( int aggressive );
+static void Mnemo_FreeBlocksByTag( int tag );
+void _FreeBlock( void );
+static int Cache_FreeLRU( int aggressive );
 
-static int Mnemo_AlignSize( int size )
+static const char* Mnemo_FlagsToString( short flags )
 {
-	if (size <= 0)
-		return 0;
-
-	return (size + 31) & ~31;
-}
-
-static const char* Mnemo_FlagsToString( unsigned short flags )
-{
-	static char buffer[64];
+	static char buffer[MAX_QPATH];
 	int len;
 
 	buffer[0] = 0;
@@ -185,11 +197,7 @@ void Mnemo_ReportToFile( void )
 {
 	FILE* f;
 	mnemo_header_t* node;
-	const char* path;
-
-	path = mnemo_report_file.string;
-	if (!path || !path[0])
-		return;
+	const char* path = "\\PC\\mnemo_report.txt";
 
 	f = fopen(path, "at");
 	if (!f)
@@ -198,7 +206,7 @@ void Mnemo_ReportToFile( void )
 	if (f)
 		fprintf(f, "Mnemo report in map %s:\n", sv.name[0] ? sv.name : "<none>");
 
-	for (node = mnemo_head.next; node != &mnemo_head; node = node->next)
+	for (node = g_mnemo.head.next; node != &g_mnemo.head; node = node->next)
 	{
 		if (f)
 		{
@@ -217,6 +225,160 @@ void Mnemo_ReportToFile( void )
 	}
 
 	Mnemo_Summary_f();
+}
+
+static int mnemo_profile_frame;
+
+/*
+============
+Mnemo_ProfileMeter
+
+Draw the on-screen memory meters (enabled by the profilemeter cvar bitmask):
+1 = arena totals, 2 = by allocator class, 4 = by tag, 8 = sound/SPU memory.
+============
+*/
+void Mnemo_ProfileMeter( void )
+{
+	mnemo_header_t* hdr;
+	int used, freeTotal, freeBig;
+	int cacheB, pezB, mallocB, hunkB;
+	int sloppyB, mapB, bfileB, texcacheB;
+	int flags, size;
+	char c;
+	int pm;
+	int k;
+	int spu, freeSpu, afile, ce;
+	char buf[MAX_QPATH];
+
+	used = 0;
+	freeTotal = 0;
+	freeBig = 0;
+	cacheB = 0;
+	pezB = 0;
+	mallocB = 0;
+	hunkB = 0;
+	sloppyB = 0;
+	mapB = 0;
+	bfileB = 0;
+	texcacheB = 0;
+
+	mnemo_profile_frame++;
+
+	if (profilemeter.value <= 0.0f)
+		return;
+
+	DCV_ClearMeters(0);
+
+	for (hdr = g_mnemo.head.next; hdr != &g_mnemo.head; hdr = hdr->next)
+	{
+		flags = hdr->flags;
+		size = hdr->payload_size;
+
+		if (flags == 0)
+		{
+			freeTotal += size;
+			if (freeBig < size)
+				freeBig = size;
+		}
+		else
+		{
+			used += size;
+
+			if (flags & MNEMO_FLAG_CACHE)  cacheB += size;
+			if (flags & MNEMO_FLAG_PEZ)    pezB += size;
+			if (flags & MNEMO_FLAG_HUNK)   hunkB += size;
+			if (flags & MNEMO_FLAG_MALLOC) mallocB += size;
+
+			if (strncmp(hdr->tag, "sloppy", 6) == 0)
+				sloppyB += hdr->payload_size;
+
+			if (strncmp(hdr->tag, "map", 4) == 0)
+				mapB += hdr->payload_size;
+
+			c = hdr->tag[0];
+
+			if (c == '|' || c == '}')
+				bfileB += hdr->payload_size;
+
+			if (c == '>')
+				texcacheB += hdr->payload_size;
+		}
+	}
+
+	pm = (int)profilemeter.value;
+
+	if (pm & 1)
+	{
+		sprintf(buf, "Mnemo total %dK", g_mnemo.arena_size / 1024);
+		DCV_MeterText(METER_ARGB_TOTAL, 0, g_mnemo.arena_size / METER_SCALE_TOTAL, buf);
+
+		sprintf(buf, "Mnemo used %dK", used / 1024);
+		DCV_MeterText(METER_ARGB_USED, 0, used / METER_SCALE_TOTAL, buf);
+
+		sprintf(buf, "Mnemo big %dK", freeBig / 1024);
+		DCV_MeterText(METER_ARGB_BIG, used / METER_SCALE_TOTAL, (used + freeBig) / METER_SCALE_TOTAL, buf);
+
+		pm = (int)profilemeter.value;
+	}
+
+	if (pm & 2)
+	{
+		k = cacheB / 1024;
+		sprintf(buf, "Cache %dK", k);
+		DCV_MeterText(METER_ARGB_BIG, 0, k / METER_SCALE_CLASS, buf);
+
+		k = pezB / 1024;
+		sprintf(buf, "Pez %dK", k);
+		DCV_MeterText(METER_ARGB_BIG, 0, k / METER_SCALE_CLASS, buf);
+
+		k = mallocB / 1024;
+		sprintf(buf, "Malloc %dK", k);
+		DCV_MeterText(METER_ARGB_CLASS, 0, k / METER_SCALE_CLASS, buf);
+
+		k = hunkB / 1024;
+		sprintf(buf, "Hunk %dK", k);
+		DCV_MeterText(METER_ARGB_CLASS, 0, k / METER_SCALE_CLASS, buf);
+
+		pm = (int)profilemeter.value;
+	}
+
+	if (pm & 4)
+	{
+		k = sloppyB / 1024;
+		sprintf(buf, "Sloppy %dK", k);
+		DCV_MeterText(METER_ARGB_TAG, 0, k / METER_SCALE_TAG, buf);
+
+		k = mapB / 1024;
+		sprintf(buf, "Map %dK", k);
+		DCV_MeterText(METER_ARGB_TAG, 0, k / METER_SCALE_TAG, buf);
+
+		k = bfileB / 1024;
+		sprintf(buf, "BFile %dK", k);
+		DCV_MeterText(METER_ARGB_TAG, 0, k / METER_SCALE_TAG, buf);
+
+		k = texcacheB / 1024;
+		sprintf(buf, "Texcache %dK", k);
+		DCV_MeterText(METER_ARGB_TAG, 0, k / METER_SCALE_TAG, buf);
+
+		pm = (int)profilemeter.value;
+	}
+
+	if (pm & 8)
+	{
+		S_GetDSPInfo(&spu, &freeSpu, &afile, &ce);
+
+		sprintf(buf, "Sound in CE memory %dK", ce / 1024);
+		DCV_MeterText(METER_ARGB_SOUND, 0, ce / METER_SCALE_TOTAL, buf);
+
+		sprintf(buf, "Sound in SPU memory %dK", spu / 1024);
+		DCV_MeterText(METER_ARGB_SOUND, 0, spu / METER_SCALE_TOTAL, buf);
+
+		sprintf(buf, "AFile in SPU memory %dK", afile / 1024);
+		DCV_MeterText(METER_ARGB_SPU, 0, afile / METER_SCALE_TOTAL, buf);
+
+		sprintf(buf, "Free SPU memory %dK", freeSpu / 1024);
+		DCV_MeterText(METER_ARGB_SPU, 0, freeSpu / METER_SCALE_TOTAL, buf);
+	}
 }
 
 
@@ -258,7 +420,7 @@ static void Mnemo_Summary_f( void )
 	usedCount = 0;
 	freeCount = 0;
 
-	for (node = mnemo_head.next; node != &mnemo_head; node = node->next)
+	for (node = g_mnemo.head.next; node != &g_mnemo.head; node = node->next)
 	{
 		totalBlocks++;
 		if (node->sequence > lastSeq)
@@ -280,7 +442,7 @@ static void Mnemo_Summary_f( void )
 		}
 	}
 
-	Con_Printf("Arena size: %d\n", mnemo_arena_size);
+	Con_Printf("Arena size: %d\n", g_mnemo.arena_size);
 	Con_Printf("Total blocks: %d Total used: %d bytes Total free: %d bytes\n",
 		totalBlocks, totalUsed, totalFree);
 	Con_Printf("Biggest used block: %d Biggest free block: %d\n",
@@ -290,89 +452,116 @@ static void Mnemo_Summary_f( void )
 
 void Mnemo_SetPurgeCallback( mnemo_purge_callback_t callback )
 {
-	mnemo_purge_callback = callback;
+	g_mnemo.purge_callback = callback;
 }
 
-static void Mnemo_SetTag( mnemo_header_t* hdr, const char* tag )
+/*
+============
+Mnemo_IsInArena
+
+True if the pointer lies inside the arena; a NULL pointer counts as inside.
+============
+*/
+qboolean Mnemo_IsInArena( void* p )
 {
-	if (tag && tag[0])
-	{
-		Q_strncpy(hdr->tag, tag, sizeof(hdr->tag));
-		hdr->tag[sizeof(hdr->tag) - 1] = 0;
-	}
-	else
-	{
-		hdr->tag[0] = 0;
-	}
-}
-
-static qboolean Mnemo_CommitRange( byte* base, int size )
-{
-	byte* arenaStart;
-	byte* arenaEnd;
-	byte* commitStart;
-	int commitSize;
-
-	if (!base || size <= 0)
-		return TRUE;
-
-	if (mnemo_arena_precommitted)
-		return TRUE;
-
-	arenaStart = mnemo_arena_base;
-	arenaEnd = mnemo_arena_base + mnemo_arena_size;
-	commitStart = (byte*)((DWORD)base & ~(MNEMO_PAGE_SIZE - 1));
-
-	if (commitStart < arenaStart)
-		commitStart = arenaStart;
-
-	commitSize = (int)(((unsigned int)(size + 0x1ffeU)) & ~(MNEMO_PAGE_SIZE - 1));
-
-	if (commitSize <= 0)
-		return TRUE;
-
-	if (commitStart + commitSize > arenaEnd)
-		commitSize = (int)(arenaEnd - commitStart);
-
-	if (commitSize <= 0)
-		return TRUE;
-
-	if (!VirtualAlloc(commitStart, commitSize, MEM_COMMIT, PAGE_READWRITE))
-	{
-		Sys_Error("(Mnemo arena page in failed)\n"); // TODO, in binary this msg is printed by CE Exception Handler, but we don't have crash handler impl yet.
+	if (p != 0 && (byte*)p < g_mnemo.arena_base)
 		return FALSE;
-	}
+
+	if ((byte*)p > g_mnemo.arena_base + g_mnemo.arena_size)
+		return FALSE;
 
 	return TRUE;
 }
 
-static qboolean Mnemo_CommitBlockHeader( mnemo_header_t* hdr )
+/*
+============
+Mnemo_FindPezPool
+
+Return the pez pool whose slab holds this payload, or NULL for an ordinary
+arena block.
+============
+*/
+static __forceinline int Mnemo_PtrInPool( void* payload, mnemo_pez_pool_t* pool )
 {
-	return Mnemo_CommitRange((byte*)hdr, (int)sizeof(mnemo_header_t));
+	if ((byte*)payload < pool->slab)
+		return 0;
+	return (byte*)payload < pool->slab + pool->count * pool->size;
 }
 
-static void Mnemo_DecommitPages( mnemo_header_t* hdr )
+static __forceinline mnemo_pez_pool_t* Mnemo_FindPezPool( void* payload )
 {
-	byte* payload;
-	byte* end;
+	int i;
+	mnemo_pez_pool_t* pool;
+
+	for (i = 0; i < 8; i++)
+	{
+		for (pool = g_mnemo.pez_buckets[i]; pool; pool = pool->next)
+		{
+			if (Mnemo_PtrInPool(payload, pool))
+				return pool;
+		}
+	}
+	return NULL;
+}
+
+/*
+============
+Mnemo_BlockSize
+
+Usable size of an allocated block: the pool element size for a pez block,
+otherwise the arena header's payload size.
+============
+*/
+int Mnemo_BlockSize( void* payload )
+{
+	mnemo_pez_pool_t* pool;
+
+	pool = Mnemo_FindPezPool(payload);
+	if (pool == NULL)
+		return ((mnemo_header_t*)payload - 1)->payload_size;
+	return pool->size;
+}
+
+/*
+============
+Mnemo_BlockSetName
+
+Rename an arena block's tag; pez blocks carry no tag.
+============
+*/
+void Mnemo_BlockSetName( void* payload, const char* name )
+{
+	mnemo_header_t* hdr;
+
+	if (Mnemo_FindPezPool(payload) == NULL)
+	{
+		hdr = (mnemo_header_t*)payload - 1;
+		strncpy(hdr->tag, name, sizeof(hdr->tag) - 1);
+		hdr->tag[sizeof(hdr->tag) - 1] = 0;
+	}
+}
+
+
+/* Page a block's storage back in. VirtualAlloc rounds the region to page
+   bounds and is a no-op on pages that are already committed. */
+static __forceinline void Mnemo_CommitBlock( void* base, int size )
+{
+	if (VirtualAlloc(base, size, MEM_COMMIT, PAGE_READWRITE) == 0)
+		mnemo_arena_precommitted = FALSE;
+	else
+		mnemo_arena_precommitted = TRUE;
+}
+
+static void Mnemo_DecommitBlock( mnemo_header_t* hdr )
+{
 	byte* decommitStart;
 	byte* decommitEnd;
-	int decommitSize;
 
-	if (!hdr || (hdr->flags & MNEMO_FLAG_USED) || (hdr->flags & MNEMO_FLAG_ROOT))
-		return;
+	decommitStart = (byte*)(((DWORD)((byte*)(hdr + 1)) + (MNEMO_PAGE_SIZE - 1)) & ~(MNEMO_PAGE_SIZE - 1));
+	decommitEnd = (byte*)(((DWORD)((byte*)(hdr + 1)) + hdr->payload_size) & ~(MNEMO_PAGE_SIZE - 1));
 
-	if (mnemo_arena_precommitted)
-		return;
-
-	payload = (byte*)(hdr + 1);
-	end = payload + hdr->payload_size;
-	decommitStart = (byte*)(((DWORD)(payload + MNEMO_PAGE_SIZE - 1)) & ~(MNEMO_PAGE_SIZE - 1));
-	decommitEnd = (byte*)((DWORD)end & ~(MNEMO_PAGE_SIZE - 1));
-	decommitSize = (int)(decommitEnd - decommitStart);
-
-	if (decommitSize > 0)
-		VirtualFree(decommitStart, decommitSize, MEM_DECOMMIT);
+	if (decommitStart < decommitEnd)
+		VirtualFree(decommitStart, (int)(decommitEnd - decommitStart), MEM_DECOMMIT);
 }
 
 static void Mnemo_InitArena( void *buf, int size )
@@ -383,26 +572,26 @@ static void Mnemo_InitArena( void *buf, int size )
 	int i;
 	mnemo_header_t* first;
 
-	mnemo_arena_base = NULL;
-	mnemo_arena_size = 0;
+	g_mnemo.arena_base = NULL;
+	g_mnemo.arena_size = 0;
 	mnemo_arena_precommitted = FALSE;
-	mnemo_last_temp = NULL;
-	cs_epoch_frame = (unsigned int)host_framecount;
-	cs_epoch_bytes = 0;
-	mnemo_alloc_attempts = 0;
-	mnemo_rover_cache = mnemo_rover_hunk = mnemo_rover_malloc = mnemo_rover_generic = NULL;
+	g_mnemo.last_temp = NULL;
+	g_mnemo.cache_epoch_frame = (unsigned int)host_framecount;
+	g_mnemo.cache_epoch_bytes = 0;
+	g_mnemo.alloc_attempts = 0;
+	g_mnemo.rover_cache = g_mnemo.rover_hunk = g_mnemo.rover_malloc = NULL;
 
 	for (i = 0; i < 8; i++)
-		mnemo_pez_buckets[i] = NULL;
+		g_mnemo.pez_buckets[i] = NULL;
 
 	/* Initialize sentinel: circular self-reference, flags mark it as root+used. */
-	mnemo_head.prev = &mnemo_head;
-	mnemo_head.next = &mnemo_head;
-	mnemo_head.payload_size = 0;
-	mnemo_head.flags = MNEMO_FLAG_ROOT | MNEMO_FLAG_USED;
-	mnemo_head.alloc_class = 0;
-	Q_strncpy(mnemo_head.tag, "Root Node", sizeof(mnemo_head.tag));
-	mnemo_head.tag[sizeof(mnemo_head.tag) - 1] = 0;
+	g_mnemo.head.prev = &g_mnemo.head;
+	g_mnemo.head.next = &g_mnemo.head;
+	g_mnemo.head.payload_size = 0;
+	g_mnemo.head.flags = MNEMO_FLAG_ROOT | MNEMO_FLAG_USED;
+	g_mnemo.head.alloc_class = 0;
+	Q_strncpy(g_mnemo.head.tag, "Root Node", sizeof(g_mnemo.head.tag));
+	g_mnemo.head.tag[sizeof(g_mnemo.head.tag) - 1] = 0;
 
 	alignedBase = (byte*)(((DWORD)buf + 0x1f) & ~31);
 	alignedEnd   = (byte*)(((DWORD)((byte*)buf + size)) & ~31);
@@ -410,54 +599,37 @@ static void Mnemo_InitArena( void *buf, int size )
 	if (alignedEnd <= alignedBase)
 		return;
 
-	mnemo_arena_base = alignedBase;
-	mnemo_arena_size = (int)(alignedEnd - alignedBase);
-	remain = mnemo_arena_size - (int)sizeof(mnemo_header_t);
+	g_mnemo.arena_base = alignedBase;
+	g_mnemo.arena_size = (int)(alignedEnd - alignedBase);
+	remain = g_mnemo.arena_size - (int)sizeof(mnemo_header_t);
 
 	if (remain <= 0)
 		return;
 
-	first = (mnemo_header_t*)mnemo_arena_base;
-	first->prev = &mnemo_head;
-	first->next = &mnemo_head;
+	first = (mnemo_header_t*)g_mnemo.arena_base;
+	first->prev = &g_mnemo.head;
+	first->next = &g_mnemo.head;
 	first->payload_size = remain;
 	first->flags = 0;
 	first->alloc_class = 0;
-	first->sequence = ++mnemo_sequence;
+	first->sequence = ++g_mnemo.alloc_seq;
 	Q_strncpy(first->tag, "_arena_", sizeof(first->tag));
 	first->tag[sizeof(first->tag) - 1] = 0;
-	Mnemo_DecommitPages(first);
+	Mnemo_DecommitBlock(first);
 
 	/* Link into the circular sentinel list. */
-	mnemo_head.next = first;
-	mnemo_head.prev = first;
+	g_mnemo.head.next = first;
+	g_mnemo.head.prev = first;
 
 	/* Rover pointers start at the first (and only) free block. */
-	mnemo_rover_cache = mnemo_rover_hunk = mnemo_rover_malloc = mnemo_rover_generic = first;
+	g_mnemo.rover_cache = g_mnemo.rover_hunk = g_mnemo.rover_malloc = first;
 
 	Mnemo_PezCreatePool(0x20, 0x400);
 	Mnemo_PezCreatePool(0x40, 0x100);
 	Mnemo_PezCreatePool(0x80, 0x100);
 }
 
-static qboolean Mnemo_PezEligible( int alignedSize, unsigned int flags, int allocClass )
-{
-	if (alignedSize <= 0 || alignedSize >= 0x101)
-		return FALSE;
-
-	if (flags & MNEMO_FLAG_CACHE)
-		return FALSE;
-
-	if (flags & MNEMO_FLAG_TEMP)
-		return FALSE;
-
-	if (allocClass >= 2)
-		return FALSE;
-
-	return TRUE;
-}
-
-static int Mnemo_SelectAllocMode( unsigned int flags, int allocClass )
+static __forceinline int Mnemo_SelectAllocMode( unsigned int flags, int allocClass )
 {
 	if (flags & 0x100)
 		return 2;
@@ -465,7 +637,7 @@ static int Mnemo_SelectAllocMode( unsigned int flags, int allocClass )
 	if (flags & 0x200)
 		return 1;
 
-	if (mnemo_sequence < 100)
+	if (g_mnemo.alloc_seq < 100)
 		return 2;
 
 	if (flags & MNEMO_FLAG_TEMP)
@@ -479,347 +651,278 @@ static int Mnemo_SelectAllocMode( unsigned int flags, int allocClass )
 	return 2;
 }
 
-static mnemo_header_t* MnemoSelectByHunkNeighbor( int payload_size, int allocClass )
+// Best-fit search for a free block sitting next to a cache block. Walks the
+// whole block list, keeping the smallest free block big enough that borders a
+// cache block on either side, and returns early once one fits within slack.
+static mnemo_header_t* Mnemo_FindFreeBlock( int payload_size, unsigned int flags, int allocClass )
 {
-	mnemo_header_t* node;
-	mnemo_header_t* next;
-	mnemo_header_t* prev;
+	mnemo_header_t* cur;
+	mnemo_header_t* neighbor;
 	mnemo_header_t* best;
 	int bestSize;
+	int size;
 
 	best = NULL;
-	bestSize = 10000000;
+	bestSize = MNEMO_HUGE_SIZE;
 
-	for (node = mnemo_head.next; node != &mnemo_head; node = node->next)
+	for (cur = g_mnemo.head.next; cur != &g_mnemo.head; cur = cur->next)
 	{
-		if (node->flags & MNEMO_FLAG_USED)
-			continue;
-
-		if (node->payload_size < payload_size)
-			continue;
-
-		next = node->next;
-
-		if (next != &mnemo_head &&
-		    (next->flags & MNEMO_FLAG_HUNK) &&
-		    next->alloc_class == (short)allocClass &&
-		    node->payload_size < bestSize)
+		if (cur->flags == 0)
 		{
-			best = node;
-			bestSize = node->payload_size;
-			if (bestSize <= payload_size + 0x1020)
-				return node;
-		}
+			size = cur->payload_size;
 
-		prev = node->prev;
+			if (size >= payload_size)
+			{
+				neighbor = cur->next;
 
-		if (prev != &mnemo_head &&
-		    (prev->flags & MNEMO_FLAG_HUNK) &&
-		    prev->alloc_class == (short)allocClass &&
-		    node->payload_size < bestSize)
-		{
-			best = node;
-			bestSize = node->payload_size;
-			if (bestSize <= payload_size + 0x1020)
-				return node;
+				if ((neighbor->flags & MNEMO_FLAG_CACHE) && size < bestSize &&
+				    (bestSize = size, best = cur, size <= payload_size + MNEMO_FIT_SLACK))
+					return cur;
+
+				if ((cur->prev->flags & MNEMO_FLAG_CACHE) && size < bestSize &&
+				    (best = cur, bestSize = size, size <= payload_size + MNEMO_FIT_SLACK))
+					return cur;
+			}
 		}
 	}
 
 	return best;
 }
 
-static mnemo_header_t* MnemoSelectByCacheNeighbor( int payload_size )
+// Best-fit search for a free block bordering a hunk block of the same class,
+// so a hunk allocation grows contiguously with its neighbours.
+static mnemo_header_t* Mnemo_FindCacheBlockByTag( int payload_size, unsigned int flags, int allocClass )
 {
-	mnemo_header_t* node;
-	mnemo_header_t* next;
-	mnemo_header_t* prev;
+	mnemo_header_t* cur;
+	mnemo_header_t* neighbor;
 	mnemo_header_t* best;
 	int bestSize;
+	int size;
 
 	best = NULL;
-	bestSize = 10000000;
+	bestSize = MNEMO_HUGE_SIZE;
 
-	for (node = mnemo_head.next; node != &mnemo_head; node = node->next)
+	for (cur = g_mnemo.head.next; cur != &g_mnemo.head; cur = cur->next)
 	{
-		if (node->flags & MNEMO_FLAG_USED)
-			continue;
-
-		if (node->payload_size < payload_size)
-			continue;
-
-		next = node->next;
-
-		if (next != &mnemo_head &&
-		    (next->flags & MNEMO_FLAG_CACHE) &&
-		    node->payload_size < bestSize)
+		if (cur->flags == 0)
 		{
-			best = node;
-			bestSize = node->payload_size;
-			if (bestSize <= payload_size + 0x1020)
-				return node;
-		}
+			size = cur->payload_size;
 
-		prev = node->prev;
+			if (size >= payload_size)
+			{
+				neighbor = cur->next;
 
-		if (prev != &mnemo_head &&
-		    (prev->flags & MNEMO_FLAG_CACHE) &&
-		    node->payload_size < bestSize)
-		{
-			best = node;
-			bestSize = node->payload_size;
-			if (bestSize <= payload_size + 0x1020)
-				return node;
+				if ((neighbor->flags & MNEMO_FLAG_HUNK) && neighbor->alloc_class == (short)allocClass &&
+				    size < bestSize && (bestSize = size, best = cur, size <= payload_size + MNEMO_FIT_SLACK))
+					return cur;
+
+				if ((cur->prev->flags & MNEMO_FLAG_HUNK) && cur->prev->alloc_class == (short)allocClass &&
+				    size < bestSize && (best = cur, bestSize = size, size <= payload_size + MNEMO_FIT_SLACK))
+					return cur;
+			}
 		}
 	}
 
 	return best;
 }
 
-static mnemo_header_t* MnemoSelectByMallocNeighbor( int payload_size )
+// Best-fit search for a free block bordering a malloc block.
+static mnemo_header_t* Mnemo_FindZoneBlock( int payload_size, unsigned int flags, int allocClass )
 {
-	mnemo_header_t* node;
-	mnemo_header_t* next;
-	mnemo_header_t* prev;
+	mnemo_header_t* cur;
+	mnemo_header_t* neighbor;
 	mnemo_header_t* best;
 	int bestSize;
+	int size;
 
 	best = NULL;
-	bestSize = 10000000;
+	bestSize = MNEMO_HUGE_SIZE;
 
-	for (node = mnemo_head.next; node != &mnemo_head; node = node->next)
+	for (cur = g_mnemo.head.next; cur != &g_mnemo.head; cur = cur->next)
 	{
-		if (node->flags & MNEMO_FLAG_USED)
-			continue;
-
-		if (node->payload_size < payload_size)
-			continue;
-
-		next = node->next;
-
-		if (next != &mnemo_head &&
-		    (next->flags & MNEMO_FLAG_MALLOC) &&
-		    node->payload_size < bestSize)
+		if (cur->flags == 0)
 		{
-			best = node;
-			bestSize = node->payload_size;
-			if (bestSize <= payload_size + 0x1020)
-				return node;
-		}
-		prev = node->prev;
+			size = cur->payload_size;
 
-		if (prev != &mnemo_head &&
-		    (prev->flags & MNEMO_FLAG_MALLOC) &&
-		    node->payload_size < bestSize)
-		{
-			best = node;
-			bestSize = node->payload_size;
-			if (bestSize <= payload_size + 0x1020)
-				return node;
+			if (size >= payload_size)
+			{
+				neighbor = cur->next;
+
+				if ((neighbor->flags & MNEMO_FLAG_MALLOC) && size < bestSize &&
+				    (bestSize = size, best = cur, size <= payload_size + MNEMO_FIT_SLACK))
+					return cur;
+
+				if ((cur->prev->flags & MNEMO_FLAG_MALLOC) && size < bestSize &&
+				    (best = cur, bestSize = size, size <= payload_size + MNEMO_FIT_SLACK))
+					return cur;
+			}
 		}
 	}
 
 	return best;
 }
 
-static mnemo_header_t* MnemoSelectGeneric( int payload_size )
+// Fallback search: any free block big enough, ignoring neighbours. Returns the
+// last such block found, or the first one that fits within slack.
+static mnemo_header_t* Mnemo_FindLockedBlock( int payload_size, unsigned int flags, int allocClass )
 {
-	mnemo_header_t* n;
+	mnemo_header_t* cur;
 	mnemo_header_t* best;
-	int bestSize;
 
 	best = NULL;
-	bestSize = 10000000;
 
-	for (n = mnemo_head.next; n != &mnemo_head; n = n->next)
+	for (cur = g_mnemo.head.next; cur != &g_mnemo.head; cur = cur->next)
 	{
-		if (n->flags & MNEMO_FLAG_USED)
+		if (cur->flags & MNEMO_FLAG_USED)
 			continue;
 
-		if (n->payload_size < payload_size)
+		if (cur->payload_size < payload_size)
 			continue;
 
-		if (n->payload_size < bestSize)
-		{
-			best = n;
-			bestSize = n->payload_size;
-			if (bestSize <= payload_size + 0x1020)
-				return best;
-		}
+		if (cur->payload_size >= MNEMO_HUGE_SIZE)
+			continue;
+
+		best = cur;
+
+		if (payload_size + MNEMO_FIT_SLACK >= MNEMO_HUGE_SIZE)
+			return cur;
 	}
 
 	return best;
 }
 
-static mnemo_header_t* Mnemo_PickFreeBlock( int payload_size, unsigned int flags, int allocClass )
-{
-	mnemo_header_t* best;
-
-	if (flags & MNEMO_FLAG_CACHE)
-	{
-		best = MnemoSelectByCacheNeighbor(payload_size);
-
-		if (best)
-			return best;
-	}
-	if (flags & MNEMO_FLAG_HUNK)
-	{
-		best = MnemoSelectByHunkNeighbor(payload_size, allocClass);
-
-		if (best)
-			return best;
-	}
-	if (flags & MNEMO_FLAG_MALLOC)
-	{
-		best = MnemoSelectByMallocNeighbor(payload_size);
-
-		if (best)
-			return best;
-	}
-
-	return MnemoSelectGeneric(payload_size);
-}
-
-
-static void* MnemoAllocFromFreeBlock( int payload_size, int request_size, unsigned int flags, int allocClass, const char* tag, int allocMode )
+static __forceinline mnemo_header_t* Mnemo_PickFreeBlock( int payload_size, unsigned int flags, int allocClass )
 {
 	mnemo_header_t* block;
-	mnemo_header_t* split;
-	mnemo_header_t* used;
-	int extra;
-	int needsSplit;
-	int fromEnd;
 
-	block = Mnemo_PickFreeBlock(payload_size, flags, allocClass);
+	block = NULL;
+
+	if (flags & MNEMO_FLAG_CACHE)
+		block = Mnemo_FindFreeBlock(payload_size, flags, allocClass);
+	else if (flags & MNEMO_FLAG_HUNK)
+		block = Mnemo_FindCacheBlockByTag(payload_size, flags, allocClass);
+	else if (flags & MNEMO_FLAG_MALLOC)
+		block = Mnemo_FindZoneBlock(payload_size, flags, allocClass);
 
 	if (!block)
-		return NULL;
+		block = Mnemo_FindLockedBlock(payload_size, flags, allocClass);
 
-	extra = block->payload_size - payload_size;
-	needsSplit = (extra >= MNEMO_SPLIT_MIN) ? 1 : 0;
-	fromEnd = (allocMode == 2 && needsSplit) ? 1 : 0;
+	return block;
+}
 
-	if (fromEnd)
+
+static mnemo_header_t* _AllocBlock( mnemo_header_t* block, int payload_size, unsigned int flags, int allocClass, const char* tag, int allocMode )
+{
+	mnemo_header_t* split;
+	int avail;
+
+	avail = block->payload_size;
+
+	if (payload_size + MNEMO_SPLIT_MIN <= avail)
 	{
-		/* New allocation carved from the END of the free block. */
-		used = (mnemo_header_t*)((byte*)(block + 1) + (extra - (int)sizeof(mnemo_header_t)));
+		if (allocMode == 2)
+		{
+			/* Carve the new block from the END of the free block; the front
+			   remains as the free remnant. */
+			int off = avail - payload_size;
+			split = (mnemo_header_t*)((byte*)block + off);
 
-		if (!Mnemo_CommitBlockHeader(used) ||
-		    !Mnemo_CommitRange((byte*)(used + 1), payload_size))
-			return NULL;
+			Mnemo_CommitBlock(split, (int)sizeof(mnemo_header_t));
 
-		memset(used, 0, sizeof(*used));
+			split->payload_size = payload_size;
+			block->payload_size = off - (int)sizeof(mnemo_header_t);
+			split->prev = block;
+			split->next = block->next;
+			block->next->prev = split;
+			block->next = split;
+			block = split;
+		}
+		else
+		{
+			/* Split the free remnant off after the payload. */
+			split = (mnemo_header_t*)((byte*)(block + 1) + payload_size);
 
-		used->payload_size = payload_size;
-		block->payload_size = extra - (int)sizeof(mnemo_header_t);
-		used->prev = block;
-		used->next = block->next;
-		block->next->prev = used;
-		block->next = used;
-		block = used;
+			Mnemo_CommitBlock(split, (int)sizeof(mnemo_header_t));
+
+			split->payload_size = (avail - payload_size) - (int)sizeof(mnemo_header_t);
+			split->flags = 0;
+			block->payload_size = payload_size;
+			split->prev = block;
+			split->next = block->next;
+			block->next->prev = split;
+			block->next = split;
+			strncpy(split->tag, block->tag, MNEMO_TAG_LEN);
+			split->tag[MNEMO_TAG_LEN] = 0;
+			split->sequence = block->sequence;
+		}
+
+		avail = block->payload_size;
 	}
-	else if (needsSplit)
-	{
-		/* Free split header is carved after the payload. */
-		split = (mnemo_header_t*)((byte*)(block + 1) + payload_size);
 
-		if (!Mnemo_CommitBlockHeader(split) ||
-		    !Mnemo_CommitRange((byte*)(block + 1), payload_size))
-			return NULL;
-
-		memset(split, 0, sizeof(*split));
-
-		split->payload_size = extra - (int)sizeof(mnemo_header_t);
-		split->sequence = block->sequence;
-		Q_strncpy(split->tag, block->tag, sizeof(split->tag));
-		split->tag[sizeof(split->tag) - 1] = 0;
-		split->prev = block;
-		split->next = block->next;
-		block->next->prev = split;
-		block->next = split;
-		block->payload_size = payload_size;
-
-		/* Move rover pointers from block to split (split is now the free remnant). */
-		if (mnemo_rover_cache   == block) mnemo_rover_cache   = split;
-		if (mnemo_rover_hunk    == block) mnemo_rover_hunk    = split;
-		if (mnemo_rover_malloc  == block) mnemo_rover_malloc  = split;
-		if (mnemo_rover_generic == block) mnemo_rover_generic = split;
-	}
-	else
-	{
-		/* No split: commit payload only (block header already committed). */
-		if (!Mnemo_CommitRange((byte*)(block + 1), payload_size))
-			return NULL; 
-	}
+	Mnemo_CommitBlock((byte*)(block + 1), avail);
 
 	block->flags = (unsigned short)(flags | MNEMO_FLAG_USED);
 	block->alloc_class = (short)allocClass;
-	block->sequence = mnemo_sequence++;
-	Mnemo_SetTag(block, tag);
+	block->sequence = g_mnemo.alloc_seq++;
+	strncpy(block->tag, tag, MNEMO_TAG_LEN);
+	block->tag[MNEMO_TAG_LEN] = 0;
 
-	mnemo_stats.alloc_calls++;
-	mnemo_stats.live_allocs++;
-	mnemo_stats.live_arena_allocs++;
-	mnemo_stats.live_bytes += payload_size;
-	if (mnemo_stats.live_bytes > mnemo_stats.peak_live_bytes)
-		mnemo_stats.peak_live_bytes = mnemo_stats.live_bytes;
-
-	return (void*)(block + 1);
+	return block;
 }
 
 
-static void Mnemo_UpdateRovers( mnemo_header_t* hdr )
+static void Mnemo_UpdateBlockLinks( mnemo_header_t* hdr )
 {
 	if (hdr->flags & MNEMO_FLAG_USED)
-		Sys_Error("Mnemo_UpdateRovers: block still allocated");
+		Sys_Error("Oops!");
 
-	if (mnemo_last_temp == hdr)
-		mnemo_last_temp = NULL;
-	/* malloc rover: update when NULL, or freed block size is between hunk and cache sizes. */
-	if (!mnemo_rover_malloc ||
-	    (mnemo_rover_cache != NULL && hdr->payload_size <= mnemo_rover_cache->payload_size) ||
-	    (mnemo_rover_hunk  != NULL && mnemo_rover_hunk->payload_size <= hdr->payload_size))
-		mnemo_rover_malloc = hdr;
-	/* cache rover: tracks the largest known free block. */
-	if (!mnemo_rover_cache || mnemo_rover_cache->payload_size < hdr->payload_size)
-		mnemo_rover_cache = hdr;
-	/* hunk rover: tracks the smallest known free block. */
-	if (!mnemo_rover_hunk || hdr->payload_size < mnemo_rover_hunk->payload_size)
-		mnemo_rover_hunk = hdr;
+	if (g_mnemo.last_temp == hdr)
+		g_mnemo.last_temp = NULL;
+
+	/* malloc rover: take this block unless it falls strictly between the
+	   largest and smallest known free blocks. */
+	if (g_mnemo.rover_malloc == NULL ||
+	    (g_mnemo.rover_cache != NULL && g_mnemo.rover_cache->payload_size >= hdr->payload_size) ||
+	    (g_mnemo.rover_hunk != NULL && g_mnemo.rover_hunk->payload_size <= hdr->payload_size))
+		g_mnemo.rover_malloc = hdr;
+
+	/* cache rover tracks the largest free block, hunk rover the smallest. */
+	if (g_mnemo.rover_cache == NULL || g_mnemo.rover_cache->payload_size < hdr->payload_size)
+		g_mnemo.rover_cache = hdr;
+
+	if (g_mnemo.rover_hunk == NULL || g_mnemo.rover_hunk->payload_size > hdr->payload_size)
+		g_mnemo.rover_hunk = hdr;
 }
 
 
-static mnemo_header_t* MnemoCoalesceFreeBlock( mnemo_header_t* hdr )
+static mnemo_header_t* _FreeBlock_Coalesce( mnemo_header_t* hdr )
 {
 	mnemo_header_t* next;
 	mnemo_header_t* prev;
 
-	if (!hdr || (hdr->flags & MNEMO_FLAG_USED))
-		return hdr;
+	next = hdr->next;
+	prev = hdr->prev;
 
 	/* Absorb next block if free. */
-	next = hdr->next;
-	if (next != &mnemo_head && next->flags == 0)
+	if (next->flags == 0)
 	{
-		hdr->payload_size += (int)sizeof(mnemo_header_t) + next->payload_size;
-		if (mnemo_rover_cache   == next) mnemo_rover_cache   = NULL;
-		if (mnemo_rover_hunk    == next) mnemo_rover_hunk    = NULL;
-		if (mnemo_rover_malloc  == next) mnemo_rover_malloc  = NULL;
-		if (mnemo_last_temp     == next) mnemo_last_temp     = NULL;
-		/* Unlink next. */
+		hdr->payload_size += next->payload_size + (int)sizeof(mnemo_header_t);
+		if (g_mnemo.rover_cache   == next) g_mnemo.rover_cache   = NULL;
+		if (g_mnemo.rover_hunk    == next) g_mnemo.rover_hunk    = NULL;
+		if (g_mnemo.last_temp     == next) g_mnemo.last_temp     = NULL;
+		if (g_mnemo.rover_malloc  == next) g_mnemo.rover_malloc  = NULL;
 		next->prev->next = next->next;
 		next->next->prev = next->prev;
 	}
 
 	/* Absorb into prev block if free. */
-	prev = hdr->prev;
-	if (prev != &mnemo_head && prev->flags == 0)
+	if (prev->flags == 0)
 	{
-		prev->payload_size += (int)sizeof(mnemo_header_t) + hdr->payload_size;
-		if (mnemo_rover_cache   == hdr) mnemo_rover_cache   = NULL;
-		if (mnemo_rover_hunk    == hdr) mnemo_rover_hunk    = NULL;
-		if (mnemo_rover_malloc  == hdr) mnemo_rover_malloc  = NULL;
-		if (mnemo_last_temp     == hdr) mnemo_last_temp     = NULL;
-		/* Unlink hdr. */
+		prev->payload_size += hdr->payload_size + (int)sizeof(mnemo_header_t);
+		if (g_mnemo.rover_cache   == hdr) g_mnemo.rover_cache   = NULL;
+		if (g_mnemo.rover_hunk    == hdr) g_mnemo.rover_hunk    = NULL;
+		if (g_mnemo.last_temp     == hdr) g_mnemo.last_temp     = NULL;
+		if (g_mnemo.rover_malloc  == hdr) g_mnemo.rover_malloc  = NULL;
 		hdr->prev->next = hdr->next;
 		hdr->next->prev = hdr->prev;
 		hdr = prev;
@@ -828,30 +931,53 @@ static mnemo_header_t* MnemoCoalesceFreeBlock( mnemo_header_t* hdr )
 	return hdr;
 }
 
-static void Mnemo_FreeArenaBlock( mnemo_header_t* hdr )
+static __forceinline void Mnemo_FreeArenaBlock( mnemo_header_t* hdr )
 {
 	mnemo_header_t* merged;
-	char freeTag[12 + 6];
+	byte* decommitStart;
+	byte* decommitEnd;
+	char tag[MAX_QPATH];
+	short flags;
+
+	flags = hdr->flags;
+
+	if (!(flags & MNEMO_FLAG_USED))
+	{
+		Sys_Error("_FreeBlock: block doesn't appear to be in use!");
+		flags = hdr->flags;
+	}
+
+	if (flags & MNEMO_FLAG_ROOT)
+		Sys_Error("_FreeBlock: attempt to free root block!");
 
 	hdr->flags = 0;
-	sprintf(freeTag, "free %s", hdr->tag);
-	Q_strncpy(hdr->tag, freeTag, sizeof(hdr->tag));
-	hdr->tag[sizeof(hdr->tag) - 1] = 0;
-	hdr->sequence = mnemo_sequence++;
-	merged = MnemoCoalesceFreeBlock(hdr);
-	Mnemo_DecommitPages(merged);
-	Mnemo_UpdateRovers(merged);
+	sprintf(tag, "(%s)", hdr->tag);
+	strncpy(hdr->tag, tag, MNEMO_TAG_LEN);
+	hdr->tag[MNEMO_TAG_LEN] = 0;
+	hdr->sequence = g_mnemo.alloc_seq++;
+
+	merged = _FreeBlock_Coalesce(hdr);
+
+	decommitStart = (byte*)(((DWORD)((byte*)(merged + 1)) + (MNEMO_PAGE_SIZE - 1)) & ~(MNEMO_PAGE_SIZE - 1));
+	decommitEnd = (byte*)(((DWORD)((byte*)(merged + 1)) + merged->payload_size) & ~(MNEMO_PAGE_SIZE - 1));
+	if (decommitStart < decommitEnd)
+		VirtualFree(decommitStart, (int)(decommitEnd - decommitStart), MEM_DECOMMIT);
+
+	Mnemo_UpdateBlockLinks(merged);
 }
 
-static int Mnemo_PezBucketIndex( int alignedSize )
+static __forceinline int Mnemo_PezBucketIndex( int alignedSize )
 {
 	int bucketSize = 32;
 	int bucketIdx = 0;
 
-	while (bucketSize < alignedSize)
+	if (32 < alignedSize)
 	{
-		bucketSize <<= 1;
-		bucketIdx++;
+		do
+		{
+			bucketIdx++;
+			bucketSize <<= 1;
+		} while (bucketSize < alignedSize);
 	}
 
 	if (bucketIdx < 0 || bucketIdx > 7)
@@ -865,236 +991,197 @@ static mnemo_pez_pool_t* Mnemo_PezCreatePool( int elemSize, int elemCount )
 	mnemo_pez_pool_t* pool;
 	unsigned int alignedSize;
 	char tag[MAX_QPATH];
-	int slabOffset;
 	int bucketIdx;
 	int i;
 
-	alignedSize = Mnemo_AlignSize(elemSize);
+	alignedSize = MNEMO_ALIGN(elemSize);
 
-	_snprintf(tag, sizeof(tag), "%d-Pez", elemSize);
-	tag[sizeof(tag) - 1] = '\0';
+	sprintf(tag, "%d-Pez", alignedSize);
 
-	pool = MnemoAlloc(elemCount * alignedSize + elemCount * sizeof(int) + 56, MNEMO_FLAG_PEZ, 0, tag); // todo fix hardcode
+	pool = (mnemo_pez_pool_t*)MnemoAlloc(elemCount * alignedSize + elemCount * sizeof(void*) + MNEMO_PEZ_OVERHEAD,
+	                                     MNEMO_FLAG_PEZ, 0, tag);
 
-	if (!pool)
+	if (pool == NULL)
 		return NULL;
 
-	memset(pool, 0, sizeof(*pool));
-
-	pool->size  = alignedSize;
-	pool->count = (unsigned int)elemCount;
-	pool->stack = (void**)((byte*)pool + (int)sizeof(mnemo_pez_pool_t));
-	slabOffset = (int)sizeof(mnemo_pez_pool_t) + elemCount * (int)sizeof(void*);
-	pool->slab  = (byte*)pool + slabOffset;
-	pool->top   = (unsigned int)elemCount;
+	pool->stack = (void**)((byte*)pool + sizeof(mnemo_pez_pool_t));
+	pool->slab  = (byte*)pool + MNEMO_ALIGN(elemCount * sizeof(void*) + MNEMO_PEZ_SLAB_PAD);
 
 	for (i = 0; i < elemCount; i++)
-		pool->stack[i] = pool->slab + pool->size * i;
+		pool->stack[i] = pool->slab + alignedSize * i;
 
-	bucketIdx = Mnemo_PezBucketIndex((int)pool->size);
+	pool->top   = (unsigned int)elemCount;
+	pool->size  = alignedSize;
+	pool->count = (unsigned int)elemCount;
 
-	pool->next = mnemo_pez_buckets[bucketIdx];
-	mnemo_pez_buckets[bucketIdx] = pool;
+	bucketIdx = Mnemo_PezBucketIndex((int)alignedSize);
+
+	pool->next = g_mnemo.pez_buckets[bucketIdx];
+	g_mnemo.pez_buckets[bucketIdx] = pool;
 	return pool;
 }
 
-static void* Mnemo_PezAlloc( int alignedSize )
-{
-	int bucketIdx;
-	mnemo_pez_pool_t* pool;
-	void* payload;
-	int elemSize;
-	int elemCount;
-
-	bucketIdx = Mnemo_PezBucketIndex(alignedSize);
-
-	if (bucketIdx < 0)
-		return NULL;
-
-	for (pool = mnemo_pez_buckets[bucketIdx]; pool; pool = pool->next)
-	{
-		if (pool->top > 0)
-			break;
-	}
-
-	if (!pool)
-	{
-		elemSize = 32 << bucketIdx;
-		elemCount = MNEMO_PAGE_SIZE / elemSize;
-
-		if (elemCount < 1)
-			elemCount = 1;
-
-		pool = Mnemo_PezCreatePool(elemSize, elemCount);
-	}
-
-	if (!pool || pool->top <= 0)
-		return NULL;
-
-	if (pool->top > pool->count)
-		Sys_Error("Mnemo_PezAlloc: bad top %d > %d", pool->top, pool->count);
-
-	payload = pool->stack[--pool->top];
-
-	if (!payload)
-		Sys_Error("Mnemo_PezAlloc: null payload");
-
-	pool->stack[pool->top] = NULL;
-
-	return payload;
-}
-
-static qboolean Mnemo_PezFreePayload( void* payload )
-{
-	mnemo_pez_pool_t* pool;
-	byte* p;
-	byte* begin;
-	byte* end;
-	int i;
-
-	if (!payload)
-		return FALSE;
-
-	p = (byte*)payload;
-
-	for (i = 0; i < 8; i++)
-	{
-		for (pool = mnemo_pez_buckets[i]; pool; pool = pool->next)
-		{
-			begin = pool->slab;
-			end = pool->slab + pool->size * pool->count;
-			if (p >= begin && p < end)
-			{
-				/* Extra safety: only accept exact element addresses. */
-				if (((p - begin) % pool->size) != 0)
-					return FALSE;
-
-				if (pool->top >= pool->count)
-					Sys_Error("MnemoFree: pez stack overflow");
-
-				pool->stack[pool->top++] = payload;
-				return TRUE;
-			}
-		}
-	}
-
-	return FALSE;
-}
-
-static void Mnemo_PezReset( void )
-{
-	int i;
-	mnemo_pez_pool_t* pool;
-	mnemo_pez_pool_t* next;
-
-	for (i = 0; i < 8; i++)
-	{
-		pool = mnemo_pez_buckets[i];
-
-		while (pool)
-		{
-			next = pool->next;
-			MnemoFree(pool);
-			pool = next;
-		}
-
-		mnemo_pez_buckets[i] = NULL;
-	}
-}
 
 int Mnemo_LastChanceActive( void )
 {
-	return mnemo_last_chance_active;
+	return g_mnemo.last_chance;
+}
+
+/* Pop a payload off the free stack of any pool in this bucket, creating a new
+   pool if none has a spare slot. */
+static __forceinline void* Mnemo_PezPopBucket( int bucketIdx )
+{
+	mnemo_pez_pool_t* pool;
+	void* payload;
+	int elemSize;
+	int i;
+
+	for (pool = g_mnemo.pez_buckets[bucketIdx]; pool; pool = pool->next)
+	{
+		if (pool->top == 0)
+			payload = NULL;
+		else
+		{
+			pool->top--;
+			payload = pool->stack[pool->top];
+			pool->stack[pool->top] = NULL;
+		}
+
+		if (payload)
+			return payload;
+	}
+
+	elemSize = 32;
+	for (i = bucketIdx; i != 0; i--)
+		elemSize <<= 1;
+
+	pool = Mnemo_PezCreatePool(elemSize, MNEMO_PAGE_SIZE / elemSize);
+
+	if (pool == NULL)
+		return NULL;
+
+	if (pool->top == 0)
+		return NULL;
+
+	pool->top--;
+	payload = pool->stack[pool->top];
+	pool->stack[pool->top] = NULL;
+	return payload;
+}
+
+static __forceinline void Mnemo_FreeInline( void* ptr )
+{
+	mnemo_pez_pool_t* pool;
+	qboolean inArena;
+
+	if ((byte*)ptr < g_mnemo.arena_base ||
+	    g_mnemo.arena_base + g_mnemo.arena_size <= (byte*)ptr)
+		inArena = FALSE;
+	else
+		inArena = TRUE;
+
+	if (inArena)
+	{
+		pool = Mnemo_FindPezPool(ptr);
+
+		if (pool == NULL)
+		{
+			Mnemo_FreeArenaBlock((mnemo_header_t*)ptr - 1);
+		}
+		else
+		{
+			if (!ptr)
+				Sys_Error("Argh!");
+
+			if (pool->top == pool->count)
+				Sys_Error("Pez stack underflowed!\n");
+
+			pool->stack[pool->top] = ptr;
+			pool->top++;
+		}
+	}
+	else
+	{
+		LocalFree(ptr);
+	}
 }
 
 void* MnemoAlloc( int size, unsigned int flags, int allocClass, const char* tag )
 {
 	int payload_size;
 	int allocMode;
-	void* p;
 	void* pez;
-	mnemo_header_t* hdr;
+	mnemo_header_t* block;
 
-	if (size <= 0)
-		return NULL;
+	if (size > MNEMO_MAX_ALLOC)
+		Sys_Error("Absurd MnemoAlloc(%d, %d, %d, %d)", size, flags, allocClass, (int)tag);
 
-	if (size > 4000000)
-		Sys_Error("Absurd MnemoAlloc(%d, 0x%x, %d, %s)", size, flags, allocClass, tag ? tag : "<null>");
+	mnemo_temp_danger = 0;
+	g_mnemo.alloc_attempts++;
 
-	mnemo_alloc_attempts++;
+	payload_size = MNEMO_ALIGN(size);
 
-	if (flags & MNEMO_FLAG_TEMP)
+	if ((flags & MNEMO_FLAG_TEMP) && g_mnemo.last_temp)
+		Mnemo_FreeInline((mnemo_header_t*)g_mnemo.last_temp + 1);
+
+	if (!(MNEMO_PEZ_MAX < payload_size || (flags & MNEMO_FLAG_CACHE) || (flags & MNEMO_FLAG_TEMP) || allocClass > 1))
 	{
-		if (mnemo_last_temp && (mnemo_last_temp->flags & MNEMO_FLAG_USED))
-		{
-			void* oldTemp = (void*)(mnemo_last_temp + 1);
-			mnemo_last_temp = NULL;
-			MnemoFree(oldTemp);
-		}
-		else
-		{
-			mnemo_last_temp = NULL;
-		}
-	}
+		int bucketIdx = Mnemo_PezBucketIndex(payload_size);
+		pez = Mnemo_PezPopBucket(bucketIdx);
 
-	payload_size = Mnemo_AlignSize(size);
-
-	if (Mnemo_PezEligible(payload_size, flags, allocClass))
-	{
-		pez = Mnemo_PezAlloc(payload_size);
+		if (pez != NULL &&
+		    ((byte*)pez < g_mnemo.arena_base || g_mnemo.arena_base + g_mnemo.arena_size < (byte*)pez))
+		{
+			DebugBreak();
+			bucketIdx = Mnemo_PezBucketIndex(payload_size);
+			pez = Mnemo_PezPopBucket(bucketIdx);
+		}
 
 		if (pez)
-		{
-			mnemo_stats.alloc_calls++;
-			mnemo_stats.live_allocs++;
-			mnemo_stats.live_pez_allocs++;
-
-			if ((flags & MNEMO_FLAG_MALLOC) == 0)
-				memset(pez, 0, payload_size);
-
 			return pez;
-		}
 	}
 
 	allocMode = Mnemo_SelectAllocMode(flags, allocClass);
-	p = MnemoAllocInternal(payload_size, size, flags, allocClass, tag, allocMode);
+	block = MnemoAlloc_Internal(payload_size, flags, allocClass);
 
-	mnemo_last_chance_active = 0;
+	g_mnemo.last_chance = 0;
 
-	if (!p)
+	if (!block)
 	{
-		const char* flagsText;
-		mnemo_stats.failed_allocs++;
-
 		if ((flags & MNEMO_FLAG_NO_RECLAIM) == 0)
 		{
-			flagsText = Mnemo_FlagsToString((unsigned short)flags);
-			Con_DPrintf("Mnemo couldn't allocate %d bytes for a %s block named %s.\n",
-			            size, flagsText, tag ? tag : "<null>");
+			Mnemo_FlagsToString((unsigned short)flags);
 
-			if (mnemo_cache.value > 0.0f)
+			if (developer.value > 0.0f)
 				Mnemo_ReportToFile();
 		}
 		return NULL;
 	}
 
-	{
-		/* clear rovers that point to the just-allocated block. */
-		mnemo_header_t* allocHdr = ((mnemo_header_t*)p) - 1;
-		if (mnemo_rover_cache   == allocHdr) mnemo_rover_cache   = NULL;
-		if (mnemo_rover_hunk    == allocHdr) mnemo_rover_hunk    = NULL;
-		if (mnemo_rover_malloc  == allocHdr) mnemo_rover_malloc  = NULL;
-	}
+	if (block->flags & MNEMO_FLAG_USED)
+		Sys_Error("Ooops!");
 
-	if ((flags & MNEMO_FLAG_MALLOC) == 0)
-		memset(p, 0, payload_size);
+	block = _AllocBlock(block, payload_size, flags, allocClass, tag, allocMode);
 
 	if (flags & MNEMO_FLAG_TEMP)
 	{
-		hdr = ((mnemo_header_t*)p) - 1;
-		mnemo_last_temp = hdr;
+		if (!(block->flags & MNEMO_FLAG_USED))
+			Sys_Error("Oops!");
+
+		if (g_mnemo.last_temp)
+			Sys_Error("Are we supposed to have multiple temp blocks?");
+
+		g_mnemo.last_temp = block;
 	}
-	return p;
+
+	if (g_mnemo.rover_cache  == block) g_mnemo.rover_cache  = NULL;
+	if (g_mnemo.rover_hunk   == block) g_mnemo.rover_hunk   = NULL;
+	if (g_mnemo.rover_malloc == block) g_mnemo.rover_malloc = NULL;
+
+	if ((flags & MNEMO_FLAG_MALLOC) == 0)
+		memset((void*)(block + 1), 0, payload_size);
+
+	return (void*)(block + 1);
 }
 
 static int MnemoDbgOldSize( void* ptr )
@@ -1114,7 +1201,7 @@ static int MnemoDbgOldSize( void* ptr )
 
 void* MnemoAllocDbg( int size, const char* srcFile, int srcLine )
 {
-	static char tag[64];
+	static char tag[MAX_QPATH];
 	const char* base;
 
 	base = strrchr(srcFile, '\\');
@@ -1125,7 +1212,7 @@ void* MnemoAllocDbg( int size, const char* srcFile, int srcLine )
 
 	sprintf(tag, "%d, %s", srcLine, srcFile);
 
-	return MnemoAlloc(size, 0x20, 0, tag);
+	return MnemoAlloc(size, MNEMO_FLAG_MALLOC, 0, tag);
 }
 
 void* MnemoReallocDbg( void* oldPtr, int sizeBytes, const char* srcFile, int srcLine )
@@ -1185,117 +1272,77 @@ void MnemoFreeDbg( void* ptr )
 
 void MnemoFree( void* ptr )
 {
-	mnemo_header_t* hdr;
+	Mnemo_FreeInline(ptr);
+}
 
-	if (!ptr)
-		return;
-
-	if (Mnemo_PezFreePayload(ptr))
-	{
-		mnemo_stats.free_calls++;
-
-		if (mnemo_stats.live_allocs > 0)
-			mnemo_stats.live_allocs--;
-
-		if (mnemo_stats.live_pez_allocs > 0)
-			mnemo_stats.live_pez_allocs--;
-
-		return;
-	}
-
-	hdr = ((mnemo_header_t*)ptr) - 1;
-
-	if (!(hdr->flags & MNEMO_FLAG_USED))
-		Sys_Error("MnemoFree: double free or invalid pointer");
-
-	if (hdr->flags & MNEMO_FLAG_ROOT)
-		Sys_Error("_FreeBlock: attempt to free root block");
-
-	if (hdr == mnemo_last_temp)
-		mnemo_last_temp = NULL;
-
-	mnemo_stats.free_calls++;
-	mnemo_stats.live_allocs--;
-	mnemo_stats.live_bytes -= hdr->payload_size;
-
-	if (mnemo_stats.live_bytes < 0)
-		mnemo_stats.live_bytes = 0;
-
-	if (mnemo_stats.live_arena_allocs > 0)
-		mnemo_stats.live_arena_allocs--;
-
-	Mnemo_FreeArenaBlock(hdr);
+void _FreeBlock( void )
+{
+	if (g_mnemo.last_temp)
+		Mnemo_FreeInline((void*)(g_mnemo.last_temp + 1));
 }
 
 void MnemoShrink( void* ptr, int newsize )
 {
+	mnemo_pez_pool_t* pool;
 	mnemo_header_t* hdr;
+	mnemo_header_t* split;
+	unsigned int alignedSize;
+	char tag[MAX_QPATH];
 
-	// TODO: reconstruct in-place block splitting. For now the allocation keeps
-	// its original size; callers that shrink a buffer just leave the tail unused.
-	if (!ptr || newsize < 0)
-		return;
+	/* Pez blocks are fixed-size and never shrink. */
+	pool = Mnemo_FindPezPool(ptr);
 
-	hdr = ((mnemo_header_t*)ptr) - 1;
-
-	if (!(hdr->flags & MNEMO_FLAG_USED))
-		return;
-
-	if (newsize < hdr->payload_size)
+	if (pool == NULL)
 	{
-		mnemo_stats.live_bytes -= hdr->payload_size - newsize;
-		if (mnemo_stats.live_bytes < 0)
-			mnemo_stats.live_bytes = 0;
-		hdr->payload_size = newsize;
+		alignedSize = MNEMO_ALIGN(newsize);
+		hdr = (mnemo_header_t*)ptr - 1;
+
+		/* Only split when the freed tail is big enough for its own block. */
+		if ((int)(alignedSize + MNEMO_SPLIT_MIN) <= hdr->payload_size)
+		{
+			split = (mnemo_header_t*)((byte*)ptr + alignedSize);
+			split->payload_size = (hdr->payload_size - alignedSize) - (int)sizeof(mnemo_header_t);
+			split->flags = 0;
+			hdr->payload_size = alignedSize;
+			split->prev = hdr;
+			split->next = hdr->next;
+			hdr->next->prev = split;
+			hdr->next = split;
+			sprintf(tag, "(%s)", hdr->tag);
+			strncpy(split->tag, tag, MNEMO_TAG_LEN);
+			split->tag[MNEMO_TAG_LEN] = 0;
+			split->sequence = hdr->sequence;
+		}
 	}
 }
 
-static void Mnemo_FreeByClass( int allocClass )
+static void Mnemo_FreeBlocksByTag( int tag )
 {
-	mnemo_header_t* hdr;
-	void* payload;
-	qboolean freedOne;
+	mnemo_header_t* cur;
 
-	do
+	/* Free every allocated block of this class, restarting the scan after each
+	   free since freeing relinks the list. */
+	while (1)
 	{
-		freedOne = FALSE;
-		for (hdr = mnemo_head.next; hdr != &mnemo_head; hdr = hdr->next)
+		cur = g_mnemo.head.next;
+
+		if (cur == &g_mnemo.head)
+			return;
+
+		while ((cur->flags & MNEMO_FLAG_USED) == 0 || cur->alloc_class != (short)tag)
 		{
-			if (!(hdr->flags & MNEMO_FLAG_USED))
-				continue;
+			cur = cur->next;
 
-			if (hdr->flags & MNEMO_FLAG_ROOT)
-				continue;
-
-			if (hdr->alloc_class != allocClass)
-				continue;
-
-			payload = (void*)(hdr + 1);
-			MnemoFree(payload);
-			freedOne = TRUE;
-
-			break;
+			if (cur == &g_mnemo.head)
+				return;
 		}
-	} while (freedOne);
+
+		Mnemo_FreeInline((void*)(cur + 1));
+	}
 }
 
 //============================================================================
 
-#define	HUNK_SENTINAL	0x1df001ed
-
-#define HUNK_NAME_LEN 64
-
-typedef struct
-{
-	int		sentinal;
-	int		size;		// including sizeof(hunk_t), -1 = not allocated
-	char	name[HUNK_NAME_LEN];
-} hunk_t;
-
-byte* hunk_base;
-int		hunk_size;
-
-int		hunk_low_used;
 int		hunk_high_used;
 
 qboolean	hunk_tempactive;
@@ -1306,65 +1353,46 @@ void R_FreeTextures( void );
 
 /*
 ===================
+Mnemo_SloppyAlloc
+
+Small allocations bump off a shared "sloppy" pool that is never individually
+freed, replenished from the arena a page at a time. Backs both small hunk
+allocations and small zones.
+===================
+*/
+static __forceinline void* Mnemo_SloppyAlloc( int size )
+{
+	int aligned;
+	void* result;
+
+	aligned = (size + 3) & ~3;
+
+	if (mnemo_zone_sloppy_left < aligned || mnemo_zone_sloppy_ptr == NULL)
+	{
+		mnemo_zone_sloppy_left = MNEMO_SLOPPY_CHUNK;
+		if (aligned > MNEMO_SLOPPY_CHUNK)
+			mnemo_zone_sloppy_left = aligned;
+
+		mnemo_zone_sloppy_ptr = MnemoAlloc(mnemo_zone_sloppy_left, MNEMO_FLAG_HUNK, hunk_alloc_class, "sloppy");
+	}
+
+	result = mnemo_zone_sloppy_ptr;
+	mnemo_zone_sloppy_left -= aligned;
+	mnemo_zone_sloppy_ptr += aligned;
+	return result;
+}
+
+/*
+===================
 Hunk_AllocName
 ===================
 */
 void* Hunk_AllocName(int size, char* name)
 {
-	int aligned;
-	int chunk;
-	void* result;
-	hunk_t* h;
+	if (size < MNEMO_SLOPPY_MAX)
+		return Mnemo_SloppyAlloc(size);
 
-	if (!mnemo_arena_base || mnemo_arena_size <= 0 || !mnemo_head.next)
-	{
-#ifdef PARANOID
-		Hunk_Check();
-#endif
-		if (size < 0)
-			Sys_Error("Hunk_Alloc: bad size: %i", size);
-
-		size = sizeof(hunk_t) + ((size + 15) & ~15);
-		if (hunk_size - hunk_low_used - hunk_high_used < size)
-			Sys_Error("Hunk_Alloc: failed on %i bytes", size);
-
-		h = (hunk_t*)(hunk_base + hunk_low_used);
-		hunk_low_used += size;
-		memset(h, 0, size);
-		h->size = size;
-		h->sentinal = HUNK_SENTINAL;
-		Q_strncpy(h->name, name, sizeof(h->name));
-		h->name[sizeof(h->name) - 1] = 0;
-		return (void*)(h + 1);
-	}
-
-	if (size <= 0)
-		return NULL;
-
-	if (size < 1000)
-	{
-		/* Small path: sloppy bump (4-byte align). Same pool as zone when zonesize < 1000. */
-		aligned = (size + 3) & ~3;
-		if (mnemo_zone_sloppy_left < aligned || !mnemo_zone_sloppy_ptr)
-		{
-			chunk = 0x1000;
-			if (chunk < aligned)
-				chunk = aligned;
-			mnemo_zone_sloppy_ptr = MnemoAlloc(chunk, MNEMO_FLAG_HUNK, hunk_alloc_class, "sloppy");
-			if (!mnemo_zone_sloppy_ptr)
-			{
-				mnemo_zone_sloppy_left = 0;
-				return NULL;
-			}
-			mnemo_zone_sloppy_left = chunk;
-		}
-		result = mnemo_zone_sloppy_ptr;
-		mnemo_zone_sloppy_ptr = (byte*)mnemo_zone_sloppy_ptr + aligned;
-		mnemo_zone_sloppy_left -= aligned;
-		return result;
-	}
-
-	return MnemoAlloc(size, MNEMO_FLAG_HUNK, hunk_alloc_class, name ? name : "unknown");
+	return MnemoAlloc(size, MNEMO_FLAG_HUNK, hunk_alloc_class, name);
 }
 
 /*
@@ -1393,12 +1421,11 @@ void Hunk_FreeToLowMark( int mark )
 		Sys_Error("Hunk_FreeToLowMark: bad mark %i", mark);
 
 	for (cls = mark; cls <= hunk_alloc_class; cls++)
-		Mnemo_FreeByClass(cls);
+		Mnemo_FreeBlocksByTag(cls);
 
 	hunk_alloc_class = mark;
 	mnemo_zone_sloppy_ptr = NULL;
 	mnemo_zone_sloppy_left = 0;
-	hunk_low_used = 0;
 }
 
 int	Hunk_HighMark( void )
@@ -1476,66 +1503,61 @@ typedef struct cache_system_s
 
 #define CACHE_LOCKED  1  // block is locked against eviction
 
-static cache_system_t* cs_mru_head;
-static cache_system_t* cs_lru_tail;
-static int cs_live_bytes;
-
-static void Cache_MakeLRU( cache_system_t* cs )
+static __forceinline void Cache_MoveToMRU( cache_system_t* cs )
 {
 	cs->lru_next = NULL;
-	cs->lru_prev = cs_mru_head;        /* old head is now one step older */
+	cs->lru_prev = g_mnemo.cache_mru;        /* old head is now one step older */
 
-	if (cs_mru_head)
-		cs_mru_head->lru_next = cs;    /* old head points toward cs (newer) */
+	if (g_mnemo.cache_mru)
+		g_mnemo.cache_mru->lru_next = cs;    /* old head points toward cs (newer) */
 
-	if (!cs_lru_tail)
-		cs_lru_tail = cs;              /* first entry: init tail */
+	g_mnemo.cache_mru = cs;
 
-	cs_mru_head = cs;
+	if (!g_mnemo.cache_lru)
+		g_mnemo.cache_lru = cs;              /* first entry: init tail */
 }
 
-static void Cache_UnlinkLRU( cache_system_t* cs )
+static __forceinline void Cache_UnlinkLRU( cache_system_t* cs )
 {
-	if (cs_mru_head == cs)
-		cs_mru_head = cs->lru_prev;    /* new head = older neighbor */
+	if (g_mnemo.cache_mru == cs)
+		g_mnemo.cache_mru = cs->lru_prev;    /* new head = older neighbor */
 
-	if (cs_lru_tail == cs)
-		cs_lru_tail = cs->lru_next;    /* new tail = newer neighbor */
+	if (g_mnemo.cache_lru == cs)
+		g_mnemo.cache_lru = cs->lru_next;    /* new tail = newer neighbor */
 
 	if (cs->lru_next)
 		cs->lru_next->lru_prev = cs->lru_prev;
 
 	if (cs->lru_prev)
 		cs->lru_prev->lru_next = cs->lru_next;
-
-	cs->lru_prev = cs->lru_next = NULL;
 }
 
 /*
- * Strip the "moved" LSB from user->data to get the real payload pointer.
- * user->data LSB=1 means block was relocated by MnemoCacheMove (DC juggling).
- */
-static void* Cache_UserPayload( cache_user_t* user )
+============
+Cache_MakeLRU
+
+Initialise a freshly allocated cache block: name (the tail of the resource
+path), timestamp/frame stamps, and clear the flags.
+============
+*/
+static void Cache_MakeLRU( cache_system_t* cs, const char* name )
 {
-	if (!user || !user->data)
-		return NULL;
+	int skip;
 
-	return (void*)(((unsigned int)user->data) & ~1u);
-}
+	skip = strlen(name) - CACHE_NAME_LEN;
 
-static qboolean Cache_UserLocked( cache_user_t* user )
-{
-	void* payload;
-	cache_system_t* cs;
+	if (skip < 0)
+		skip = 0;
 
-	payload = Cache_UserPayload(user);
+	strncpy(cs->name, name + skip, CACHE_NAME_LEN);
+	cs->name[CACHE_NAME_LEN] = 0;
 
-	if (!payload)
-		return FALSE;
+	if (skip > 7)
+		cs->name[0] = name[7];
 
-	cs = ((cache_system_t*)payload) - 1;
-
-	return (cs->flags & 1u) ? TRUE : FALSE;
+	cs->timestamp = gHostSpawnCount;
+	cs->frame = host_framecount;
+	cs->flags = 0;
 }
 
 /*
@@ -1593,48 +1615,81 @@ Traverses from LRU tail toward MRU head (lru_next direction).
 Skips "moved" blocks (user->data LSB=1) -> their cs is stale.
 ============
 */
-void Cache_Flush( void )
+int Cache_FreeAll( void )
 {
 	cache_system_t* cs;
-	cache_system_t* next_cs;
+	cache_system_t* next;
 
-	cs = cs_lru_tail;
-	while (cs)
+	for (cs = g_mnemo.cache_lru; cs != NULL; cs = next)
 	{
-		next_cs = cs->lru_next;
+		next = cs->lru_next;
 
-		if (!((unsigned int)(*cs->user) & 1u))  /* skip moved blocks */
-			Cache_Free((cache_user_t*)cs->user);
-
-		cs = next_cs;
+		if (((unsigned int)*cs->user & 1u) == 0)  /* skip moved blocks */
+			Cache_Free((cache_user_t*)cs->user, 0);
 	}
+
+	return 0;
+}
+
+int Cache_FreeAllLRU( void )
+{
+	int count;
+	int freed;
+
+	count = 0;
+	freed = Cache_FreeLRU(1);
+
+	while (freed != 0)
+	{
+		count++;
+		freed = Cache_FreeLRU(1);
+	}
+
+	return count;
 }
 
 /*
 ============
-Cache_FreeOldFrame
+Cache_FreeStale
 
-Free LRU-tail blocks whose frame stamp doesn't match the current frame.
+Free LRU-tail blocks left over from a previous map (timestamp mismatch).
 ============
 */
-void Cache_FreeOldFrame( void )
+int Cache_FreeStale( void )
+{
+	while (g_mnemo.cache_lru != NULL &&
+	       g_mnemo.cache_lru->timestamp != (unsigned int)gHostSpawnCount)
+		Cache_Free((cache_user_t*)g_mnemo.cache_lru->user, 0);
+
+	return 0;
+}
+
+/*
+============
+Cache_FlushUnlocked
+
+Re-touch the GPU textures of every resident, unmoved cache block.
+============
+*/
+void Cache_FlushUnlocked( void )
 {
 	cache_system_t* cs;
-	cache_system_t* next_cs;
+	unsigned int data;
 
-	cs = cs_lru_tail;
-
-	while (cs && cs->frame != (unsigned int)host_framecount)
+	for (cs = g_mnemo.cache_mru; cs != NULL; cs = cs->lru_prev)
 	{
-		next_cs = cs->lru_next;
-		Cache_Free((cache_user_t*)cs->user);
-		cs = next_cs;
+		/* A juggled block (low bit set) lives in audio memory, not the arena,
+		   so its textures aren't resident to re-touch. */
+		data = (unsigned int)*cs->user;
+
+		if (((data & 1) ? 0 : data) != 0)
+			Mod_TouchStudioTextures((void*)((data & 1) ? 0 : data));
 	}
 }
 
 /*
 ============
-MnemoPurge
+Cache_FreeLRU
 
 Pass 1: LRU tail -> MRU head (lru_next).
   Find unlocked block where timestamp != gHostSpawnCount OR frame != host_framecount.
@@ -1643,14 +1698,14 @@ Pass 2: MRU head -> LRU tail (lru_prev).
 Returns cs->size of freed block, or 0 if nothing purgeable.
 ============
 */
-static int MnemoPurge( int aggressive )
+static int Cache_FreeLRU( int aggressive )
 {
 	cache_system_t* cs;
 	int bytes;
 
 	/* Pass 1: from oldest toward newest; skip blocks that are current
 	 * (same spawn-count AND same host_framecount). */
-	for (cs = cs_lru_tail; cs != NULL; cs = cs->lru_next)
+	for (cs = g_mnemo.cache_lru; cs != NULL; cs = cs->lru_next)
 	{
 		if (cs->flags & 1u)
 			continue;  /* locked */
@@ -1659,25 +1714,25 @@ static int MnemoPurge( int aggressive )
 		    cs->frame == (unsigned int)host_framecount)
 			continue;  /* current map, current frame — keep */
 
-		if (!aggressive && cs->size <= 0x800)
+		if (!aggressive && cs->size <= CACHE_FREE_MIN)
 			continue;
 
 		bytes = cs->size;
-		Cache_Free((cache_user_t*)cs->user);
+		Cache_Free((cache_user_t*)cs->user, 0);
 		return bytes;
 	}
 
 	/* Pass 2: from newest toward oldest; any unlocked block */
-	for (cs = cs_mru_head; cs != NULL; cs = cs->lru_prev)
+	for (cs = g_mnemo.cache_mru; cs != NULL; cs = cs->lru_prev)
 	{
 		if (cs->flags & 1u)
 			continue;  /* locked */
 
-		if (!aggressive && cs->size <= 0x800)
+		if (!aggressive && cs->size <= CACHE_FREE_MIN)
 			continue;
 
 		bytes = cs->size;
-		Cache_Free((cache_user_t*)cs->user);
+		Cache_Free((cache_user_t*)cs->user, 0);
 		return bytes;
 	}
 
@@ -1685,258 +1740,229 @@ static int MnemoPurge( int aggressive )
 }
 
 /*
- * Mnemo_TryCacheMoveBlock
+ * MnemoCacheMove
  *
- * 
- * Given a mnemo_header that holds a CACHE block, attempts to move it
- * to a new arena location (reducing fragmentation near free holes).
- *
- * Binary MnemoCacheMove only relocates the cs header and leaves payload
- * in place (VQ textures stay in VRAM, moving the RAM tracking struct).
- * For now, so we do a full copy: alloc new block, copy everything,
- * update user->data, free old.
- *
- * Returns 1 on successful move, 0 otherwise.
+ * Juggle a cache block out of the arena into AFile audio-block memory: create
+ * an AFile from the payload, replace the block with a tiny placeholder whose
+ * user->data is flagged "moved", and free the original. Cache_Check brings it
+ * back on demand. Returns 1 if the block was moved.
  */
-static int Mnemo_TryCacheMoveBlock( mnemo_header_t* hdr )
+static int MnemoCacheMove( cache_system_t* cs )
 {
-	cache_system_t* cs;
 	cache_system_t* newcs;
-	int size;
 
-	if (!(hdr->flags & MNEMO_FLAG_USED)) return 0;
-	if (!(hdr->flags & MNEMO_FLAG_CACHE)) return 0;
-
-	cs = (cache_system_t*)((byte*)hdr + sizeof(mnemo_header_t));
-
-	if (cs->flags & 1u) 
-		return 0;                      /* locked */
-
-	if ((unsigned int)(*cs->user) & 1u) 
-		return 0;      /* already marked moved */
-
-	size = cs->size;
-
-	if (size <= 0)
-		 return 0;
-
-	/*
-	 * Allocate a new block. MNEMO_FLAG_NO_RECLAIM prevents re-entrant
-	 * compaction loops; if there's no room now, bail out.
-	 */
-	newcs = (cache_system_t*)MnemoAlloc(size,
-	                                    MNEMO_FLAG_CACHE | MNEMO_FLAG_NO_RECLAIM,
-	                                    0, cs->name);
-	if (!newcs) 
+	if (cs->flags & CACHE_LOCKED)
 		return 0;
 
-	Q_memcpy(newcs, cs, size);
+	if (((unsigned int)*cs->user & 1u) != 0)
+		return 0;
 
-	/* Fix up cross-references in the new cs. */
-	newcs->user     = cs->user;
-	newcs->lru_prev = NULL;
+	if (SNDDMA_BufferDrained(cs->size) == 0)
+		return 0;
+
+	if (AFile_FindOrCreate((char*)cs, (byte*)cs + sizeof(cache_system_t),
+	                       cs->size - (int)sizeof(cache_system_t), 1) == NULL)
+		return 0;
+
+	newcs = (cache_system_t*)MnemoAlloc(sizeof(cache_system_t), MNEMO_FLAG_MALLOC, 0, (char*)cs);
+	memcpy(newcs, cs, sizeof(cache_system_t));
+	newcs->size = sizeof(cache_system_t);
+	g_mnemo.cache_bytes += sizeof(cache_system_t);
 	newcs->lru_next = NULL;
+	newcs->lru_prev = NULL;
+	g_mnemo.cache_epoch_bytes += newcs->size;
 
-	*newcs->user = (byte*)newcs + sizeof(cache_system_t);
+	Cache_MakeLRU(newcs, (char*)cs);
+	Cache_Free((cache_user_t*)cs->user, 1);
 
-	Cache_UnlinkLRU(cs);
-	cs_live_bytes -= size;
-	MnemoFree(cs);   /* coalesces arena + updates rovers */
+	*newcs->user = (void*)((byte*)newcs + sizeof(cache_system_t));
+	*(unsigned int*)newcs->user |= 1u;
 
-	Cache_MakeLRU(newcs);
-	cs_live_bytes += size;
+	Cache_UnlinkLRU(newcs);
+	Cache_MoveToMRU(newcs);
+
+	newcs->timestamp = gHostSpawnCount;
+	newcs->frame = host_framecount;
 
 	return 1;
 }
 
-/*
- * MnemoCacheMoveEnds
- *
- * Examines the blocks immediately adjacent (in arena order)
- * to the largest known free block (mnemo_rover_cache) and tries to move each
- * one that is a CACHE block, repeating until no further moves are possible.
- * Goal: consolidate free space near the biggest hole.
- * Returns 1 if at least one block was moved, 0 otherwise.
- */
-int MnemoCacheMoveEnds( void )
+/* Juggle out an unlocked cache block that neighbours a free hole. */
+static __forceinline int Mnemo_TryCacheMoveBlock( mnemo_header_t* neighbor )
 {
-	mnemo_header_t* rover;
-	mnemo_header_t* adj;
-	int moved = 0;
-	int this_pass;
+	cache_system_t* cs;
 
-	do {
-		this_pass = 0;
-		rover = mnemo_rover_cache;
-		if (!rover) break;
-
-		/* check rover->next (block after the largest free gap). */
-		adj = rover->next;
-		if (adj != &mnemo_head &&
-		    (adj->flags & MNEMO_FLAG_USED) &&
-		    (adj->flags & MNEMO_FLAG_CACHE))
-		{
-			if (Mnemo_TryCacheMoveBlock(adj))
-			{ this_pass = 1; moved = 1; }
-		}
-
-		/* Re-read rover: MnemoFree/alloc may have changed it. */
-		rover = mnemo_rover_cache;
-		if (!rover) break;
-
-		/* check rover->prev (block before the largest free gap). */
-		adj = rover->prev;
-		if (adj != &mnemo_head &&
-		    (adj->flags & MNEMO_FLAG_USED) &&
-		    (adj->flags & MNEMO_FLAG_CACHE))
-		{
-			if (Mnemo_TryCacheMoveBlock(adj))
-			{ this_pass = 1; moved = 1; }
-		}
-	} while (this_pass);
-
-	return moved;
-}
-
-/*
- * MnemoCacheMoveSweep
- *
- * Walks the entire arena circular list. For each FREE block,
- * examines both neighboring (prev/next in arena order) blocks: if either is a
- * CACHE block it tries to move it, restarting the walk from the beginning on
- * each successful move. Stops when a full pass yields no moves.
- * Returns 1 if at least one block was moved, 0 otherwise.
- */
-int MnemoCacheMoveSweep( void )
-{
-	mnemo_header_t* hdr;
-	mnemo_header_t* adj;
-	int moved = 0;
-
-	hdr = mnemo_head.next;
-	while (hdr != &mnemo_head)
+	if ((neighbor->flags & MNEMO_FLAG_CACHE) == 0)
 	{
-		mnemo_header_t* next = hdr->next;  /* save before possible coalesce */
-
-		/* only examine blocks that are FREE (flags == 0). */
-		if ((hdr->flags & MNEMO_FLAG_USED) == 0)
-		{
-			/* Check block immediately after this free gap in the arena. */
-			adj = hdr->next;
-			if (adj != &mnemo_head &&
-			    (adj->flags & MNEMO_FLAG_USED) &&
-			    (adj->flags & MNEMO_FLAG_CACHE))
-			{
-				if (Mnemo_TryCacheMoveBlock(adj))
-				{
-					moved = 1;
-					/* restarts from mnemo_head.next on each move. */
-					hdr = mnemo_head.next;
-					continue;
-				}
-			}
-
-			/* Check block immediately before this free gap in the arena. */
-			adj = hdr->prev;
-			if (adj != &mnemo_head &&
-			    (adj->flags & MNEMO_FLAG_USED) &&
-			    (adj->flags & MNEMO_FLAG_CACHE))
-			{
-				if (Mnemo_TryCacheMoveBlock(adj))
-				{
-					moved = 1;
-					hdr = mnemo_head.next;
-					continue;
-				}
-			}
-		}
-
-		hdr = next;
+		Sys_Error("MnemoCacheMove called on non-cache block");
+		return 0;
 	}
 
-	return moved;
+	cs = (cache_system_t*)(neighbor + 1);
+
+	if (cs->flags & CACHE_LOCKED)
+		return 0;
+
+	return MnemoCacheMove(cs);
 }
 
 /*
- * MnemoAllocInternal
+ * MnemoCacheMoveScan
  *
- *
- * Phase 1: initial attempt.
- * Phase 2: texture-slot reclaim loop -> retry.
- * Phase 3: MnemoCacheMoveEnds (compact ends) -> retry.
- * Phase 4: MnemoCacheMoveSweep (full sweep) -> retry.
- * Phase 5: MnemoPurge(0) loop -> retry after each victim.
- * Phase 6: last-chance flag + purge callback(1) -> retry.
- * Phase 7: sacrifice dangling temp block ("Danger" warning) -> final retry.
+ * Try to juggle out the cache blocks bordering the largest free hole
+ * (rover_cache), repeating while progress is made.
  */
-static void* MnemoAllocInternal( int payload_size, int request_size, unsigned int flags, int allocClass, const char* tag, int allocMode )
+static int MnemoCacheMoveScan( void )
 {
-	void* p;
-	int purged;
-	mnemo_header_t* tempHdr;
+	mnemo_header_t* rover;
+	mnemo_header_t* neighbor;
+	int result;
+	int moved;
 
-	/* Phase 1: initial attempt. */
-	p = MnemoAllocFromFreeBlock(payload_size, request_size, flags, allocClass, tag, allocMode);
-	if (p)
-		return p;
+	result = 0;
+
+	do
+	{
+		rover = g_mnemo.rover_cache;
+		moved = 0;
+
+		if (rover == NULL)
+			return result;
+
+		neighbor = rover->next;
+		if (neighbor->flags & MNEMO_FLAG_CACHE)
+		{
+			if (Mnemo_TryCacheMoveBlock(neighbor))
+			{
+				moved = 1;
+				result = 1;
+			}
+		}
+
+		neighbor = rover->prev;
+		if (neighbor->flags & MNEMO_FLAG_CACHE)
+		{
+			if (Mnemo_TryCacheMoveBlock(neighbor))
+			{
+				moved = 1;
+				result = 1;
+			}
+		}
+	} while (moved);
+
+	return result;
+}
+
+/*
+ * MnemoCacheMoveList
+ *
+ * Walk the whole arena; for every free block, juggle out its cache neighbours,
+ * restarting the walk after each move. Consolidates free space.
+ */
+static int MnemoCacheMoveList( void )
+{
+	mnemo_header_t* cur;
+	mnemo_header_t* neighbor;
+	int result;
+
+	result = 0;
+
+restart:
+	cur = g_mnemo.head.next;
+
+	while (1)
+	{
+		if (cur->flags == 0)
+		{
+			neighbor = cur->next;
+			if (neighbor->flags & MNEMO_FLAG_CACHE)
+			{
+				if (Mnemo_TryCacheMoveBlock(neighbor))
+				{
+					result = 1;
+					goto restart;
+				}
+			}
+
+			neighbor = cur->prev;
+			if (neighbor->flags & MNEMO_FLAG_CACHE)
+			{
+				if (Mnemo_TryCacheMoveBlock(neighbor))
+				{
+					result = 1;
+					goto restart;
+				}
+			}
+		}
+
+		if (cur == &g_mnemo.head)
+			return result;
+
+		cur = cur->next;
+	}
+}
+
+/*
+ * MnemoAlloc_Internal
+ *
+ * Find a free block large enough for the request, escalating through the
+ * reclaim stages until one is available: texture eviction, cache end/list
+ * compaction, LRU cache freeing, a full shrink, and finally sacrificing a
+ * dangling temp block. Returns the free block header (uncarved) or NULL.
+ */
+static mnemo_header_t* MnemoAlloc_Internal( int payload_size, unsigned int flags, int allocClass )
+{
+	mnemo_header_t* block;
+	int freed;
+
+	block = Mnemo_PickFreeBlock(payload_size, flags, allocClass);
+	if (block)
+		return block;
 
 	if (flags & MNEMO_FLAG_NO_RECLAIM)
 		return NULL;
 
-	/* Phase 2: DC texture-slot reclaim  */
 	while (DC_ReclaimTextureSlot() != 0)
 		;
-	p = MnemoAllocFromFreeBlock(payload_size, request_size, flags, allocClass, tag, allocMode);
-	if (p)
-		return p;
+	block = Mnemo_PickFreeBlock(payload_size, flags, allocClass);
+	if (block)
+		return block;
 
-	/* Phase 3: compact cache ends  */
-	if (MnemoCacheMoveEnds())
+	if (MnemoCacheMoveScan())
 	{
-		p = MnemoAllocFromFreeBlock(payload_size, request_size, flags, allocClass, tag, allocMode);
-		if (p)
-			return p;
+		block = Mnemo_PickFreeBlock(payload_size, flags, allocClass);
+		if (block)
+			return block;
 	}
 
-	/* Phase 4: full cache sweep  */
-	if (MnemoCacheMoveSweep())
+	if (MnemoCacheMoveList())
 	{
-		p = MnemoAllocFromFreeBlock(payload_size, request_size, flags, allocClass, tag, allocMode);
-		if (p)
-			return p;
+		block = Mnemo_PickFreeBlock(payload_size, flags, allocClass);
+		if (block)
+			return block;
 	}
 
-	/* Phase 5: purge-one loop  */
 	do
 	{
-		purged = MnemoPurge(0);
-		p = MnemoAllocFromFreeBlock(payload_size, request_size, flags, allocClass, tag, allocMode);
-		if (p)
-			return p;
-	} while (purged != 0);
+		freed = Cache_FreeLRU(0);
+		block = Mnemo_PickFreeBlock(payload_size, flags, allocClass);
+		if (block)
+			return block;
+	} while (freed != 0);
 
-	/* Phase 6: last-chance pass. */
-	mnemo_last_chance_active = 1;
+	g_mnemo.last_chance = 1;
+	Bshrink_all();
 
-	if (mnemo_purge_callback)
-		mnemo_purge_callback(1);
+	block = Mnemo_PickFreeBlock(payload_size, flags, allocClass);
 
-	p = MnemoAllocFromFreeBlock(payload_size, request_size, flags, allocClass, tag, allocMode);
-	if (p)
-		return p;
+	if (!block && g_mnemo.last_temp)
+	{
+		mnemo_temp_danger = 1;
+		Mnemo_FreeInline((mnemo_header_t*)g_mnemo.last_temp + 1);
+		block = Mnemo_PickFreeBlock(payload_size, flags, allocClass);
+	}
 
-	/* Phase 7: temp block sacrifice. */
-	tempHdr = mnemo_last_temp;
-
-	if (!tempHdr)
-		return NULL;
-
-	mnemo_temp_danger = 1;
-	Con_DPrintf("Mnemo: Danger, discarding temp block prematurely.\n");
-	mnemo_last_temp = NULL;
-	Mnemo_FreeArenaBlock(tempHdr);
-
-	return MnemoAllocFromFreeBlock(payload_size, request_size, flags, allocClass, tag, allocMode);
+	return block;
 }
 
 
@@ -2050,9 +2076,9 @@ void Cache_Compact( void )
 	void* payload;
 	int moved_count = 0;
 
-	stop = cs_mru_head;
+	stop = g_mnemo.cache_mru;
 
-	cs = cs_lru_tail;
+	cs = g_mnemo.cache_lru;
 	while (cs != NULL && moved_count < 0x32)
 	{
 		cache_system_t* next = cs->lru_next;
@@ -2091,12 +2117,12 @@ void Cache_Compact( void )
 
 			/* Free old block (param_2=1: internal move, no user pointer clear). */
 			Cache_UnlinkLRU(cs);
-			cs_live_bytes -= cs->size;
+			g_mnemo.cache_bytes -= cs->size;
 			MnemoFree(cs);
 
 			/* Insert new block at MRU head. */
-			Cache_MakeLRU(newcs);
-			cs_live_bytes += newcs->size;
+			Cache_MoveToMRU(newcs);
+			g_mnemo.cache_bytes += newcs->size;
 
 			moved_count++;
 		}
@@ -2107,42 +2133,120 @@ next_cs:
 	}
 }
 
+/* A cached sprite/model resource is tagged with one of these in its header. */
+#define CACHE_VQ_HDRSIZE  244
+#define CACHE_VQ_MAGIC1   0xc0edbabe
+#define CACHE_VQ_MAGIC2   0xc0edbeef
+
 /*
 ==============
-Cache_Free  (= binary MnemoCacheFree, normal path)
+Cache_Free
 
-Frees a cache entry: clears user->data, unlinks from LRU, frees mnemo block.
-
-TODO: path that moves sprite VQ data between VRAM and RAM (user->data LSB=1)
+Free a cache entry. Unless keep is set, first release the GPU textures the
+resource holds: model caches release directly, sprite/audio caches read the
+resource back out of AFile block memory to walk its texture table. Then clear
+user->data, unlink from the LRU list, and free the block.
 ==============
 */
-void Cache_Free( cache_user_t* c )
+void Cache_Free( cache_user_t* c, int keep )
 {
 	cache_system_t* cs;
-	void* payload;
+	byte* payload;
+	int isAudio;
+	afile_t* af;
+	byte* juggle;
+	studiohdr_t* phdr;
+	mstudiotexture_t* ptexture;
+	int count;
+	int base;
+	int align;
+	int total;
+	int i;
 
-	if (!c->data)
+	isAudio = (int)((unsigned int)c->data & 1);
+	payload = (byte*)((unsigned int)c->data & ~1u);
+	cs = (cache_system_t*)(payload - sizeof(cache_system_t));
+	c->data = payload;
+
+	if (payload == NULL)
 		Sys_Error("MnemoCacheFree: not allocated");
 
-	payload = Cache_UserPayload(c);
-	if (!payload)
-		Sys_Error("MnemoCacheFree: null payload");
-
-	cs = ((cache_system_t*)payload) - 1;
-
-	if (cs->flags & 1u)
+	if (cs->flags & CACHE_LOCKED)
 		Sys_Error("Tried to free locked cache block!");
 
-	cs_live_bytes -= cs->size;
+	if (keep == 0)
+	{
+		if (isAudio == 0)
+		{
+			Mod_FreeStudioTextures(payload);
+		}
+		else
+		{
+			/* The model was juggled out to AFile blocks; read the header back
+			   to find its texture table, and release those GPU textures. */
+			af = AFile_FindByName((char*)cs);
+
+			if (af != NULL)
+			{
+				AFile_GetSize(af);
+				juggle = (byte*)MnemoAlloc(CACHE_VQ_HDRSIZE, MNEMO_FLAG_MALLOC, 0, "juggling");
+
+				if (juggle != NULL)
+				{
+					AFile_Read(af, juggle, CACHE_VQ_HDRSIZE);
+					phdr = (studiohdr_t*)juggle;
+
+					if (phdr->version == CACHE_VQ_MAGIC1 ||
+					    phdr->version == CACHE_VQ_MAGIC2)
+					{
+						count = phdr->numtextures;
+						base = phdr->textureindex;
+						align = base & 3;
+						base = base - align;
+						total = align + count * (int)sizeof(mstudiotexture_t);
+
+						Mnemo_FreeInline(juggle);
+
+						juggle = (byte*)MnemoAlloc(total, MNEMO_FLAG_MALLOC, 0, "juggling");
+
+						if (juggle != NULL)
+						{
+							AFile_ReadOffset(af, juggle, base, total);
+
+							if (align != 0 && count > 0)
+							{
+								ptexture = (mstudiotexture_t*)(juggle + align);
+
+								for (i = 0; i < count; i++)
+									DC_ReleaseTexture(ptexture[i].index);
+							}
+						}
+					}
+
+					if (juggle != NULL)
+						Mnemo_FreeInline(juggle);
+				}
+			}
+		}
+	}
+
+	if (isAudio && (af = AFile_FindByName((char*)cs)) != NULL)
+		AFile_Free(af);
+
+	g_mnemo.cache_bytes -= cs->size;
 	*cs->user = NULL;
 
-	Cache_UnlinkLRU(cs);
-	MnemoFree(cs);
+	if (g_mnemo.cache_mru == cs) g_mnemo.cache_mru = cs->lru_prev;
+	if (g_mnemo.cache_lru == cs) g_mnemo.cache_lru = cs->lru_next;
+	if (cs->lru_next) cs->lru_next->lru_prev = cs->lru_prev;
+	if (cs->lru_prev) cs->lru_prev->lru_next = cs->lru_next;
+
+	Mnemo_FreeInline(cs);
 }
 
 int Cache_TotalUsed( void )
 {
-	return cs_live_bytes;
+	return g_mnemo.cache_bytes;
 }
 
 /*
@@ -2153,33 +2257,87 @@ Cache_Check
 - If user->data valid: bring to MRU head, update frame stamp, return payload.
 ==============
 */
-void* Cache_Check( cache_user_t* c )
+unsigned int Mnemo_CacheCheck( cache_user_t* c )
 {
+	unsigned int data;
 	cache_system_t* cs;
-	unsigned int raw;
-	void* payload;
+	cache_system_t* newcs;
+	afile_t* af;
+	int size;
+	int needed;
 
-	if (!c->data)
-		return NULL;
+	data = (unsigned int)c->data;
 
-	raw = (unsigned int)c->data;
-	if (raw & 1u)
+	/* Block was juggled out to AFile memory to make room; bring it back. */
+	if (data & 1u)
 	{
-		c->data = NULL;
-		return NULL;
+		c->data = (void*)(data & ~1u);
+		cs = (cache_system_t*)((data & ~1u) - sizeof(cache_system_t));
+		af = AFile_FindByName(cs->name);
+
+		if (af == NULL)
+		{
+			c->data = NULL;
+		}
+		else
+		{
+			size = AFile_GetSize(af);
+			needed = size + sizeof(cache_system_t);
+
+			while (1)
+			{
+				if (needed == sizeof(cache_system_t))
+					newcs = (cache_system_t*)MnemoAlloc(sizeof(cache_system_t), MNEMO_FLAG_MALLOC, 0, cs->name);
+				else
+					newcs = (cache_system_t*)MnemoAlloc(needed, MNEMO_FLAG_CACHE, 0, cs->name);
+
+				if (newcs != NULL)
+					break;
+
+				if (Cache_FreeLRU(0) == 0)
+				{
+					Mnemo_Summary_f();
+					Sys_ErrorColor(RGB565_RED, "Out of cache memory.\n");
+					return 0;
+				}
+			}
+
+			memcpy(newcs, cs, sizeof(cache_system_t));
+			AFile_Read(af, (byte*)newcs + sizeof(cache_system_t), size);
+			AFile_Free(af);
+
+			newcs->size = needed;
+			g_mnemo.cache_bytes += needed;
+			newcs->lru_next = NULL;
+			newcs->lru_prev = NULL;
+			g_mnemo.cache_epoch_bytes += newcs->size;
+
+			Cache_MakeLRU(newcs, cs->name);
+			Cache_Free(c, 1);
+			c->data = (void*)((byte*)newcs + sizeof(cache_system_t));
+		}
+
+		data = (unsigned int)c->data;
 	}
 
-	payload = (void*)(raw);
-	cs = ((cache_system_t*)payload) - 1;
+	if (data == 0)
+		return 0;
 
-	/* Move to MRU head and refresh frame stamp. */
+	/* Move the entry to the MRU end of the LRU list and refresh its stamps. */
+	cs = (cache_system_t*)(data - sizeof(cache_system_t));
+
 	Cache_UnlinkLRU(cs);
-	Cache_MakeLRU(cs);
+	Cache_MoveToMRU(cs);
 
-	cs->timestamp = (unsigned int)gHostSpawnCount; /* DAT_0019af88 = server spawn count */
-	cs->frame     = (unsigned int)host_framecount;
+	cs->timestamp = gHostSpawnCount;
+	cs->frame = host_framecount;
 
-	return payload;
+	return data;
+}
+
+void* Cache_Check( cache_user_t* c )
+{
+	return (void*)Mnemo_CacheCheck(c);
 }
 
 /*
@@ -2194,60 +2352,50 @@ Returns payload pointer, or NULL (after calling Sys_Error) if OOM.
 void* Cache_Alloc( cache_user_t* c, int size, char* name )
 {
 	cache_system_t* cs;
-	unsigned int flags;
 	int total;
-	int purged;
-	int nameLen;
-	int nameOfs;
 
-	if (c->data)
+	if (host_initialized != 1 && developer.value > 20.0f && c->data != NULL)
 		Sys_Error("Cache_Alloc: already allocated");
 
-	if (size <= 0)
+	if (size < 1)
 		Sys_Error("Cache_Alloc: size %i", size);
 
 	total = size + (int)sizeof(cache_system_t);
-	flags = (total == (int)sizeof(cache_system_t)) ? MNEMO_FLAG_MALLOC : MNEMO_FLAG_CACHE;
 
-	for (;;)
+	while (1)
 	{
-		cs = (cache_system_t*)MnemoAlloc(total, flags, 0, name);
-		if (cs)
+		if (total == (int)sizeof(cache_system_t))
+			cs = (cache_system_t*)MnemoAlloc(total, MNEMO_FLAG_MALLOC, 0, name);
+		else
+			cs = (cache_system_t*)MnemoAlloc(total, MNEMO_FLAG_CACHE, 0, name);
+
+		if (cs == NULL && Cache_FreeLRU(0) == 0)
 			break;
-		purged = MnemoPurge(0);
-		if (purged == 0)	
+
+		if (cs != NULL)
 		{
-			Sys_Error("Out of cache memory.\n");
-			return NULL;
+			g_mnemo.cache_bytes += total;
+			cs->size = total;
+			cs->user = (void**)c;
+			c->data = (byte*)cs + sizeof(cache_system_t);
+			cs->lru_next = NULL;
+			cs->lru_prev = NULL;
+			g_mnemo.cache_epoch_bytes += total;
+
+			if (g_mnemo.cache_epoch_frame != (unsigned int)host_framecount)
+			{
+				g_mnemo.cache_epoch_frame = (unsigned int)host_framecount;
+				g_mnemo.cache_epoch_bytes = 0;
+			}
+
+			Cache_MakeLRU(cs, name);
+			return (void*)Mnemo_CacheCheck(c);
 		}
 	}
 
-	nameLen = Q_strlen(name);
-	nameOfs = nameLen > 15 ? nameLen - 15 : 0;
-	Q_strncpy(cs->name, name + nameOfs, 15);
-	cs->name[15] = '\0';
-	cs->timestamp = (unsigned int)gHostSpawnCount;
-	cs->frame     = (unsigned int)host_framecount;
-	cs->flags     = 0;
-	cs->size      = total;
-	cs->user      = (void**)c;
-
-	cs->lru_prev = cs->lru_next = NULL;
-
-	cs_live_bytes += total;
-	cs_epoch_bytes += total;
-
-	if (cs_epoch_frame != (unsigned int)host_framecount)
-	{
-		cs_epoch_frame = (unsigned int)host_framecount;
-		cs_epoch_bytes = 0;
-	}
-
-	/* Set user->data = payload, then bring to MRU head. */
-	c->data = (byte*)cs + sizeof(cache_system_t);
-	Cache_MakeLRU(cs);
-
-	return Cache_Check(c);
+	Mnemo_Summary_f();
+	Sys_ErrorColor(RGB565_RED, "Out of cache memory!");
+	return NULL;
 }
 
 //============================================================================
@@ -2264,20 +2412,6 @@ void Memory_Init( void* buf, int size )
 	int zonesize = DYNAMIC_SIZE;
 	void* zonebuf;
 
-	hunk_base = (byte*)buf;
-	hunk_size = size;
-	hunk_low_used = 0;
-	hunk_high_used = 0;
-
-	memset(&mnemo_stats, 0, sizeof(mnemo_stats));
-	memset(&mnemo_head, 0, sizeof(mnemo_head));
-	mnemo_sequence = 0;
-	mnemo_last_chance_active = 0;
-	mnemo_temp_danger = 0;
-	mnemo_zone_sloppy_ptr = NULL;
-	mnemo_zone_sloppy_left = 0;
-	hunk_alloc_class = 2;
-	mnemo_head.next = mnemo_head.prev = &mnemo_head;
 	Mnemo_InitArena(buf, size);
 
 	p = COM_CheckParm("-zone");
@@ -2289,38 +2423,19 @@ void Memory_Init( void* buf, int size )
 			Sys_Error("Memory_Init: you must specify a size in KB after -zone");
 	}
 
-	Cmd_AddCommand("report", Mnemo_ReportToFile);
-	Cmd_AddCommand("sizes", Mnemo_Sizes_f);
-	Cmd_AddCommand("summary", Mnemo_Summary_f);
-
-	if (zonesize < 1000)
-	{
-		int allocSize = (zonesize + 3) & ~3;
-		if (mnemo_zone_sloppy_left < allocSize || !mnemo_zone_sloppy_ptr)
-		{
-			int chunk = 0x1000;
-			if (chunk < allocSize)
-				chunk = allocSize;
-			mnemo_zone_sloppy_ptr = MnemoAlloc(chunk, MNEMO_FLAG_HUNK, hunk_alloc_class, "sloppy");
-			mnemo_zone_sloppy_left = chunk;
-		}
-		if (!mnemo_zone_sloppy_ptr)
-			Sys_Error("Memory_Init: failed to allocate sloppy zone buffer");
-
-		zonebuf = mnemo_zone_sloppy_ptr;
-		mnemo_zone_sloppy_ptr = (byte*)mnemo_zone_sloppy_ptr + allocSize;
-		mnemo_zone_sloppy_left -= allocSize;
-	}
+	if (zonesize < MNEMO_SLOPPY_MAX)
+		zonebuf = Mnemo_SloppyAlloc(zonesize);
 	else
-	{
 		zonebuf = MnemoAlloc(zonesize, MNEMO_FLAG_HUNK, hunk_alloc_class, "zone");
-	}
 
 	mainzone = (memzone_t*)zonebuf;
 	Z_ClearZone(mainzone, zonesize);
 
+	Cmd_AddCommand("report", Mnemo_ReportToFile);
+	Cmd_AddCommand("sizes", Mnemo_Sizes_f);
+	Cmd_AddCommand("summary", Mnemo_Summary_f);
+
 	Cvar_RegisterVariable(&mnemo_cache);
-	Cvar_RegisterVariable(&mnemo_report_file);
 }
 
 void Cache_Print_Models_And_Totals( void )
@@ -2340,7 +2455,7 @@ void Cache_Print_Models_And_Totals( void )
 
 	memset(sortarray, 0, sizeof(sortarray));
 
-	for (cd = cs_lru_tail; cd != NULL; cd = cd->lru_next)
+	for (cd = g_mnemo.cache_lru; cd != NULL; cd = cd->lru_next)
 	{
 		if (strstr(cd->name, ".mdl") && i < 512)
 			sortarray[i++] = cd;
@@ -2399,7 +2514,7 @@ void Cache_Print_Sounds_And_Totals( void )
 
 	memset(sortarray, 0, sizeof(sortarray));
 
-	for (cd = cs_lru_tail; cd != NULL; cd = cd->lru_next)
+	for (cd = g_mnemo.cache_lru; cd != NULL; cd = cd->lru_next)
 	{
 		if (strstr(cd->name, ".wav") && i < MAX_SFX)
 			sortarray[i++] = cd;

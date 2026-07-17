@@ -1456,7 +1456,7 @@ void CL_RemoveCustomization( int nPlayerNum, customization_t* pRemove )
 						cachepic_t* pic = &pWad->cache[i];
 #endif
 						if (Cache_Check(&pic->cache))
-							Cache_Free(&pic->cache);
+							Cache_Free(&pic->cache, 0);
 					}
 
 					free(pWad->cache);

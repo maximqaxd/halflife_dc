@@ -3782,7 +3782,7 @@ void COM_ClearCustomizationList( customization_t* pHead, qboolean bCleanDecals )
 						pic = &pWad->cache[i];
 
 						if (Cache_Check(&pic->cache))
-							Cache_Free(&pic->cache);
+							Cache_Free(&pic->cache, 0);
 					}
 
 					free(pWad->cache);
