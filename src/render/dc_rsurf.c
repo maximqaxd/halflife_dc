@@ -1300,13 +1300,22 @@ void R_RecursiveWorldNode( mnode_t* node )
 	msurface_t* surf, ** mark;
 	mleaf_t* pleaf;
 	double		dot;
+	vec3_t		mins, maxs;
 
 	if (node->contents == CONTENTS_SOLID)
 		return;		// solid
 
 	if (node->visframe != r_visframecount)
 		return;
-	if (R_CullBox(node->minmaxs, node->minmaxs + 3))
+
+	// the node bounding box is stored as shorts; widen it for the cull test
+	mins[0] = node->minmaxs[0];
+	mins[1] = node->minmaxs[1];
+	mins[2] = node->minmaxs[2];
+	maxs[0] = node->minmaxs[3];
+	maxs[1] = node->minmaxs[4];
+	maxs[2] = node->minmaxs[5];
+	if (R_CullBox(mins, maxs))
 		return;
 
 	// if a leaf node, draw stuff
