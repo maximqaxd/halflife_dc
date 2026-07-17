@@ -39,15 +39,12 @@ byte* Mod_DecompressVis( byte* in, model_t* model )
 	static byte decompressed[MAX_MAP_LEAFS / 8];
 	int		row;
 
-	row = (model->numleafs + 7) / 8;
+	row = (model->numleafs + 7) >> 3;
 
 	if (!in)
-	{
 		return mod_novis;
-	}
 
 	CM_DecompressPVS(in, decompressed, row);
-
 	return decompressed;
 }
 
@@ -69,6 +66,7 @@ void CM_DecompressPVS( byte* in, byte* decompressed, int byteCount )
 {
 	int		c;
 	byte*	out;
+	byte*	end;
 
 	if (!in)
 	{
@@ -78,22 +76,24 @@ void CM_DecompressPVS( byte* in, byte* decompressed, int byteCount )
 	}
 
 	out = decompressed;
-	while (out < decompressed + byteCount)
+	end = decompressed + byteCount;
+	do
 	{
 		if (*in)
 		{
 			*out++ = *in++;
-			continue;
 		}
-
-		c = in[1];
-		in += 2;
-		if (c)
+		else
 		{
-			memset(out, 0, c);
-			out += c;
+			c = in[1];
+			in += 2;
+			while (c)
+			{
+				*out++ = 0;
+				c--;
+			}
 		}
-	}
+	} while (out < end);
 }
 
 
@@ -117,14 +117,14 @@ byte* CM_LeafPAS( int leafnum )
 
 void CM_FreePAS( void )
 {
-	if (gPAS)
-		free(gPAS);
-
 	if (gPVS)
 		free(gPVS);
 
-	gPAS = NULL;
+	if (gPAS)
+		free(gPAS);
+
 	gPVS = NULL;
+	gPAS = NULL;
 }
 
 /*
@@ -146,15 +146,13 @@ void CM_CalcPAS( model_t* pModel )
 	byte* scan;
 	int		count, vcount, acount;
 
-	Con_DPrintf("Building PAS...\n");
-
 	CM_FreePAS();
 
 	// Calculate memory: matrix of each to each leaf visibility
-	num = (pModel->numleafs + 7) / 8;
-	count = pModel->numleafs;
+	num = (pModel->numleafs + 7) >> 3;
+	count = pModel->numleafs + 1;
 	actualRowBytes = (num + 3) & 0xFFFFFFFC;	// 4-byte align
-	rowwords = actualRowBytes / 4;
+	rowwords = actualRowBytes >> 2;
 	gPVSRowBytes = actualRowBytes;
 
 	// Alloc PVS
@@ -222,8 +220,6 @@ void CM_CalcPAS( model_t* pModel )
 				acount++;
 		}
 	}
-
-	Con_DPrintf("Average leaves visible / audible / total: %i / %i / %i\n", vcount / count, acount / count, count);
 }
 
 /*
@@ -239,7 +235,10 @@ qboolean CM_HeadnodeVisible( mnode_t* node, byte* visbits )
 	int leafnum;
 	mleaf_t* leaf;
 
-	if (!node || node->contents == CONTENTS_SOLID)
+	if (!node)
+		return FALSE;
+
+	if (node->contents == CONTENTS_SOLID)
 		return FALSE;
 
 	// add an efrag if the node is a leaf
@@ -248,17 +247,13 @@ qboolean CM_HeadnodeVisible( mnode_t* node, byte* visbits )
 		leaf = (mleaf_t*)node;
 		leafnum = (leaf - sv.worldmodel->leafs) - 1;
 
-		if ((visbits[leafnum >> 3] & (1 << (leafnum & 7))) == 0)
-			return FALSE;
-
-		return TRUE;
+		if (visbits[leafnum >> 3] & (1 << (leafnum & 7)))
+			return TRUE;
+		return FALSE;
 	}
 
 	if (CM_HeadnodeVisible(node->children[0], visbits))
 		return TRUE;
 
-	if (CM_HeadnodeVisible(node->children[1], visbits))
-		return TRUE;
-
-	return FALSE;
+	return CM_HeadnodeVisible(node->children[1], visbits);
 }
