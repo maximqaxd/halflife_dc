@@ -197,43 +197,39 @@ struct msurface_s
 	color24*	samples;			//[numstyles*surfsize]
 };
 
+// The Dreamcast packs the world nodes/leafs tightly: contents and visframe are
+// bytes, the bounding box is short, and the leaf/node discriminant fields share
+// the low 4 bytes. The common header (contents, visframe, minmaxs, parent) sits
+// at the same offsets in both so a leaf can be walked as a node.
 typedef struct mnode_s
 {
-// common with leaf
-	int			contents;		// 0, to differentiate from leafs
-	int			visframe;		// node needs to be traversed if current
-
-	float		minmaxs[6];		// for bounding box culling
-
-
-	struct mnode_s*	parent;
-
 // node specific
-	mplane_t*	plane;
-	struct mnode_s*	children[2];
-
-	unsigned short		firstsurface;
-	unsigned short		numsurfaces;
+	unsigned short	firstsurface;	// 0x00
+	unsigned short	numsurfaces;	// 0x02
+// common with leaf
+	signed char	contents;		// 0x04  0, to differentiate from leafs
+	signed char	visframe;		// 0x05  node needs to be traversed if current
+	short		minmaxs[6];		// 0x06  for bounding box culling
+	struct mnode_s*	parent;		// 0x14
+// node specific
+	mplane_t*	plane;			// 0x18
+	struct mnode_s*	children[2];	// 0x1c, 0x20
 } mnode_t;
 
 typedef struct mleaf_s
 {
-// common with node
-	int			contents;		// will be a negative contents number
-	int			visframe;		// node needs to be traversed if current
-
-	float		minmaxs[6];		// for bounding box culling
-
-	struct mnode_s*	parent;
-
 // leaf specific
-	byte*		compressed_vis;
-	struct efrag_s*	efrags;
-
-	msurface_t** firstmarksurface;
-	int			nummarksurfaces;
-	int			key;			// BSP sequence number for leaf's contents
-	byte		ambient_sound_level[NUM_AMBIENTS];
+	byte		ambient_sound_level[NUM_AMBIENTS];	// 0x00
+// common with node
+	signed char	contents;		// 0x04  will be a negative contents number
+	signed char	visframe;		// 0x05  node needs to be traversed if current
+	short		minmaxs[6];		// 0x06  for bounding box culling
+	struct mnode_s*	parent;		// 0x14
+// leaf specific
+	byte*		compressed_vis;	// 0x18
+	struct efrag_s*	efrags;		// 0x1c
+	msurface_t** firstmarksurface;	// 0x20
+	unsigned short	nummarksurfaces;	// 0x24
 } mleaf_t;
 
 // !!! if this is changed, it must be changed in asm_i386.h too !!!
@@ -402,7 +398,7 @@ typedef struct cache_user_s
 
 typedef struct model_s
 {
-	char		name[MAX_QPATH];
+	char		name[48];		// DC uses a compact model-name buffer (needload@0x30)
 	qboolean	needload;		// bmodels and sprites don't cache normally
 
 	modtype_t	type;

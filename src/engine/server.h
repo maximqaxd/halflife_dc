@@ -67,10 +67,9 @@ typedef struct
 	qboolean	loadgame;			// handle connections specially
 
 	float		time;
-	float		oldtime;
 
-	int			lastcheck;
-	double		lastchecktime;
+	int			lastcheck;			// used by PF_checkclient
+	float		lastchecktime;
 
 	char		name[MAX_QPATH];			// map name
 	char		startspot[MAX_QPATH];
