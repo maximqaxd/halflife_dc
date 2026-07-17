@@ -23,7 +23,12 @@ int _strnicmp( const char *s1, const char *s2, unsigned int n );
 int _stricmp( const char *s1, const char *s2 );
 int _strcmpi( const char *s1, const char *s2 );
 
-void* calloc( unsigned int num, unsigned int size );
+// The Dreamcast heap allocators tag each block with its call site and route
+// through the Mnemo arena. free() is already declared by <stdlib.h>; only the
+// tagging calloc needs a wrapper macro so each call site passes its location.
+void* calloc( unsigned int num, unsigned int size, const char* file, int line );
+#define calloc( n, s )	calloc( (n), (s), __FILE__, __LINE__ )
+
 void* bsearch( const void* key, const void* base, unsigned int num, unsigned int width,
                int (__cdecl *compare)(const void*, const void*) );
 

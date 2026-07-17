@@ -94,24 +94,17 @@ int rename( const char* oldname, const char* newname )
 	return -1;
 }
 
-void* calloc( unsigned int num, unsigned int size )
+
+// The C heap free() overrides coredll's and routes through the arena allocator.
+// (The exe link uses /FORCE:MULTIPLE so this wins over coredll's free; per-module
+// symbol resolution means other DLLs keep their own free.)
+extern void MnemoFree( void* ptr );
+void free( void* ptr )
 {
-	const unsigned int total = num * size;
-	if ( !total )
-		return 0;
-
-	// Rely on existing malloc; zero the block ourselves.
-	extern void* malloc( unsigned int );
-
-	void* p = malloc( total );
-	if ( p )
-	{
-		memset( p, 0, total );
-	}
-	return p;
+	MnemoFree( ptr );
 }
 
-// Case-insensitive 
+// Case-insensitive
 int _strcmpi( const char* s1, const char* s2 )
 {
 	return _stricmp( s1, s2 );

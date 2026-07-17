@@ -1215,6 +1215,37 @@ void* MnemoAllocDbg( int size, const char* srcFile, int srcLine )
 	return MnemoAlloc(size, MNEMO_FLAG_MALLOC, 0, tag);
 }
 
+/*
+===================
+calloc
+
+The C heap is tagged with its call site and backed by the arena. Every calloc
+call site expands (via the dreamcast_crt.h macro) to pass __FILE__/__LINE__.
+(free lives with the other CRT shims in dreamcast_crt.cpp.)
+===================
+*/
+#undef calloc
+void* calloc( unsigned int num, unsigned int size, const char* file, int line )
+{
+	static char tag[MAX_QPATH];
+	const char* base;
+	void* p;
+
+	base = strrchr(file, '\\');
+	if (!base)
+		base = strrchr(file, '/');
+	if (base)
+		file = base + 1;
+
+	sprintf(tag, "%d-%s", line, file);
+
+	p = MnemoAlloc(size * num, MNEMO_FLAG_MALLOC, 0, tag);
+	if (p)
+		memset(p, 0, size * num);
+
+	return p;
+}
+
 void* MnemoReallocDbg( void* oldPtr, int sizeBytes, const char* srcFile, int srcLine )
 {
 	char tag[MAX_OSPATH];
