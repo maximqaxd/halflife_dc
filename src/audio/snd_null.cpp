@@ -103,6 +103,19 @@ void S_Shutdown( void )
 
 }
 
+void S_GetDSPInfo( int* spu, int* freeSpu, int* afile, int* ce )
+{
+	*spu = 0;
+	*freeSpu = 0;
+	*afile = 0;
+	*ce = 0;
+}
+
+int SNDDMA_BufferDrained( int size )
+{
+	return 0;
+}
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
