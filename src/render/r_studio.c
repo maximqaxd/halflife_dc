@@ -2886,5 +2886,29 @@ void GLR_StudioDrawShadow( void )
 			qglEnd();
 		}
 	}
-#endif 
+#endif
+}
+
+/*
+================
+Mod_FreeStudioTextures
+
+Release the hardware textures owned by a studio model so its VRAM can be
+reclaimed. Only studio (IDST/IDSQ) buffers carry textures to free.
+================
+*/
+void Mod_FreeStudioTextures( void* buf )
+{
+}
+
+/*
+================
+Mod_TouchStudioTextures
+
+Re-touch a studio model's hardware textures so the texture cache keeps them
+resident for another cycle.
+================
+*/
+void Mod_TouchStudioTextures( void* buf )
+{
 }

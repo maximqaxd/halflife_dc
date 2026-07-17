@@ -132,6 +132,7 @@ extern int	Font_CharHeight( qfont_t* font );
 extern int	Font_DrawCharI( qfont_t* font, int x, int y, int num );
 void DC_FreeTextureSlot(dctexture_t *slot);
 int DC_ReclaimTextureSlot( void );
+int DC_ReleaseTexture( int texnum );
 int DC_FreeStaleTextureSlots( void );
 int GL_PaletteTag( byte* pPal );
 int GL_UnloadTextures( void );

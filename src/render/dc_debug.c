@@ -274,6 +274,10 @@ void DCV_MeterText( unsigned int color, int x, int y, const char* text )
 {
 }
 
+void DCV_ClearMeters( int flag )
+{
+}
+
 /*
  * Profiling/status meter overlay. The full meter renderer (r_studio_neo-era
  * profiling HUD) is not reconstructed yet; DCV_Flip fills g_FBMeters and calls
