@@ -1474,6 +1474,8 @@ typedef struct cache_system_s
 	struct cache_system_s* lru_next;
 } cache_system_t;
 
+#define CACHE_LOCKED  1  // block is locked against eviction
+
 static cache_system_t* cs_mru_head;
 static cache_system_t* cs_lru_tail;
 static int cs_live_bytes;
@@ -1538,47 +1540,47 @@ static qboolean Cache_UserLocked( cache_user_t* user )
 
 /*
 ============
-Cache_LockBlock / Cache_UnlockBlock
+Cache_Lock / Cache_Unlock
 
 Lock a cache entry against eviction (sets cs->flags bit 0).
 Returns 0 if block has been moved (must call Cache_Check first).
 ============
 */
-int Cache_LockBlock( cache_user_t* c )
+int Cache_Lock( cache_user_t* c )
 {
 	cache_system_t* cs;
-	unsigned int raw;
+	unsigned int data;
+	unsigned int payload;
 
-	if (!c || !c->data) 
+	data = (unsigned int)c->data;
+	payload = 0;
+	if ((data & 1) == 0)
+		payload = data;
+	if (payload == 0)
 		return 0;
-
-	raw = (unsigned int)c->data;
-
-	if (raw & 1u) 
-		return 0;             /* moved: must re-resolve first */
-
-	cs = ((cache_system_t*)(void*)raw) - 1;
-	cs->flags |= 1u;
-
+	if (data & 1)
+		data = 0;
+	cs = (cache_system_t*)data - 1;
+	cs->flags |= CACHE_LOCKED;
 	return 1;
 }
 
-int Cache_UnlockBlock( cache_user_t* c )
+int Cache_Unlock( cache_user_t* c )
 {
 	cache_system_t* cs;
-	unsigned int raw;
+	unsigned int data;
+	unsigned int payload;
 
-	if (!c || !c->data) 
+	data = (unsigned int)c->data;
+	payload = 0;
+	if ((data & 1) == 0)
+		payload = data;
+	if (payload == 0)
 		return 0;
-
-	raw = (unsigned int)c->data;
-
-	if (raw & 1u) 
-		return 0;
-		
-	cs = ((cache_system_t*)(void*)raw) - 1;
-	cs->flags &= ~1u;
-
+	if (data & 1)
+		data = 0;
+	cs = (cache_system_t*)data - 1;
+	cs->flags &= ~CACHE_LOCKED;
 	return 1;
 }
 
