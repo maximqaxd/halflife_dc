@@ -2310,7 +2310,6 @@ void PF_StaticDecal( const float* origin, int decalIndex, int entityIndex, int m
 {
 }
 
-#define MAX_GENERIC 512
 static char* sv_generic_precache[MAX_GENERIC];
 
 int PF_precache_generic_I( char* s )

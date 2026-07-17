@@ -15,7 +15,7 @@ or an empty string.
 */
 char* Info_ValueForKey( char* s, char* key )
 {
-	char			pkey[512];
+	char			pkey[MAX_INFO_STRING];
 	static char		value[4][128];	// use two buffers so compares work without stomping on each other
 	static int		valueindex;
 	char*			o;
@@ -63,8 +63,8 @@ Info_RemoveKey
 void Info_RemoveKey( char* s, char* key )
 {
 	char*	start;
-	char	pkey[512];
-	char	value[512];
+	char	pkey[MAX_INFO_STRING];
+	char	value[MAX_INFO_STRING];
 	char*	o;
 
 	if (strstr(key, "\\"))
@@ -116,8 +116,8 @@ Info_RemovePrefixedKeys
 void Info_RemovePrefixedKeys( char* start, char prefix )
 {
 	char*	s;
-	char	pkey[512];
-	char	value[512];
+	char	pkey[MAX_INFO_STRING];
+	char	value[MAX_INFO_STRING];
 	char*	o;
 
 	s = start;
@@ -166,11 +166,11 @@ Returns the largest key in the info string that is not important
 */
 char* Info_FindLargestKey( char* s, int maxsize )
 {
-	char			key[512];
-	char			value[512];
+	char			key[MAX_INFO_STRING];
+	char			value[MAX_INFO_STRING];
 	char*			o;
 	int				l;
-	static char		largest_key[512];
+	static char		largest_key[MAX_INFO_STRING];
 	int				largest_size;
 
 	largest_key[0] = 0;
@@ -224,7 +224,7 @@ Info_SetValueForStarKey
 */
 void Info_SetValueForStarKey( char* s, char* key, char* value, int maxsize )
 {
-	char	newv[512], *v;
+	char	newv[MAX_INFO_STRING], *v;
 	int		c;
 
 	if (strstr(key, "\\") || strstr(value, "\\"))
@@ -328,8 +328,8 @@ Info_Print
 */
 void Info_Print( char* s )
 {
-	char	key[512];
-	char	value[512];
+	char	key[MAX_INFO_STRING];
+	char	value[MAX_INFO_STRING];
 	char*	o;
 	int		l;
 

@@ -2894,7 +2894,7 @@ byte* COM_LoadFile( char* path, int usehunk, int* pLength )
 
 	if (!buf)
 	{
-		Sys_ErrorColor(0xf800, "COM_LoadFile: not enough space for %s", path);
+		Sys_ErrorColor(RGB565_RED, "COM_LoadFile: not enough space for %s", path);
 		COM_CloseFile(h[0], h[1], h[2]);
 		return NULL;
 	}

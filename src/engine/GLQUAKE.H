@@ -18,6 +18,11 @@
 extern "C" {
 #endif
 
+// RGB565 colors for the fatal-error screen background (Sys_ErrorColor).
+// Memory/allocation failures show red; missing or unreadable files show green.
+#define RGB565_RED		0xf800
+#define RGB565_GREEN	0x07e0
+
 typedef struct auxvert_s
 {
 	float fv[3];		// viewspace x, y

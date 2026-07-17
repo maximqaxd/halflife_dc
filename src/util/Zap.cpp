@@ -180,7 +180,7 @@ int Bopen( char *path, char *mode )
 			buf = (byte *)MnemoAlloc(e->size, MNEMO_FLAG_MALLOC, 0, Bmakename(e->path, 0));
 			if (buf == 0)
 			{
-				Sys_ErrorColor(0xf800, "Insufficient memory to decompress a compressed memory file. This is BAD.\n");
+				Sys_ErrorColor(RGB565_RED, "Insufficient memory to decompress a compressed memory file. This is BAD.\n");
 				return 0;
 			}
 			ZlibDecompress(e->data, buf);
