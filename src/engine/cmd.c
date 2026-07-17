@@ -128,6 +128,42 @@ void Cbuf_InsertText( char* text )
 
 /*
 ============
+Cbuf_InsertTextLines
+
+Insert a command at the front of the buffer, wrapped in newlines so it parses
+as its own line.
+============
+*/
+void Cbuf_InsertTextLines( char* text )
+{
+	char* temp;
+	int		templen;
+
+// copy off any commands still remaining in the exec buffer
+	templen = cmd_text.cursize;
+	if (templen)
+	{
+		temp = Z_Malloc(templen);
+		Q_memcpy(temp, cmd_text.data, templen);
+		SZ_Clear(&cmd_text);
+	}
+	else
+		temp = NULL;	// shut up compiler
+
+	Cbuf_AddText("\n");
+	Cbuf_AddText(text);
+	Cbuf_AddText("\n");
+
+// add the copied off data
+	if (templen)
+	{
+		SZ_Write(&cmd_text, temp, templen);
+		Z_Free(temp);
+	}
+}
+
+/*
+============
 Cbuf_Execute
 ============
 */
@@ -591,9 +627,6 @@ void	Cmd_AddHUDCommand( char* cmd_name, xcommand_t function )
 {
 	cmd_function_t* cmd;
 
-	if (host_initialized)	// because hunk allocation would get stomped
-		Sys_Error("Cmd_AddCommand after host_initialized");
-
 // fail if the command is a variable name
 	if (Cvar_VariableString(cmd_name)[0])
 	{
@@ -611,12 +644,45 @@ void	Cmd_AddHUDCommand( char* cmd_name, xcommand_t function )
 		}
 	}
 
-	cmd = Hunk_Alloc(sizeof(cmd_function_t));
+	cmd = MnemoAllocDbg(sizeof(cmd_function_t), __FILE__, __LINE__);
 	cmd->name = cmd_name;
 	cmd->function = function;
-	cmd->next = cmd_functions;
 	cmd->huddll = TRUE;
+	cmd->next = cmd_functions;
 	cmd_functions = cmd;
+}
+
+/*
+============
+Cmd_RemoveHudCmds
+
+Free every HUD (client DLL) command and keep the rest.
+============
+*/
+void	Cmd_RemoveHudCmds( void )
+{
+	cmd_function_t* cmd;
+	cmd_function_t* next;
+	cmd_function_t* kept;
+
+	kept = NULL;
+
+	for (cmd = cmd_functions; cmd; cmd = next)
+	{
+		next = cmd->next;
+
+		if (cmd->huddll)
+		{
+			Z_Free(cmd);
+		}
+		else
+		{
+			cmd->next = kept;
+			kept = cmd;
+		}
+	}
+
+	cmd_functions = kept;
 }
 
 /*
@@ -648,11 +714,14 @@ char* Cmd_CompleteCommand( char* partial )
 {
 	cmd_function_t* cmd;
 	int				len;
+	char*			match;
 
 	len = Q_strlen(partial);
 
 	if (!len)
 		return NULL;
+
+	match = NULL;
 
 // check functions
 	for (cmd = cmd_functions; cmd; cmd = cmd->next)
@@ -660,11 +729,14 @@ char* Cmd_CompleteCommand( char* partial )
 		if (!Q_strncmp(partial, cmd->name, len))
 		{
 			if (Q_strlen(cmd->name) == len)
-				return cmd->name;
+			{
+				match = cmd->name;
+				break;
+			}
 		}
 	}
 
-	return NULL;
+	return match;
 }
 
 /*
@@ -684,46 +756,62 @@ void	Cmd_ExecuteString( char* text, cmd_source_t src )
 	Cmd_TokenizeString(text);
 
 // execute the command line
-	if (!Cmd_Argc())
-		return;		// no tokens
-
-// check functions
-	for (cmd = cmd_functions; cmd; cmd = cmd->next)
+	if (Cmd_Argc())
 	{
-		if (!Q_strcasecmp(cmd_argv[0], cmd->name))
+	// check functions
+		for (cmd = cmd_functions; cmd; cmd = cmd->next)
 		{
-			cmd->function();
-
-			if (cls.demorecording && cmd->huddll)
-				CL_RecordHUDCommand(cmd->name);
-
-			return;
+			if (!Q_strcasecmp(cmd_argv[0], cmd->name))
+			{
+				cmd->function();
+				return;
+			}
 		}
-	}
 
-// check alias
-	for (a = cmd_alias; a; a = a->next)
-	{
-		if (!Q_strcasecmp(cmd_argv[0], a->name))
+	// check alias
+		for (a = cmd_alias; a; a = a->next)
 		{
-			Cbuf_InsertText(a->value);
-			return;
+			if (!Q_strcasecmp(cmd_argv[0], a->name))
+			{
+				Cbuf_InsertText(a->value);
+				return;
+			}
 		}
-	}
 
-// check cvars
-	if (Cvar_Command())
-	{
-		return;
-	}
+	// check cvars
+		if (!Cvar_Command())
+		{
+			// forward the command line to the server, so the entity DLL can parse it
+			if (cls.state == ca_active ||
+				cls.state == ca_connected ||
+				cls.state == ca_uninitialized)
+			{
+				if (cls.state != ca_connected &&
+					cls.state != ca_uninitialized &&
+					cls.state != ca_active)
+				{
+					if (Q_strcasecmp(Cmd_Argv(0), "setinfo") != 0)
+						Con_Printf("Can't \"%s\", not connected\n", Cmd_Argv(0));
+					return;
+				}
 
-	// forward the command line to the server, so the entity DLL can parse it
-	if (cls.state == ca_active ||
-		cls.state == ca_connected ||
-		cls.state == ca_uninitialized)
-	{
-		Cmd_ForwardToServer();
-		return;
+				if (cls.demoplayback)
+					return;		// not really connected
+
+				MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+
+				if (Q_strcasecmp(Cmd_Argv(0), "cmd") != 0)
+				{
+					SZ_Print(&cls.netchan.message, Cmd_Argv(0));
+					SZ_Print(&cls.netchan.message, " ");
+				}
+
+				if (Cmd_Argc() > 1)
+					SZ_Print(&cls.netchan.message, Cmd_Args());
+				else
+					SZ_Print(&cls.netchan.message, "\n");
+			}
+		}
 	}
 }
 
@@ -824,13 +912,13 @@ void Cmd_CmdList_f( void )
 			sprintf(szTemp, "c:\\%s", Cmd_Argv(2));
 
 			f = Sys_OpenHandle(szTemp, "wt");
-			if (!f)
+			if (f)
 			{
-				Con_Printf("Couldn't open [%s] for writing!\n", Cmd_Argv(2));
+				bLogging = TRUE;
 			}
 			else
 			{
-				bLogging = TRUE;
+				Con_Printf("Couldn't open [%s] for writing!\n", Cmd_Argv(2));
 			}
 
 			// Get next argument into partial, if present
