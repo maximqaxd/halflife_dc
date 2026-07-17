@@ -38,6 +38,9 @@ void Sys_MakeCodeWriteable( unsigned long startaddr, unsigned long length );
 void Sys_Error( char* error, ... );
 // an error will cause the entire program to exit
 
+void Sys_ErrorColor( int wColor, char* fmt, ... );
+// like Sys_Error, but paints the fatal screen in the given color
+
 void Sys_Printf( char* fmt, ... );
 // send text to the console
 

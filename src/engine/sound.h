@@ -196,6 +196,12 @@ DLL_EXPORT void SNDDMA_Shutdown( void );
 
 void SNDDMA_BeginPainting( void );
 
+// how many bytes of the DMA buffer have drained since the last mix
+int SNDDMA_BufferDrained( int size );
+
+// query SPU/audio memory usage for the memory profiling meters
+void S_GetDSPInfo( int* spu, int* freeSpu, int* afile, int* ce );
+
 #ifdef __cplusplus
 }
 #endif

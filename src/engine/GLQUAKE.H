@@ -381,6 +381,22 @@ int		DC_GetPaletteIndex( unsigned char* pPal );
 extern cvar_t	r_testlight;
 extern cvar_t	mipbias;
 
+//
+// dc_draw.c / r_studio.c -- texture VRAM management, used by the cache
+// last-chance reclaim path when the arena is full
+//
+int		DC_ReclaimTextureSlot( void );
+int		DC_ReleaseTexture( int texnum );
+void	Mod_FreeStudioTextures( void* buf );
+void	Mod_TouchStudioTextures( void* buf );
+
+//
+// dc_debug.c -- on-screen memory profiling meters
+//
+void	DCV_ClearMeters( int flag );
+void	DCV_MeterText( unsigned int color, int x, int y, const char* text );
+extern cvar_t	profilemeter;
+
 #ifdef __cplusplus
 }
 #endif
