@@ -22,6 +22,7 @@
 #define FCVAR_CLIENTDLL     16  // defined by the client dll
 #define FCVAR_PROTECTED     32  // It's a server cvar, but we don't send the data since it's a password, etc.  Sends 1 if it's not bland/zero, 0 otherwise as value
 #define FCVAR_SPONLY        64  // This cvar cannot be changed by clients connected to a multiplayer server.
+#define FCVAR_PRINTABLEONLY 128 // This cvar's string cannot contain unprintable characters (e.g. player name, etc).
 
 typedef struct cvar_s
 {

@@ -157,28 +157,58 @@ void Cvar_RegisterVariable( cvar_t* variable )
 	char* oldstr;
 
 // first check to see if it has allready been defined
-	if (Cvar_FindVar(variable->name))
+	if (!Cvar_FindVar(variable->name))
 	{
-		Con_Printf("Can't register variable %s, allready defined\n", variable->name);
-		return;
-	}
+	// check for overlap with a command
+		if (Cmd_Exists(variable->name))
+		{
+			Con_Printf("Cvar_RegisterVariable: %s is a command\n", variable->name);
+		}
+		else
+		{
+		// copy the value off, because future sets will Z_Free it
+			oldstr = variable->string;
+			variable->string = Z_Malloc(Q_strlen(oldstr) + 1);
+			Q_strcpy(variable->string, oldstr);
+			variable->value = Q_atof(variable->string);
 
-// check for overlap with a command
-	if (Cmd_Exists(variable->name))
+		// link the variable in
+			variable->next = cvar_vars;
+			cvar_vars = variable;
+		}
+	}
+}
+
+/*
+============
+Cvar_RemoveHudCvars
+
+Drops every cvar registered by the client DLL, freeing them and rebuilding
+the list from the ones that remain.
+============
+*/
+void Cvar_RemoveHudCvars( void )
+{
+	cvar_t*	var;
+	cvar_t*	newlist;
+	cvar_t*	next;
+
+	newlist = NULL;
+	for (var = cvar_vars; var; var = next)
 	{
-		Con_Printf("Cvar_RegisterVariable: %s is a command\n", variable->name);
-		return;
+		next = var->next;
+		if (var->flags & FCVAR_CLIENTDLL)
+		{
+			Z_Free(var->string);
+			Z_Free(var);
+		}
+		else
+		{
+			var->next = newlist;
+			newlist = var;
+		}
 	}
-
-// copy the value off, because future sets will Z_Free it
-	oldstr = variable->string;
-	variable->string = Z_Malloc(Q_strlen(oldstr) + 1);
-	Q_strcpy(variable->string, oldstr);
-	variable->value = Q_atof(variable->string);
-
-// link the variable in
-	variable->next = cvar_vars;
-	cvar_vars = variable;
+	cvar_vars = newlist;
 }
 
 /*
@@ -204,8 +234,20 @@ qboolean	Cvar_Command( void )
 		return TRUE;
 	}
 
-	Cvar_Set(v->name, Cmd_Argv(1));
-	return TRUE;
+// don't let clients change single-player-only cvars on a multiplayer server
+	if (!(v->flags & FCVAR_SPONLY)
+		|| cls.state == ca_dedicated
+		|| cls.state == ca_disconnected
+		|| cl.maxclients < 2)
+	{
+		Cvar_Set(v->name, Cmd_Argv(1));
+		return TRUE;
+	}
+	else
+	{
+		Con_Printf("Can't set %s in multiplayer\n", v->name);
+		return TRUE;
+	}
 }
 
 
@@ -254,6 +296,12 @@ void Cmd_CvarListPrintCvar( cvar_t* var, FILE* f )
 		strcat(szOutstr, ", sv");
 	}
 
+	// And userinfo setting
+	if (var->flags & FCVAR_USERINFO)
+	{
+		strcat(szOutstr, ", u");
+	}
+
 	// End the line
 	strcat(szOutstr, "\n");
 
@@ -261,7 +309,7 @@ void Cmd_CvarListPrintCvar( cvar_t* var, FILE* f )
 
 	if (f)
 	{
-		fprintf(f, "%s", szOutstr);
+		Sys_FPrintf(f, "%s", szOutstr);
 	}
 }
 
@@ -283,6 +331,8 @@ void Cmd_CvarList_f( void )
 
 	char szTemp[256];
 	FILE* f = NULL;         // FilePointer for logging
+	qboolean bArchive = FALSE;	// Only list archive cvars
+	qboolean bServer = FALSE;	// Only list server cvars
 	qboolean bLogging = FALSE;
 
 	iArgs = Cmd_Argc();		// Get count
@@ -317,6 +367,14 @@ void Cmd_CvarList_f( void )
 				ipLen = strlen(partial);
 			}
 		}
+		else if (!_stricmp(Cmd_Argv(1), "-a"))
+		{
+			bArchive = TRUE;
+		}
+		else if (!_stricmp(Cmd_Argv(1), "-s"))
+		{
+			bServer = TRUE;
+		}
 		else
 		{
 			partial = Cmd_Argv(1);
@@ -330,18 +388,19 @@ void Cmd_CvarList_f( void )
 	// Loop through cvars...
 	for (var = cvar_vars; var; var = var->next)
 	{
-		if (partial)  // Partial string searching?
+		if ((!bArchive || (var->flags & FCVAR_ARCHIVE))
+			&& (!bServer || (var->flags & FCVAR_SERVER)))
 		{
-			if (!_strnicmp(var->name, partial, ipLen))
+			if (partial == NULL)		// List all cvars
 			{
-				iCvars++;
 				Cmd_CvarListPrintCvar(var, f);
+				iCvars++;
 			}
-		}
-		else		  // List all cvars
-		{
-			iCvars++;
-			Cmd_CvarListPrintCvar(var, f);
+			else if (!_strnicmp(var->name, partial, ipLen))	// Partial match
+			{
+				Cmd_CvarListPrintCvar(var, f);
+				iCvars++;
+			}
 		}
 	}
 
