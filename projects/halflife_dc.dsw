@@ -15,6 +15,18 @@ Package=<4>
 
 ###############################################################################
 
+Project: "zlib"=.\zlib.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
 Project: "halflife"=.\halflife.dsp - Package Owner=<4>
 
 Package=<5>
@@ -40,6 +52,9 @@ Package=<4>
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name halflife
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name zlib
     End Project Dependency
 }}}
 

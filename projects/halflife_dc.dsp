@@ -45,7 +45,7 @@ CFG=halflife_dc - Win32 (WCE SH4) Debug
 # PROP Target_Dir ""
 CPP=shcl.exe
 # ADD BASE CPP /nologo /MC /W3 /Zi /Ox /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "NDEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /YX /Qsh4r7 /Qs /Qfast /Qgvp /c
-# ADD CPP /nologo /MC /W3 /Zi /O2 /Ob2 /Oa /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/network" /I "../src/audio" /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "NDEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D "GLQUAKE" /D "_CRTIMP=" /YX /Qsh4r7 /Qs /Qfast /Qgvp /c
+# ADD CPP /nologo /MC /W3 /Zi /O2 /Ob2 /Oa /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/util/zlib" /I "../src/network" /I "../src/audio" /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "NDEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D "GLQUAKE" /D "_CRTIMP=" /YX /Qsh4r7 /Qs /Qfast /Qgvp /c
 RSC=rc.exe
 # ADD BASE RSC /l 0x419 /r /d "SHx" /d "SH4" /d "_SH4_" /d UNDER_CE=$(CEVersion) /d _WIN32_WCE=$(CEVersion) /d "$(CEConfigName)" /d "UNICODE" /d "NDEBUG"
 # ADD RSC /l 0x419 /r /d "SHx" /d "SH4" /d "_SH4_" /d UNDER_CE=$(CEVersion) /d _WIN32_WCE=$(CEVersion) /d "$(CEConfigName)" /d "UNICODE" /d "NDEBUG"
@@ -57,7 +57,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 coredll.lib /nologo /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /subsystem:$(CESubsystem) /STACK:65536,4096
-# ADD LINK32 coredll.lib winsock.lib d3dim.lib ddraw.lib wdm.lib mapledev.lib dxguid.lib dinput.lib FloatMath.lib client.lib halflife.lib /force:multiple /nologo /map /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /libpath:"../obj/WCESH4Rel/" /subsystem:$(CESubsystem) /STACK:65536,4096
+# ADD LINK32 coredll.lib winsock.lib d3dim.lib ddraw.lib wdm.lib mapledev.lib dxguid.lib dinput.lib FloatMath.lib zlib.lib client.lib halflife.lib /force:multiple /nologo /map /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /libpath:"../obj/WCESH4Rel/" /subsystem:$(CESubsystem) /STACK:65536,4096
 # Begin Custom Build
 OutDir=.\../obj/WCESH4Rel
 InputPath=\Dev\Dreamcast\halflife_dc\obj\WCESH4Rel\halflife_dc.exe
@@ -83,7 +83,7 @@ SOURCE="$(InputPath)"
 # PROP Target_Dir ""
 CPP=shcl.exe
 # ADD BASE CPP /nologo /MC /W3 /Zi /Od /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "DEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /YX /Qsh4r7 /Qs /Qfast /c
-# ADD CPP /nologo /MC /W3 /Zi /Od /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/network" /I "../src/audio" /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "_DEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D "GLQUAKE" /D "_CRTIMP=" /YX /Qsh4r7 /Qs /Qfast /c
+# ADD CPP /nologo /MC /W3 /Zi /Od /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/util/zlib" /I "../src/network" /I "../src/audio" /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "_DEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D "GLQUAKE" /D "_CRTIMP=" /YX /Qsh4r7 /Qs /Qfast /c
 RSC=rc.exe
 # ADD BASE RSC /l 0x419 /r /d "SHx" /d "SH4" /d "_SH4_" /d UNDER_CE=$(CEVersion) /d _WIN32_WCE=$(CEVersion) /d "$(CEConfigName)" /d "UNICODE" /d "DEBUG"
 # ADD RSC /l 0x419 /r /d "SHx" /d "SH4" /d "_SH4_" /d UNDER_CE=$(CEVersion) /d _WIN32_WCE=$(CEVersion) /d "$(CEConfigName)" /d "UNICODE" /d "DEBUG"
@@ -95,7 +95,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 coredll.lib /nologo /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /subsystem:$(CESubsystem) /STACK:65536,4096
-# ADD LINK32 coredll.lib winsock.lib d3dim.lib ddraw.lib wdm.lib mapledev.lib dxguid.lib dinput.lib FloatMath.lib client.lib halflife.lib /force:multiple /nologo /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /libpath:"../obj/WCESH4Dbg/" /subsystem:$(CESubsystem) /STACK:65536,4096
+# ADD LINK32 coredll.lib winsock.lib d3dim.lib ddraw.lib wdm.lib mapledev.lib dxguid.lib dinput.lib FloatMath.lib zlib.lib client.lib halflife.lib /force:multiple /nologo /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /libpath:"../obj/WCESH4Dbg/" /subsystem:$(CESubsystem) /STACK:65536,4096
 # Begin Custom Build
 OutDir=.\../obj/WCESH4Dbg
 InputPath=\Dev\Dreamcast\halflife_dc\obj\WCESH4Dbg\halflife_dc.exe
@@ -118,8 +118,8 @@ SOURCE="$(InputPath)"
 # PROP Intermediate_Dir "../obj/Win32Rel"
 # PROP Ignore_Export_Lib 0
 CPP=cl.exe
-# ADD BASE CPP /nologo /W3 /GX /O2 /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/network" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "GLQUAKE" /YX /FD /c
-# ADD CPP /nologo /W3 /Gi /GX /O1 /Op /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/network" /I "../dx6sdk/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "GLQUAKE" /D "_DEBUG" /YX /FD /c
+# ADD BASE CPP /nologo /W3 /GX /O2 /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/util/zlib" /I "../src/network" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "GLQUAKE" /YX /FD /c
+# ADD CPP /nologo /W3 /Gi /GX /O1 /Op /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/util/zlib" /I "../src/network" /I "../dx6sdk/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "GLQUAKE" /D "_DEBUG" /YX /FD /c
 MTL=midl.exe
 RSC=rc.exe
 # ADD BASE RSC /l 0x419 /d "NDEBUG"
@@ -141,8 +141,8 @@ LINK32=link.exe
 # PROP Intermediate_Dir "../obj/Win32Dbg"
 # PROP Ignore_Export_Lib 0
 CPP=cl.exe
-# ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/network" /I "../dx6sdk/include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "GLQUAKE" /FR /YX /FD /GZ /c
-# ADD CPP /nologo /W3 /Gm /GX /ZI /Od /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/network" /I "../dx6sdk/include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "GLQUAKE" /FR /YX /FD /GZ /c
+# ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/util/zlib" /I "../src/network" /I "../dx6sdk/include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "GLQUAKE" /FR /YX /FD /GZ /c
+# ADD CPP /nologo /W3 /Gm /GX /ZI /Od /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/util/zlib" /I "../src/network" /I "../dx6sdk/include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "GLQUAKE" /FR /YX /FD /GZ /c
 MTL=midl.exe
 RSC=rc.exe
 # ADD BASE RSC /l 0x419 /d "_DEBUG"

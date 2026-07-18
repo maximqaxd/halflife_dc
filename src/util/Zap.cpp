@@ -5,22 +5,10 @@
 #include <string.h>
 #include "kzap.h"
 
-// Bfile handle / table entry. Game files are unpacked (and decompressed) from the
-// disc image into RAM Bfile buffers; writable ones (saves) compress back into RAM,
-// which is why Bwrite exists even though the disc itself is read-only.
-typedef struct bfile_s
-{
-	byte         *data;        // in-memory file data
-	int           capacity;    // allocated capacity
-	int           position;    // current read/write position
-	int           size;        // current file size
-	char          path[256];   // normalized path
-	char          mode[8];     // open mode string
-	int           used;        // slot in use
-	int           open;        // currently open
-	unsigned int  flags;       // bit 0 = compressed
-} bfile_t;
-
+// Bfile handle / table entry (bfile_t) is declared in kzap.h. Game files are
+// unpacked (and decompressed) from the disc image into RAM Bfile buffers; writable
+// ones (saves) compress back into RAM, which is why Bwrite exists even though the
+// disc itself is read-only.
 #define MAX_BFILES 128
 
 static bfile_t g_bfiles[MAX_BFILES];
