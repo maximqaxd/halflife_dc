@@ -3112,7 +3112,7 @@ void SV_SendResourceListBlock_f( void )
 	}
 
 	// handle the case of a level changing while a client was connecting
-	if (!cls.demoplayback && atoi(Cmd_Argv(1)) != svs.spawncount)
+	if (atoi(Cmd_Argv(1)) != svs.spawncount)
 	{
 		Con_Printf("SV_SendResourceListBlock_f from different level\n");
 		SV_New_f();
@@ -3453,6 +3453,17 @@ void SV_CreateBaseline( void )
 		MSG_WriteByte(&sv.signon, svent->v.rendercolor[2]);
 		MSG_WriteByte(&sv.signon, svent->v.renderfx);
 	}
+}
+
+/*
+=================
+Log_Printf
+
+Writes a line to the server log.
+=================
+*/
+void Log_Printf( char* fmt, ... )
+{
 }
 
 /*

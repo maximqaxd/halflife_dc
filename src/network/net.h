@@ -77,7 +77,14 @@ void SCR_UpdateNetUsage( int nBytes, int nListeners, qboolean bIsDatagram );
 
 #define	OLD_AVG		0.99		// total = oldtotal*OLD_AVG + new*(1-OLD_AVG)
 
-#define	MAX_LATENT	32
+#define	MAX_LATENT	32			// outgoing packet size/time history
+#define	MAX_FLOWS	64			// incoming packet latency samples
+
+typedef struct
+{
+	int			size;			// size of the sampled packet
+	float		time;			// time it was received
+} flowstat_t;
 
 typedef struct netchan_s
 {
@@ -105,8 +112,8 @@ typedef struct netchan_s
 	int			qport;
 
 // bandwidth estimator
-	double		cleartime;			// if realtime > nc->cleartime, free to go
-	double		rate;				// seconds / byte
+	float		cleartime;			// if realtime > nc->cleartime, free to go
+	float		rate;				// seconds / byte
 
 // sequencing variables
 	int			incoming_sequence;
@@ -128,8 +135,11 @@ typedef struct netchan_s
 
 // time and size data to calculate bandwidth
 	int			outgoing_size[MAX_LATENT];
-	double		outgoing_time[MAX_LATENT];
-} netchan_t;
+	float		outgoing_time[MAX_LATENT];
+
+// incoming packet latency history, averaged into frame_latency / frame_rate
+	flowstat_t	flow[MAX_FLOWS];
+} netchan_t;					// 9080 bytes
 
 extern	int	net_drop;		// packets dropped before this one
 extern	cvar_t	r_netgraph;

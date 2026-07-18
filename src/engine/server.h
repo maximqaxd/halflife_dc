@@ -320,6 +320,8 @@ void SV_StartSound( edict_t* entity, int channel, const char* sample, int volume
 void SV_Multicast( vec_t* origin, int to, qboolean reliable );
 void SV_ClientPrintf( char* fmt, ... );
 void SV_BroadcastPrintf( char* fmt, ... );
+void SV_BroadcastCommand( char* fmt, ... );
+void Log_Printf( char* fmt, ... );
 void SV_QueryMovevarsChanged( void );
 void SV_New_f( void );
 void SV_PTrack_f( void );

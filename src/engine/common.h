@@ -190,6 +190,7 @@ extern	char	com_gamedir[MAX_OSPATH];
 
 void COM_WriteFile( char* filename, void* data, int len );
 void COM_CreatePath( char* path );
+void COM_CopyFileChunk( FILE* dst, FILE* src, int nSize );
 int COM_OpenFile( char* filename, int* hndl );
 int COM_FOpenFile( char* filename, FILE** file );
 void COM_CloseFile( int filepos, int filelen, int handle );

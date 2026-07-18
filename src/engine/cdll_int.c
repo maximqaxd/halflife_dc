@@ -165,10 +165,9 @@ Called every frame while running a map
 void ClientDLL_UpdateClientData( void )
 {
 	client_data_t cdat;
-	client_data_t oldcdat;
 	int bits;
 
-	if (!cls.demoplayback && !cl.spectator)
+	if (!cl.spectator)
 	{
 		memset(&cdat, 0, sizeof(cdat));
 
@@ -185,11 +184,6 @@ void ClientDLL_UpdateClientData( void )
 		cdat.fov = scr_fov_value;
 		cdat.iWeaponBits = cl.weapons;
 
-		if (cls.demorecording)
-		{
-			memcpy(&oldcdat, &cdat, sizeof(oldcdat));
-		}
-
 		if (cl_funcs.pHudUpdateClientDataFunc(&cdat, cl.time))
 		{
 			cl.viewheight = cdat.viewheight;
@@ -205,9 +199,6 @@ void ClientDLL_UpdateClientData( void )
 
 			CL_ResetButtonBits(cdat.iKeyBits);
 		}
-
-		if (cls.demorecording)
-			CL_DemoUpdateClientData(&oldcdat);
 	}
 }
 

@@ -137,9 +137,6 @@ void CL_PredictMove( void )
 
 	VectorCopy(cl.viewangles, cl.simangles);
 
-	if (cls.demoplayback)
-		return;
-
 	// this is the last frame received from the server
 	from = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK];
 

@@ -116,15 +116,13 @@ typedef struct
 	netchan_t	netchan;
 
 // Connection to server.
-	double		connect_time;		// If gap of connect_time to realtime > 3000, then resend connect packet
+	float		connect_time;		// if gap of connect_time to realtime > 3000, then resend connect packet
 
-	int			connect_retry;      // After CL_CONNECTION_RETRIES, give up...
+	int			connect_retry;      // after CL_CONNECTION_RETRIES, give up...
 
 	int			challenge;			// from the server to use for connecting
 
 	qboolean	spectator;			// TRUE if connected as spectator
-
-	char		trueaddress[32];
 
 	float		slist_time;
 
@@ -132,51 +130,20 @@ typedef struct
 	int			signon;			// 0 to SIGNONS
 
 	char		servername[MAX_OSPATH];	// name of server from original connect
-	char		mapstring[MAX_QPATH];
 
-	char		spawnparms[MAX_MAPSTRING];
+	qboolean	changelevel;		// TRUE when moving to a new level on the same server
+
+	char		mapstring[48];			// name of the map being loaded
+	char		spawnparms[MAX_MAPSTRING];	// map arguments passed through to spawn
+
+	char		userinfo[196];		// local player setup (name/color/model/rate)
 
 // demo loop control
 	int			demonum;							// -1 = don't play demos
 	char		demos[MAX_DEMOS][MAX_DEMONAME];	// when not playing
 
-	// demo recording info must be here, because record is started before
-	// entering a map (and clearing client_state_t)
-	qboolean	demorecording;
-	qboolean	demoplayback;
-	qboolean	timedemo;
-
-	float		demostarttime;
-	int			demostartframe;
-
-	int			forcetrack;			// -1 = use normal cd track
-
-	FILE*		demofile;			// For recording demos.
-	FILE*		demoheader;			// For saving startup data to start playing a demo midstream.
-
-	// I.e., demo is waiting for first nondeltacompressed message to arrive.
-	//  We don't actually start to record until a non-delta message is received
-	qboolean	demowaiting;
-	qboolean	demoappending;
-
-	qboolean	demomaxdelayexceeded;	// Set when demo playback lags(> 0.1s behind)
+	byte		reserved1[28];
 	
-	// Name of demo file we are appending onto.
-	char		demofilename[MAX_OSPATH];
-
-	qboolean	demoupdateentities;	// TRUE if entities need to be updated while playing the demo
-
-	int			demoframecount;		// # of demo frames in the segment.
-
-	float		demototaltimediff;		// Accumulated time difference for demo sync correction
-	int			demonorewinds;			// Count of dem_norewind commands in current demo segment
-	int			demoskippedmessages;	// Messages deferred due to timing constraints
-	float		democurrenttimediff;	// Current delta between playback and demo time
-
-	int			td_lastframe;		// to meter out one message a frame
-	int			td_startframe;		// host_framecount at start
-	float		td_starttime;		// realtime at second frame of timedemo
-
 	FILE* download;						// file transfer from server
 	resource_t* downloadresource;		// the resource we're trying to retrieve from server
 	qboolean	doneregistering;
@@ -210,6 +177,8 @@ typedef struct
 	float		latency;		// rolling average
 
 	soundfade_t soundfade;			// Client sound fading object
+
+	char		trueaddress[32];	// resolved address of the server we connected to
 } client_static_t;
 
 extern client_static_t	cls;

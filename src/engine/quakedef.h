@@ -73,7 +73,7 @@
 
 #define ON_EPSILON		0.1			// point on plane side epsilon
 
-#define MAX_MSGLEN		7500		// max length of a reliable message
+#define MAX_MSGLEN		4100		// max length of a reliable message
 #define MAX_DATAGRAM	4000		// max length of unreliable message
 #define MAX_MULTICAST	1024		// max length of a message sent to all clients
 

@@ -838,7 +838,7 @@ void SV_RequestResourceList_f( void )
 	}
 
 	servercount = atoi(Cmd_Argv(1));
-	if (!cls.demoplayback && servercount != svs.spawncount)
+	if (servercount != svs.spawncount)
 	{
 		Con_Printf("Resource request with mismatched servercount\n");
 		return;

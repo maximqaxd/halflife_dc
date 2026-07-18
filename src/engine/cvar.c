@@ -2,6 +2,7 @@
 
 #include "quakedef.h"
 #include "winquake.h"
+#include "info.h"
 
 cvar_t* cvar_vars;
 char* cvar_null_string = "";
@@ -107,28 +108,69 @@ Cvar_Set
 */
 void Cvar_Set( char* var_name, char* value )
 {
-	cvar_t* var;
-	qboolean changed;
+	cvar_t*		var;
+	qboolean	changed;
+	char		szNew[1024];
 
 	var = Cvar_FindVar(var_name);
 	if (!var)
-	{
-		Con_DPrintf("Cvar_Set: variable %s not found\n", var_name);
 		return;
+
+	if (var->flags & FCVAR_PRINTABLEONLY)
+	{
+		char*	pszValue;
+		char*	pszDest;
+
+		pszValue = value;
+		pszDest = szNew;
+		szNew[0] = 0;
+
+		while (*pszValue)
+		{
+			if (*pszValue >= 32 && *pszValue <= 127)
+				*pszDest++ = *pszValue;
+			pszValue++;
+		}
+		*pszDest = 0;
+
+		if (strlen(szNew) == 0)
+			strcpy(szNew, "empty");
+
+		value = szNew;
 	}
 
 	changed = Q_strcmp(var->string, value);
+
+	if (var->flags & FCVAR_USERINFO)
+	{
+		if (cls.state == ca_dedicated)
+		{
+			Info_SetValueForKey(Info_Serverinfo(), var_name, value, MAX_INFO_STRING);
+			SV_BroadcastCommand("fullserverinfo \"%s\"\n", Info_Serverinfo());
+		}
+
+		if (cls.state != ca_dedicated)
+		{
+			Info_SetValueForKey(cls.userinfo, var_name, value, sizeof(cls.userinfo));
+			if (changed && cls.state > ca_connecting)
+			{
+				MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+				SZ_Print(&cls.netchan.message, va("setinfo \"%s\" \"%s\"\n", var_name, value));
+			}
+		}
+	}
+
+	if ((var->flags & FCVAR_SERVER) && changed)
+	{
+		Log_Printf("\"%s\" = \"%s\"\n", var_name, value);
+		SV_BroadcastPrintf("\"%s\" changed to \"%s\"\n", var_name, value);
+	}
 
 	Z_Free(var->string);	// free the old value string
 
 	var->string = Z_Malloc(Q_strlen(value) + 1);
 	Q_strcpy(var->string, value);
 	var->value = Q_atof(var->string);
-	if ((var->flags & FCVAR_SERVER) && changed)
-	{
-		if (sv.active)
-			SV_BroadcastPrintf("\"%s\" changed to \"%s\"\n", var->name, var->string);
-	}
 }
 
 /*
@@ -238,7 +280,7 @@ qboolean	Cvar_Command( void )
 	if (!(v->flags & FCVAR_SPONLY)
 		|| cls.state == ca_dedicated
 		|| cls.state == ca_disconnected
-		|| cl.maxclients < 2)
+		|| cl.maxclients <= 1)
 	{
 		Cvar_Set(v->name, Cmd_Argv(1));
 		return TRUE;

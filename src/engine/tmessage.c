@@ -427,25 +427,9 @@ void TextMessageParse( byte* pMemFile, int fileSize )
 	gMessageTableCount = messageCount;
 }
 
-void SetDemoMessage( const char* pszMessage, float fFadeInTime, float fFadeOutTime, float fHoldTime )
-{
-	if (!pszMessage || !pszMessage[0])
-		return;
-
-	strcpy((char*)tm_demomessage.pMessage, (char*)pszMessage);
-	tm_demomessage.fadein = fFadeInTime;
-	tm_demomessage.fadeout = fFadeOutTime;
-	tm_demomessage.holdtime = fHoldTime;
-}
-
 client_textmessage_t* TextMessageGet( const char* pName )
 {
 	int i;
-
-	if (!_stricmp(pName, DEMO_MESSAGE))
-	{
-		return &tm_demomessage;
-	}
 
 	for (i = 0; i < gMessageTableCount; i++)
 	{

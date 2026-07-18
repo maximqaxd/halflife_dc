@@ -795,9 +795,6 @@ void	Cmd_ExecuteString( char* text, cmd_source_t src )
 					return;
 				}
 
-				if (cls.demoplayback)
-					return;		// not really connected
-
 				MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
 
 				if (Q_strcasecmp(Cmd_Argv(0), "cmd") != 0)
@@ -833,9 +830,6 @@ void Cmd_ForwardToServer( void )
 			Con_Printf("Can't \"%s\", not connected\n", Cmd_Argv(0));
 		return;
 	}
-
-	if (cls.demoplayback)
-		return;		// not really connected
 
 	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
 

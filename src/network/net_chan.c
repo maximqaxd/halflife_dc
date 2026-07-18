@@ -143,9 +143,7 @@ void Netchan_OutOfBand( netsrc_t sock, netadr_t adr, int length, byte* data )
 	SZ_Write(&send, data, length);
 
 // send the datagram
-	//zoid, no input in demo playback mode
-	if (!cls.demoplayback)
-		NET_SendPacket(sock, send.cursize, send.data, adr);
+	NET_SendPacket(sock, send.cursize, send.data, adr);
 }
 
 /*
@@ -306,9 +304,7 @@ void Netchan_Transmit( netchan_t* chan, int length, byte* data )
 	chan->outgoing_size[i] = send.cursize;
 	chan->outgoing_time[i] = realtime;
 
-	//zoid, no input in demo playback mode
-	if (!cls.demoplayback)
-		NET_SendPacket(chan->sock, send.cursize, send.data, chan->remote_address);
+	NET_SendPacket(chan->sock, send.cursize, send.data, chan->remote_address);
 
 	if (chan->cleartime < realtime)
 		chan->cleartime = realtime + send.cursize * chan->rate;
@@ -340,7 +336,7 @@ qboolean Netchan_Process( netchan_t* chan )
 	unsigned		sequence, sequence_ack;
 	unsigned		reliable_ack, reliable_message;
 
-	if (!cls.demoplayback && !NET_CompareAdr(net_from, chan->remote_address))
+	if (!NET_CompareAdr(net_from, chan->remote_address))
 		return FALSE;
 
 // get sequence numbers	

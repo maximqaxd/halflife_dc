@@ -414,7 +414,6 @@ void CL_ParsePacketEntities( qboolean delta )
 	}
 	else
 	{
-		cls.demowaiting = FALSE;
 		oldpacket = -1;
 	}
 
@@ -1656,17 +1655,6 @@ void CL_EmitEntities( void )
 
 	if (!cl.validsequence)
 		return;
-
-	if (cls.demoplayback)
-	{
-		if (!cls.demoupdateentities)
-			return;
-
-		cls.demoupdateentities = FALSE;
-	}
-
-	if (cls.demorecording)
-		CL_WriteDLLUpdate();
 
 	cl_oldnumvisedicts = cl_numvisedicts;
 	slot = cl_visedicts_list[(cls.netchan.incoming_sequence + 1) & 1];

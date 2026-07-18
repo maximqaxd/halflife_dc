@@ -1420,7 +1420,6 @@ qboolean Host_FilterTime( float time )
 	{
 		fDelta = fps_single.value;
 
-		if (!cls.timedemo)
 		{
 			if (sv.active)
 			{

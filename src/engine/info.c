@@ -368,3 +368,13 @@ void Info_Print( char* s )
 		Con_Printf("%s\n", value);
 	}
 }
+
+/*
+===================
+Info_Serverinfo
+===================
+*/
+char* Info_Serverinfo( void )
+{
+	return serverinfo;
+}

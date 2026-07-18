@@ -461,8 +461,6 @@ qboolean CL_CheckFile( char* filename )
 		strcpy(cls.downloadname, name);
 	}
 
-	CL_WriteDemoHeader(cls.downloadname);
-
 	// download to a temp name, and only rename
 	// to the real name when done, so if interrupted
 	// a runt file wont be left
@@ -580,14 +578,6 @@ void CL_ParseDownload( void )
 
 	cls.downloadpercent = percent;
 
-	if (cls.demoplayback)
-	{
-		if (!cls.downloadname[0])
-			sprintf(cls.downloadname, "playback");
-
-		cls.downloadresource = NULL;
-	}
-
 	COM_FileBase(cls.downloadname, name);
 
 	if (size == -1)
@@ -619,15 +609,7 @@ void CL_ParseDownload( void )
 		}
 		else
 		{
-			if (cls.demoplayback)
-			{
-				Con_Printf("Resources must have been present before recording the demo for demo playback to function correctly.\n");
-				CL_Disconnect_f();
-			}
-			else
-			{
-				CL_Disconnect();
-			}
+			CL_Disconnect();
 		}
 		return;
 	}
@@ -812,19 +794,9 @@ void CL_ParseDownload( void )
 		}
 		else
 		{
-			if (!cls.downloadresource && cls.demoplayback)
-				Con_Printf("All files must have been present when recording the demo in order to play the demo back correctly.\n");
-
 			Con_Printf("File %s not downloaded, cannot complete connection\n", cls.downloadname);
 
-			if (cls.demoplayback)
-			{
-				CL_Disconnect_f();
-			}
-			else
-			{
-				CL_Disconnect();
-			}
+			CL_Disconnect();
 		}
 
 		// Clean up temp file
@@ -993,24 +965,12 @@ void CL_RegisterResources( void )
 
 		if (clientdllCRC != cl.clientdllCRC)
 		{
-			if (cls.demoplayback)
-			{
-				Con_Printf(
-					"Your client side .dll [%s] failed the CRC check.\n"
-					"The .dll may be out of date, or the demo may have been recorded using an old version of the .dll.\n"
-					"Consider obtaining an updated version of the .dll from the server operator.\n"
-					"Demo playback proceeding.\n",
-					szDllName);
-			}
-			else
-			{
-				Con_Printf(
-					"Your client side .dll [%s] failed the CRC check.\n"
-					"You must be using the same client side .dll to join this server.\n",
-					szDllName);
-				CL_Disconnect();
-				return;
-			}
+			Con_Printf(
+				"Your client side .dll [%s] failed the CRC check.\n"
+				"You must be using the same client side .dll to join this server.\n",
+				szDllName);
+			CL_Disconnect();
+			return;
 		}
 	}
 
@@ -1512,13 +1472,6 @@ void CL_ParseCustomization( void )
 
 	resource->playernum = i;
 
-	if (cls.demoplayback)
-	{
-		Con_DPrintf("Custom resources do not function during demo playback.\n");
-		free(resource);
-		return;
-	}
-
 	if (!cl_allowdownload.value)
 	{
 		Con_DPrintf("Refusing new resource, cl_allow_download set to 0\n");
@@ -1673,11 +1626,7 @@ void CL_ParseServerInfo( void )
 	
 	// Re-init hud video, especially if we changed game directories
 	ClientDLL_HudVidInit();
-	
-	cls.demowaiting = FALSE;
-	
-	CL_BeginDemoStartup();
-	
+
 	// parse protocol version number
 	i = MSG_ReadLong();
 	if (i != PROTOCOL_VERSION)
@@ -1689,13 +1638,6 @@ void CL_ParseServerInfo( void )
 	// Parse servercount (i.e., # of servers spawned since server .exe started)
 	// So that we can detect new server startup during download, etc.
 	cl.servercount = MSG_ReadLong();
-
-	// Because a server doesn't run during
-	//  demoplayback, but the decal system relies on this...
-	if (cls.demoplayback)
-	{
-		cl.servercount = gHostSpawnCount;
-	}
 
 	// The CRC of the server map must match the CRC of the client map. or else
 	//  the client is probably cheating.
@@ -2553,14 +2495,7 @@ void CL_ParseServerMessage( void )
 			cl.cdtrack = MSG_ReadByte();
 			cl.looptrack = MSG_ReadByte();
 
-			if ((cls.demoplayback || cls.demorecording) && cls.forcetrack != -1)
-			{
-				CDAudio_Play(cls.forcetrack, TRUE);
-			}
-			else
-			{
-				CDAudio_Play(cl.cdtrack, TRUE);
-			}
+			CDAudio_Play(cl.cdtrack, TRUE);
 			break;
 
 		case svc_restore:
@@ -2591,7 +2526,6 @@ void CL_ParseServerMessage( void )
 			break;
 
 		case svc_download:
-			CL_WriteDemoHeader(cls.downloadname);
 			CL_ParseDownload();
 			break;
 
@@ -2630,7 +2564,6 @@ void CL_ParseServerMessage( void )
 			break;
 
 		case svc_customization:
-			CL_WriteDemoHeader(cls.downloadname);
 			CL_ParseCustomization();
 			break;
 
@@ -2668,14 +2601,5 @@ void CL_ParseServerMessage( void )
 	// we don't know if it is ok to save a demo message until
 	// after we have parsed the frame
 	//
-	if (!cls.demoplayback)
-	{
-		if (cls.state != ca_active)
-			CL_WriteDemoStartup(&net_message);
-
-		if (cls.demorecording && !cls.demowaiting && cls.state == ca_active)
-			CL_WriteDemoMessage(&net_message);
-	}
-
 	CL_SetSolidEntities();
 }

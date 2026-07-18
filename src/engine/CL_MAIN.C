@@ -425,10 +425,7 @@ void CL_ConnectionlessPacket( void )
 		// Already connected?
 		if (cls.state == ca_connected)
 		{
-			if (!cls.demoplayback)
-			{
-				Con_Printf("Duplicate connect ack. received.  Ignored.\n");
-			}
+			Con_Printf("Duplicate connect ack. received.  Ignored.\n");
 		}
 		else
 		{
@@ -504,9 +501,6 @@ Handles recording and playback of demos, on top of NET_ code
 */
 qboolean CL_GetMessage( void )
 {
-	if (cls.demoplayback)
-		return CL_ReadDemoMessage();
-
 	return NET_GetPacket(NS_CLIENT);
 }
 
@@ -543,20 +537,9 @@ void CL_ReadPackets( void )
 		//
 		// packet from server, verify source IP address.
 		//
-		if (!cls.demoplayback && !NET_CompareAdr(net_from, cls.netchan.remote_address))
+		if (!NET_CompareAdr(net_from, cls.netchan.remote_address))
 		{
 			Con_Printf("%s:sequenced packet without connection\n", NET_AdrToString(net_from));
-			continue;
-		}
-
-		if (cls.demoplayback)
-		{
-			MSG_BeginReading();
-			MSG_ReadLong();		// skip the -1 marker
-			MSG_ReadLong();
-
-			// Parse out the commands.
-			CL_ParseServerMessage();
 			continue;
 		}
 
@@ -574,7 +557,6 @@ void CL_ReadPackets( void )
 	//  a bug where if you sit in the game code in the debugger then you get a timeout here on resuming the engine
 	//  because the timestep is > 1 tick because of the debugging delay but the server hasn't sent the next packet yet.
 	if ((cls.state >= ca_connected) &&
-		(!cls.demoplayback) &&
 		((realtime - cls.netchan.last_received) > cl_timeout.value))
 	{
 		Con_Printf("\nServer connection timed out.\n");
@@ -760,16 +742,11 @@ void CL_Disconnect( void )
 	S_StopAllSounds(TRUE);
 
 	// if running a local server, shut it down
-	if (cls.demoplayback)
-		CL_StopPlayback();
-	else if (cls.state == ca_active
-			 || cls.state == ca_connected
-			 || cls.state == ca_uninitialized
-			 || cls.state == ca_connecting)
+	if (cls.state == ca_active
+		|| cls.state == ca_connected
+		|| cls.state == ca_uninitialized
+		|| cls.state == ca_connecting)
 	{
-		if (cls.demorecording)
-			CL_Stop_f();
-
 		if (cls.netchan.remote_address.type != NA_UNUSED)
 		{
 			byte	final[20];
@@ -788,8 +765,6 @@ void CL_Disconnect( void )
 			Host_ShutdownServer(FALSE);
 	}
 
-	cls.timedemo = FALSE;
-	cls.demoplayback = FALSE;
 	cls.signon = 0;
 
 	if (cls.download)
@@ -1651,20 +1626,10 @@ float CL_LerpPoint( void )
 
 	f = cl.mtime[0] - cl.mtime[1];
 
-	if (!f || cl_nolerp.value || cls.timedemo || sv.active && !fakelag.value)
+	if (!f || cl_nolerp.value || sv.active && !fakelag.value)
 	{
-		float fgap;
-
-		fgap = cl.time - cl.oldtime;
-
 		cl.time = cl.mtime[0];
-		if (cls.demoplayback)
-		{
-			cl.oldtime = cl.time - fgap;
-			return 1;
-		}
-		else
-			return 1;
+		return 1;
 	}
 
 	if (f > 0.1)
@@ -1731,7 +1696,7 @@ void CL_SendCmd( void )
 	seq_hash = cls.netchan.outgoing_sequence;
 
 	// get basic movement from keyboard
-	if (!cls.demoplayback && cls.signon == SIGNONS)
+	if (cls.signon == SIGNONS)
 	{
 		// get basic movement from keyboard
 		CL_BaseMove(cmd);
@@ -1797,8 +1762,7 @@ void CL_SendCmd( void )
 	if (cls.netchan.outgoing_sequence - cl.validsequence >= UPDATE_BACKUP - 1)
 		cl.validsequence = 0;
 
-	if (cl.validsequence && !cl_nodelta.value && cls.state == ca_active &&
-		!cls.demorecording && !cls.demowaiting)
+	if (cl.validsequence && !cl_nodelta.value && cls.state == ca_active)
 	{
 		cl.frames[cls.netchan.outgoing_sequence & UPDATE_MASK].delta_sequence = cl.validsequence;
 		MSG_WriteByte(&buf, clc_delta);
@@ -2001,7 +1965,7 @@ void CL_SendResourceListBlock( void )
 	}
 
 	arg = MSG_ReadLong();
-	if (!cls.demoplayback && arg != cl.servercount)
+	if (arg != cl.servercount)
 	{
 		Con_Printf("CL_SendResourceListBlock_f from different level\n");
 		return;
@@ -2328,7 +2292,6 @@ void CL_Init( void )
 
 	Cvar_RegisterVariable(&cl_pitchup);
 	Cvar_RegisterVariable(&cl_pitchdown);
-	Cvar_RegisterVariable(&cl_appendmixed);
 	Cvar_RegisterVariable(&cl_resend);
 	Cvar_RegisterVariable(&cl_timeout);
 	Cvar_RegisterVariable(&cl_shownet);
@@ -2351,15 +2314,6 @@ void CL_Init( void )
 
 	Cmd_AddCommand("cdkey", CL_PrintCDKey_f);
 	Cmd_AddCommand("disconnect", CL_Disconnect_f);
-	Cmd_AddCommand("record", CL_Record_f);
-	Cmd_AddCommand("stop", CL_Stop_f);
-	Cmd_AddCommand("playdemo", CL_PlayDemo_f);
-	Cmd_AddCommand("timedemo", CL_TimeDemo_f);
-	Cmd_AddCommand("listdemo", CL_ListDemo_f);
-	Cmd_AddCommand("appenddemo", CL_AppendDemo_f);
-	Cmd_AddCommand("removedemo", CL_RemoveDemo_f);
-	Cmd_AddCommand("swapdemo", CL_SwapDemo_f);
-	Cmd_AddCommand("setdemoinfo", CL_SetDemoInfo_f);
 	Cmd_AddCommand("snapshot", CL_TakeSnapshot_f);
 	Cmd_AddCommand("startmovie", CL_StartMovie_f);
 	Cmd_AddCommand("endmovie", CL_EndMovie_f);

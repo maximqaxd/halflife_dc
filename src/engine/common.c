@@ -2564,6 +2564,30 @@ void COM_Path_f( void )
 }
 
 /*
+===============
+COM_CopyFileChunk
+===============
+*/
+void COM_CopyFileChunk( FILE* dst, FILE* src, int nSize )
+{
+	int   copysize = nSize;
+	char  copybuf[COM_COPY_CHUNK_SIZE];
+
+	while (copysize > COM_COPY_CHUNK_SIZE)
+	{
+		fread(copybuf, COM_COPY_CHUNK_SIZE, 1, src);
+		fwrite(copybuf, COM_COPY_CHUNK_SIZE, 1, dst);
+		copysize -= COM_COPY_CHUNK_SIZE;
+	}
+
+	fread(copybuf, copysize, 1, src);
+	fwrite(copybuf, copysize, 1, dst);
+
+	fflush(src);
+	fflush(dst);
+}
+
+/*
 ============
 COM_WriteFile
 

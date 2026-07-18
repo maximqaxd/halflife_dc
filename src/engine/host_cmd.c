@@ -715,7 +715,7 @@ void Host_Changelevel_f( void )
 		return;
 	}
 
-	if (!sv.active || cls.demoplayback)
+	if (!sv.active)
 	{
 		Con_Printf("Only the server may changelevel\n");
 		return;
@@ -803,7 +803,7 @@ void Host_Restart_f( void )
 {
 	char	name[MAX_PATH];
 
-	if (cls.demoplayback || !sv.active)
+	if (!sv.active)
 		return;
 
 	if (cmd_source != src_command)
@@ -831,7 +831,7 @@ void Host_Reload_f( void )
 	char* pSaveName;
 	char name[MAX_PATH];
 
-	if (cls.demoplayback || !sv.active)
+	if (!sv.active)
 		return;
 
 	if (cmd_source != src_command)
@@ -888,12 +888,6 @@ void Host_Connect_f( void )
 {
 	char	name[MAX_QPATH];
 
-	if (cls.demoplayback)
-	{
-		CL_StopPlayback();
-		CL_Disconnect();
-	}
-
 	if (Cmd_Argc() < 2 || !Cmd_Args())
 	{
 		Con_Printf("Usage:  connect <server>\n");
@@ -917,12 +911,6 @@ void Host_Spectate_f( void )
 	char	name[MAX_QPATH];
 
 	cls.demonum = -1;		// stop demo loop in case this fails
-	if (cls.demoplayback)
-	{
-		CL_StopPlayback();
-		CL_Disconnect();
-	}
-
 	if (Cmd_Argc() < 2 || !Cmd_Args())
 	{
 		Con_Printf("Usage:  spectate <server>\n");
@@ -2428,7 +2416,7 @@ void Host_Changelevel2_f( void )
 		return;
 	}
 
-	if (!sv.active || cls.demoplayback || sv.paused)
+	if (!sv.active || sv.paused)
 	{
 		Con_Printf("Only the server may changelevel\n");
 		return;
@@ -2808,7 +2796,7 @@ void Host_PreSpawn_f( void )
 	}
 
 	// handle the case of a level changing while a client was connecting
-	if (!cls.demoplayback && atoi(Cmd_Argv(1)) != svs.spawncount)
+	if (atoi(Cmd_Argv(1)) != svs.spawncount)
 	{
 		Con_Printf("SV_PreSpawn_f from different level\n");
 		SV_New_f();
@@ -2860,7 +2848,7 @@ void Host_Spawn_f( void )
 		return;
 	}
 
-	if (!cls.demoplayback && atoi(Cmd_Argv(1)) != svs.spawncount)
+	if (atoi(Cmd_Argv(1)) != svs.spawncount)
 	{
 		Con_Printf("SV_Spawn_f from different level\n");
 		SV_New_f();
@@ -3267,7 +3255,7 @@ void Host_Startdemos_f( void )
 	for (i = 1; i < c + 1; i++)
 		strncpy(cls.demos[i - 1], Cmd_Argv(i), sizeof(cls.demos[0]) - 1);
 
-	if (!sv.active && cls.demonum != -1 && !cls.demoplayback)
+	if (!sv.active && cls.demonum != -1)
 	{
 		cls.demonum = 0;
 		CL_NextDemo();
@@ -3305,10 +3293,6 @@ void Host_Stopdemo_f( void )
 {
 	if (cls.state == ca_dedicated)
 		return;
-	if (!cls.demoplayback)
-		return;
-	CL_StopPlayback();
-	CL_Disconnect();
 }
 
 //=============================================================================

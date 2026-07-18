@@ -67,12 +67,6 @@ typedef struct demodirectory_s
 	demoentry_t* p_rgEntries;
 } demodirectory_t;
 
-extern client_textmessage_t tm_demomessage;
-
-extern cvar_t	cl_appendmixed;
-
-void COM_CopyFileChunk( FILE* dst, FILE* src, int nSize );
-
 void CL_AppendDemo_f( void );
 void CL_SwapDemo_f( void );
 void CL_SetDemoInfo_f( void );
