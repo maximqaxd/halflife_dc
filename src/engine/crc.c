@@ -2,6 +2,8 @@
 #include "quakedef.h"
 #include "crc.h"
 #include "common.h"
+#include "zlib.h"
+#include "kzap.h"
 
 #define CRC32_INIT_VALUE 0xFFFFFFFFUL
 #define CRC32_XOR_VALUE  0xFFFFFFFFUL
@@ -95,7 +97,7 @@ void CRC32_ProcessByte( CRC32_t* pulCRC, unsigned char ch )
 
 
 #if 1
-/* SH-4: load CRC32_t from possibly unaligned pointer */
+/* SH-4: load CRC32_t from a possibly unaligned pointer */
 static CRC32_t CRC32_LoadUnaligned( const void* p )
 {
 	CRC32_t w;
@@ -167,12 +169,13 @@ JustAfew:
 	nMain = nBuffer >> 3;
 	while (nMain--)
 	{
-		ulCrc ^= CRC32_LoadUnaligned(pb);
+		// pb is word-aligned here, so read the two longs directly
+		ulCrc ^= ((CRC32_t*)pb)[0];
 		ulCrc = pulCRCTable[(unsigned char)ulCrc] ^ (ulCrc >> 8);
 		ulCrc = pulCRCTable[(unsigned char)ulCrc] ^ (ulCrc >> 8);
 		ulCrc = pulCRCTable[(unsigned char)ulCrc] ^ (ulCrc >> 8);
 		ulCrc = pulCRCTable[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-		ulCrc ^= CRC32_LoadUnaligned(pb + 4);
+		ulCrc ^= ((CRC32_t*)pb)[1];
 		ulCrc = pulCRCTable[(unsigned char)ulCrc] ^ (ulCrc >> 8);
 		ulCrc = pulCRCTable[(unsigned char)ulCrc] ^ (ulCrc >> 8);
 		ulCrc = pulCRCTable[(unsigned char)ulCrc] ^ (ulCrc >> 8);
@@ -615,9 +618,20 @@ int MD5_Hash_File( unsigned char* digest, char* pszFileName )
 	return TRUE;
 }
 
+int MD5_ClearHash( unsigned char* hash )
+{
+	int i;
+
+	// stamp the digest with a known "not hashed yet" pattern
+	for (i = 0; i < 16; i++)
+		hash[i] = 0xA5;
+
+	return 1;
+}
+
 char* MD5_Print( unsigned char* hash )
 {
-	static char szReturn[64];
+	static char szReturn[36];
 	unsigned char c;
 	char szChunk[10];
 	int i;
@@ -627,32 +641,152 @@ char* MD5_Print( unsigned char* hash )
 	for (i = 0; i < 16; i++)
 	{
 		c = (unsigned char)hash[i];
-		sprintf(szChunk, "%2x", c);
+		sprintf(szChunk, "%02x", c);
 		strcat(szReturn, szChunk);
 	}
 
 	return szReturn;
 }
 
-// Read the stored uncompressed size from the head of a zipped block.
+// Read the stored uncompressed size from the head of a zipped block. The
+// header may be unaligned, so copy the field out a byte at a time.
 int Zip_GetUncompressedSize( void* pHeader )
 {
-	return 0;
+	int size;
+
+	memcpy(&size, pHeader, sizeof(size));
+
+	return size;
 }
+
+#define ZIP_OUT_GROW	1024
+#define ZIP_TEMP_FILE	"\\CD-ROM\\valve\\SAVE\\ZipTmp.sdj"
 
 // Deflate a file into the temporary zip staging file, then swap it into place.
 int Zip_CompressFile( char* pszFileName, int level )
 {
-	return 0;
+	int			result = 0;
+	bfile_t*	in;
+	bfile_t*	out;
+	z_stream*	z;
+	char*		pOutBuffer;
+	int			nOutSize;
+	int			nUncompressed;
+	int			err;
+
+	in = (bfile_t*)Bopen(pszFileName, "rb");
+	if (in)
+	{
+		pOutBuffer = NULL;
+		nOutSize = 0;
+
+		z = (z_stream*)mallocx(sizeof(z_stream));
+		z->zalloc = 0;
+		z->zfree = 0;
+
+		if (deflateInit(z, level) == Z_OK)
+		{
+			GrowOutBuffer(z, &pOutBuffer, &nOutSize);
+
+			z->avail_in = in->size;
+			z->next_in = in->data;
+
+			while (err = deflate(z, Z_NO_FLUSH), z->avail_out == 0)
+				GrowOutBuffer(z, &pOutBuffer, &nOutSize);
+
+			if (err == Z_OK)
+			{
+				while (err = deflate(z, Z_FINISH), z->avail_out == 0)
+					GrowOutBuffer(z, &pOutBuffer, &nOutSize);
+
+				if (err == Z_STREAM_END)
+				{
+					nUncompressed = Bfilesize_path(pszFileName);
+
+					out = (bfile_t*)Bopen(ZIP_TEMP_FILE, "wb");
+					Bwrite(&nUncompressed, 4, 1, out);
+					Bwrite(pOutBuffer, 1, z->total_out, out);
+					Bclose(out);
+
+					Bclose(in);
+					Bremove_path(pszFileName);
+					Brename_path(ZIP_TEMP_FILE, pszFileName);
+					result = 1;
+
+					freex(pOutBuffer);
+				}
+			}
+		}
+
+		deflateEnd(z);
+		freex(z);
+	}
+
+	return result;
 }
 
 // Inflate a previously compressed file back to disk.
 int Zip_DecompressFile( char* pszFileName )
 {
-	return 0;
+	int			result = 0;
+	bfile_t*	in;
+	bfile_t*	out;
+	z_stream*	z;
+	int			nUncompressed;
+	char*		pOutBuffer;
+
+	in = (bfile_t*)Bopen(pszFileName, "rb");
+	if (in)
+	{
+		z = (z_stream*)mallocx(sizeof(z_stream));
+		z->zalloc = 0;
+		z->zfree = 0;
+
+		if (inflateInit(z) == Z_OK)
+		{
+			Bread(&nUncompressed, 4, 1, in);
+			pOutBuffer = (char*)mallocx(nUncompressed);
+
+			z->avail_in = in->size - in->position;
+			z->next_in = in->data + in->position;
+			z->avail_out = nUncompressed;
+			z->next_out = pOutBuffer;
+			inflate(z, Z_SYNC_FLUSH);
+
+			result = (z->avail_in == 0);
+			if (result)
+			{
+				out = (bfile_t*)Bopen(pszFileName, "wb");
+				Bwrite(pOutBuffer, 1, nUncompressed, out);
+				Bclose(out);
+			}
+
+			freex(pOutBuffer);
+		}
+
+		inflateEnd(z);
+		freex(z);
+		Bclose(in);
+	}
+
+	return result;
 }
 
 // Grow the deflate output buffer and re-point the stream at the new memory.
 void GrowOutBuffer( void* pStream, void** ppOutBuffer, int* pnOutSize )
 {
+	z_stream*	z = (z_stream*)pStream;
+	char*		pNew;
+
+	pNew = (char*)mallocx(*pnOutSize + ZIP_OUT_GROW);
+	if (*ppOutBuffer)
+	{
+		memcpy(pNew, *ppOutBuffer, *pnOutSize);
+		freex(*ppOutBuffer);
+	}
+
+	*pnOutSize += ZIP_OUT_GROW;
+	z->next_out = (Bytef*)(pNew + z->total_out);
+	z->avail_out = *pnOutSize - z->total_out;
+	*ppOutBuffer = pNew;
 }
