@@ -15,6 +15,9 @@ typedef enum
 	t_skin,
 	t_model,
 	t_decal,
+	t_generic,
+	t_eventscript,
+	t_world,
 
 	rt_max
 } resourcetype_t;
@@ -33,19 +36,14 @@ typedef struct
 
 typedef struct resource_s
 {
-	char              szFileName[MAX_QPATH]; // File name to download/precache.
-	resourcetype_t    type;                // t_sound, t_skin, t_model, t_decal.
-	int               nIndex;              // For t_decals
-	int               nDownloadSize;       // Size in Bytes if this must be downloaded.
-	unsigned char     ucFlags;
-
-// For handling client to client resource propagation
-	unsigned char     rgucMD5_hash[16];    // To determine if we already have it.
-	unsigned char     playernum;           // Which player index this resource is associated with, if it's a custom resource.
-
-	struct resource_s* pNext;              // Next in chain.
-	struct resource_s* pPrev;
-} resource_t;
+	char              szFileName[48];      // 0x00 File name to download/precache.
+	unsigned char     type;                // 0x30 t_sound, t_skin, t_model, t_decal.
+	unsigned char     ucFlags;             // 0x31
+	unsigned char     pad[2];              // 0x32
+	int               nIndex;              // 0x34 For t_decals
+	struct resource_s* pNext;              // 0x38 Next in chain.
+	struct resource_s* pPrev;              // 0x3c
+} resource_t;   // 64 bytes
 
 typedef struct customization_s
 {

@@ -3136,11 +3136,8 @@ void SV_SendResourceListBlock_f( void )
 		MSG_WriteByte(&host_client->netchan.message, sv.resources[n].type);
 		MSG_WriteString(&host_client->netchan.message, sv.resources[n].szFileName);
 		MSG_WriteShort(&host_client->netchan.message, sv.resources[n].nIndex);
-		MSG_WriteLong(&host_client->netchan.message, sv.resources[n].nDownloadSize);
+		MSG_WriteLong(&host_client->netchan.message, 1000);
 		MSG_WriteByte(&host_client->netchan.message, sv.resources[n].ucFlags);
-
-		if (sv.resources[n].ucFlags & RES_CUSTOM)
-			SZ_Write(&cls.netchan.message, sv.resources[n].rgucMD5_hash, sizeof(sv.resources[n].rgucMD5_hash));
 	}
 
 	u = (unsigned short)n;
@@ -3160,7 +3157,7 @@ SV_AddResource
 Adds a new resource to the server resource list
 ================
 */
-void SV_AddResource( resourcetype_t type, const char *name, int size, byte flags, int index )
+static __inline void SV_AddResource( resourcetype_t type, const char *name, int size, byte flags, int index )
 {
 	resource_t*	r;
 
@@ -3171,7 +3168,6 @@ void SV_AddResource( resourcetype_t type, const char *name, int size, byte flags
 
 	r->type = type;
 	strcpy(r->szFileName, name);
-	r->nDownloadSize = size;
 	if (flags)
 		r->ucFlags |= RES_FATALIFMISSING;
 	r->nIndex = index;
@@ -3258,107 +3254,6 @@ void SV_CreateResourceList( void )
 	{
 		SV_AddResource(t_decal, sv_decalnames[i].name, Draw_DecalSize(i), 0, i);
 	}
-}
-
-/*
-==================
-SV_Customization
-
-Sends resource to all other players, optionally skipping originating player.
-==================
-*/
-void SV_Customization( client_t* pPlayer, resource_t* pResource, qboolean bSkipPlayer )
-{
-	int		i;
-	int		nPlayerNumber;
-
-	nPlayerNumber = -1;
-
-	// Get originating player id
-	for (i = 0, host_client = svs.clients; i < svs.maxclients; i++, host_client++)
-	{
-		if (host_client == pPlayer)
-		{
-			nPlayerNumber = i;
-			break;
-		}
-	}
-
-	if (nPlayerNumber == -1)
-	{
-		Sys_Error("Couldn't find player index for customization.");
-		return;
-	}
-
-	// Send resource to all other active players
-	for (i = 0, host_client = svs.clients; i < svs.maxclients; i++, host_client++)
-	{
-		if (!host_client->active && !host_client->spawned)
-			continue;
-
-		if (host_client == pPlayer && bSkipPlayer)
-			continue;
-
-		MSG_WriteByte(&host_client->netchan.message, svc_customization);
-		MSG_WriteByte(&host_client->netchan.message, nPlayerNumber);
-		MSG_WriteByte(&host_client->netchan.message, pResource->type);
-		MSG_WriteString(&host_client->netchan.message, pResource->szFileName);
-		MSG_WriteShort(&host_client->netchan.message, pResource->nIndex);
-		MSG_WriteLong(&host_client->netchan.message, pResource->nDownloadSize);
-		MSG_WriteByte(&host_client->netchan.message, pResource->ucFlags);
-
-		if (pResource->ucFlags & RES_CUSTOM)
-			SZ_Write(&host_client->netchan.message, pResource->rgucMD5_hash, sizeof(pResource->rgucMD5_hash));
-	}
-}
-
-/*
-====================
-SV_PropagateCustomizations
-
-Sends customizations from all active players to the current player.
-====================
-*/
-void SV_PropagateCustomizations( void )
-{
-	client_t* pHost;
-	customization_t* pCust;
-	resource_t* pResource;
-	int		i;
-
-	pHost = host_client;
-
-	// For each active player
-	for (i = 0, host_client = svs.clients; i < svs.maxclients; i++, host_client++)
-	{
-		if (!host_client->active && !host_client->spawned)
-			continue;
-
-		// Send each customization to current player
-		pCust = host_client->customdata.pNext;
-		while (pCust)
-		{
-			if (pCust->bInUse)
-			{
-				pResource = &pCust->resource;
-
-				MSG_WriteByte(&pHost->netchan.message, svc_customization);
-				MSG_WriteByte(&pHost->netchan.message, i);
-				MSG_WriteByte(&pHost->netchan.message, pResource->type);
-				MSG_WriteString(&pHost->netchan.message, pResource->szFileName);
-				MSG_WriteShort(&pHost->netchan.message, pResource->nIndex);
-				MSG_WriteLong(&pHost->netchan.message, pResource->nDownloadSize);
-				MSG_WriteByte(&pHost->netchan.message, pResource->ucFlags);
-
-				if (pResource->ucFlags & RES_CUSTOM)
-					SZ_Write(&pHost->netchan.message, pResource->rgucMD5_hash, sizeof(pResource->rgucMD5_hash));
-			}
-
-			pCust = pCust->pNext;
-		}
-	}
-
-	host_client = pHost;
 }
 
 /*

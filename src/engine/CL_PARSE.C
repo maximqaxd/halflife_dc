@@ -376,179 +376,21 @@ void CL_ParseStartSoundPacket( void )
 
 /*
 ==================
-CL_CheckFile
+CL_CheckOrDownloadFile
 
 Checks if the file exists or if we can download it
 ==================
 */
-qboolean CL_CheckFile( char* filename )
+qboolean CL_CheckOrDownloadFile( char* filename )
 {
-	byte	buffer[1024];
-	int		i, size;
-	CRC32_t	crc;
-	resource_t	p;
-	qboolean hasRemainingFileSegments;
-	FILE* pFile, * pFileSegment;
-	char* s;
-	char	name[MAX_QPATH];
-
-	hasRemainingFileSegments = FALSE;
-
-	pFile = NULL;
-
-	if (strstr(filename, ".."))
-	{
-		Con_Printf("Refusing to download a path with '..'\n");
-		return TRUE;
-	}
-
-	if (!cl_allowdownload.value)
+	if (!strstr(filename, "..") && !strstr(filename, "server.cfg"))
 	{
 		Con_Printf("Download refused, cl_allow_download is 0\n");
 		return TRUE;
 	}
 
-	if (cl_download_max.value)
-	{
-		if (cls.downloadresource)
-		{
-			if (cls.downloadresource->nDownloadSize > cl_download_max.value)
-			{
-				Con_Printf("Download refused, cl_download_maxsize is %i, file is %i bytes\n",
-					(int)cl_download_max.value, cls.downloadresource->nDownloadSize);
-				return TRUE;
-			}
-		}
-	}
-
-	if (cls.state == ca_active && !cl_download_ingame.value)
-	{
-		Con_Printf("In-game download refused, cl_download_ingame is 0\n");
-		return TRUE;
-	}
-
-	sprintf(name, filename);
-
-	// Handle hashed resources
-	if (strlen(filename) == 36 && !_strnicmp(filename, "!MD5", 4))
-	{
-		memset(&p, 0, sizeof(p));
-
-		// MD5 signature is correct, lets try to find this resource locally
-		COM_HexConvert(filename + 4, 32, p.rgucMD5_hash);
-
-		// See if it's already in HPAK
-		if (HPAK_GetDataPointer(HASHPAK_FILENAME, &p, &pFile))
-		{
-			fclose(pFile);
-			return TRUE;
-		}
-
-		sprintf(cls.downloadname, "cust.dat");
-	}
-	else
-	{
-		// Non custom download
-		size = COM_FindFile(name, NULL, &pFile);
-		if (size != -1)
-		{
-			if (pFile)
-				fclose(pFile);
-
-			return TRUE;
-		}
-
-		strcpy(cls.downloadname, name);
-	}
-
-	// download to a temp name, and only rename
-	// to the real name when done, so if interrupted
-	// a runt file wont be left
-	COM_StripExtension(cls.downloadname, cls.downloadtempname);
-
-	if (cls.custom)
-	{
-		strcat(cls.downloadtempname, ".cst");
-	}
-	else
-	{
-		strcat(cls.downloadtempname, ".tmp");
-	}
-
-	cls.downloadfinalCRC = 0;
-
-	size = COM_FindFile(cls.downloadtempname, NULL, &pFileSegment);
-	if (size != -1 && !cls.custom)
-	{
-		hasRemainingFileSegments = TRUE;
-
-		CRC32_Init(&crc);
-		for (i = 0; i < size / sizeof(buffer); i++)
-		{
-			if (fread(buffer, sizeof(buffer), 1, pFileSegment) != 1)
-			{
-				hasRemainingFileSegments = FALSE;
-				break;
-			}
-
-			CRC32_ProcessBuffer(&crc, buffer, sizeof(buffer));
-		}
-		crc = CRC32_Final(crc);
-		cls.downloadfinalCRC = crc;
-
-		if (pFileSegment)
-			fclose(pFileSegment);
-	}
-
-	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-
-	if (cls.custom)
-	{
-		s = va("download \"!MD5%s\"", MD5_Print(cls.downloadresource->rgucMD5_hash));
-	}
-	else if (hasRemainingFileSegments && (size % sizeof(buffer)) == 0)
-	{
-		s = va("download %s %i %i", name, size / sizeof(buffer), crc); // partial download with CRC check
-	}
-	else
-	{
-		s = va("download %s", name); // full download required
-	}
-
-	MSG_WriteString(&cls.netchan.message, s);
-	cls.downloadinprogress = TRUE;
-	cls.nFilesDownloaded++;
-
-	return FALSE;
-}
-
-/*
-==================
-CL_UpdateDownloadCount
-
-==================
-*/
-void CL_UpdateDownloadCount( void )
-{
-	downloadtime_t* pStats;
-
-	if (!cl_downloadinterval.value)
-		return;
-
-	if (cl_downloadinterval.value < 0)
-		Cvar_SetValue("cl_downloadinterval", 1);
-
-	if ((realtime - cls.fLastDownloadTime) < cl_downloadinterval.value)
-		return;
-
-	cls.fLastDownloadTime = realtime;
-
-	pStats = &cls.rgDownloads[cls.downloadnumber & (MAX_DL_STATS - 1)];
-	cls.downloadnumber++;
-
-	pStats->fTime = realtime;
-	pStats->bUsed = TRUE;
-	pStats->nBytesRemaining = cls.nRemainingToTransfer;
+	Con_Printf("Refusing to download a path with '..'\n");
+	return TRUE;
 }
 
 /*
@@ -560,249 +402,7 @@ A download message has been received from the server
 */
 void CL_ParseDownload( void )
 {
-	int		status;
-	int		active;
-	int		size, percent;
-	char	name[MAX_OSPATH];
-	char	newPath[MAX_OSPATH];
-	char	fullPath[MAX_OSPATH];
-	char	finalPath[MAX_OSPATH];
-
-	memset(name, 0, sizeof(name));
-
-	// read the data
-	size = MSG_ReadShort();
-	active = MSG_ReadShort();
-	status = MSG_ReadLong();
-	percent = MSG_ReadByte();
-
-	cls.downloadpercent = percent;
-
-	COM_FileBase(cls.downloadname, name);
-
-	if (size == -1)
-	{
-		if (status == -1)
-			Con_Printf("Server refused download %s.\n", name);
-		else
-			Con_Printf("File %s not on server.\n", name);
-
-		// Clean up if download was unexpectedly active
-		if (cls.download)
-		{
-			Con_Printf("Error:  cls.download shouldn't have been set.\n");
-			fclose(cls.download);
-			cls.download = NULL;
-		}
-
-		cls.downloadinprogress = FALSE;
-
-		if (cls.downloadresource)
-		{
-			if (!(cls.downloadresource->ucFlags & RES_FATALIFMISSING))
-			{
-				cls.downloadresource->ucFlags |= RES_WASMISSING;
-				CL_MoveToOnHandList(cls.downloadresource);
-				return;
-			}
-			CL_Disconnect();
-		}
-		else
-		{
-			CL_Disconnect();
-		}
-		return;
-	}
-
-	// open the file if not opened yet
-	if (!cls.download && !g_bSkipDownload)
-	{
-		sprintf(fullPath, "%s/%s", com_gamedir, cls.downloadtempname);
-
-		COM_CreatePath(fullPath);
-
-		if (active)
-		{
-			// Append mode for active transfers
-			cls.download = fopen(fullPath, "a+b");
-			cls.downloadcurrentCRC = cls.downloadfinalCRC;
-		}
-		else
-		{
-			// New file
-			cls.download = fopen(fullPath, "wb");
-			CRC32_Init(&cls.downloadcurrentCRC);
-		}
-
-		if (!cls.download)
-		{
-			msg_readcount += size;
-			Con_Printf("Failed to open %s\n", cls.downloadtempname);
-			cls.downloadinprogress = FALSE;
-			return;
-		}
-
-		Con_Printf("Downloading %s\n", name);
-	}
-
-	CRC32_ProcessBuffer(&cls.downloadcurrentCRC, &net_message.data[msg_readcount], size);
-	fwrite(&net_message.data[msg_readcount], 1, size, cls.download);
-	msg_readcount += size;
-	cls.nRemainingToTransfer -= size;
-
-	// Update download stats
-	CL_UpdateDownloadCount();
-
-	if (percent != 100 && !g_bSkipDownload && cl_allowdownload.value)
-	{
-		// Update progress bar
-		scr_downloading.value = percent;
-		MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-		SZ_Print(&cls.netchan.message, "nextdl");
-	}
-	else if (!g_bSkipDownload && cl_allowdownload.value)
-	{
-		Con_Printf("100%%\n");
-		scr_downloading.value = -1; // Reset progress bar
-
-		if (cls.downloadresource && (cls.downloadresource->ucFlags & RES_CUSTOM))
-		{
-			if (status != cls.downloadcurrentCRC)
-			{
-				Con_Printf("Failed to download file, CRC mismatch.\n");
-				fclose(cls.download);
-			}
-			else
-			{
-				fclose(cls.download);
-
-				sprintf(finalPath, "%s/%s", com_gamedir, cls.downloadtempname);
-
-				// Verify and add to HPAK
-				cls.download = fopen(finalPath, "rb");
-				setvbuf(cls.download, NULL, _IOFBF, 4096); // 4K buffer
-				if (cls.download)
-				{
-					// Add to HPAK
-					HPAK_AddLump(HASHPAK_FILENAME, cls.downloadresource, NULL, cls.download);
-					if (cls.download)
-					{
-						customization_t* pCust, * pList;
-						qboolean bFound = FALSE;
-
-						fseek(cls.download, 0, SEEK_SET);
-						cls.downloadresource->ucFlags &= ~RES_WASMISSING;
-
-						pCust = (customization_t*)malloc(sizeof(customization_t));
-						memset(pCust, 0, sizeof(customization_t));
-						pCust->bInUse = TRUE;
-						memcpy(&pCust->resource, cls.downloadresource, sizeof(pCust->resource));
-
-						if (cls.downloadresource->nDownloadSize <= 0)
-							Host_EndGame("Error:  customization with download size <= 0\n");
-
-						pCust->pBuffer = malloc(cls.downloadresource->nDownloadSize);
-						fread(pCust->pBuffer, cls.downloadresource->nDownloadSize, 1, cls.download);
-
-						// Search if this resource is already in customizations list
-						pList = cl.players[cls.downloadresource->playernum].customdata.pNext;
-						while (pList)
-						{
-							if (memcmp(pList->resource.rgucMD5_hash, pCust->resource.rgucMD5_hash, sizeof(pList->resource.rgucMD5_hash)) == 0)
-							{
-								bFound = TRUE;
-								break;
-							}
-
-							pList = pList->pNext;
-						}
-
-						if (bFound)
-						{
-							Con_DPrintf("Duplicate resource received and ignored.\n");
-							free(pCust);
-						}
-						else
-						{
-							pCust->pNext = cl.players[cls.downloadresource->playernum].customdata.pNext;
-							cl.players[cls.downloadresource->playernum].customdata.pNext = pCust;
-
-							if ((pCust->resource.ucFlags & RES_CUSTOM) && pCust->resource.type == t_decal)
-							{
-								cachewad_t* pWad;
-
-								pWad = (cachewad_t*)malloc(sizeof(cachewad_t));
-								pCust->pInfo = pWad;
-								memset(pWad, 0, sizeof(cachewad_t));
-								CustomDecal_Init(pWad, pCust->pBuffer, pCust->resource.nDownloadSize);
-
-								pCust->bTranslated = TRUE;
-								pCust->nUserData1 = 0;
-								pCust->nUserData2 = pWad->lumpCount;
-							}
-						}
-					}
-				}
-
-				if (cls.download)
-					fclose(cls.download);
-			}
-
-			// Clean up temp file
-			sprintf(finalPath, "%s/%s", com_gamedir, cls.downloadtempname);
-			_unlink(finalPath);
-		}
-		else
-		{
-			fclose(cls.download);
-
-			sprintf(finalPath, "%s/%s", com_gamedir, cls.downloadtempname);
-			sprintf(newPath, "%s/%s", com_gamedir, cls.downloadname);
-
-			if (status != cls.downloadcurrentCRC)
-			{
-				Con_Printf("Failed to download file, CRC mismatch.\n");
-			}
-			else if (rename(finalPath, newPath) != 0)
-			{
-				Con_Printf("Download:  failed to rename.\n");
-			}
-		}
-
-		// Reset download state
-		cls.download = NULL;
-		cls.downloadpercent = 0;
-		cls.downloadcurrentCRC = 0;
-		cls.downloadinprogress = FALSE;
-	}
-	else
-	{
-		g_bSkipDownload = FALSE;
-
-		// Reset download state
-		fclose(cls.download);
-		cls.download = NULL;
-		cls.downloadpercent = 0;
-		cls.downloadcurrentCRC = 0;
-		cls.downloadinprogress = FALSE;
-
-		if (cls.downloadresource && !(cls.downloadresource->ucFlags & RES_FATALIFMISSING))
-		{
-			Con_Printf("Skipping download of %s\n", cls.downloadname);
-			cls.downloadresource->ucFlags |= RES_WASMISSING;
-			CL_MoveToOnHandList(cls.downloadresource);
-		}
-		else
-		{
-			Con_Printf("File %s not downloaded, cannot complete connection\n", cls.downloadname);
-
-			CL_Disconnect();
-		}
-
-		// Clean up temp file
-		sprintf(finalPath, "%s/%s", com_gamedir, cls.downloadtempname);
-		_unlink(finalPath);
-	}
+	Sys_Error("Got to CL_ParseDownload");
 }
 
 /*
@@ -835,15 +435,15 @@ void CL_PrintResource( int index, resource_t* pResource )
 	case t_decal:
 		sprintf(type, "decal");
 		break;
+	case t_generic:
+		sprintf(type, "generic");
+		break;
 	default:
 		sprintf(type, "unknown");
 		break;
 	}
 
-	Con_Printf("%3i %i %s:%15s %i %s\n", index, pResource->nDownloadSize, type, pResource->szFileName, pResource->nIndex, fatal);
-
-	if (pResource->ucFlags & RES_CUSTOM)
-		Con_Printf("MD5:  %s\n", MD5_Print(pResource->rgucMD5_hash));
+	Con_Printf("%3i %s:%15s %i %s\n", index, type, pResource->szFileName, pResource->nIndex, fatal);
 }
 
 /*
@@ -1044,7 +644,7 @@ COM_SizeofResourceList
 
 ===============
 */
-int COM_SizeofResourceList( resource_t* pList, int* nWorldSize, int* nModelsSize, int* nDecalsSize, int* nSoundsSize, int* nSkinsSize )
+int COM_SizeofResourceList( resource_t* pList, int* nWorldSize, int* nModelsSize, int* nDecalsSize, int* nSoundsSize, int* nSkinsSize, int* nGenericSize )
 {
 	resource_t* p;
 	int nSize;
@@ -1056,31 +656,35 @@ int COM_SizeofResourceList( resource_t* pList, int* nWorldSize, int* nModelsSize
 	*nDecalsSize = 0;
 	*nSoundsSize = 0;
 	*nSkinsSize = 0;
+	*nGenericSize = 0;
 
 	for (p = pList->pNext; p != pList; p = p->pNext)
 	{
-		nSize += p->nDownloadSize;
+		nSize += 1000;
 
 		switch (p->type)
 		{
 		case t_sound:
-			*nSoundsSize += p->nDownloadSize;
+			*nSoundsSize += 1000;
 			break;
 		case t_skin:
-			*nSkinsSize += p->nDownloadSize;
+			*nSkinsSize += 1000;
 			break;
 		case t_model:
 			if (p->nIndex == 1) // worldmodel always take 1 slot
 			{
-				*nWorldSize = p->nDownloadSize;
+				*nWorldSize = 1000;
 			}
 			else
 			{
-				*nModelsSize += p->nDownloadSize;
+				*nModelsSize += 1000;
 			}
 			break;
 		case t_decal:
-			*nDecalsSize += p->nDownloadSize;
+			*nDecalsSize += 1000;
+			break;
+		case t_generic:
+			*nGenericSize += 1000;
 			break;
 		}
 	}
@@ -1176,7 +780,6 @@ if it has loaded all the required resources
 */
 qboolean CL_RequestMissingResources( void )
 {
-	char	szCust[MAX_OSPATH];
 	resource_t* p;
 
 	if (cls.download || cls.downloadinprogress)
@@ -1201,49 +804,7 @@ qboolean CL_RequestMissingResources( void )
 		return FALSE;
 	}
 
-	if (!(p->ucFlags & RES_WASMISSING))
-	{
-		CL_MoveToOnHandList(p);
-		return TRUE;
-	}
-
-	switch (p->type)
-	{
-	case t_sound:
-		if (p->szFileName[0] == '*' || CL_CheckFile(va("sound/%s", p->szFileName)))
-		{
-			CL_MoveToOnHandList(p);
-			return TRUE;
-		}
-		break;
-	case t_skin:
-		CL_MoveToOnHandList(p);
-		break;
-	case t_model:
-		if (p->szFileName[0] == '*' || CL_CheckFile(p->szFileName))
-		{
-			CL_MoveToOnHandList(p);
-			return TRUE;
-		}
-		break;
-	case t_decal:
-		if (p->ucFlags & RES_CUSTOM)
-		{
-			sprintf(szCust, "!MD5%s", MD5_Print(p->rgucMD5_hash));
-
-			if (CL_CheckFile(szCust))
-			{
-				CL_MoveToOnHandList(p);
-				return TRUE;
-			}
-		}
-		else
-		{
-			CL_MoveToOnHandList(p);
-		}
-		break;
-	}
-
+	CL_MoveToOnHandList(p);
 	return TRUE;
 }
 
@@ -1256,12 +817,12 @@ Begin resource downloading, set incoming transfer data
 */
 void CL_StartResourceDownloading( char* pszMessage, qboolean bCustom )
 {
-	int		worldSize, modelsSize, decalsSize, soundsSize, skinsSize;
+	int		worldSize, modelsSize, decalsSize, soundsSize, skinsSize, genericSize;
 
 	if (pszMessage)
 		Con_DPrintf(pszMessage);
 
-	cls.nTotalSize = COM_SizeofResourceList(&cl.resourcesneeded, &worldSize, &modelsSize, &decalsSize, &soundsSize, &skinsSize);
+	cls.nTotalSize = COM_SizeofResourceList(&cl.resourcesneeded, &worldSize, &modelsSize, &decalsSize, &soundsSize, &skinsSize, &genericSize);
 	cls.nTotalToTransfer = CL_EstimateNeededResources();
 
 	Con_DPrintf("Resources total %iK\n", cls.nTotalSize / 1024);
@@ -1321,20 +882,16 @@ void CL_ParseResourceList( void )
 
 	for (; i < total; i++)
 	{
-		resource = (resource_t*)malloc(sizeof(resource_t));
+		resource = (resource_t*)MnemoAllocDbg(sizeof(resource_t), __FILE__, __LINE__);
 		memset(resource, 0, sizeof(resource_t));
 
 		resource->type = MSG_ReadByte();
 		strcpy(resource->szFileName, MSG_ReadString());
 		resource->nIndex = MSG_ReadShort();
-		resource->nDownloadSize = MSG_ReadLong();
+		MSG_ReadLong();
+		resource->ucFlags = MSG_ReadByte();
 		resource->pNext = resource->pPrev = NULL;
-		resource->ucFlags = MSG_ReadByte() & ~RES_WASMISSING;
-
-		if (resource->ucFlags & RES_CUSTOM)
-		{
-			MSG_ReadBuf(sizeof(resource->rgucMD5_hash), resource->rgucMD5_hash);
-		}
+		resource->ucFlags &= ~RES_WASMISSING;
 
 		// Add new entry in the linked list
 		CL_AddToResourceList(resource, &cl.resourcesneeded);
@@ -1443,10 +1000,6 @@ void CL_ParseCustomization( void )
 {
 	resource_t* resource;
 	int	i;
-	customization_t* pExistingCustomization;
-	customization_t* pList;
-	FILE* pFile;
-	qboolean bFound;
 
 	i = MSG_ReadByte();
 	if (i < 0 || i >= MAX_CLIENTS)
@@ -1457,110 +1010,14 @@ void CL_ParseCustomization( void )
 	resource->type = MSG_ReadByte();
 	strcpy(resource->szFileName, MSG_ReadString());
 	resource->nIndex = MSG_ReadShort();
-	resource->nDownloadSize = MSG_ReadLong();
-	resource->pNext = resource->pPrev = NULL;
+	MSG_ReadLong();
 	resource->ucFlags = MSG_ReadByte();
 	resource->ucFlags &= ~RES_WASMISSING;
 
 	if (resource->ucFlags & RES_CUSTOM)
-		MSG_ReadBuf(sizeof(resource->rgucMD5_hash), resource->rgucMD5_hash);
-
-	Con_DPrintf("New resource from player %i\n", i);
-
-	if (developer.value)
-		CL_PrintResource(i, resource);
-
-	resource->playernum = i;
-
-	if (!cl_allowdownload.value)
 	{
-		Con_DPrintf("Refusing new resource, cl_allow_download set to 0\n");
-		free(resource);
-		return;
-	}
-
-	if (cls.state == ca_active && !cl_download_ingame.value)
-	{
-		Con_Printf("Refusing new resource, cl_download_ingame set to 0\n");
-		free(resource);
-		return;
-	}
-
-	if (cl_download_max.value && resource->nDownloadSize > cl_download_max.value)
-	{
-		Con_Printf("Refusing new resource, cl_download_max is %i, resource is %i bytes\n",
-			(int)cl_download_max.value, resource->nDownloadSize);
-		free(resource);
-		return;
-	}
-
-	pExistingCustomization = CL_PlayerHasCustomization(resource->playernum, resource->type);
-	if (pExistingCustomization)
-	{
-		CL_RemoveCustomization(resource->playernum, pExistingCustomization);
-	}
-
-	if (!HPAK_GetDataPointer(HASHPAK_FILENAME, resource, &pFile))
-	{
-		resource->ucFlags |= RES_WASMISSING;
-		CL_AddToResourceList(resource, &cl.resourcesneeded);
-		Con_Printf("Requesting %s from server\n", resource->szFileName);
-		memcpy(&currentresource, resource, sizeof(currentresource));
-		cls.downloadresource = &currentresource;
-		CL_StartResourceDownloading("Custom resource propagation...\n", TRUE);
-		return;
-	}
-
-	// Search if this resource is already in customizations list
-	bFound = FALSE;
-	pList = cl.players[resource->playernum].customdata.pNext;
-	while (pList)
-	{
-		if (memcmp(pList->resource.rgucMD5_hash, resource->rgucMD5_hash, sizeof(pList->resource.rgucMD5_hash)) == 0)
-		{
-			bFound = TRUE;
-			break;
-		}
-
-		pList = pList->pNext;
-	}
-
-	if (bFound)
-	{
-		Con_DPrintf("Duplicate resource ignored for local client\n");
-	}
-	else
-	{
-		customization_t* pCust;
-		cachewad_t* pWad;
-
-		pCust = (customization_t*)malloc(sizeof(customization_t));
-		memset(pCust, 0, sizeof(customization_t));
-		pCust->bInUse = TRUE;
-
-		memcpy(&pCust->resource, resource, sizeof(pCust->resource));
-
-		if (resource->nDownloadSize <= 0)
-			Host_EndGame("Error:  Customization with download size < 0\n");
-
-		pCust->pBuffer = malloc(resource->nDownloadSize);
-		fread(pCust->pBuffer, resource->nDownloadSize, 1, pFile);
-		fclose(pFile);
-
-		pCust->pNext = cl.players[resource->playernum].customdata.pNext;
-		cl.players[resource->playernum].customdata.pNext = pCust;
-
-		if ((pCust->resource.ucFlags & RES_CUSTOM) && pCust->resource.type == t_decal)
-		{
-			pWad = (cachewad_t*)malloc(sizeof(cachewad_t));
-			pCust->pInfo = pWad;
-			memset(pWad, 0, sizeof(cachewad_t));
-			CustomDecal_Init(pWad, pCust->pBuffer, pCust->resource.nDownloadSize);
-
-			pCust->bTranslated = TRUE;
-			pCust->nUserData1 = 0;
-			pCust->nUserData2 = pWad->lumpCount;
-		}
+		unsigned char rgucMD5_hash[16];
+		MSG_ReadBuf(sizeof(rgucMD5_hash), rgucMD5_hash);
 	}
 
 	free(resource);
@@ -1661,12 +1118,6 @@ void CL_ParseServerInfo( void )
 		cl.spectator = TRUE;
 		cl.playernum &= ~PN_SPECTATOR;
 	}
-
-	// Clear customization for all clients
-	for (i = 0; i < MAX_CLIENTS; i++)
-		COM_ClearCustomizationList(&cl.players[i].customdata, TRUE);
-
-	CL_CreateCustomizationList();
 
 	// parse gametype
 	cl.gametype = MSG_ReadByte();

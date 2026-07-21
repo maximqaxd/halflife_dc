@@ -188,6 +188,19 @@ extern int com_filesize;
 
 extern	char	com_gamedir[MAX_OSPATH];
 
+// A directory listing entry, as returned by the file system enumerator.
+typedef struct FileList_s
+{
+	int					fileLen;
+	int*				handles;
+	char				pathID[MAX_OSPATH];
+	struct FileList_s*	next;
+} FileList_t;
+
+int COM_BuildFileList( char* filename, FileList_t** ppList );
+void COM_CloseUnusedFiles( FileList_t* list );
+void COM_DestroyMultipleFileList( FileList_t** ppList );
+
 void COM_WriteFile( char* filename, void* data, int len );
 void COM_CreatePath( char* path );
 void COM_CopyFileChunk( FILE* dst, FILE* src, int nSize );

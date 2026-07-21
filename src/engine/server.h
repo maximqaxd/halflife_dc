@@ -394,17 +394,15 @@ void SV_MoveToOrigin_I( edict_t* ent, const float* pflGoal, float dist, int iStr
 void SV_SendResourceListBlock_f( void );
 void SV_RequestResourceList_f( void );
 void SV_PrintCusomizations_f( void );
-void SV_AddResource( resourcetype_t type, const char* name, int size, byte flags, int index );
 void SV_CreateResourceList( void );
 void SV_ClearResourceLists( client_t* cl );
 void SV_RemoveFromResourceList( resource_t* pResource );
-qboolean SV_RequestMissingResources( void );
-void SV_RequestMissingResourcesFromClients( void );
+void SV_PrintResource( int index, resource_t* pResource );
+void SV_PrintResourceLists_f( void );
+int SV_CountResources( resource_t* pList, int* nWorldSize, int* nModelsSize, int* nDecalsSize, int* nSoundsSize, int* nSkinsSize, int* nGenericSize );
 void SV_ParseResourceList( void );
 void SV_ParseUpload( void );
-void SV_PropagateCustomizations( void );
 void SV_MoveToOnHandList( resource_t* pResource );
-void SV_Customization( client_t* pPlayer, resource_t* pResource, qboolean bSkipPlayer );
 void SV_ClearResourceList( resource_t* pList );
 void SV_AddToResourceList( resource_t* pResource, resource_t* pList );
 

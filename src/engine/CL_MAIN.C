@@ -608,56 +608,6 @@ void CL_PrintCustomizations_f( void )
 	}
 }
 
-/*
-================
-CL_CreateCustomizationList
-
-================
-*/
-void CL_CreateCustomizationList( void )
-{
-	int	i;
-	customization_t* pCust;
-	resource_t* pResource;
-	player_info_t* pPlayer;
-
-	pPlayer = &cl.players[cl.playernum];
-	pPlayer->customdata.pNext = NULL;
-
-	for (i = 0, pResource = cl.resourcelist; i < cl.num_resources; i++, pResource++)
-	{
-		pCust = (customization_t*)malloc(sizeof(customization_t));
-		memset(pCust, 0, sizeof(customization_t));
-
-		memcpy(&pCust->resource, pResource, sizeof(pCust->resource));
-
-		if (pResource->nDownloadSize)
-		{
-			pCust->bInUse = TRUE;
-			pCust->pBuffer = COM_LoadFile(pResource->szFileName, 5, NULL);
-
-			if ((pCust->resource.ucFlags & RES_CUSTOM) && pCust->resource.type == t_decal)
-			{
-				cachewad_t* pWad;
-
-				pCust->resource.playernum = cl.playernum;
-
-				pWad = (cachewad_t*)malloc(sizeof(cachewad_t));
-				pCust->pInfo = pWad;
-				memset(pWad, 0, sizeof(cachewad_t));
-				CustomDecal_Init(pWad, pCust->pBuffer, pResource->nDownloadSize);
-
-				pCust->bTranslated = TRUE;
-				pCust->nUserData1 = 0;
-				pCust->nUserData2 = pWad->lumpCount;
-			}
-		}
-
-		pCust->pNext = pPlayer->customdata.pNext;
-		pPlayer->customdata.pNext = pCust;
-	}
-}
-
 void CL_ClearClientState( void )
 {
 	int i;
@@ -1865,85 +1815,6 @@ Starts file upload to server, handles both normal files and MD5-hashed resources
 */
 void CL_BeginUpload_f( void )
 {
-	char* name;
-	FILE* file;
-
-	name = Cmd_Argv(1);
-
-	if (strstr(name, "..") || !cl_allowupload.value)
-	{
-		MSG_WriteByte(&cls.netchan.message, clc_upload);
-		MSG_WriteShort(&cls.netchan.message, -1);
-		MSG_WriteShort(&cls.netchan.message, -1);
-		MSG_WriteLong(&cls.netchan.message, -1);
-		MSG_WriteByte(&cls.netchan.message, 0);
-		return;
-	}
-
-	if (cls.upload)
-	{
-		COM_FreeFile(cls.upload);
-		cls.upload = NULL;
-	}
-
-	file = NULL;
-
-	// Handle customizations
-	if (strlen(name) == 36 && !_strnicmp(name, "!MD5", 4))
-	{
-		resource_t resource;
-		unsigned char rgucMD5_hash[16];
-
-		memset(&resource, 0, sizeof(resource));
-
-		COM_HexConvert(name + 4, 32, rgucMD5_hash);
-
-		if (HPAK_ResourceForHash(HASHPAK_FILENAME, rgucMD5_hash, &resource) &&
-			HPAK_GetDataPointer(HASHPAK_FILENAME, &resource, &file))
-		{
-			cls.uploadsize = resource.nDownloadSize;
-			cls.upload = (FILE*)malloc(resource.nDownloadSize + 1);
-			fread(cls.upload, resource.nDownloadSize, 1, file);
-			*((byte*)cls.upload + resource.nDownloadSize) = 0;
-
-			fclose(file);
-			file = NULL;
-		}
-	}
-	else
-	{
-		cls.uploadsize = COM_FindFile(name, NULL, &file);
-		if (cls.uploadsize != -1 && file)
-		{
-			cls.upload = (FILE*)COM_LoadFile(name, 5, NULL);
-			fclose(file);
-			file = NULL;
-		}
-	}
-
-	cls.uploadpos = 0;
-
-	if (cls.uploadsize == -1 || !cls.upload || (cl_upload_max.value && (cls.uploadsize > cl_upload_max.value)))
-	{
-		MSG_WriteByte(&cls.netchan.message, clc_upload);
-		MSG_WriteShort(&cls.netchan.message, -1);
-		MSG_WriteShort(&cls.netchan.message, -1);
-		MSG_WriteLong(&cls.netchan.message, -2);
-		MSG_WriteByte(&cls.netchan.message, 0);
-		return;
-	}
-
-	cls.uploading = FALSE;
-
-	CRC32_Init(&cls.uploadCRC);
-
-	if (Cmd_Argc() == 4)
-	{
-		CL_SetupResume(atoi(Cmd_Argv(2)), atol(Cmd_Argv(3)));
-	}
-
-	CL_ParseNextUpload();
-	Con_DPrintf("Uploading %s\n", name);
 }
 
 /*
@@ -1994,11 +1865,8 @@ void CL_SendResourceListBlock( void )
 		MSG_WriteByte(&cls.netchan.message, cl.resourcelist[i].type);
 		MSG_WriteString(&cls.netchan.message, cl.resourcelist[i].szFileName);
 		MSG_WriteShort(&cls.netchan.message, cl.resourcelist[i].nIndex);
-		MSG_WriteLong(&cls.netchan.message, cl.resourcelist[i].nDownloadSize);
+		MSG_WriteLong(&cls.netchan.message, 1000);
 		MSG_WriteByte(&cls.netchan.message, cl.resourcelist[i].ucFlags);
-
-		if (cl.resourcelist[i].ucFlags & RES_CUSTOM)
-			SZ_Write(&cls.netchan.message, cl.resourcelist[i].rgucMD5_hash, sizeof(cl.resourcelist[i].rgucMD5_hash));
 	}
 
     u = (unsigned short)i;
@@ -2029,7 +1897,6 @@ resource_t* CL_AddResource( resourcetype_t type, char* name, int size, qboolean 
 
 	r->type = type;
 	strcpy(r->szFileName, name);
-	r->nDownloadSize = size;
 	r->nIndex = index;
 
 	if (bFatalIfMissing)
@@ -2076,8 +1943,6 @@ void CL_CreateResourceList( void )
 		pNewResource = CL_AddResource(t_decal, szFileName, nSize, FALSE, 0);
 		if (pNewResource)
 		{
-			pNewResource->ucFlags |= RES_CUSTOM;
-			memcpy(pNewResource->rgucMD5_hash, rgucMD5_hash, sizeof(pNewResource->rgucMD5_hash));
 			HPAK_AddLump(HASHPAK_FILENAME, pNewResource, NULL, fp);
 		}
 	}

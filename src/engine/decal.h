@@ -51,9 +51,7 @@ extern void					Draw_CacheWadHandler( cachewad_t* wad, PFNCACHE fn, int extraDat
 extern void					Draw_DecalSetName( int decal, char* name );
 extern int					Draw_DecalIndex( int id );
 extern int					Draw_CacheIndex( cachewad_t* wad, char* path );
-extern int					Draw_DecalCount( void );
 extern int					Draw_DecalSize( int number );
-extern char*				Draw_DecalName( int number );
 texture_t*					Draw_DecalTexture( int index );
 extern int					Draw_DecalIndexFromName( char* name );
 

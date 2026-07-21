@@ -3792,11 +3792,6 @@ void COM_ClearCustomizationList( customization_t* pHead, qboolean bCleanDecals )
 			{
 				if (pCurrent->resource.type == t_decal)
 				{
-					if (bCleanDecals && cls.state == ca_active)
-					{
-						R_DecalRemoveAll(-1 - pCurrent->resource.playernum);
-					}
-
 					pWad = (cachewad_t*)pCurrent->pInfo;
 
 					free(pWad->lumps);
@@ -3910,16 +3905,86 @@ char* COM_StringToLower( char* string )
 	return string;
 }
 
-//
-// A directory listing entry, as returned by the file system enumerator.
-//
-typedef struct FileList_s
+/*
+============
+COM_BuildFileList
+
+Collect every copy of a file across the search paths into a linked list,
+opening each and recording its length.  Returns the number found.
+============
+*/
+int COM_BuildFileList( char* filename, FileList_t** ppList )
 {
-	int					reserved;
-	char*				fileName;
-	char				shortName[MAX_OSPATH];
-	struct FileList_s*	next;
-} FileList_t;
+	int				count;
+	int				len;
+	int*			handles;
+	searchpath_t*	restart;
+	FileList_t*		entry;
+
+	count = 0;
+	restart = NULL;
+
+	if (!ppList)
+		return 0;
+
+	*ppList = NULL;
+
+	while (1)
+	{
+		handles = (int*)MnemoAllocDbg(3 * sizeof(int), __FILE__, __LINE__);
+		memset(handles, 0, 3 * sizeof(int));
+
+		len = COM_FindFileSearch(&restart, filename, (char*)handles, NULL, NULL);
+		if (len == -1)
+			break;
+
+		entry = (FileList_t*)MnemoAllocDbg(sizeof(FileList_t), __FILE__, __LINE__);
+		memset(entry, 0, sizeof(FileList_t));
+		entry->fileLen = len;
+		entry->handles = handles;
+		strcpy(entry->pathID, restart->gamedir);
+		count++;
+		entry->next = *ppList;
+		*ppList = entry;
+	}
+
+	free(handles);
+	return count;
+}
+
+/*
+============
+COM_CloseUnusedFiles
+
+Close the handle of every listed file that isn't held open by a mounted pack.
+============
+*/
+void COM_CloseUnusedFiles( FileList_t* list )
+{
+	FileList_t*		cur;
+	searchpath_t*	search;
+	qboolean		inuse;
+
+	if (!list)
+		return;
+
+	for (cur = list; cur; cur = cur->next)
+	{
+		inuse = FALSE;
+
+		for (search = com_searchpaths; search; search = search->next)
+		{
+			if (search->pack && search->pack->handle == cur->handles[2])
+			{
+				inuse = TRUE;
+				break;
+			}
+		}
+
+		if (!inuse)
+			Sys_FileClose(cur->handles[2]);
+	}
+}
 
 /*
 ============
@@ -3939,8 +4004,8 @@ void COM_DestroyMultipleFileList( FileList_t** ppList )
 	for (cur = *ppList; cur; cur = next)
 	{
 		next = cur->next;
-		if (cur->fileName)
-			free(cur->fileName);
+		if (cur->handles)
+			free(cur->handles);
 		free(cur);
 	}
 

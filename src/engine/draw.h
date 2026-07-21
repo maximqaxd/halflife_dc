@@ -13,7 +13,7 @@
 
 typedef struct
 {
-	char			name[64];
+	char			name[48];
 	cache_user_t	cache;
 } cacheentry_t;
 

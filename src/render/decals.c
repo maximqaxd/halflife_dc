@@ -17,7 +17,7 @@ char		decal_names[MAX_BASE_DECALS][16];
 short		m_bDrawInitialized;
 
 void Draw_FreeWad( cachewad_t* pWad );
-void Draw_CacheWadInitFromFile( int h0, int h1, int h2, int len, char *name, int cacheMax, cachewad_t *wad );
+void Draw_CacheWadInitFromFile( int *h, int len, char *name, int cacheMax, cachewad_t *wad );
 
 extern cvar_t violence_hblood;
 
@@ -44,13 +44,13 @@ void Draw_DecalShutdown( void )
 	decal_wad = NULL;
 }
 
-void Draw_CacheWadInitFromFile( int h0, int h1, int h2, int len, char *name, int cacheMax, cachewad_t *wad )
+void Draw_CacheWadInitFromFile( int *h, int len, char *name, int cacheMax, cachewad_t *wad )
 {
 	lumpinfo_t* lump_p;
 	wadinfo_t header;
 	int		i;
 
-	Sys_FileRead(h2, &header, sizeof(header));
+	Sys_FileRead(h[2], &header, sizeof(header));
 
 	if (header.identification[0] != 'W'
 	  || header.identification[1] != 'A'
@@ -60,26 +60,24 @@ void Draw_CacheWadInitFromFile( int h0, int h1, int h2, int len, char *name, int
 		Sys_Error("Wad file %s doesn't have WAD3 id\n", name);
 	}
 
-	wad->lumps = (lumpinfo_t*)MnemoAlloc(len - header.infotableofs, 0x20, 0, "wadlumps");
-
-	COM_FileSeek(h0, h1, h2, header.infotableofs);
-	Sys_FileRead(h2, wad->lumps, len - header.infotableofs);
+	wad->lumps = (lumpinfo_t*)MnemoAllocDbg(len - header.infotableofs, __FILE__, __LINE__);
+	COM_FileSeek(h[0], h[1], h[2], header.infotableofs);
+	Sys_FileRead(h[2], wad->lumps, len - header.infotableofs);
 
 	for (i = 0, lump_p = wad->lumps; i < header.numlumps; i++, lump_p++)
 	{
 		W_CleanupName(lump_p->name, lump_p->name);
 	}
 
-	wad->name = name;
 	wad->lumpCount = header.numlumps;
 	wad->cacheCount = 0;
 	wad->cacheMax = cacheMax;
-	wad->cache = (cacheentry_t*)MnemoAlloc(sizeof(cacheentry_t) * cacheMax, 0x20, 0, "wadcache");
-	memset(wad->cache, 0, sizeof(cacheentry_t) * cacheMax);
-	wad->cacheExtra = 0;
-	wad->pfnCacheBuild = NULL;
-
+	wad->name = name;
+	wad->cache = (cacheentry_t*)MnemoAllocDbg(cacheMax * sizeof(cacheentry_t), __FILE__, __LINE__);
+	memset(wad->cache, 0, cacheMax * sizeof(cacheentry_t));
 	wad->tempWad = FALSE;
+	wad->pfnCacheBuild = NULL;
+	wad->cacheExtra = 0;
 }
 
 void Draw_CacheWadInit( char* name, int cacheMax, cachewad_t* wad )
@@ -91,15 +89,15 @@ void Draw_CacheWadInit( char* name, int cacheMax, cachewad_t* wad )
 	if (h[2] == -1)
 		Sys_Error("Draw_LoadWad: Couldn't open %s\n", name);
 
-	Draw_CacheWadInitFromFile(h[0], h[1], h[2], nFileSize, name, cacheMax, wad);
+	Draw_CacheWadInitFromFile(h, nFileSize, name, cacheMax, wad);
 
 	COM_CloseFile(h[0], h[1], h[2]);
 }
 
 void Draw_CacheWadHandler( cachewad_t* wad, PFNCACHE fn, int extraDataSize )
 {
-	wad->cacheExtra = extraDataSize;
 	wad->pfnCacheBuild = fn;
+	wad->cacheExtra = extraDataSize;
 }
 
 void Draw_FreeWad( cachewad_t* pWad )
@@ -116,9 +114,27 @@ void Draw_FreeWad( cachewad_t* pWad )
 		pWad->lumps = NULL;
 	}
 
+	if (pWad->numpaths)
+	{
+		for (i = 0; i < pWad->numpaths; i++)
+		{
+			MnemoFree(pWad->basedirs[i]);
+			pWad->basedirs[i] = NULL;
+		}
+
+		MnemoFree(pWad->basedirs);
+		pWad->basedirs = NULL;
+	}
+
+	if (pWad->lumppathindices)
+	{
+		MnemoFree(pWad->lumppathindices);
+		pWad->lumppathindices = NULL;
+	}
+
 	if (pWad->cache)
 	{
-		if (!pWad->tempWad)
+		if (!pWad->tempWad && pWad->cacheCount > 0)
 		{
 			for (i = 0, pic = pWad->cache; i < pWad->cacheCount; i++, pic++)
 			{
@@ -128,17 +144,16 @@ void Draw_FreeWad( cachewad_t* pWad )
 		}
 
 		MnemoFree(pWad->cache);
-		pWad->cache = NULL;
 	}
 }
 
 void Draw_DecalSetName( int decal, char* name )
 {
-	if (decal >= MAX_BASE_DECALS)
-		return;
-
-	strncpy(decal_names[decal], name, sizeof(decal_names[0]) - 1);
-	decal_names[decal][sizeof(decal_names[0]) - 1] = 0;
+	if (decal < MAX_BASE_DECALS)
+	{
+		strncpy(decal_names[decal], name, sizeof(decal_names[0]) - 1);
+		decal_names[decal][sizeof(decal_names[0]) - 1] = 0;
+	}
 }
 
 int Draw_DecalIndex( int id )
@@ -151,7 +166,7 @@ int Draw_DecalIndex( int id )
 		Sys_Error("Used decal #%d without a name\n", id);
 
 	/* Never draw human blood on a censored build. */
-	if (!violence_hblood.value && !strncmp(pName, "{blood", 6))
+	if (!sv.active && !violence_hblood.value && !strncmp(pName, "{blood", 6))
 	{
 		sprintf(tmpName, "{yblood%s", pName + 6);
 		pName = tmpName;
@@ -162,10 +177,13 @@ int Draw_DecalIndex( int id )
 
 int Draw_DecalSize( int number )
 {
-	if (number >= decal_wad->lumpCount)
+	if (!decal_wad)
 		return 0;
 
-	return decal_wad->lumps[number].size;
+	if (number < decal_wad->lumpCount)
+		return decal_wad->lumps[number].size;
+
+	return 0;
 }
 
 texture_t* Draw_DecalTexture( int index )
@@ -173,24 +191,23 @@ texture_t* Draw_DecalTexture( int index )
 	int		playernum;
 	customization_t* pCust;
 
-	// Just a regular decal
-	if (index >= 0)
-		return (texture_t*)Draw_CacheGet(decal_wad, index);
-
 	// Player decal
-	playernum = ~index;
-	pCust = cl.players[playernum].customdata.pNext;
-	if (pCust && pCust->bInUse)
+	if (index < 0)
 	{
-		cachewad_t* pWad;
+		playernum = -1 - index;
+		pCust = cl.players[playernum].customdata.pNext;
 
-		pWad = (cachewad_t*)pCust->pInfo;
-		if (pWad && pCust->pBuffer)
-			return (texture_t*)Draw_CustomCacheGet(pWad, pCust->pBuffer, pCust->nUserData1);
+		if (!pCust || !pCust->bInUse || !pCust->pInfo || !pCust->pBuffer)
+		{
+			Sys_Error("Failed to load custom decal for player #%i:%s using default decal 0.\n", playernum, cl.players[playernum].name);
+			return NULL;
+		}
+
+		return (texture_t*)Draw_CustomCacheGet((cachewad_t*)pCust->pInfo, pCust->pBuffer, pCust->nUserData1);
 	}
 
-	Sys_Error("Failed to load custom decal for player #%i:%s using default decal 0.\n", playernum, cl.players[playernum].name);
-	return NULL;
+	// Just a regular decal
+	return (texture_t*)Draw_CacheGet(decal_wad, index);
 }
 
 // called from cl_parse.c
@@ -240,90 +257,136 @@ void Decal_ReplaceOrAppendLump( lumplist_t **ppList, lumpinfo_t *lump, qboolean 
 	*ppList = p;
 }
 
-static int Decal_CountLumps( lumplist_t *plist )
+/* Merge the lumps of a decal wad over the ones already loaded so later wads
+   replace earlier ones by name, then rebuild decal_wad. */
+void Decal_MergeInDecals( char *name, const char *pathID, cachewad_t *pwad )
 {
-	int c = 0;
-	lumplist_t *p = plist;
-
-	while (p != NULL)
-	{
-		p = p->next;
-		c++;
-	}
-	return c;
-}
-
-/* Merge the lumps of custom.wad over decals.wad so custom decals replace
-   stock ones by name. */
-void Decal_MergeInDecals( cachewad_t *pwad, const char *pathID )
-{
-	int i;
-	int lumpcount;
-	lumpinfo_t *lump;
-	lumplist_t *lumplist;
-	lumplist_t *p;
-	lumplist_t *next;
-	cachewad_t custom;
-
-	if (!pwad)
-		return;
+	lumplist_t	*lumplist;
+	lumplist_t	*p;
+	lumplist_t	*next;
+	cachewad_t	*newwad;
+	int			i;
+	int			lumpcount;
 
 	lumplist = NULL;
 
-	for (i = 0, lump = pwad->lumps; i < pwad->lumpCount; i++, lump++)
-		Decal_ReplaceOrAppendLump(&lumplist, lump, FALSE);
-
-	memset(&custom, 0, sizeof(custom));
-	Draw_CacheWadInit("custom.wad", MAX_BASE_DECALS, &custom);
-
-	for (i = 0, lump = custom.lumps; i < custom.lumpCount; i++, lump++)
-		Decal_ReplaceOrAppendLump(&lumplist, lump, TRUE);
-
-	lumpcount = Decal_CountLumps(lumplist);
-
-	MnemoFree(pwad->lumps);
-	pwad->lumps = (lumpinfo_t *)MnemoAlloc(sizeof(lumpinfo_t) * lumpcount, 0x20, 0, "decallumps");
-
-	for (i = 0, p = lumplist; p != NULL; p = p->next, i++)
-		memcpy(&pwad->lumps[i], p->lump, sizeof(lumpinfo_t));
-
-	pwad->lumpCount = lumpcount;
-
-	for (p = lumplist; p != NULL; p = next)
+	if (!pwad)
 	{
-		next = p->next;
-		MnemoFree(p->lump);
-		MnemoFree(p);
+		Sys_Error("Decal_MergeInDecals called with NULL wadfile\n");
+		return;
 	}
 
-	Draw_FreeWad(&custom);
+	if (!decal_wad)
+	{
+		// The first wad found becomes the base to merge onto.
+		decal_wad = pwad;
+		pwad->numpaths = 1;
+		decal_wad->basedirs = (char **)MnemoAllocDbg(decal_wad->numpaths * sizeof(char *), __FILE__, __LINE__);
+		decal_wad->basedirs[0] = _strdup(pathID);
+		decal_wad->lumppathindices = (int *)MnemoAllocDbg(decal_wad->cacheMax * sizeof(int), __FILE__, __LINE__);
+		memset(decal_wad->lumppathindices, 0, decal_wad->cacheMax * sizeof(int));
+		return;
+	}
+
+	newwad = (cachewad_t *)MnemoAllocDbg(sizeof(cachewad_t), __FILE__, __LINE__);
+	memset(newwad, 0, sizeof(cachewad_t));
+
+	for (i = 0; i < decal_wad->lumpCount; i++)
+		Decal_ReplaceOrAppendLump(&lumplist, &decal_wad->lumps[i], FALSE);
+
+	for (i = 0; i < pwad->lumpCount; i++)
+		Decal_ReplaceOrAppendLump(&lumplist, &pwad->lumps[i], TRUE);
+
+	lumpcount = 0;
+	for (p = lumplist; p != NULL; p = p->next)
+		lumpcount++;
+
+	newwad->lumpCount = lumpcount;
+	newwad->cacheCount = 0;
+	newwad->cacheMax = decal_wad->cacheMax;
+	newwad->name = _strdup(decal_wad->name);
+	newwad->cache = (cacheentry_t *)MnemoAllocDbg(newwad->cacheMax * sizeof(cacheentry_t), __FILE__, __LINE__);
+	memset(newwad->cache, 0, newwad->cacheMax * sizeof(cacheentry_t));
+	newwad->tempWad = 0;
+	newwad->pfnCacheBuild = decal_wad->pfnCacheBuild;
+	newwad->cacheExtra = decal_wad->cacheExtra;
+	newwad->lumppathindices = (int *)MnemoAllocDbg(newwad->cacheMax * sizeof(int), __FILE__, __LINE__);
+	memset(newwad->lumppathindices, 0, newwad->cacheMax * sizeof(int));
+	newwad->numpaths = 2;
+	newwad->basedirs = (char **)MnemoAllocDbg(newwad->numpaths * sizeof(char *), __FILE__, __LINE__);
+	newwad->basedirs[0] = _strdup(decal_wad->basedirs[0]);
+	newwad->basedirs[1] = _strdup(pathID);
+
+	lumpcount = 0;
+	for (p = lumplist; p != NULL; p = p->next)
+		lumpcount++;
+
+	newwad->lumps = (lumpinfo_t *)MnemoAllocDbg(lumpcount * sizeof(lumpinfo_t), __FILE__, __LINE__);
+
+	for (i = 0, p = lumplist; p != NULL; p = next, i++)
+	{
+		next = p->next;
+		memcpy(&newwad->lumps[i], p->lump, sizeof(lumpinfo_t));
+		p->lump = NULL;
+		newwad->lumppathindices[i] = (p->breplaced != 0);
+		free(p);
+	}
+
+	lumplist = NULL;
+	Draw_FreeWad(decal_wad);
+	decal_wad = newwad;
 }
 
 // This is called to reset all loaded decals
 // called from cl_parse.c and host.c
 void Decal_Init( void )
 {
-	int i;
+	FileList_t*	fileList;
+	FileList_t*	pfile;
+	cachewad_t*	wad;
+	int			i;
 
-	if (decal_wad)
+	fileList = NULL;
+
+	Draw_FreeWad(decal_wad);
+	decal_wad = NULL;
+
+	if (COM_BuildFileList("decals.wad", &fileList) < 1)
 	{
-		Draw_FreeWad(decal_wad);
-		decal_wad = NULL;
+		Sys_Error("Couldn't find '%s' in search path\n", "decals.wad");
 	}
-	decal_wad = (cachewad_t *)MnemoAllocDbg(sizeof(cachewad_t), __FILE__, __LINE__);
-	memset(decal_wad, 0, sizeof(cachewad_t));
-	Draw_CacheWadInit("decals.wad", MAX_BASE_DECALS, decal_wad);
-	decal_wad->pfnCacheBuild = Draw_MiptexTexture;
-	decal_wad->cacheExtra = MIP_EXTRASIZE;
+	else
+	{
+		for (pfile = fileList; pfile; pfile = pfile->next)
+		{
+			wad = (cachewad_t *)MnemoAllocDbg(sizeof(cachewad_t), __FILE__, __LINE__);
+			memset(wad, 0, sizeof(cachewad_t));
+			Draw_CacheWadInitFromFile(pfile->handles, pfile->fileLen, "decals.wad", MAX_BASE_DECALS, wad);
+			wad->pfnCacheBuild = Draw_MiptexTexture;
+			wad->cacheExtra = MIP_EXTRASIZE;
+			Decal_MergeInDecals("decals.wad", pfile->pathID, wad);
+		}
 
-	sv_decalnamecount = Draw_DecalCount();
-	if (sv_decalnamecount > MAX_BASE_DECALS)
+		COM_CloseUnusedFiles(fileList);
+		COM_DestroyMultipleFileList(&fileList);
+	}
+
+	sv_decalnamecount = decal_wad ? decal_wad->lumpCount : 0;
+	if (MAX_BASE_DECALS < sv_decalnamecount)
 		Sys_Error("Too many decals: %d / %d\n", sv_decalnamecount, MAX_BASE_DECALS);
 
 	for (i = 0; i < sv_decalnamecount; i++)
 	{
+		char* name;
+
 		memset(&sv_decalnames[i], 0, sizeof(decalname_t));
-		strncpy(sv_decalnames[i].name, Draw_DecalName(i), sizeof(sv_decalnames[i].name) - 1);
+
+		if (decal_wad && i < decal_wad->lumpCount)
+			name = decal_wad->lumps[i].name;
+		else
+			name = NULL;
+
+		strncpy(sv_decalnames[i].name, name, sizeof(sv_decalnames[i].name) - 1);
 	}
 }
 
@@ -474,23 +537,6 @@ int Draw_CacheIndex( cachewad_t* wad, char* path )
 	return i;
 }
 
-/* ---------------------------------------------------------------------------
- * Helpers still referenced from files that have not been reworked yet.
- * --------------------------------------------------------------------------- */
-
-int Draw_DecalCount( void )
-{
-	return decal_wad->lumpCount;
-}
-
-char* Draw_DecalName( int number )
-{
-	if (number >= decal_wad->lumpCount)
-		return 0;
-
-	return decal_wad->lumps[number].name;
-}
-
 /*
 ===============
 Draw_MiptexTexture
@@ -558,6 +604,7 @@ void Draw_CustomCacheWadInit( int cacheMax, cachewad_t* wad, void* raw, int nFil
 	lumpinfo_t* lump_p;
 	wadinfo_t header;
 	int		i;
+	int		size;
 
 	header = *(wadinfo_t*)raw;
 
@@ -569,20 +616,23 @@ void Draw_CustomCacheWadInit( int cacheMax, cachewad_t* wad, void* raw, int nFil
 		Sys_Error("Custom file doesn't have WAD3 id\n");
 	}
 
-	wad->lumps = (lumpinfo_t*)MnemoAlloc(nFileSize - header.infotableofs, 0x20, 0, "customlumps");
-	memcpy(wad->lumps, (char*)raw + header.infotableofs, nFileSize - header.infotableofs);
+	nFileSize -= header.infotableofs;
+	wad->lumps = (lumpinfo_t*)MnemoAllocDbg(nFileSize, __FILE__, __LINE__);
+	memcpy(wad->lumps, (char*)raw + header.infotableofs, nFileSize);
 
 	for (i = 0, lump_p = wad->lumps; i < header.numlumps; i++, lump_p++)
 	{
 		W_CleanupName(lump_p->name, lump_p->name);
 	}
 
-	wad->name = "pldecal.wad";
 	wad->lumpCount = header.numlumps;
 	wad->cacheCount = 0;
 	wad->cacheMax = cacheMax;
-	wad->cache = (cacheentry_t*)MnemoAlloc(sizeof(cacheentry_t) * cacheMax, 0x20, 0, "customcache");
-	memset(wad->cache, 0, sizeof(cacheentry_t) * cacheMax);
+	wad->name = "pldecal.wad";
+	size = cacheMax * sizeof(cacheentry_t);
+	wad->cache = (cacheentry_t*)MnemoAllocDbg(size, __FILE__, __LINE__);
+	memset(wad->cache, 0, size);
+	wad->tempWad = FALSE;
 	wad->pfnCacheBuild = NULL;
 	wad->cacheExtra = 0;
 }

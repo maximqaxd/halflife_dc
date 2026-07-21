@@ -1531,8 +1531,6 @@ void Host_ServerFrame( void )
 	if (host_speeds.value)
 		time4 = Sys_FloatTime();
 
-	SV_RequestMissingResourcesFromClients();
-
 // send a heartbeat to the master if needed
 	Master_Heartbeat();
 

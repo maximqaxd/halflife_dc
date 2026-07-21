@@ -542,7 +542,6 @@ void CAM_ClearStates( void );
 void CAM_StartMouseMove( void );
 void CAM_EndMouseMove( void );
 
-void CL_CreateCustomizationList( void );
 void CL_ClearState( qboolean bQuiet );
 void CL_ClearClientState( void );
 void CL_ReadPackets( void );        // Read packets from server and other sources (ping requests, etc.)
@@ -611,7 +610,7 @@ void CL_BitCounts_f( void );
 void CL_ShowSizes( void );
 void CL_ParseServerMessage( void );
 void CL_DeallocateDynamicData( void );
-qboolean CL_CheckFile( char* filename );
+qboolean CL_CheckOrDownloadFile( char* filename );
 
 //
 // view

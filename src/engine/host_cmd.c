@@ -3728,7 +3728,7 @@ void SV_BeginDownload_f( void )
 
 	if (cmd_source == src_command)
 	{
-		CL_CheckFile(name);
+		CL_CheckOrDownloadFile(name);
 		return;
 	}
 
@@ -3760,16 +3760,9 @@ void SV_BeginDownload_f( void )
 
 		COM_HexConvert(name + 4, 32, rgucMD5_hash);
 
-		if (HPAK_ResourceForHash(HASHPAK_FILENAME, rgucMD5_hash, &resource) &&
-			HPAK_GetDataPointer(HASHPAK_FILENAME, &resource, &file))
+		if (HPAK_ResourceForHash(HASHPAK_FILENAME, rgucMD5_hash, &resource))
 		{
-			host_client->downloadsize = resource.nDownloadSize;
-			host_client->download = (byte*)malloc(resource.nDownloadSize + 1);
-			fread(host_client->download, resource.nDownloadSize, 1, file);
-			host_client->download[resource.nDownloadSize] = 0;
-
-			fclose(file);
-			file = NULL;
+			HPAK_GetDataPointer(HASHPAK_FILENAME, &resource, (void**)&host_client->download, &host_client->downloadsize);
 		}
 	}
 	else
