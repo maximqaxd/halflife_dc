@@ -2820,6 +2820,18 @@ int COM_OpenFile( char* filename, int* handle )
 
 /*
 ===========
+COM_OpenFileByName
+
+Like COM_OpenFile, but restricts the search to a single gamedir.
+===========
+*/
+int COM_OpenFileByName( char* gamedir, char* filename, int* handle )
+{
+	return COM_FindFileSearch(NULL, gamedir, filename, handle, NULL);
+}
+
+/*
+===========
 COM_FOpenFile
 
 If the requested file is inside a packfile, a new FILE * will be opened

@@ -56,7 +56,7 @@ texture_t*					Draw_DecalTexture( int index );
 extern int					Draw_DecalIndexFromName( char* name );
 
 #if defined ( GLQUAKE )
-extern qboolean				Draw_CacheReload( cachewad_t* wad, lumpinfo_t* pLump, cacheentry_t* pic, char* clean, char* path );
+extern qboolean				Draw_CacheReload( cachewad_t* wad, int index, lumpinfo_t* pLump, cacheentry_t* pic, char* clean, char* path );
 extern qboolean				Draw_CacheLoadFromCustom( char* clean, cachewad_t* wad, void* raw, cacheentry_t* pic );
 #else
 extern qboolean				Draw_CacheReload( cachewad_t* wad, lumpinfo_t* pLump, cachepic_t* pic, char* clean, char* path );

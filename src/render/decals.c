@@ -16,6 +16,12 @@ char		decal_names[MAX_BASE_DECALS][16];
 
 short		m_bDrawInitialized;
 
+short		custom_decal;
+char		custom_decal_name[16];
+
+extern int DC_LoadTexture( char *identifier, int texture_type, int width, int height, void *data, short mipmap, int tex_type, unsigned char *pPal );
+extern int DC_FreeTextureByName( char *name );
+
 void Draw_FreeWad( cachewad_t* pWad );
 void Draw_CacheWadInitFromFile( int *h, int len, char *name, int cacheMax, cachewad_t *wad );
 
@@ -166,7 +172,7 @@ int Draw_DecalIndex( int id )
 		Sys_Error("Used decal #%d without a name\n", id);
 
 	/* Never draw human blood on a censored build. */
-	if (!sv.active && !violence_hblood.value && !strncmp(pName, "{blood", 6))
+	if (!sv.active && violence_hblood.value == 0.0f && !strncmp(pName, "{blood", 6))
 	{
 		sprintf(tmpName, "{yblood%s", pName + 6);
 		pName = tmpName;
@@ -180,10 +186,10 @@ int Draw_DecalSize( int number )
 	if (!decal_wad)
 		return 0;
 
-	if (number < decal_wad->lumpCount)
-		return decal_wad->lumps[number].size;
+	if (number >= decal_wad->lumpCount)
+		return 0;
 
-	return 0;
+	return decal_wad->lumps[number].size;
 }
 
 texture_t* Draw_DecalTexture( int index )
@@ -415,13 +421,12 @@ void* Draw_CacheGet( cachewad_t* wad, int index )
 				break;
 		}
 
-		if (i >= wad->lumpCount)
+		if (!Draw_CacheReload(wad, i, pLump, pic, clean, pic->name))
 			return NULL;
 
-		if (!Draw_CacheReload(wad, pLump, pic, clean, pic->name))
-			return NULL;
-
-		dat = pic->cache.data;
+		dat = NULL;
+		if (!((int)pic->cache.data & 1))
+			dat = pic->cache.data;
 		if (!dat)
 			Sys_Error("Draw_CacheGet: failed to load %s", pic->name);
 	}
@@ -449,7 +454,9 @@ void* Draw_CustomCacheGet( cachewad_t* wad, void* raw, int index )
 		if (!Draw_CacheLoadFromCustom(clean, wad, raw, pic))
 			return NULL;
 
-		dat = pic->cache.data;
+		dat = NULL;
+		if (!((int)pic->cache.data & 1))
+			dat = pic->cache.data;
 		if (!dat)
 			Sys_Error("Draw_CacheGet: failed to load %s", pic->name);
 	}
@@ -457,12 +464,16 @@ void* Draw_CustomCacheGet( cachewad_t* wad, void* raw, int index )
 	return dat;
 }
 
-qboolean Draw_CacheReload( cachewad_t* wad, lumpinfo_t* pLump, cacheentry_t* pic, char* clean, char* path )
+qboolean Draw_CacheReload( cachewad_t* wad, int index, lumpinfo_t* pLump, cacheentry_t* pic, char* clean, char* path )
 {
 	byte* buf;
 	int		h[3];
 
-	COM_OpenFile(wad->name, h);
+	if (wad->numpaths == 2)
+		COM_OpenFileByName(wad->basedirs[wad->lumppathindices[index]], wad->name, h);
+	else
+		COM_OpenFile(wad->name, h);
+
 	if (h[2] == -1)
 		return FALSE;
 
@@ -497,23 +508,31 @@ qboolean Draw_CacheLoadFromCustom( char* clean, cachewad_t* wad, void* raw, cach
 	byte* buf;
 	lumpinfo_t* pLump;
 
-	idx = atoi(clean);
-	if (idx < 0 || idx >= wad->lumpCount)
-		return FALSE;
+	idx = 0;
+	if (strlen(clean) < 5 || ((idx = atoi(clean + 3)) >= 0 && idx < wad->lumpCount))
+	{
+		pLump = &wad->lumps[idx];
+		buf = (byte*)Cache_Alloc(&pic->cache, pLump->size + wad->cacheExtra + 1, clean);
+		if (!buf)
+			Sys_Error("Draw_CacheGet: not enough space for %s in %s", clean, wad->name);
 
-	pLump = &wad->lumps[idx];
-	buf = (byte*)Cache_Alloc(&pic->cache, wad->cacheExtra + pLump->size + 1, clean);
-	if (!buf)
-		Sys_Error("Draw_CacheGet: not enough space for %s in %s", clean, wad->name);
+		buf[pLump->size + wad->cacheExtra] = 0;
 
-	buf[pLump->size + wad->cacheExtra] = 0;
+		memcpy(&buf[wad->cacheExtra], (char*)raw + pLump->filepos, pLump->size);
 
-	memcpy(&buf[wad->cacheExtra], (char*)raw + pLump->filepos, pLump->size);
+		custom_decal = 1;
+		sprintf(custom_decal_name, "T%s", clean);
+		custom_decal_name[6] = 0;
 
-	if (wad->pfnCacheBuild)
-		wad->pfnCacheBuild(wad, buf);
+		if (wad->pfnCacheBuild)
+			wad->pfnCacheBuild(wad, buf);
 
-	return TRUE;
+		custom_decal = 0;
+
+		return TRUE;
+	}
+
+	return FALSE;
 }
 
 int Draw_CacheIndex( cachewad_t* wad, char* path )
@@ -574,15 +593,20 @@ void Draw_MiptexTexture( cachewad_t* wad, byte* data )
 	pal = (byte*)tex + paloffset;
 	bitmap = (byte*)tex + palettesize;
 
-	if (pal[765] != 0 || pal[766] != 0 || pal[767] != 255)
+	if (custom_decal)
+		strcpy(tex->name, custom_decal_name);
+
+	if (pal[765] == 0 && pal[766] == 0 && pal[767] == 255)
 	{
-		tex->name[0] = '}';
-		tex->gl_texturenum = GL_LoadTexture(tex->name, GLT_DECAL, tex->width, tex->height, bitmap, TRUE, TEX_TYPE_ALPHA_GRADIENT, pal);
+		tex->name[0] = '{';
+		tex->gl_texturenum = DC_LoadTexture(tex->name, GLT_DECAL, tex->width, tex->height, bitmap, TRUE, TEX_TYPE_ALPHA, pal);
 	}
 	else
 	{
-		tex->name[0] = '{';
-		tex->gl_texturenum = GL_LoadTexture(tex->name, GLT_DECAL, tex->width, tex->height, bitmap, TRUE, TEX_TYPE_ALPHA, pal);
+		tex->name[0] = '}';
+		if (custom_decal)
+			DC_FreeTextureByName(tex->name);
+		tex->gl_texturenum = DC_LoadTexture(tex->name, GLT_DECAL, tex->width, tex->height, bitmap, TRUE, TEX_TYPE_ALPHA_GRADIENT, pal);
 	}
 }
 
