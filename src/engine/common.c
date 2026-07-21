@@ -3934,7 +3934,7 @@ int COM_BuildFileList( char* filename, FileList_t** ppList )
 		handles = (int*)MnemoAllocDbg(3 * sizeof(int), __FILE__, __LINE__);
 		memset(handles, 0, 3 * sizeof(int));
 
-		len = COM_FindFileSearch(&restart, filename, (char*)handles, NULL, NULL);
+		len = COM_FindFileSearch(&restart, NULL, filename, handles, NULL);
 		if (len == -1)
 			break;
 
