@@ -4,6 +4,7 @@
 #include "winquake.h"
 #include "cmodel.h"
 #include "profile.h"
+#include "hashpak.h"
 
 /*
 
@@ -2225,6 +2226,8 @@ void Host_Shutdown( void )
 	scr_disabled_for_loading = TRUE;
 
 	Host_WriteConfiguration();
+
+	HPAK_FlushHostQueue();
 
 	SV_ClearChannels(FALSE);
 

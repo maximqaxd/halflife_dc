@@ -18,6 +18,17 @@ qboolean HPAK_GetDataPointer( char* pakname, resource_t* pResource, void** ppbuf
 
 /*
 =================
+HPAK_FlushHostQueue
+
+=================
+*/
+void HPAK_FlushHostQueue( void )
+{
+	Sys_Error("Customization\n");
+}
+
+/*
+=================
 HPAK_AddLump
 
 =================
@@ -60,37 +71,4 @@ qboolean HPAK_ResourceForHash( char* pakname, byte* hash, resource_t* pResourceE
 {
 	Sys_Error("Customization\n");
 	return FALSE;
-}
-
-/*
-=================
-HPAK_List_f
-
-=================
-*/
-void HPAK_List_f( void )
-{
-	Sys_Error("Customization\n");
-}
-
-/*
-=================
-HPAK_CreatePak
-
-=================
-*/
-void HPAK_CreatePak( char* pakname, resource_t* pResource, void* pData, FILE* fpSource )
-{
-	Sys_Error("Customization\n");
-}
-
-/*
-=================
-HPAK_Remove_f
-
-=================
-*/
-void HPAK_Remove_f( void )
-{
-	Sys_Error("Customization\n");
 }

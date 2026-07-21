@@ -415,9 +415,6 @@ void NET_ClearLaggedList( packetlag_t* pList )
 
 		NET_RemoveFromPacketList(p);
 
-		// Delete the associated file.
-		_unlink(p->pFileName);
-
 		if (p->pFileName)
 			free(p->pFileName);
 		p->pFileName = NULL;
@@ -517,7 +514,6 @@ qboolean NET_LagPacket( qboolean newdata, netsrc_t sock, netadr_t* from, sizebuf
 			net_from = pPacket->net_from;
 			fclose(file);
 
-			_unlink(pPacket->pFileName);
 			free(pPacket->pFileName);
 			free(pPacket);
 			return TRUE;

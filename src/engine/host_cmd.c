@@ -922,43 +922,6 @@ void Host_Spectate_f( void )
 	CL_Spectate_f();
 }
 
-char* MakeProfileName( char* pName )
-{
-	static char szShortName[16];
-	char* pDest;
-	int	len;
-
-	memset(szShortName, 0, sizeof(szShortName));
-
-	if (strlen(pName) == 0)
-		return "Noname";
-
-	pDest = szShortName;
-	len = 0;
-
-	// Copy only letters and numbers, no more than 8 characters
-	while (*pName && len < 8)
-	{
-		if (isalnum(*pName))
-		{
-			*pDest++ = *pName;
-			len++;
-		}
-		pName++;
-	}
-	*pDest = 0;
-
-	if (strlen(szShortName) == 0)
-		return "Noname";
-
-	return szShortName;
-}
-
-void Host_ShortName_f( void )
-{
-	Con_Printf("Short name is '%s'\n", MakeProfileName(cl_name.string));
-}
-
 /*
 ===============================================================================
 
@@ -2354,8 +2317,6 @@ void DirectoryClear( const char* pPath )
 		sprintf(szName, "%s%s", Host_SaveGameDirectory(), ffd.cFileName);
 		COM_FixSlashes(szName);
 
-		// Delete the temporary save file
-		_unlink(szName);
 
 		// Any more save files
 		nextfile = FindNextFile(findfn, &ffd);
@@ -3962,7 +3923,6 @@ void Host_InitCommands( void )
 	Cmd_AddCommand("load", Host_Loadgame_f);
 	Cmd_AddCommand("save", Host_Savegame_f);
 	Cmd_AddCommand("autosave", Host_AutoSave_f);
-	Cmd_AddCommand("shortname", Host_ShortName_f);
 
 	Cmd_AddCommand("startdemos", Host_Startdemos_f);
 	Cmd_AddCommand("demos", Host_Demos_f);
@@ -4014,9 +3974,6 @@ void Host_InitCommands( void )
 	Cmd_AddCommand("keys", SV_Keys_f);
 
 	Host_ClearSaveDirectory();
-
-	Cmd_AddCommand("hpklist", HPAK_List_f);
-	Cmd_AddCommand("hpkremove", HPAK_Remove_f);
 }
 
 //=============================================================================

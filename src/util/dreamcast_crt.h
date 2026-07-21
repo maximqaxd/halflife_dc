@@ -21,7 +21,6 @@ extern "C" {
 
 int _strnicmp( const char *s1, const char *s2, unsigned int n );
 int _stricmp( const char *s1, const char *s2 );
-int _strcmpi( const char *s1, const char *s2 );
 
 // The Dreamcast heap allocators tag each block with its call site and route
 // through the Mnemo arena. free() is already declared by <stdlib.h>; only the
@@ -32,29 +31,16 @@ void* calloc( unsigned int num, unsigned int size, const char* file, int line );
 void* bsearch( const void* key, const void* base, unsigned int num, unsigned int width,
                int (__cdecl *compare)(const void*, const void*) );
 
-int isalnum( int c );
 int isalpha( int c );
 int isdigit( int c );
 int isspace( int c );
 int isprint( int c );
 
 char* _strdup( const char *s );
-char* _strlwr( char *s );
 char* strrchr( const char *s, int c );
-void  _splitpath( const char* path, char* drive, char* dir, char* fname, char* ext );
 
 long time( long* t );
-unsigned long timeGetTime( void );
-unsigned int  joyGetNumDevs( void );
 
-char* itoa( int value, char* str, int base );
-
-/* WinCE has no ANSI CreateDirectory; route narrow paths through a converter */
-int DC_CreateDirectoryA( const char* path );
-#ifdef CreateDirectory
-#undef CreateDirectory
-#endif
-#define CreateDirectory( path, attrs ) DC_CreateDirectoryA( path )
 #ifdef __cplusplus
 }
 #endif

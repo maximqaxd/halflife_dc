@@ -4,6 +4,8 @@
 #include <windows.h>
 #include <string.h>
 
+extern "C" void* MnemoAllocDbg( int size, const char* srcFile, int srcLine );
+
 extern "C" {
 
 int _strnicmp( const char* s1, const char* s2, unsigned int n )
@@ -44,56 +46,6 @@ int _stricmp( const char* s1, const char* s2 )
 	}
 }
 
-// WinCE file shims
-
-int _unlink( const char* path )
-{
-	if ( !path )
-		return -1;
-
-	TCHAR wszPath[MAX_PATH];
-	wszPath[0] = 0;
-	MultiByteToWideChar( CP_ACP, 0, path, -1, wszPath, MAX_PATH );
-
-	if ( DeleteFile( wszPath ) )
-		return 0;
-
-	return -1;
-}
-
-int DC_CreateDirectoryA( const char* path )
-{
-	TCHAR wszPath[MAX_PATH];
-
-	if ( !path )
-		return 0;
-
-	wszPath[0] = 0;
-	MultiByteToWideChar( CP_ACP, 0, path, -1, wszPath, MAX_PATH );
-
-	return CreateDirectory( wszPath, NULL );
-}
-
-int rename( const char* oldname, const char* newname )
-{
-	if ( !oldname || !newname )
-		return -1;
-
-	TCHAR wszOld[MAX_PATH];
-	TCHAR wszNew[MAX_PATH];
-
-	wszOld[0] = 0;
-	wszNew[0] = 0;
-
-	MultiByteToWideChar( CP_ACP, 0, oldname, -1, wszOld, MAX_PATH );
-	MultiByteToWideChar( CP_ACP, 0, newname, -1, wszNew, MAX_PATH );
-
-	if ( MoveFile( wszOld, wszNew ) )
-		return 0;
-
-	return -1;
-}
-
 
 // The C heap free() overrides coredll's and routes through the arena allocator.
 // (The exe link uses /FORCE:MULTIPLE so this wins over coredll's free; per-module
@@ -105,92 +57,73 @@ void free( void* ptr )
 }
 
 // Case-insensitive
-int _strcmpi( const char* s1, const char* s2 )
-{
-	return _stricmp( s1, s2 );
-}
-
 // Simple bsearch implementation for environments without a CRT bsearch.
 void* bsearch( const void* key, const void* base, unsigned int num, unsigned int width,
                 int (__cdecl *compare)(const void*, const void*) )
 {
-	const unsigned char* lo = (const unsigned char*)base;
-	const unsigned char* hi = lo + (num ? (num - 1) * width : 0);
+	unsigned int cur;
+	const char* p;
+	int r;
 
-	while ( num && lo <= hi )
+	while ( 1 )
 	{
-		const unsigned char* mid = lo + ((hi - lo) / width / 2) * width;
-		int cmp = compare( key, mid );
-		if ( cmp == 0 )
-			return (void*)mid;
-		if ( cmp < 0 )
+		do
 		{
-			if ( mid == lo )
-				break;
-			hi = mid - width;
-		}
-		else
-		{
-			lo = mid + width;
-		}
-	}
+			cur = num;
+			if ( cur == 0 )
+				return NULL;
+			num = cur >> 1;
+			p = (const char*)base + num * width;
+			r = compare( key, p );
+		} while ( r < 0 );
 
-	return NULL;
+		if ( r == 0 )
+			return (void*)p;
+
+		base = p + width;
+		num = cur - ( num + 1 );
+	}
 }
 
 // Character classification implementations.
-int isalnum( int c )
-{
-	return ( (c >= '0' && c <= '9') ||
-	         (c >= 'A' && c <= 'Z') ||
-	         (c >= 'a' && c <= 'z') );
-}
-
 int isalpha( int c )
 {
-	return ( (c >= 'A' && c <= 'Z') ||
-	         (c >= 'a' && c <= 'z') );
+	if ( c >= 'A' && c <= 'Z' )
+		return 1;
+	if ( c >= 'a' && c <= 'z' )
+		return 1;
+	return 0;
 }
 
 int isdigit( int c )
 {
-	return (c >= '0' && c <= '9');
+	if ( c >= '0' && c <= '9' )
+		return 1;
+	return 0;
 }
 
 int isspace( int c )
 {
-	return (c == ' '  || c == '\t' ||
-	        c == '\n' || c == '\r' ||
-	        c == '\f' || c == '\v');
+	if ( ' ' != c && '\f' != c && '\n' != c && '\r' != c && '\t' != c && '\v' != c )
+		return 0;
+	return 1;
 }
 
 int isprint( int c )
 {
-	return (c >= 0x20 && c <= 0x7e);
+	if ( c >= 0x20 && c <= 0x7e )
+		return 1;
+	return 0;
 }
 
 // String shims.
 char* _strdup( const char* s )
 {
-	if ( !s )
-		return NULL;
-
-	const size_t len = strlen( s ) + 1;
-	char* out = (char*)malloc( len );
+	int len = strlen( s );
+	char* out = (char*)MnemoAllocDbg( len + 1, __FILE__, __LINE__ );
 	if ( out )
-		memcpy( out, s, len );
+		strcpy( out, s );
 	return out;
-}
-
-char* _strlwr( char* s )
-{
-	if ( !s )
-		return NULL;
-
-	for ( char* p = s; *p; ++p )
-		*p = (char)tolower( (unsigned char)*p );
-
-	return s;
 }
 
 int Sys_SampleCount( void )
@@ -213,66 +146,6 @@ char* strrchr( const char* s, int c )
 }
 
 
-void _splitpath( const char* path,
-                 char* drive, char* dir, char* fname, char* ext )
-{
-	// We ignore drive on Dreamcast (\Device\CDROM0 etc.), so always empty.
-	if ( drive )
-		drive[0] = '\0';
-
-	if ( !path )
-	{
-		if ( dir )   dir[0] = '\0';
-		if ( fname ) fname[0] = '\0';
-		if ( ext )   ext[0] = '\0';
-		return;
-	}
-
-	const char* lastSlash = NULL;
-	const char* lastDot   = NULL;
-
-	for ( const char* p = path; *p; ++p )
-	{
-		if ( *p == '\\' || *p == '/' )
-			lastSlash = p;
-		else if ( *p == '.' )
-			lastDot = p;
-	}
-
-	const char* nameStart = lastSlash ? lastSlash + 1 : path;
-	const char* extStart  = (lastDot && lastDot > nameStart) ? lastDot : NULL;
-
-	if ( dir )
-	{
-		if ( lastSlash )
-		{
-			size_t len = (size_t)(lastSlash - path + 1); // include trailing slash
-			memcpy( dir, path, len );
-			dir[len] = '\0';
-		}
-		else
-		{
-			dir[0] = '\0';
-		}
-	}
-
-	if ( fname )
-	{
-		const char* end = extStart ? extStart : path + strlen( path );
-		size_t len = (size_t)(end - nameStart);
-		memcpy( fname, nameStart, len );
-		fname[len] = '\0';
-	}
-
-	if ( ext )
-	{
-		if ( extStart )
-			strcpy( ext, extStart );
-		else
-			ext[0] = '\0';
-	}
-}
-
 // Time shim.
 long time( long* t )
 {
@@ -284,121 +157,38 @@ long time( long* t )
 	return secs;
 }
 
-FILE* tmpfile( void )
-{
-
-	return NULL;
-}
-
-int setvbuf( void* stream, char* buffer, int mode, unsigned int size )
-{
-	(void)stream;
-	(void)buffer;
-	(void)mode;
-	(void)size;
-	return 0;
-}
-
-// Generic float-to-long converter used via quick_ftol macro / compiler helper.
-long ftol( double f )
-{
-	return (long)f;
-}
-
-unsigned long timeGetTime( void )
-{
-	return GetTickCount();
-}
-
-// TODO: remove that
-unsigned int joyGetNumDevs( void )
-{
-	return 0;
-}
-
-// Simple integer to string conversion; supports at least base 10 for sound.cpp usage.
-char* itoa( int value, char* str, int base )
-{
-	static const char digits[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	char buf[32];
-	int  i = 0;
-	int  negative = 0;
-	unsigned int v;
-
-	if ( !str || base < 2 || base > 36 )
-		return str;
-
-	if ( value < 0 && base == 10 )
-	{
-		negative = 1;
-		v = (unsigned int)(-value);
-	}
-	else
-	{
-		v = (unsigned int)value;
-	}
-
-	do
-	{
-		buf[i++] = digits[v % (unsigned int)base];
-		v /= (unsigned int)base;
-	} while ( v && i < (int)sizeof(buf) - 1 );
-
-	if ( negative )
-		buf[i++] = '-';
-
-	// reverse into output
-	{
-		int j;
-		int k = 0;
-		for ( j = i - 1; j >= 0; --j )
-			str[k++] = buf[j];
-		str[k] = '\0';
-	}
-
-	return str;
-}
-
 // Case-insensitive string compares (WinCE lacks these); tolower is resolved
 // through the CRT so the DC build shares one implementation.
 int Q_stricmp( char* s1, char* s2 )
 {
-	int c1, c2;
-
 	while (*s1)
 	{
-		c1 = tolower(*s1);
-		c2 = tolower(*s2);
-		if (c1 != c2)
+		if (tolower(*s1) != tolower(*s2))
 			break;
 		s1++;
 		s2++;
 	}
 
-	c1 = tolower(*s1);
-	c2 = tolower(*s2);
-	if (c1 < c2)
+	if (tolower(*s1) < tolower(*s2))
 		return -1;
-	return (c2 < c1);
+	return (tolower(*s2) < tolower(*s1));
 }
 
 int Q_strnicmp( char* s1, char* s2, int n )
 {
-	int c1, c2;
-
-	while (n-- > 0)
+	while (*s1)
 	{
-		c1 = tolower(*s1);
-		c2 = tolower(*s2);
-		if (c1 != c2)
-			return (c1 < c2) ? -1 : 1;
-		if (!*s1)
-			return 0;
+		if (tolower(*s1) != tolower(*s2))
+			break;
+		if (--n == 0)
+			break;
 		s1++;
 		s2++;
 	}
 
-	return 0;
+	if (tolower(*s1) < tolower(*s2))
+		return -1;
+	return (tolower(*s2) < tolower(*s1));
 }
 
 } // extern "C"

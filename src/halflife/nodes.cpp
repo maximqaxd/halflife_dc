@@ -1657,12 +1657,9 @@ void CTestHull :: BuildNodeGraph( void )
 	}
 
 
-	// make sure directories have been made
 	GET_GAME_DIR( szNrpFilename );
 	strcat( szNrpFilename, "/maps" );
-	CreateDirectory( szNrpFilename, NULL );
 	strcat( szNrpFilename, "/graphs" );
-	CreateDirectory( szNrpFilename, NULL );
 
 	strcat( szNrpFilename, "/" );
 	strcat( szNrpFilename, STRING( gpGlobals->mapname ) );
@@ -2328,14 +2325,6 @@ int CGraph :: FLoadGraph ( char *szMapName )
 	byte    *aMemFile;
 	byte    *pMemFile;
 
-	// make sure the directories have been made
-	char	szDirName[MAX_PATH];
-	GET_GAME_DIR( szDirName );
-	strcat( szDirName, "/maps" );
-	CreateDirectory( szDirName, NULL );
-	strcat( szDirName, "/graphs" );
-	CreateDirectory( szDirName, NULL );
-
 	strcpy ( szFilename, "maps/graphs/" );
 	strcat ( szFilename, szMapName );
 	strcat( szFilename, ".nod" );
@@ -2507,12 +2496,9 @@ int CGraph :: FSaveGraph ( char *szMapName )
 		return FALSE;
 	}
 
-	// make sure directories have been made
 	GET_GAME_DIR( szFilename );
 	strcat( szFilename, "/maps" );
-	CreateDirectory( szFilename, NULL );
 	strcat( szFilename, "/graphs" );
-	CreateDirectory( szFilename, NULL );
 
 	strcat( szFilename, "/" );
 	strcat( szFilename, szMapName );

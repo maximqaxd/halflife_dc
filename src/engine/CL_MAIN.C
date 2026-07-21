@@ -819,7 +819,7 @@ void CL_SendConnectPacket( void )
 	strncpy(szServerName, cls.servername, sizeof(szServerName));
 
 	// Deal with local connection
-	if (!_strcmpi(cls.servername, "local"))
+	if (!_stricmp(cls.servername, "local"))
 	{
 		sprintf(szServerName, "%s", "localhost");
 	}

@@ -1429,7 +1429,6 @@ void CL_Restore( char* fileName )
 	pFile = fopen(fileName, "rb");
 	if (pFile)
 	{
-		setvbuf(pFile, NULL, _IOFBF, 0x1000);
 		fread(&temp, sizeof(int), 1, pFile);
 		fread(&i, sizeof(int), 1, pFile);
 

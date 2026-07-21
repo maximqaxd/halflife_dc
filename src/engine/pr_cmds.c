@@ -1157,7 +1157,7 @@ int iGetIndex( const char* pszField )
 	char sz[512];
 
 	strcpy(sz, pszField);
-	_strlwr(sz);
+	COM_StringToLower(sz);
 
 	if (!strcmp(sz, "classname"))
 		return offsetof(entvars_t, classname);
