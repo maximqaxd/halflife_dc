@@ -6,9 +6,9 @@
 #include "pr_cmds.h"
 
 int	gHealth = 100;
-double gfFade;
+float gfFade;
 int	gAmmo;
-double gfAmmoFade;
+float gfAmmoFade;
 
 int giHudLevel = 1;
 int giSelectMode = 1;
@@ -21,34 +21,24 @@ int giAmmoDigits;
 int giHealthWidth;
 int giAmmoWidth;
 int giGeigerRange = -1;
-double gflGeigerDelay = -1.0;
+float gflGeigerDelay = -1.0f;
 
 extern cvar_t crosshair;
 extern vrect_t scr_vrect;
 
 void DrawCrosshair( int x, int y );
+int  R_WorldToScreen( vec_t* point, vec_t* screen );
 
 void HudSizeUp( void )
 {
 	if (scr_viewsize.value < 120)
-	{
 		Cvar_SetValue("viewsize", scr_viewsize.value + 10);
-		return;
-	}
-
-	giHudLevel--;
-	if (giHudLevel < 0)
-		giHudLevel = 0;
 }
 
 void HudSizeDown( void )
 {
-	giHudLevel++;
-	if (giHudLevel > 3)
-	{
-		giHudLevel = 3;
+	if (scr_viewsize.value > 30)
 		Cvar_SetValue("viewsize", scr_viewsize.value - 10);
-	}
 }
 
 /*
@@ -60,13 +50,13 @@ void Sbar_Geiger( void )
 {
 	int pct;
 	float flvol;
-	sfx_t* rgsfx[3] = { NULL };
+	sfx_t* rgsfx[3];
 	int i;
 
 	if (cl.time < gflGeigerDelay)
 		return;
 
-	gflGeigerDelay = cl.time + 0.1;
+	gflGeigerDelay = cl.time + 0.1f;
 
 	if (giGeigerRange < 1000 && giGeigerRange > 0)
 	{
@@ -74,13 +64,11 @@ void Sbar_Geiger( void )
 		if (giGeigerRange > 800)
 		{
 			pct = 0;			//Con_Printf("range > 800\n");
-			flvol = 0.0;
-			i = 0;
 		}
 		else if (giGeigerRange > 600)
 		{
 			pct = 2;
-			flvol = 0.4;		//Con_Printf("range > 600\n");
+			flvol = 0.4f;		//Con_Printf("range > 600\n");
 			rgsfx[0] = cl_sfx_geiger1;
 			rgsfx[1] = cl_sfx_geiger1;
 			i = 2;
@@ -88,7 +76,7 @@ void Sbar_Geiger( void )
 		else if (giGeigerRange > 500)
 		{
 			pct = 4;
-			flvol = 0.5;		//Con_Printf("range > 500\n");
+			flvol = 0.5f;		//Con_Printf("range > 500\n");
 			rgsfx[0] = cl_sfx_geiger1;
 			rgsfx[1] = cl_sfx_geiger2;
 			i = 2;
@@ -96,7 +84,7 @@ void Sbar_Geiger( void )
 		else if (giGeigerRange > 400)
 		{
 			pct = 8;
-			flvol = 0.6;		//Con_Printf("range > 400\n");
+			flvol = 0.6f;		//Con_Printf("range > 400\n");
 			rgsfx[0] = cl_sfx_geiger1;
 			rgsfx[1] = cl_sfx_geiger2;
 			rgsfx[2] = cl_sfx_geiger3;
@@ -105,7 +93,7 @@ void Sbar_Geiger( void )
 		else if (giGeigerRange > 300)
 		{
 			pct = 8;
-			flvol = 0.7;		//Con_Printf("range > 300\n");
+			flvol = 0.7f;		//Con_Printf("range > 300\n");
 			rgsfx[0] = cl_sfx_geiger2;
 			rgsfx[1] = cl_sfx_geiger3;
 			rgsfx[2] = cl_sfx_geiger4;
@@ -114,7 +102,7 @@ void Sbar_Geiger( void )
 		else if (giGeigerRange > 200)
 		{
 			pct = 28;
-			flvol = 0.78;		//Con_Printf("range > 200\n");
+			flvol = 0.78f;		//Con_Printf("range > 200\n");
 			rgsfx[0] = cl_sfx_geiger2;
 			rgsfx[1] = cl_sfx_geiger3;
 			rgsfx[2] = cl_sfx_geiger4;
@@ -123,7 +111,7 @@ void Sbar_Geiger( void )
 		else if (giGeigerRange > 150)
 		{
 			pct = 40;
-			flvol = 0.80;		//Con_Printf("range > 150\n");
+			flvol = 0.80f;		//Con_Printf("range > 150\n");
 			rgsfx[0] = cl_sfx_geiger3;
 			rgsfx[1] = cl_sfx_geiger4;
 			rgsfx[2] = cl_sfx_geiger5;
@@ -132,7 +120,7 @@ void Sbar_Geiger( void )
 		else if (giGeigerRange > 100)
 		{
 			pct = 60;
-			flvol = 0.85;		//Con_Printf("range > 100\n");
+			flvol = 0.85f;		//Con_Printf("range > 100\n");
 			rgsfx[0] = cl_sfx_geiger3;
 			rgsfx[1] = cl_sfx_geiger4;
 			rgsfx[2] = cl_sfx_geiger5;
@@ -141,7 +129,7 @@ void Sbar_Geiger( void )
 		else if (giGeigerRange > 75)
 		{
 			pct = 80;
-			flvol = 0.9;		//Con_Printf("range > 75\n");
+			flvol = 0.9f;		//Con_Printf("range > 75\n");
 			//gflGeigerDelay = cl.time + GEIGERDELAY * 0.75;
 			rgsfx[0] = cl_sfx_geiger4;
 			rgsfx[1] = cl_sfx_geiger5;
@@ -151,7 +139,7 @@ void Sbar_Geiger( void )
 		else if (giGeigerRange > 50)
 		{
 			pct = 90;
-			flvol = 0.95;		//Con_Printf("range > 50\n");
+			flvol = 0.95f;		//Con_Printf("range > 50\n");
 			rgsfx[0] = cl_sfx_geiger5;
 			rgsfx[1] = cl_sfx_geiger6;
 			i = 2;
@@ -159,17 +147,17 @@ void Sbar_Geiger( void )
 		else
 		{
 			pct = 95;
-			flvol = 1.0;		//Con_Printf("range < 50\n");
+			flvol = 1.0f;		//Con_Printf("range < 50\n");
 			rgsfx[0] = cl_sfx_geiger5;
 			rgsfx[1] = cl_sfx_geiger6;
 			i = 2;
 		}
 
-		flvol = flvol * RandomFloat(0.0, 0.5) + 0.25;
+		flvol = flvol * RandomFloat(0.0f, 0.5f) + 0.25f;
 
 		if (RandomLong(0, 127) < pct || RandomLong(0, 127) < pct)
 		{
-			S_StartDynamicSound(-1, CHAN_AUTO, rgsfx[RandomLong(0, i - 1)], r_origin, flvol, 1.0, 0, PITCH_NORM);
+			S_StartDynamicSound(-1, CHAN_AUTO, rgsfx[RandomLong(0, i - 1)], r_origin, flvol, 1.0f, 0, PITCH_NORM);
 		}
 	}
 }
@@ -190,6 +178,9 @@ void Sbar_Draw( void )
 	FillBackGround();
 #endif
 
+	if (cls.state != ca_active)
+		return;
+
 	if (giHudLevel == 0)
 		return;
 
@@ -198,7 +189,7 @@ void Sbar_Draw( void )
 
 	scr_copyeverything = TRUE;
 
-	if (crosshair.value)
+	if (crosshair.value && !scr_drawloading)
 	{
 		x = scr_vrect.x + (scr_vrect.width / 2);
 		y = scr_vrect.y + (scr_vrect.height / 2);
@@ -206,11 +197,11 @@ void Sbar_Draw( void )
 		VectorAdd(r_refdef.viewangles, cl.crosshairangle, angles);
 		AngleVectors(angles, forward, NULL, NULL);
 		VectorAdd(r_origin, forward, point);
-		ScreenTransform(point, screen);
+		R_WorldToScreen(point, screen);
 #if defined( GLQUAKE )
-		DrawCrosshair(0.5 * screen[0] * scr_vrect.width + x + 0.5, 0.5 * screen[1] * scr_vrect.height + y + 0.5);
+		DrawCrosshair(x + (0.5f * screen[0] * scr_vrect.width + 0.5f), y + (0.5f * screen[1] * scr_vrect.height + 0.5f));
 #else
-		DrawCrosshair(xscale * screen[0] + x + 0.5, yscale * screen[1] + y + 0.5);
+		DrawCrosshair(xscale * screen[0] + x + 0.5f, yscale * screen[1] + y + 0.5f);
 #endif
 	}
 
