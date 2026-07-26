@@ -2,12 +2,15 @@
 // 02/21/97 JCB Added extended DirectInput code to support external controllers.
 
 #include "quakedef.h"
+#include "vmu.h"
 #include "winquake.h"
 #include <dinput.h>
 #ifdef _WIN32_WCE
 #include <maplusag.h>
 #endif 
 extern int iMouseInUse;
+
+void Host_UpdateScreenSaver( int bCheckOnly );
 
 // Win32 virtual-key (message wParam) -> engine key-number translation table.
 unsigned char scantokey[256] =
@@ -36,7 +39,6 @@ int MapKey( int key )
 }
 
 // mouse variables
-cvar_t	m_filter = { "m_filter", "0" };
 
 int			mouse_buttons;
 int			mouse_oldbuttonstate;
@@ -45,7 +47,7 @@ int			mouse_x, mouse_y, old_mouse_x, old_mouse_y, mx_accum, my_accum;
 
 static qboolean	restore_spi;
 static int		originalmouseparms[3], newmouseparms[3] = { 0, 0, 1 };
-qboolean	mouseactive;
+int		mouseactive;
 qboolean		mouseinitialized;
 static qboolean	mouseparmsvalid, mouseactivatetoggle;
 static int	mouseshowtoggle = 1;
@@ -81,26 +83,64 @@ PDWORD	pdwRawValue[JOY_MAX_AXES];
 // each time.  this avoids any problems with getting back to a default usage
 // or when changing from one controller to another.  this way at least something
 // works.
-cvar_t	in_joystick = { "joystick", "1" };
+cvar_t	in_joystick = { "joystick", "1", FCVAR_ARCHIVE };
 cvar_t	joy_name = { "joyname", "joystick" };
-cvar_t	joy_advanced = { "joyadvanced", "0" };
-cvar_t	joy_advaxisx = { "joyadvaxisx", "0" };
-cvar_t	joy_advaxisy = { "joyadvaxisy", "0" };
-cvar_t	joy_advaxisz = { "joyadvaxisz", "0" };
-cvar_t	joy_advaxisr = { "joyadvaxisr", "0" };
-cvar_t	joy_advaxisu = { "joyadvaxisu", "0" };
-cvar_t	joy_advaxisv = { "joyadvaxisv", "0" };
-cvar_t	joy_forwardthreshold = { "joyforwardthreshold", "0.15" };
-cvar_t	joy_sidethreshold = { "joysidethreshold", "0.15" };
-cvar_t	joy_pitchthreshold = { "joypitchthreshold", "0.15" };
-cvar_t	joy_yawthreshold = { "joyyawthreshold", "0.15" };
-cvar_t	joy_forwardsensitivity = { "joyforwardsensitivity", "-1.0" };
-cvar_t	joy_sidesensitivity = { "joysidesensitivity", "-1.0" };
-cvar_t	joy_pitchsensitivity = { "joypitchsensitivity", "1.0" };
-cvar_t	joy_yawsensitivity = { "joyyawsensitivity", "-1.0" };
+cvar_t	joy_advanced = { "joyadvanced", "1", FCVAR_ARCHIVE };
+cvar_t	joy_advaxisx = { "joyadvaxisx", "4", FCVAR_ARCHIVE };
+cvar_t	joy_advaxisy = { "joyadvaxisy", "1", FCVAR_ARCHIVE };
+cvar_t	joy_advaxisz = { "joyadvaxisz", "0", FCVAR_ARCHIVE };
+cvar_t	joy_advaxisr = { "joyadvaxisr", "0", FCVAR_ARCHIVE };
+cvar_t	joy_advaxisu = { "joyadvaxisu", "0", FCVAR_ARCHIVE };
+cvar_t	joy_advaxisv = { "joyadvaxisv", "0", FCVAR_ARCHIVE };
+cvar_t	joy_forwardthreshold = { "joyforwardthreshold", "0.02", FCVAR_ARCHIVE };
+cvar_t	joy_sidethreshold = { "joysidethreshold", "0.02", FCVAR_ARCHIVE };
+cvar_t	joy_pitchthreshold = { "joypitchthreshold", "0.02", FCVAR_ARCHIVE };
+cvar_t	joy_yawthreshold = { "joyyawthreshold", "0.02", FCVAR_ARCHIVE };
+cvar_t	joy_forwardsensitivity = { "joyforwardsensitivity", "-2.0", FCVAR_ARCHIVE };
+cvar_t	joy_sidesensitivity = { "joysidesensitivity", "1.0", FCVAR_ARCHIVE };
+cvar_t	joy_pitchsensitivity = { "joypitchsensitivity", "-0.5", FCVAR_ARCHIVE };
+cvar_t	joy_yawsensitivity = { "joyyawsensitivity", "-1.5", FCVAR_ARCHIVE };
 cvar_t	joy_wwhack1 = { "joywwhack1", "0.0" };
 cvar_t	joy_wwhack2 = { "joywwhack2", "0.0" };
-cvar_t	in_didebug = { "in_didebug", "0" };
+
+// The analog stick is smoothed rather than read raw: softstick turns the
+// filtering on, softaccel and softdamp set how fast it winds up and decays,
+// and softstop is the deflection below which it snaps back to centre.
+cvar_t	cvar_softstick = { "softstick", "1", FCVAR_ARCHIVE };
+cvar_t	cvar_softaccel = { "softaccel", "0.5", FCVAR_ARCHIVE };
+cvar_t	cvar_softdamp = { "softdamp", "0.5", FCVAR_ARCHIVE };
+cvar_t	cvar_softstop = { "softstop", "0.4", FCVAR_ARCHIVE };
+
+// Buttons that shift the pad into its alternate binding set
+cvar_t	cvar_joyshift1 = { "joyshift1", "AUX6", FCVAR_ARCHIVE };
+cvar_t	cvar_joyshift2 = { "joyshift2", "", FCVAR_ARCHIVE };
+
+// Frames the controller-missing warning stays up after the pad is unplugged
+#define CONTROLLER_GRACE_FRAMES		3
+
+// The pointing device as the Maple driver reports it. Only the cursor position
+// is read here; the driver owns the rest of the record.
+typedef struct
+{
+	int		reserved[2];
+	int		x;
+	int		y;
+} maplemouse_t;
+
+// The attached pad and mouse, NULL while nothing is plugged into the port
+LPDIRECTINPUTDEVICE2	pJoystickDevice;
+maplemouse_t*			pMouseDevice;
+
+int			gnControllerGrace;
+
+// Where the sticks read when they are not being pushed
+int			joy_centerx, joy_centery;
+
+// Mouse position this frame, and how far it can move before it is recentred
+int			mouse_pos_x, mouse_pos_y;
+
+// Set from the client's client_data_t every frame
+float		gMouseSensitivity;
 
 int			joy_avail, joy_advancedinit, joy_haspov;
 DWORD		joy_oldbuttonstate, joy_oldpovstate;
@@ -444,7 +484,19 @@ isn't. TODO: query the actual pad state.
 */
 int IN_ControllerPresent( void )
 {
-	return 1;
+	if (!pJoystickDevice)
+	{
+		// Give the player a moment to plug one back in before complaining
+		gnControllerGrace = CONTROLLER_GRACE_FRAMES;
+		return FALSE;
+	}
+
+	if (gnControllerGrace > 0)
+		gnControllerGrace--;
+	else
+		gnControllerGrace = 0;
+
+	return TRUE;
 }
 
 
@@ -580,11 +632,22 @@ void IN_StartupMouse( void )
 IN_Init
 ===========
 */
+/*
+===========
+IN_StartupDevices
+
+Bring up whatever is plugged into the Maple ports.
+===========
+*/
+void IN_StartupDevices( void )
+{
+	IN_StartupMouse();
+	IN_StartupJoystick();
+	IN_StartupKeyboard();
+}
+
 void IN_Init( void )
 {
-	// mouse variables
-	Cvar_RegisterVariable(&m_filter);
-
 	// joystick variables
 	Cvar_RegisterVariable(&in_joystick);
 	Cvar_RegisterVariable(&joy_name);
@@ -605,14 +668,25 @@ void IN_Init( void )
 	Cvar_RegisterVariable(&joy_yawsensitivity);
 	Cvar_RegisterVariable(&joy_wwhack1);
 	Cvar_RegisterVariable(&joy_wwhack2);
-	Cvar_RegisterVariable(&in_didebug);
+
+	// analog stick smoothing
+	Cvar_RegisterVariable(&cvar_softstick);
+	Cvar_RegisterVariable(&cvar_softaccel);
+	Cvar_RegisterVariable(&cvar_softdamp);
+	Cvar_RegisterVariable(&cvar_softstop);
 
 	Cmd_AddCommand("force_centerview", Force_CenterView_f);
 	Cmd_AddCommand("joyadvancedupdate", Joy_AdvancedUpdate_f);
 
-	IN_StartupMouse();
-	IN_StartupJoystick();
-	IN_StartupKeyboard();
+	Cvar_RegisterVariable(&cvar_joyshift1);
+	Cvar_RegisterVariable(&cvar_joyshift2);
+
+	// The sticks read centred until the pad reports otherwise
+	joy_centerx = 127;
+	joy_centery = 127;
+
+	IN_StartupDevices();
+	VMU_InitDeviceTable();
 }
 
 /*
@@ -689,47 +763,34 @@ IN_MouseMove
 */
 void IN_MouseMove( usercmd_t* cmd )
 {
-	int					mx, my;
+	int		mx, my;
 
-	if (iMouseInUse)
-		return;
+	if (pMouseDevice)
+	{
+		mouse_pos_x = pMouseDevice->x;
+		mouse_pos_y = pMouseDevice->y;
+	}
 
-	GetCursorPos(&current_pos);
-	mx = current_pos.x + mx_accum - window_center_x;
-	my = current_pos.y + my_accum - window_center_y;
+	mx = mouse_pos_x - window_center_x + mx_accum;
+	my = mouse_pos_y - window_center_y + my_accum;
 	mx_accum = 0;
 	my_accum = 0;
-
-//	if (mx || my)
-//		Con_DPrintf("mx=%d, my=%d\n", mx, my);
-
-	if (m_filter.value)
-	{
-		mouse_x = (mx + old_mouse_x) * 0.5;
-		mouse_y = (my + old_mouse_y) * 0.5;
-	}
-	else
-	{
-		mouse_x = mx;
-		mouse_y = my;
-	}
 
 	old_mouse_x = mx;
 	old_mouse_y = my;
 
-	mouse_x *= sensitivity.value;
-	mouse_y *= sensitivity.value;
+	mouse_x = mx * gMouseSensitivity * 4.0f;
+	mouse_y = my * gMouseSensitivity * 4.0f;
 
 // add mouse X/Y movement to cmd
-	if ((in_strafe.state & 1) || (lookstrafe.value && (in_mlook.state & 1)))
-		cmd->sidemove += m_side.value * mouse_x;
-	else
+	if (!(in_strafe.state & 1) && !(lookstrafe.value && (in_mlook.state & 1)))
 		cl.viewangles[YAW] -= m_yaw.value * mouse_x;
+	else
+		cmd->sidemove += m_side.value * mouse_x;
 
-	if (in_mlook.state & 1)
-		V_StopPitchDrift();
+	V_StopPitchDrift();
 
-	if ((in_mlook.state & 1) && !(in_strafe.state & 1))
+	if (!(in_strafe.state & 1))
 	{
 		cl.viewangles[PITCH] += m_pitch.value * mouse_y;
 		if (cl.viewangles[PITCH] > cl_pitchdown.value)
@@ -745,10 +806,16 @@ void IN_MouseMove( usercmd_t* cmd )
 			cmd->forwardmove -= m_forward.value * mouse_y;
 	}
 
-// if the mouse has moved, force it to the center, so there's room to move
+// if the mouse has moved, force it back to the centre so there is room to move
 	if (mx || my)
 	{
-		SetCursorPos(window_center_x, window_center_y);
+		if (pMouseDevice)
+		{
+			pMouseDevice->x = window_center_x;
+			pMouseDevice->y = window_center_y;
+		}
+
+		Host_UpdateScreenSaver(FALSE);
 	}
 }
 
@@ -760,10 +827,8 @@ IN_Move
 */
 void IN_Move( usercmd_t* cmd )
 {
-	if (!iMouseInUse && mouseactive)
-	{
+	if (mouseactive)
 		IN_MouseMove(cmd);
-	}
 
 	IN_JoyMove(cmd);
 }
@@ -1170,18 +1235,6 @@ qboolean IN_ReadJoystick( void )
 	s_joy_pov = s_di_state.rgdwPOV[0];
 #endif
 
-	/* Debug dump (throttled) to verify mappings on hardware. */
-	if (in_didebug.value && cls.state == ca_active)
-	{
-		if (s_last_dump_frame != r_framecount)
-		{
-			s_last_dump_frame = r_framecount;
-			Con_Printf("[di] ofs(x=%d y=%d rx=%d ry=%d sl0=%d pov=%d) raw(x=%lu y=%lu) btn=%08lx pov=%lu\n",
-				s_di_ofs_x, s_di_ofs_y, s_di_ofs_rx, s_di_ofs_ry, s_di_ofs_slider0, s_di_ofs_pov0,
-				(unsigned long)s_joy_raw[JOY_AXIS_X], (unsigned long)s_joy_raw[JOY_AXIS_Y],
-				(unsigned long)s_joy_buttons, (unsigned long)s_joy_pov);
-		}
-	}
 
 	return TRUE;
 }
