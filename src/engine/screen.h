@@ -56,6 +56,13 @@ extern	cvar_t		scr_netusage;
 extern	cvar_t		scr_graphmedian;
 extern	cvar_t		scr_downloading;
 
+void CL_StartProgressBar( void );
+void DCV_SetProgress( int percent );
+extern float cl_progress_start;
+
+// Rows kept clear of the bottom of the screen so text stays inside the safe area
+extern int scr_safe_y;
+
 #ifdef __cplusplus
 }
 #endif

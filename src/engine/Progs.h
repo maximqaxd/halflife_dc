@@ -129,6 +129,16 @@ int NUM_FOR_EDICT( const edict_t* e );
 #endif
 #define	E_STRING(e,o) (pr_strings + *(string_t *)&((char *)&e->v)[o])
 
+// The game code reads the engine's globals through this pointer; the engine
+// points it at gGlobalVariables once the game rules are up.
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern globalvars_t* gpGlobals;
+#ifdef __cplusplus
+}
+#endif
+
 extern	int		type_size[8];
 
 void ED_PrintEdicts( void );

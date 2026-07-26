@@ -151,6 +151,15 @@ void* Cache_Alloc( cache_user_t* c, int size, char* name );
 // Returns NULL if all purgable data was tossed and there still
 // wasn't enough room.
 
+int Cache_FreeAll( void );
+int Cache_FreeAllLRU( void );
+int Cache_FreeStale( void );
+int Cache_FlushToDisk( void );
+void Cache_FlushUnlocked( void );
+
+// Hand every arena's spare pages back so the next level has room
+void CompactAllHeaps( void );
+
 void Cache_Report( void );
 
 void Mnemo_ReportToFile( void );

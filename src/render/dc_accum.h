@@ -123,6 +123,9 @@ static __inline void DCV_SetTextureStageState( DWORD stage, D3DTEXTURESTAGESTATE
 void DCV_Begin2D( int mode, int flags );
 void DCV_2D_SetupStates( void );
 
+void DCV_TexState_Additive( void );
+void DCV_SetHudDepth( float depth );
+
 #ifdef __cplusplus
 }
 #endif

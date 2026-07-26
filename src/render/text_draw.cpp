@@ -14,29 +14,7 @@ extern "C" {
 #include "quakedef.h"
 #include "winquake.h"
 #include "dc_accum.h"
-
-typedef unsigned char byte;
-
-// One glyph's placement in the font sheet.
-typedef struct
-{
-	short	startoffset;	// +0x00  packed row<<8 | column into the sheet
-	short	charwidth;	// +0x02  advance width in source pixels
-} charinfo_t;
-
-// Font sheet header. fontinfo[] is indexed by character code; the loader
-// appends the sheet's texel scale so glyph cells convert straight to UVs.
-typedef struct
-{
-	int		width;		// +0x000
-	int		height;		// +0x004
-	int		rowcount;	// +0x008
-	int		rowheight;	// +0x00c  source pixel height of a text row
-	charinfo_t	fontinfo[256];	// +0x010
-	byte		data[4];	// +0x410
-	float		usize;		// +0x414  1.0 / sheet width
-	float		vsize;		// +0x418  1.0 / sheet height
-} dcfont_t;
+#include "text_draw.h"
 
 // A %tag -> localized string pair parsed from langtags.txt.
 typedef struct
@@ -44,6 +22,9 @@ typedef struct
 	char	*tag;
 	char	*string;
 } langtag_t;
+
+// Index of the language the disc was built for; 0 is English.
+int			g_Language;
 
 langtag_t	*g_pLangTags;
 int			g_nLangTags;
@@ -103,17 +84,11 @@ int		g_nTextCharGap;
 // Longest tag or value string langtags.txt may hold.
 #define LANGTAG_MAXLEN		0x7f
 
-extern cvar_t	sv_language;
-
 void	GL_BindStage( int texnum, int stage );
 void	DCV_SetHudDepth( float layer );
 int		IN_ControllerPresent( void );
 
 static float	g_flControllerOkTime;
-
-int		Font_GetCharWide( dcfont_t *font, int ch );
-float	Font_DrawChar( float x, float y, dcfont_t *font, int ch );
-int		Font_DrawCharI( dcfont_t *font, int x, int y, int ch );
 
 /*
 ================

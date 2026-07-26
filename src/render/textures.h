@@ -11,4 +11,7 @@ void		TEX_CleanupWadInfo( void );
 int			TEX_LoadLump( char* name, byte* dest );
 void		TEX_AddAnimatingTextures( void );
 
+// Drop every texture so a level change starts with an empty VRAM pool
+int GL_UnloadTextures( void );
+
 #endif // TEXTURES_H

@@ -152,15 +152,6 @@ static __inline void DCV_LinkTextureSlotFront( dctexture_t *slot );
 static void DCV_TouchTextureSlot( dctexture_t *slot );
 static int DCV_AttachTextureInterface( dctexture_t *slot, LPDIRECTDRAWSURFACE4 surf );
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-extern void		Sys_FPrintf( int handle, const char* fmt, ... );
-extern void		Sys_CloseHandle( int handle );
-#ifdef __cplusplus
-}
-#endif
-
 
 /* Remove a slot from the LRU list. Callers have already validated the slot. */
 static __inline void DCV_UnlinkTextureSlot( dctexture_t *slot )
@@ -619,7 +610,7 @@ void DC_TexDump( void )
 	if (g_bTextureLog)
 	{
 		Sys_FPrintf(g_bTextureLog, "Texture log end.\n");
-		Sys_CloseHandle(g_bTextureLog);
+		Sys_CloseHandle((void*)g_bTextureLog);
 		g_bTextureLog = 0;
 	}
 }

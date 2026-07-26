@@ -46,6 +46,12 @@ void  Bfind_reset( void );
 void *mallocx( int size );
 void  freex( void *ptr );
 
+// pull a file in off the disc when it is not already resident
+int Bfetch_disc( char* path );
+
+// write an open Zap file back out to the export path
+int Bexport_handle( bfile_t* h );
+
 // shrink every resident Zap/BFile texture to reclaim arena space
 void Bshrink_all( void );
 

@@ -70,6 +70,27 @@ char* NameForFunction( uint32 function );
 uint32 FunctionFromName( char* pName );
 void GameDLL_RegisterModules( void );
 
+//
+// GD-ROM aware file handles. Savegames go through these rather than stdio so a
+// file can be read straight out of a pack or off the memory card.
+//
+void*         Sys_OpenHandle( const char* path, const char* mode );
+int           Sys_CloseHandle( void* hFile );
+unsigned int  DC_fread( void* buffer, unsigned int size, unsigned int count, void* hFile );
+unsigned int  DC_fwrite( void* buffer, unsigned int size, unsigned int count, void* hFile );
+int           DC_fseek( void* hFile, int offset, int whence );
+int           DC_ftell( void* hFile );
+unsigned long DC_fsize( void* hFile );
+
+// Buffered text output to a Sys_OpenHandle file
+void Sys_FPrintf( int fileid, char* fmt, ... );
+
+// Name the work in progress so a hang can be traced to the step that caused it
+void Sys_SetTaskName( char* pszName );
+
+// Lock the drive door so a save can span discs
+void GDROM_ConfigureDoorBehavior( void );
+
 typedef long LONG;
 
 void Sys_LowFPPrecision( void );

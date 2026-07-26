@@ -33,18 +33,33 @@ typedef struct
 	int		latched_packets;
 } svstats_t;
 
+// Number of connection challenges tracked at once
+#define	MAX_CHALLENGES	16
+
+typedef struct
+{
+	netadr_t	adr;				// address the challenge was issued to
+	int			challenge;			// the challenge value
+	int			time;				// time the challenge was created
+} challenge_t;
+
 // server_static_t
 typedef struct server_static_s
 {
-	struct client_s* clients;			// array of up to [maxclients] client slots
-
-	int			serverflags;			// episode completion information
-
 	int			maxclients;				// Current max #
 	int			maxclientslimit;		// Max allowed on server.
 	int			spawncount;				// Number of servers spawned since start,
 										// used to check late spawns (e.g., when d/l'ing lots of
 										// data)
+	qboolean	dll_initialized;		// Game rules have been brought up
+
+	// Prevents spoofed IPs from connecting; sent by the server, echoed by the client.
+	challenge_t	challenges[MAX_CHALLENGES];
+
+	struct client_s* clients;			// array of up to [maxclients] client slots
+
+	int			serverflags;			// episode completion information
+
 	svstats_t	stats;
 } server_static_t;
 
@@ -175,11 +190,16 @@ typedef struct client_s
 
 	qboolean	send_message;		// set on frames a datagram arived on
 
-	client_frame_t frames[UPDATE_BACKUP]; // updates can be deltad from here
+	client_frame_t* frames;				// updates can be deltad from here (allocated by SV_AllocClientFrames)
 
 	edict_t* edict; // EDICT_NUM(clientnum+1)
 
 	const edict_t* pViewEntity; // View Entity (camera or the client itself)
+
+	int			userid;					// identifying number
+	char		userinfo[MAX_INFO_STRING];	// infostring (name, model, rate, etc.)
+	qboolean	sendinfo;				// at end of frame, send info to all
+	float		sendinfo_time;			// time when userinfo was last broadcast
 
 	char		hashedcdkey[SIGNED_GUID_LEN + 1];
 
@@ -194,6 +214,8 @@ typedef struct client_s
 	int			downloadpos;
 	qboolean	downloading;			// true = client is downloading a file
 	CRC32_t		downloadCRC;			// CRC32 of the file we are downloading
+	qboolean	downloadcustom;			// true = a player's custom resource, not a game file
+	int			downloadchunk;			// bytes per message, sized to the client's rate
 
 	resource_t resourcesonhand;			// Head of resources accounted for list
 	resource_t resourcesneeded;			// Head of resources to download list
@@ -265,8 +287,6 @@ extern	cvar_t	sv_edgefriction;
 extern	cvar_t	sv_maxspeed;
 extern	cvar_t	sv_accelerate;
 extern	cvar_t	sv_aim;
-extern	cvar_t	sv_allow_download;
-extern	cvar_t	sv_allow_upload;
 extern	cvar_t	sv_upload_maxsize;
 extern	cvar_t	sv_showcmd;
 
@@ -301,6 +321,14 @@ extern	jmp_buf 	host_abortserver;
 extern edict_t** g_moved_edict;
 extern vec3_t* g_moved_from;
 extern byte* g_playertouch;
+
+extern int SV_UPDATE_BACKUP;
+extern int SV_UPDATE_MASK;
+
+void SV_ReallocateDynamicData( void );
+void SV_ClearPacketEntities( client_frame_t* frame );
+void SV_ClearFrames( client_frame_t** frames );
+void SV_AllocClientFrames( void );
 
 //===========================================================
 
@@ -405,5 +433,13 @@ void SV_ParseUpload( void );
 void SV_MoveToOnHandList( resource_t* pResource );
 void SV_ClearResourceList( resource_t* pList );
 void SV_AddToResourceList( resource_t* pResource, resource_t* pList );
+
+qboolean SV_SetPlayer( int userid );
+void SV_PrintLogos( void );
+void SV_Info_f( void );
+
+extern cvar_t exportdicts;
+extern cvar_t exportsaves;
+
 
 #endif // SERVER_H

@@ -93,7 +93,7 @@ typedef struct soundfade_s
 	int		nClientSoundFadePercent;
 
 	// realtime when we started adjusting volume
-	double	soundFadeStartTime;
+	float	soundFadeStartTime;
 
 	// # of seconds to get to faded out state
 	int		soundFadeOutTime;
@@ -136,7 +136,7 @@ typedef struct
 	char		mapstring[48];			// name of the map being loaded
 	char		spawnparms[MAX_MAPSTRING];	// map arguments passed through to spawn
 
-	char		userinfo[196];		// local player setup (name/color/model/rate)
+	char		userinfo[MAX_INFO_STRING];	// local player setup (name/color/model/rate)
 
 // demo loop control
 	int			demonum;							// -1 = don't play demos
@@ -623,6 +623,8 @@ void V_StopPitchDrift( void );
 //
 void CL_InitTEnts( void );
 void CL_ParseTEnt( void );
+void CL_PrintLogoList( void );
+
 int ModelFrameCount( struct model_s* model );
 void CL_TempEntUpdate( void );
 int CL_FxBlend( cl_entity_t* ent );

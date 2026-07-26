@@ -225,15 +225,16 @@ int COM_CompareFileTime( int* ft1, int* ft2 );
 
 void COM_ClearCustomizationList( struct customization_s* pHead, qboolean bCleanDecals );
 
-int COM_ListMaps( char* pszFileName, char* pszSubString );
+void COM_ListMaps( char* pszSubString );
+
+unsigned char COM_Nibble( char c );
+void COM_ChangeGameDir( char* pszDir );
 
 void COM_GetGameDir( char* szGameDir );
 
 void LoadBMP8( int* h, byte** pPalette, int* nPalette, byte** pImage );
 byte* LoadBMP16( FILE* fin, qboolean is15bit );
 
-// Additional shared functions
-int COM_EntsForPlayerSlots( int nPlayers );
 
 int build_number( void );
 

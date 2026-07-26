@@ -9,11 +9,6 @@ void Cmd_CmdList_f( void );
 
 void Cmd_ForwardToServer( void );
 
-// Dreamcast console-file logging (native WinCE handle I/O, not stdio)
-int  Sys_OpenHandle( const char* path, const char* mode );
-void Sys_FPrintf( int handle, const char* fmt, ... );
-int  Sys_CloseHandle( int handle );
-
 #define	MAX_ALIAS_NAME	32
 
 typedef struct cmdalias_s
@@ -905,7 +900,7 @@ void Cmd_CmdList_f( void )
 		{
 			sprintf(szTemp, "c:\\%s", Cmd_Argv(2));
 
-			f = Sys_OpenHandle(szTemp, "wt");
+			f = (int)Sys_OpenHandle(szTemp, "wt");
 			if (f)
 			{
 				bLogging = TRUE;
@@ -971,6 +966,6 @@ void Cmd_CmdList_f( void )
 	// Close log
 	if (bLogging)
 	{
-		Sys_CloseHandle(f);
+		Sys_CloseHandle((void*)f);
 	}
 }
