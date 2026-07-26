@@ -2299,28 +2299,25 @@ int CreateEntityList( SAVERESTOREDATA* pSaveData, int levelMask )
 	int         movedCount = 0;
 	int         active;
 	edict_t* pent;
-	ENTITYTABLE* table;
 
 	for (i = 0; i < pSaveData->tableCount; i++)
 	{
 		pent = NULL;
-		table = &pSaveData->pTable[i];
-
-		if (table->classname && table->size && table->id > 0)
+		if (pSaveData->pTable[i].classname && pSaveData->pTable[i].size && pSaveData->pTable[i].id > 0)
 		{
-			active = (table->flags & levelMask) != 0;
+			active = (pSaveData->pTable[i].flags & levelMask) != 0;
 
-			if (table->id < svs.maxclients + 1)
+			if (pSaveData->pTable[i].id < svs.maxclients + 1)
 			{
-				pent = svs.clients[table->id - 1].edict;
+				pent = svs.clients[pSaveData->pTable[i].id - 1].edict;
 
 				if (active)
 				{
-					if (!(table->flags & FENTTABLE_PLAYER))
+					if (!(pSaveData->pTable[i].flags & FENTTABLE_PLAYER))
 						Sys_Error("ENTITY IS NOT A PLAYER: %d\n", i);
 
-					if (svs.clients[table->id - 1].active && pent)
-						EntityInit(pent, table->classname);
+					if (svs.clients[pSaveData->pTable[i].id - 1].active && pent)
+						EntityInit(pent, pSaveData->pTable[i].classname);
 					else
 						pent = NULL;
 				}
@@ -2328,59 +2325,52 @@ int CreateEntityList( SAVERESTOREDATA* pSaveData, int levelMask )
 			else
 			{
 				if (active)
-					pent = CreateNamedEntity(table->classname);
+					pent = CreateNamedEntity(pSaveData->pTable[i].classname);
 			}
 		}
 
-		table->pent = pent;
+		pSaveData->pTable[i].pent = pent;
 	}
 
 	// Now spawn entities
 	for (i = 0; i < pSaveData->tableCount; i++)
 	{
-		table = &pSaveData->pTable[i];
-
 		pSaveData->currentIndex = i;
-		pSaveData->size = table->location;
-		pSaveData->pCurrentData = pSaveData->pBaseData + table->location;
+		pSaveData->size = pSaveData->pTable[i].location;
+		pSaveData->pCurrentData = pSaveData->pBaseData + pSaveData->pTable[i].location;
 
-		if (table->pent)
+		if (pSaveData->pTable[i].pent)
 		{
-			active = (table->flags & levelMask) != 0;
+			active = (pSaveData->pTable[i].flags & levelMask) != 0;
 
 			if (active)
 			{
-				if (table->flags & FENTTABLE_GLOBAL)
+				if (pSaveData->pTable[i].flags & FENTTABLE_GLOBAL)
 				{
-					Con_DPrintf("Merging changes for global: %s\n", &pr_strings[table->classname]);
-
 					// Pass the "global" flag to the DLL to indicate this entity should only override
 					// a matching entity, not be spawned
-					DispatchRestore(table->pent, pSaveData, TRUE);
-					ED_Free(table->pent);
+					DispatchRestore(pSaveData->pTable[i].pent, pSaveData, TRUE);
+					ED_Free(pSaveData->pTable[i].pent);
 				}
 				else
 				{
-					Con_DPrintf("Transferring %s (%d)\n", &pr_strings[table->classname], NUM_FOR_EDICT(table->pent));
-
-					if (DispatchRestore(table->pent, pSaveData, FALSE) < 0)
+					if (DispatchRestore(pSaveData->pTable[i].pent, pSaveData, FALSE) < 0)
 					{
-						ED_Free(table->pent);
+						ED_Free(pSaveData->pTable[i].pent);
 					}
 					else
 					{
-						SV_LinkEdict(table->pent, FALSE);
+						SV_LinkEdict(pSaveData->pTable[i].pent, FALSE);
 
-						if (!(table->flags & FENTTABLE_PLAYER) && EntityInSolid(table->pent))
+						if (!(pSaveData->pTable[i].flags & FENTTABLE_PLAYER) && EntityInSolid(pSaveData->pTable[i].pent))
 						{
 							// this can happen during normal processing - PVS is just a guess,
 							// some map areas won't exist in the new map
-							Con_DPrintf("Suppressing %s\n", &pr_strings[table->classname]);
-							ED_Free(table->pent);
+							ED_Free(pSaveData->pTable[i].pent);
 						}
 						else
 						{
-							table->flags = FENTTABLE_REMOVED;
+							pSaveData->pTable[i].flags = FENTTABLE_REMOVED;
 							movedCount++;
 						}
 					}
