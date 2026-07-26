@@ -37,6 +37,7 @@ extern char* VMU_MarkSlotSaved( void );
 
 extern int	g_Language;
 
+extern cvar_t	exportdicts;
 extern cvar_t	exportsaves;
 
 int		Cache_FlushToDisk( void );
@@ -46,6 +47,8 @@ int		VMU_SaveGameHL1( char* pName );
 void	VMU_FormatSlotName( char* pName );
 void	VMU_SetCurrentDevice( int device );
 void	GDROM_ConfigureDoorBehavior( void );
+void	UnzipSaveGame( char* pszDir, char* pszName );
+int		Bexport_handle( bfile_t* h );
 
 typedef struct
 {
@@ -1713,6 +1716,8 @@ SAVERESTOREDATA* SaveGamestate( void )
 		return NULL;
 
 	pSaveData = SaveInit(0);
+	if (!pSaveData)
+		return NULL;
 
 	sprintf(name, "%s%s.HL1", Host_SaveGameDirectory(), sv.name);
 	COM_FixSlashes(name);
@@ -1787,7 +1792,7 @@ SAVERESTOREDATA* SaveGamestate( void )
 	for (i = 0; i < sv.num_edicts; i++)
 		SaveWriteFields(pSaveData, "ETABLE", &pSaveData->pTable[i], gEntityTableDescription, Q_ARRAYSIZE(gEntityTableDescription));
 
-	tableSize = pSaveData->size - dataSize;
+	tableSize = (pSaveData->size - dataSize + 3) & ~3;
 	pTokenData = pSaveData->pCurrentData;
 
 	// Write entity string token table
@@ -1812,7 +1817,8 @@ SAVERESTOREDATA* SaveGamestate( void )
 		}
 	}
 
-	pSaveData->tokenSize = pSaveData->pCurrentData - pTokenData;
+	pSaveData->tokenSize = (pSaveData->pCurrentData - pTokenData + 3) & ~3;
+	pSaveData->pCurrentData = pTokenData + pSaveData->tokenSize;
 
 	// Output to disk
 	COM_CreatePath(name);
@@ -1840,7 +1846,14 @@ SAVERESTOREDATA* SaveGamestate( void )
 	Bwrite(pTokenData, pSaveData->tokenSize, 1, pFile);		// write tokens into the file
 	Bwrite(pTableData, tableSize, 1, pFile);				// dump ETABLE structures
 	Bwrite(pSaveData->pBaseData, dataSize, 1, pFile);		// and finally store all the other data
+
+	if (exportdicts.value > 0)
+		Bexport_handle(pFile);
+
 	Bclose(pFile);
+
+	UnzipSaveGame(Host_SaveGameDirectory(), sv.name);
+	Zip_CompressFile(name, 5);
 
 	EntityPatchWrite(pSaveData, sv.name);
 
@@ -3176,12 +3189,16 @@ void Host_Begin_f( void )
 	}
 
 	host_client->active = TRUE;
+	host_client->spawned = TRUE;
 	host_client->connected = FALSE;
+
+	// The connect handshake gives a bogus picture of the data rate, so throw
+	// the statistics away now that the client is really playing
 	host_client->netchan.frame_latency = 0.0;
 	host_client->netchan.frame_rate = 0.0;
 	host_client->netchan.drop_count = 0;
 	host_client->netchan.good_count = 0;
-	host_client->spawned = TRUE;
+	memset(host_client->netchan.flow, 0, sizeof(host_client->netchan.flow));
 }
 
 //===========================================================================

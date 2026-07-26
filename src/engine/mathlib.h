@@ -42,7 +42,13 @@ extern	int nanmask;
 extern "C" {
 #endif
 
-void VectorMA( const vec_t* veca, float scale, const vec_t* vecb, vec_t* vecc );
+// Small enough that every caller wants it expanded in place
+__inline void VectorMA( const vec_t* veca, float scale, const vec_t* vecb, vec_t* vecc )
+{
+	vecc[0] = veca[0] + scale * vecb[0];
+	vecc[1] = veca[1] + scale * vecb[1];
+	vecc[2] = veca[2] + scale * vecb[2];
+}
 
 vec_t _DotProduct( vec_t* v1, vec_t* v2 );
 void _VectorSubtract( vec_t* veca, vec_t* vecb, vec_t* out );
