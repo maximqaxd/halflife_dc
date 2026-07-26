@@ -33,6 +33,8 @@ int   Bwrite( void *buffer, int size, int count, bfile_t *h );
 int   Bremove_path( char *path );
 int   Bfilesize_path( char *path );
 int   Brename_path( char *oldpath, char *newpath );
+int   Bcompress_path( char *path );
+int   Bexport_path( char *path );
 
 // heap wrappers shared with the zlib glue (util/zapsave.c)
 void *mallocx( int size );

@@ -12,9 +12,16 @@ structural (mnemonics, registers, struct/stack offsets, branch shape).
 A 100% normalized match means the compiled code has the same instructions in
 the same order as the binary -- i.e. the source reproduces that function.
 
+The binary side is sliced out of the image disassembly, from a function's symbol
+up to the next one, with literal pools dropped and the tail cut at the epilogue.
+Ghidra's exported listing (--listing) is only a cross-check: wherever a literal
+pool splits a function, Ghidra's body stops at the pool and the code after it
+goes missing, which reads as a large false divergence.
+
 Usage:
   python objdiff.py --obj build/combat.obj [--func CBaseMonster::Killed]
   python objdiff.py --obj build/console.obj --all      # score every fn in obj
+  python objdiff.py --obj build/host_cmd.obj --func Host_Kick_f --full
 
 Requires: symbols.tsv (from ExportSymbols.java), dumpbin.exe on PATH or via
 --dumpbin, and RE/HALFLIFE_DC.EXE.
@@ -277,7 +284,41 @@ def slice_exe(exe_dis, start, size):
     return [t for t in exe_dis if start <= t[0] < start + size]
 
 
-def diff_one(name, obj_insns, bin_insns):
+def load_exe_disasm(dumpbin, exe):
+    """Flat dumpbin disassembly of the image, cached next to the exe."""
+    cache = exe + ".disasm.txt"
+    if os.path.exists(cache) and os.path.getmtime(cache) >= os.path.getmtime(exe):
+        text = open(cache, encoding="latin-1").read()
+    else:
+        text = run_dumpbin(dumpbin, "-disasm:nobytes", exe)
+        open(cache, "w", encoding="latin-1").write(text)
+    return parse_disasm(text)
+
+
+def cut_at_epilogue(insns, min_len=0):
+    """A function ends at its epilogue rts plus the delay slot; everything after
+    is literal pool or the next (possibly unnamed) function. trim_pool alone
+    can't tell, because pool words that decode as fake branches seed bogus
+    targets. min_len skips over an early-return rts when the function is known
+    to be longer than that."""
+    for i, t in enumerate(insns):
+        if t[1].lower() == "rts" and i + 2 >= min_len:
+            return insns[:i + 2]
+    return insns
+
+
+def exe_function_extents(syms):
+    """Function start -> end, where end is the next symbol start. Ghidra bodies
+    stop short whenever a literal pool splits a function, so the gap to the next
+    named symbol is the reliable extent."""
+    starts = sorted(set(a for a, _ in syms.values()))
+    nxt = {}
+    for i, a in enumerate(starts):
+        nxt[a] = starts[i + 1] if i + 1 < len(starts) else a + 0x400
+    return nxt
+
+
+def diff_one(name, obj_insns, bin_insns, full=False):
     a, b = norm_stream(obj_insns), norm_stream(bin_insns)
     # autojunk=False: the >200-element 'popular element' heuristic silently drops
     # repeated instructions (esp. after abstraction), distorting large functions.
@@ -289,7 +330,18 @@ def diff_one(name, obj_insns, bin_insns):
                                  autojunk=False).ratio()
     print("\n=== %s ===  obj=%d insns  bin=%d insns  match=%.1f%%  struct=%.1f%% (regalloc gap %.1f)"
           % (name, len(a), len(b), ratio * 100, rn * 100, (rn - ratio) * 100))
-    if ratio < 1.0:
+    if full:
+        # side-by-side of the whole function: '=' kept, '-' obj-only, '+' bin-only
+        for tag, i1, i2, j1, j2 in sm.get_opcodes():
+            if tag == "equal":
+                for k in range(i1, i2):
+                    print("  = %-34s | %s" % (a[k], b[j1 + k - i1]))
+            else:
+                for k in range(i1, i2):
+                    print("  - %-34s |" % a[k])
+                for k in range(j1, j2):
+                    print("  + %-34s | %s" % ("", b[k]))
+    elif ratio < 1.0:
         # show first divergence
         for tag, i1, i2, j1, j2 in sm.get_opcodes():
             if tag == "equal":
@@ -331,6 +383,12 @@ def main():
     ap.add_argument("--func", help="diff only this Ghidra function name")
     ap.add_argument("--all", action="store_true", help="score every matched fn")
     ap.add_argument("--scores", help="write name/obj/bin/exact%/struct% TSV to this path")
+    ap.add_argument("--listing", action="store_true",
+                    help="binary side = Ghidra's exported listing instead of the "
+                         "exe disassembly (bodies split by a literal pool come "
+                         "out truncated, so scores read low)")
+    ap.add_argument("--full", action="store_true",
+                    help="print the whole obj-vs-binary instruction diff")
     ap.add_argument("--locate", action="store_true",
                     help="find each obj fn in the binary by code (no symbols needed)")
     args = ap.parse_args()
@@ -343,6 +401,11 @@ def main():
 
     ofuncs = obj_functions(args.dumpbin, args.obj)
     print("[objdiff] obj functions: %d" % len(ofuncs))
+
+    exe_dis = exe_ext = None
+    if not args.listing:
+        exe_dis = load_exe_disasm(args.dumpbin, args.exe)
+        exe_ext = exe_function_extents(syms)
 
     if args.locate:
         # --locate still needs the flat exe disassembly (dumpbin, cached)
@@ -384,13 +447,25 @@ def main():
                 print("!! %s (%s) not found in symbols.tsv" % (gname, sym))
             continue
         start, size = syms[gname]
+        if not args.listing:
+            # extent = gap to the next named symbol, cut back to the epilogue;
+            # the Ghidra listing's length is a floor so a function with an
+            # early-return rts isn't truncated.
+            end = exe_ext.get(start, start + size)
+            gh = bininsns.get(format(start, "x"))
+            bin_insns = cut_at_epilogue(
+                trim_pool(slice_exe(exe_dis, start, end - start)), len(gh or ()))
+            r, rn = diff_one(gname, insns, bin_insns, full=args.full)
+            results.append((gname, r, rn))
+            score_rows.append((gname, len(insns), len(bin_insns), r * 100, rn * 100))
+            continue
         bkey = format(start, "x")
         if bkey not in bininsns:
             if args.func:
                 print("!! %s @ %s not in Ghidra listing (re-run ExportInsns.java)" % (gname, bkey))
             continue
         bin_insns = bininsns[bkey]
-        r, rn = diff_one(gname, insns, bin_insns)
+        r, rn = diff_one(gname, insns, bin_insns, full=args.full)
         results.append((gname, r, rn))
         score_rows.append((gname, len(insns), len(bin_insns), r * 100, rn * 100))
         if not (args.all or args.func):

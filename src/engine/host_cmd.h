@@ -17,6 +17,7 @@ void		LandmarkOrigin( SAVERESTOREDATA* pSaveData, vec_t* output, const char* pLa
 
 void		Host_ClearGameState( void );
 int			Host_Load( const char* pName );
+void		Host_SetMessage( char* pszMessage );
 
 SAVERESTOREDATA* SaveInit( int size );
 SAVERESTOREDATA* SaveGamestate( void );
