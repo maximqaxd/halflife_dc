@@ -12,6 +12,7 @@
 #define	PROTOCOL_VERSION_OLD		35
 
 extern int PROTOCOL_VERSION;
+extern char gpszVersionString[32];
 
 // This is used, unless overridden in the registry
 #define DEFAULT_MASTER_ADDRESS "207.153.132.168:27010"
@@ -325,6 +326,11 @@ ELEMENTS COMMUNICATED ACROSS THE NET
 							// must be power of two
 #endif                            
 #define	UPDATE_MASK		(UPDATE_BACKUP - 1)
+
+// Depth of the server's per-client frame history ring, chosen at runtime by
+// Host_FindMaxClients based on whether we're a single player or listen server.
+#define	SINGLEPLAYER_BACKUP	4
+#define	MULTIPLAYER_BACKUP	32
 
 #define	MAX_PACKET_ENTITIES	256	// doesn't count nails
 typedef struct

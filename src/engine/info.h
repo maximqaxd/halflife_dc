@@ -3,7 +3,7 @@
 #ifndef INFO_H
 #define INFO_H
 
-#define MAX_INFO_STRING 512
+#define MAX_INFO_STRING 196
 
 extern char serverinfo[MAX_INFO_STRING];
 

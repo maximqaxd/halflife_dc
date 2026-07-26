@@ -5,6 +5,7 @@
 #include "cmodel.h"
 #include "profile.h"
 #include "hashpak.h"
+#include "won.h"
 
 /*
 
@@ -41,7 +42,7 @@ unsigned char* host_colormap;
 
 // Master server
 qboolean	gfNoMasterServer = FALSE;
-double		gfLastHearbeat;				// Time we sent last heartbeat
+float		gfLastHearbeat;				// Time we sent last heartbeat
 qboolean	gfHeartbeatWaiting;			// Challenge request sent to master
 float		gfHeartbeatWaitingTime;		// Challenge request send time
 int			gHeartbeatSequence;			// # of heartbeat sequence
@@ -50,6 +51,14 @@ char		gszMasterAddress[128];
 netadr_t	master_adr;					// Master server address
 
 char		gszDefaultRoom[64];
+
+master_t	*valvemaster_adr = NULL;	// linked list of WON master servers
+
+extern cvar_t	sv_lan;
+
+char		gpszVersionString[32];		// patch version read from sierra.inf
+
+extern kbutton_t	in_jlook;
 
 cvar_t	fps_single = { "fps_single", "66.0" };
 cvar_t	fps_lan    = { "fps_lan",    "66.0" };
@@ -73,6 +82,9 @@ cvar_t	falldamage = { "mp_falldamage", "0", FCVAR_SERVER };
 cvar_t	weaponstay = { "mp_weaponstay", "0", FCVAR_SERVER };
 cvar_t	forcerespawn = { "mp_forcerespawn", "0", FCVAR_SERVER };
 
+cvar_t	mp_logfile = { "mp_logfile", "1", FCVAR_SERVER };
+cvar_t	mp_logecho = { "mp_logecho", "1", FCVAR_SERVER };
+
 cvar_t	developer = { "developer", "0" };
 
 cvar_t	displaysoundlist = { "displaysoundlist", "0" };
@@ -85,451 +97,6 @@ cvar_t	mapcyclefile = { "mapcyclefile", "mapcycle.txt" };
 
 cvar_t	pausable = { "pausable", "1", FCVAR_SERVER };
 
-//CVARS FOR SKILL LEVEL SETTINGS
-// Agrunt
-cvar_t	sk_agrunt_health1 = { "sk_agrunt_health1", "0" };
-cvar_t	sk_agrunt_health2 = { "sk_agrunt_health2", "0" };
-cvar_t	sk_agrunt_health3 = { "sk_agrunt_health3", "0" };
-
-cvar_t	sk_agrunt_dmg_punch1 = { "sk_agrunt_dmg_punch1", "0" };
-cvar_t	sk_agrunt_dmg_punch2 = { "sk_agrunt_dmg_punch2", "0" };
-cvar_t	sk_agrunt_dmg_punch3 = { "sk_agrunt_dmg_punch3", "0" };
-
-// Apache
-cvar_t	sk_apache_health1 = { "sk_apache_health1", "0" };
-cvar_t	sk_apache_health2 = { "sk_apache_health2", "0" };
-cvar_t	sk_apache_health3 = { "sk_apache_health3", "0" };
-
-// Barney
-cvar_t	sk_barney_health1 = { "sk_barney_health1", "0" };
-cvar_t	sk_barney_health2 = { "sk_barney_health2", "0" };
-cvar_t	sk_barney_health3 = { "sk_barney_health3", "0" };
-
-// Bullsquid
-cvar_t	sk_bullsquid_health1 = { "sk_bullsquid_health1", "0" };
-cvar_t	sk_bullsquid_health2 = { "sk_bullsquid_health2", "0" };
-cvar_t	sk_bullsquid_health3 = { "sk_bullsquid_health3", "0" };
-
-cvar_t	sk_bullsquid_dmg_bite1 = { "sk_bullsquid_dmg_bite1", "0" };
-cvar_t	sk_bullsquid_dmg_bite2 = { "sk_bullsquid_dmg_bite2", "0" };
-cvar_t	sk_bullsquid_dmg_bite3 = { "sk_bullsquid_dmg_bite3", "0" };
-
-cvar_t	sk_bullsquid_dmg_whip1 = { "sk_bullsquid_dmg_whip1", "0" };
-cvar_t	sk_bullsquid_dmg_whip2 = { "sk_bullsquid_dmg_whip2", "0" };
-cvar_t	sk_bullsquid_dmg_whip3 = { "sk_bullsquid_dmg_whip3", "0" };
-
-cvar_t	sk_bullsquid_dmg_spit1 = { "sk_bullsquid_dmg_spit1", "0" };
-cvar_t	sk_bullsquid_dmg_spit2 = { "sk_bullsquid_dmg_spit2", "0" };
-cvar_t	sk_bullsquid_dmg_spit3 = { "sk_bullsquid_dmg_spit3", "0" };
-
-// Gargantua
-cvar_t	sk_gargantua_health1 = { "sk_gargantua_health1", "0" };
-cvar_t	sk_gargantua_health2 = { "sk_gargantua_health2", "0" };
-cvar_t	sk_gargantua_health3 = { "sk_gargantua_health3", "0" };
-
-cvar_t	sk_gargantua_dmg_slash1 = { "sk_gargantua_dmg_slash1", "0" };
-cvar_t	sk_gargantua_dmg_slash2 = { "sk_gargantua_dmg_slash2", "0" };
-cvar_t	sk_gargantua_dmg_slash3 = { "sk_gargantua_dmg_slash3", "0" };
-
-cvar_t	sk_gargantua_dmg_fire1 = { "sk_gargantua_dmg_fire1", "0" };
-cvar_t	sk_gargantua_dmg_fire2 = { "sk_gargantua_dmg_fire2", "0" };
-cvar_t	sk_gargantua_dmg_fire3 = { "sk_gargantua_dmg_fire3", "0" };
-
-cvar_t	sk_gargantua_dmg_stomp1 = { "sk_gargantua_dmg_stomp1", "0" };
-cvar_t	sk_gargantua_dmg_stomp2 = { "sk_gargantua_dmg_stomp2", "0" };
-cvar_t	sk_gargantua_dmg_stomp3 = { "sk_gargantua_dmg_stomp3", "0" };
-
-
-// Hassassin
-cvar_t	sk_hassassin_health1 = { "sk_hassassin_health1", "0" };
-cvar_t	sk_hassassin_health2 = { "sk_hassassin_health2", "0" };
-cvar_t	sk_hassassin_health3 = { "sk_hassassin_health3", "0" };
-
-
-// Headcrab
-cvar_t	sk_headcrab_health1 = { "sk_headcrab_health1", "0" };
-cvar_t	sk_headcrab_health2 = { "sk_headcrab_health2", "0" };
-cvar_t	sk_headcrab_health3 = { "sk_headcrab_health3", "0" };
-
-cvar_t	sk_headcrab_dmg_bite1 = { "sk_headcrab_dmg_bite1", "0" };
-cvar_t	sk_headcrab_dmg_bite2 = { "sk_headcrab_dmg_bite2", "0" };
-cvar_t	sk_headcrab_dmg_bite3 = { "sk_headcrab_dmg_bite3", "0" };
-
-
-// Hgrunt
-cvar_t	sk_hgrunt_health1 = { "sk_hgrunt_health1", "0" };
-cvar_t	sk_hgrunt_health2 = { "sk_hgrunt_health2", "0" };
-cvar_t	sk_hgrunt_health3 = { "sk_hgrunt_health3", "0" };
-
-cvar_t	sk_hgrunt_kick1 = { "sk_hgrunt_kick1", "0" };
-cvar_t	sk_hgrunt_kick2 = { "sk_hgrunt_kick2", "0" };
-cvar_t	sk_hgrunt_kick3 = { "sk_hgrunt_kick3", "0" };
-
-cvar_t	sk_hgrunt_pellets1 = { "sk_hgrunt_pellets1", "0" };
-cvar_t	sk_hgrunt_pellets2 = { "sk_hgrunt_pellets2", "0" };
-cvar_t	sk_hgrunt_pellets3 = { "sk_hgrunt_pellets3", "0" };
-
-cvar_t	sk_hgrunt_gspeed1 = { "sk_hgrunt_gspeed1", "0" };
-cvar_t	sk_hgrunt_gspeed2 = { "sk_hgrunt_gspeed2", "0" };
-cvar_t	sk_hgrunt_gspeed3 = { "sk_hgrunt_gspeed3", "0" };
-
-// Houndeye
-cvar_t	sk_houndeye_health1 = { "sk_houndeye_health1", "0" };
-cvar_t	sk_houndeye_health2 = { "sk_houndeye_health2", "0" };
-cvar_t	sk_houndeye_health3 = { "sk_houndeye_health3", "0" };
-
-cvar_t	sk_houndeye_dmg_blast1 = { "sk_houndeye_dmg_blast1", "0" };
-cvar_t	sk_houndeye_dmg_blast2 = { "sk_houndeye_dmg_blast2", "0" };
-cvar_t	sk_houndeye_dmg_blast3 = { "sk_houndeye_dmg_blast3", "0" };
-
-
-// ISlave
-cvar_t	sk_islave_health1 = { "sk_islave_health1", "0" };
-cvar_t	sk_islave_health2 = { "sk_islave_health2", "0" };
-cvar_t	sk_islave_health3 = { "sk_islave_health3", "0" };
-
-cvar_t	sk_islave_dmg_claw1 = { "sk_islave_dmg_claw1", "0" };
-cvar_t	sk_islave_dmg_claw2 = { "sk_islave_dmg_claw2", "0" };
-cvar_t	sk_islave_dmg_claw3 = { "sk_islave_dmg_claw3", "0" };
-
-cvar_t	sk_islave_dmg_clawrake1 = { "sk_islave_dmg_clawrake1", "0" };
-cvar_t	sk_islave_dmg_clawrake2 = { "sk_islave_dmg_clawrake2", "0" };
-cvar_t	sk_islave_dmg_clawrake3 = { "sk_islave_dmg_clawrake3", "0" };
-
-cvar_t	sk_islave_dmg_zap1 = { "sk_islave_dmg_zap1", "0" };
-cvar_t	sk_islave_dmg_zap2 = { "sk_islave_dmg_zap2", "0" };
-cvar_t	sk_islave_dmg_zap3 = { "sk_islave_dmg_zap3", "0" };
-
-
-// Icthyosaur
-cvar_t	sk_ichthyosaur_health1 = { "sk_ichthyosaur_health1", "0" };
-cvar_t	sk_ichthyosaur_health2 = { "sk_ichthyosaur_health2", "0" };
-cvar_t	sk_ichthyosaur_health3 = { "sk_ichthyosaur_health3", "0" };
-
-cvar_t	sk_ichthyosaur_shake1 = { "sk_ichthyosaur_shake1", "0" };
-cvar_t	sk_ichthyosaur_shake2 = { "sk_ichthyosaur_shake2", "0" };
-cvar_t	sk_ichthyosaur_shake3 = { "sk_ichthyosaur_shake3", "0" };
-
-
-// Leech
-cvar_t	sk_leech_health1 = { "sk_leech_health1", "0" };
-cvar_t	sk_leech_health2 = { "sk_leech_health2", "0" };
-cvar_t	sk_leech_health3 = { "sk_leech_health3", "0" };
-
-cvar_t	sk_leech_dmg_bite1 = { "sk_leech_dmg_bite1", "0" };
-cvar_t	sk_leech_dmg_bite2 = { "sk_leech_dmg_bite2", "0" };
-cvar_t	sk_leech_dmg_bite3 = { "sk_leech_dmg_bite3", "0" };
-
-// Controller
-cvar_t	sk_controller_health1 = { "sk_controller_health1", "0" };
-cvar_t	sk_controller_health2 = { "sk_controller_health2", "0" };
-cvar_t	sk_controller_health3 = { "sk_controller_health3", "0" };
-
-cvar_t	sk_controller_dmgzap1 = { "sk_controller_dmgzap1", "0" };
-cvar_t	sk_controller_dmgzap2 = { "sk_controller_dmgzap2", "0" };
-cvar_t	sk_controller_dmgzap3 = { "sk_controller_dmgzap3", "0" };
-
-cvar_t	sk_controller_speedball1 = { "sk_controller_speedball1", "0" };
-cvar_t	sk_controller_speedball2 = { "sk_controller_speedball2", "0" };
-cvar_t	sk_controller_speedball3 = { "sk_controller_speedball3", "0" };
-
-cvar_t	sk_controller_dmgball1 = { "sk_controller_dmgball1", "0" };
-cvar_t	sk_controller_dmgball2 = { "sk_controller_dmgball2", "0" };
-cvar_t	sk_controller_dmgball3 = { "sk_controller_dmgball3", "0" };
-
-// Nihilanth
-cvar_t	sk_nihilanth_health1 = { "sk_nihilanth_health1", "0" };
-cvar_t	sk_nihilanth_health2 = { "sk_nihilanth_health2", "0" };
-cvar_t	sk_nihilanth_health3 = { "sk_nihilanth_health3", "0" };
-
-cvar_t	sk_nihilanth_zap1 = { "sk_nihilanth_zap1", "0" };
-cvar_t	sk_nihilanth_zap2 = { "sk_nihilanth_zap2", "0" };
-cvar_t	sk_nihilanth_zap3 = { "sk_nihilanth_zap3", "0" };
-
-// Scientist
-cvar_t	sk_scientist_health1 = { "sk_scientist_health1", "0" };
-cvar_t	sk_scientist_health2 = { "sk_scientist_health2", "0" };
-cvar_t	sk_scientist_health3 = { "sk_scientist_health3", "0" };
-
-
-// Snark
-cvar_t	sk_snark_health1 = { "sk_snark_health1", "0" };
-cvar_t	sk_snark_health2 = { "sk_snark_health2", "0" };
-cvar_t	sk_snark_health3 = { "sk_snark_health3", "0" };
-
-cvar_t	sk_snark_dmg_bite1 = { "sk_snark_dmg_bite1", "0" };
-cvar_t	sk_snark_dmg_bite2 = { "sk_snark_dmg_bite2", "0" };
-cvar_t	sk_snark_dmg_bite3 = { "sk_snark_dmg_bite3", "0" };
-
-cvar_t	sk_snark_dmg_pop1 = { "sk_snark_dmg_pop1", "0" };
-cvar_t	sk_snark_dmg_pop2 = { "sk_snark_dmg_pop2", "0" };
-cvar_t	sk_snark_dmg_pop3 = { "sk_snark_dmg_pop3", "0" };
-
-
-
-// Zombie
-cvar_t	sk_zombie_health1 = { "sk_zombie_health1", "0" };
-cvar_t	sk_zombie_health2 = { "sk_zombie_health2", "0" };
-cvar_t	sk_zombie_health3 = { "sk_zombie_health3", "0" };
-
-cvar_t	sk_zombie_dmg_one_slash1 = { "sk_zombie_dmg_one_slash1", "0" };
-cvar_t	sk_zombie_dmg_one_slash2 = { "sk_zombie_dmg_one_slash2", "0" };
-cvar_t	sk_zombie_dmg_one_slash3 = { "sk_zombie_dmg_one_slash3", "0" };
-
-cvar_t	sk_zombie_dmg_both_slash1 = { "sk_zombie_dmg_both_slash1", "0" };
-cvar_t	sk_zombie_dmg_both_slash2 = { "sk_zombie_dmg_both_slash2", "0" };
-cvar_t	sk_zombie_dmg_both_slash3 = { "sk_zombie_dmg_both_slash3", "0" };
-
-
-//Turret
-cvar_t	sk_turret_health1 = { "sk_turret_health1", "0" };
-cvar_t	sk_turret_health2 = { "sk_turret_health2", "0" };
-cvar_t	sk_turret_health3 = { "sk_turret_health3", "0" };
-
-
-// MiniTurret
-cvar_t	sk_miniturret_health1 = { "sk_miniturret_health1", "0" };
-cvar_t	sk_miniturret_health2 = { "sk_miniturret_health2", "0" };
-cvar_t	sk_miniturret_health3 = { "sk_miniturret_health3", "0" };
-
-
-// Sentry Turret
-cvar_t	sk_sentry_health1 = { "sk_sentry_health1", "0" };
-cvar_t	sk_sentry_health2 = { "sk_sentry_health2", "0" };
-cvar_t	sk_sentry_health3 = { "sk_sentry_health3", "0" };
-
-
-// PLAYER WEAPONS
-
-// Crowbar whack
-cvar_t	sk_plr_crowbar1 = { "sk_plr_crowbar1", "0" };
-cvar_t	sk_plr_crowbar2 = { "sk_plr_crowbar2", "0" };
-cvar_t	sk_plr_crowbar3 = { "sk_plr_crowbar3", "0" };
-
-// Glock Round
-cvar_t	sk_plr_9mm_bullet1 = { "sk_plr_9mm_bullet1", "0" };
-cvar_t	sk_plr_9mm_bullet2 = { "sk_plr_9mm_bullet2", "0" };
-cvar_t	sk_plr_9mm_bullet3 = { "sk_plr_9mm_bullet3", "0" };
-
-// 357 Round
-cvar_t	sk_plr_357_bullet1 = { "sk_plr_357_bullet1", "0" };
-cvar_t	sk_plr_357_bullet2 = { "sk_plr_357_bullet2", "0" };
-cvar_t	sk_plr_357_bullet3 = { "sk_plr_357_bullet3", "0" };
-
-// MP5 Round
-cvar_t	sk_plr_9mmAR_bullet1 = { "sk_plr_9mmAR_bullet1", "0" };
-cvar_t	sk_plr_9mmAR_bullet2 = { "sk_plr_9mmAR_bullet2", "0" };
-cvar_t	sk_plr_9mmAR_bullet3 = { "sk_plr_9mmAR_bullet3", "0" };
-
-
-// M203 grenade
-cvar_t	sk_plr_9mmAR_grenade1 = { "sk_plr_9mmAR_grenade1", "0" };
-cvar_t	sk_plr_9mmAR_grenade2 = { "sk_plr_9mmAR_grenade2", "0" };
-cvar_t	sk_plr_9mmAR_grenade3 = { "sk_plr_9mmAR_grenade3", "0" };
-
-
-// Shotgun buckshot
-cvar_t	sk_plr_buckshot1 = { "sk_plr_buckshot1", "0" };
-cvar_t	sk_plr_buckshot2 = { "sk_plr_buckshot2", "0" };
-cvar_t	sk_plr_buckshot3 = { "sk_plr_buckshot3", "0" };
-
-
-// Crossbow
-cvar_t	sk_plr_xbow_bolt_client1 = { "sk_plr_xbow_bolt_client1", "0" };
-cvar_t	sk_plr_xbow_bolt_client2 = { "sk_plr_xbow_bolt_client2", "0" };
-cvar_t	sk_plr_xbow_bolt_client3 = { "sk_plr_xbow_bolt_client3", "0" };
-
-cvar_t	sk_plr_xbow_bolt_monster1 = { "sk_plr_xbow_bolt_monster1", "0" };
-cvar_t	sk_plr_xbow_bolt_monster2 = { "sk_plr_xbow_bolt_monster2", "0" };
-cvar_t	sk_plr_xbow_bolt_monster3 = { "sk_plr_xbow_bolt_monster3", "0" };
-
-
-// RPG
-cvar_t	sk_plr_rpg1 = { "sk_plr_rpg1", "0" };
-cvar_t	sk_plr_rpg2 = { "sk_plr_rpg2", "0" };
-cvar_t	sk_plr_rpg3 = { "sk_plr_rpg3", "0" };
-
-
-// Zero Point Generator
-cvar_t	sk_plr_gauss1 = { "sk_plr_gauss1", "0" };
-cvar_t	sk_plr_gauss2 = { "sk_plr_gauss2", "0" };
-cvar_t	sk_plr_gauss3 = { "sk_plr_gauss3", "0" };
-
-
-// Tau Cannon
-cvar_t	sk_plr_egon_narrow1 = { "sk_plr_egon_narrow1", "0" };
-cvar_t	sk_plr_egon_narrow2 = { "sk_plr_egon_narrow2", "0" };
-cvar_t	sk_plr_egon_narrow3 = { "sk_plr_egon_narrow3", "0" };
-
-cvar_t	sk_plr_egon_wide1 = { "sk_plr_egon_wide1", "0" };
-cvar_t	sk_plr_egon_wide2 = { "sk_plr_egon_wide2", "0" };
-cvar_t	sk_plr_egon_wide3 = { "sk_plr_egon_wide3", "0" };
-
-
-// Hand Grendade
-cvar_t	sk_plr_hand_grenade1 = { "sk_plr_hand_grenade1", "0" };
-cvar_t	sk_plr_hand_grenade2 = { "sk_plr_hand_grenade2", "0" };
-cvar_t	sk_plr_hand_grenade3 = { "sk_plr_hand_grenade3", "0" };
-
-
-// Satchel Charge
-cvar_t	sk_plr_satchel1 = { "sk_plr_satchel1", "0" };
-cvar_t	sk_plr_satchel2 = { "sk_plr_satchel2", "0" };
-cvar_t	sk_plr_satchel3 = { "sk_plr_satchel3", "0" };
-
-
-// Tripmine
-cvar_t	sk_plr_tripmine1 = { "sk_plr_tripmine1", "0" };
-cvar_t	sk_plr_tripmine2 = { "sk_plr_tripmine2", "0" };
-cvar_t	sk_plr_tripmine3 = { "sk_plr_tripmine3", "0" };
-
-
-// WORLD WEAPONS
-cvar_t	sk_12mm_bullet1 = { "sk_12mm_bullet1", "0" };
-cvar_t	sk_12mm_bullet2 = { "sk_12mm_bullet2", "0" };
-cvar_t	sk_12mm_bullet3 = { "sk_12mm_bullet3", "0" };
-
-cvar_t	sk_9mmAR_bullet1 = { "sk_9mmAR_bullet1", "0" };
-cvar_t	sk_9mmAR_bullet2 = { "sk_9mmAR_bullet2", "0" };
-cvar_t	sk_9mmAR_bullet3 = { "sk_9mmAR_bullet3", "0" };
-
-cvar_t	sk_9mm_bullet1 = { "sk_9mm_bullet1", "0" };
-cvar_t	sk_9mm_bullet2 = { "sk_9mm_bullet2", "0" };
-cvar_t	sk_9mm_bullet3 = { "sk_9mm_bullet3", "0" };
-
-
-// HORNET
-cvar_t	sk_hornet_dmg1 = { "sk_hornet_dmg1", "0" };
-cvar_t	sk_hornet_dmg2 = { "sk_hornet_dmg2", "0" };
-cvar_t	sk_hornet_dmg3 = { "sk_hornet_dmg3", "0" };
-
-// HEALTH/CHARGE
-cvar_t	sk_suitcharger1 = { "sk_suitcharger1", "0" };
-cvar_t	sk_suitcharger2 = { "sk_suitcharger2", "0" };
-cvar_t	sk_suitcharger3 = { "sk_suitcharger3", "0" };
-
-cvar_t	sk_battery1 = { "sk_battery1", "0" };
-cvar_t	sk_battery2 = { "sk_battery2", "0" };
-cvar_t	sk_battery3 = { "sk_battery3", "0" };
-
-cvar_t	sk_healthcharger1 = { "sk_healthcharger1", "0" };
-cvar_t	sk_healthcharger2 = { "sk_healthcharger2", "0" };
-cvar_t	sk_healthcharger3 = { "sk_healthcharger3", "0" };
-
-cvar_t	sk_healthkit1 = { "sk_healthkit1", "0" };
-cvar_t	sk_healthkit2 = { "sk_healthkit2", "0" };
-cvar_t	sk_healthkit3 = { "sk_healthkit3", "0" };
-
-cvar_t	sk_scientist_heal1 = { "sk_scientist_heal1", "0" };
-cvar_t	sk_scientist_heal2 = { "sk_scientist_heal2", "0" };
-cvar_t	sk_scientist_heal3 = { "sk_scientist_heal3", "0" };
-
-
-// monster damage adjusters
-cvar_t	sk_monster_head1 = { "sk_monster_head1", "2" };
-cvar_t	sk_monster_head2 = { "sk_monster_head2", "2" };
-cvar_t	sk_monster_head3 = { "sk_monster_head3", "2" };
-
-cvar_t	sk_monster_chest1 = { "sk_monster_chest1", "1" };
-cvar_t	sk_monster_chest2 = { "sk_monster_chest2", "1" };
-cvar_t	sk_monster_chest3 = { "sk_monster_chest3", "1" };
-
-cvar_t	sk_monster_stomach1 = { "sk_monster_stomach1", "1" };
-cvar_t	sk_monster_stomach2 = { "sk_monster_stomach2", "1" };
-cvar_t	sk_monster_stomach3 = { "sk_monster_stomach3", "1" };
-
-cvar_t	sk_monster_arm1 = { "sk_monster_arm1", "1" };
-cvar_t	sk_monster_arm2 = { "sk_monster_arm2", "1" };
-cvar_t	sk_monster_arm3 = { "sk_monster_arm3", "1" };
-
-cvar_t	sk_monster_leg1 = { "sk_monster_leg1", "1" };
-cvar_t	sk_monster_leg2 = { "sk_monster_leg2", "1" };
-cvar_t	sk_monster_leg3 = { "sk_monster_leg3", "1" };
-
-// player damage adjusters
-cvar_t	sk_player_head1 = { "sk_player_head1", "2" };
-cvar_t	sk_player_head2 = { "sk_player_head2", "2" };
-cvar_t	sk_player_head3 = { "sk_player_head3", "2" };
-
-cvar_t	sk_player_chest1 = { "sk_player_chest1", "1" };
-cvar_t	sk_player_chest2 = { "sk_player_chest2", "1" };
-cvar_t	sk_player_chest3 = { "sk_player_chest3", "1" };
-
-cvar_t	sk_player_stomach1 = { "sk_player_stomach1", "1" };
-cvar_t	sk_player_stomach2 = { "sk_player_stomach2", "1" };
-cvar_t	sk_player_stomach3 = { "sk_player_stomach3", "1" };
-
-cvar_t	sk_player_arm1 = { "sk_player_arm1", "1" };
-cvar_t	sk_player_arm2 = { "sk_player_arm2", "1" };
-cvar_t	sk_player_arm3 = { "sk_player_arm3", "1" };
-
-cvar_t	sk_player_leg1 = { "sk_player_leg1", "1" };
-cvar_t	sk_player_leg2 = { "sk_player_leg2", "1" };
-cvar_t	sk_player_leg3 = { "sk_player_leg3", "1" };
-
-// END Cvars for Skill Level settings
-
-/*
-================
-COM_EntsForPlayerSlots
-
-Returns the appropriate size of the edicts array to allocate
-based on the stated # of max players
-================
-*/
-int COM_EntsForPlayerSlots( int nPlayers )
-{
-	return 15 * (nPlayers - 1) + 800;
-}
-
-/*
-================
-Host_DeallocateDynamicData
-================
-*/
-void Host_DeallocateDynamicData( void )
-{
-	if (g_moved_edict)
-		free(g_moved_edict);
-	g_moved_edict = NULL;
-
-	if (g_moved_from)
-		free(g_moved_from);
-	g_moved_from = NULL;
-
-	if (g_playertouch)
-		free(g_playertouch);
-	g_playertouch = NULL;
-}
-
-/*
-================
-Host_ReallocateDynamicData
-================
-*/
-void Host_ReallocateDynamicData( void )
-{
-	if (!sv.max_edicts)
-	{
-		Con_DPrintf("Host_ReallocateDynamicData with sv.max_edicts == 0");
-		return;
-	}
-
-	if (g_moved_edict)
-		Con_Printf("Reallocate on moved_edict\n");
-	g_moved_edict = (edict_t**)malloc(sizeof(edict_t*) * sv.max_edicts);
-	memset(g_moved_edict, 0, sizeof(edict_t*) * sv.max_edicts);
-
-	if (g_moved_from)
-		Con_Printf("Reallocate on moved_from\n");
-	g_moved_from = (vec3_t*)malloc(sizeof(vec3_t) * sv.max_edicts);
-	memset(g_moved_from, 0, sizeof(vec3_t) * sv.max_edicts);
-
-	if (g_playertouch)
-		Con_Printf("Reallocate on playertouch\n");
-	g_playertouch = (byte*)malloc((sv.max_edicts + 7) / 8);
-	memset(g_playertouch, 0, (sv.max_edicts + 7) / 8);
-}
 
 /*
 ================
@@ -660,6 +227,13 @@ void Host_FindMaxClients( void )
 		svs.maxclientslimit = 4;
 	}
 
+	// Single player only needs a shallow frame history
+	if (svs.maxclients == 1)
+		SV_UPDATE_BACKUP = SINGLEPLAYER_BACKUP;
+	else
+		SV_UPDATE_BACKUP = MULTIPLAYER_BACKUP;
+	SV_UPDATE_MASK = SV_UPDATE_BACKUP - 1;
+
 	svs.clients = (client_t*)Hunk_AllocName(sizeof(client_t) * svs.maxclientslimit, "clients");
 
 	for (i = 0, cl = svs.clients; i < svs.maxclientslimit; i++, cl++)
@@ -676,6 +250,11 @@ void Host_FindMaxClients( void )
 		Cvar_SetValue("deathmatch", 1.0);
 	else
 		Cvar_SetValue("deathmatch", 0.0);
+
+	SV_AllocClientFrames();
+
+	if (svs.maxclientslimit < svs.maxclients)
+		svs.maxclients = svs.maxclientslimit;
 }
 
 
@@ -693,413 +272,19 @@ void Host_InitLocal( void )
 	Cvar_RegisterVariable(&fps_modem);
 	Cvar_RegisterVariable(&host_framerate);
 	Cvar_RegisterVariable(&host_speeds);
-
-	Cvar_RegisterVariable(&host_killtime);
-	Cvar_RegisterVariable(&sys_ticrate);
 	Cvar_RegisterVariable(&serverprofile);
-
-	Cvar_RegisterVariable(&fraglimit);
-	Cvar_RegisterVariable(&timelimit);
-	Cvar_RegisterVariable(&teamplay);
-	Cvar_RegisterVariable(&friendlyfire);
-	Cvar_RegisterVariable(&falldamage);
-	Cvar_RegisterVariable(&weaponstay);
-	Cvar_RegisterVariable(&forcerespawn);
+	Cvar_RegisterVariable(&mp_logfile);
+	Cvar_RegisterVariable(&mp_logecho);
+	Cvar_RegisterVariable(&host_killtime);
 	Cvar_RegisterVariable(&developer);
-	Cvar_RegisterVariable(&displaysoundlist);
 	Cvar_RegisterVariable(&deathmatch);
-	Cvar_RegisterVariable(&mapcyclefile);
 	Cvar_RegisterVariable(&coop);
 	Cvar_RegisterVariable(&pausable);
 	Cvar_RegisterVariable(&skill);
 
-// REGISTER CVARS FOR SKILL LEVEL STUFF
-	// Agrunt
-	Cvar_RegisterVariable(&sk_agrunt_health1);// {"sk_agrunt_health1","0"};
-	Cvar_RegisterVariable(&sk_agrunt_health2);// {"sk_agrunt_health2","0"};
-	Cvar_RegisterVariable(&sk_agrunt_health3);// {"sk_agrunt_health3","0"};
-
-	Cvar_RegisterVariable(&sk_agrunt_dmg_punch1);// {"sk_agrunt_dmg_punch1","0"};
-	Cvar_RegisterVariable(&sk_agrunt_dmg_punch2);// {"sk_agrunt_dmg_punch2","0"};
-	Cvar_RegisterVariable(&sk_agrunt_dmg_punch3);// {"sk_agrunt_dmg_punch3","0"};
-
-	// Apache
-	Cvar_RegisterVariable(&sk_apache_health1);// {"sk_apache_health1","0"};
-	Cvar_RegisterVariable(&sk_apache_health2);// {"sk_apache_health2","0"};
-	Cvar_RegisterVariable(&sk_apache_health3);// {"sk_apache_health3","0"};
-
-	// Barney
-	Cvar_RegisterVariable(&sk_barney_health1);// {"sk_barney_health1","0"};
-	Cvar_RegisterVariable(&sk_barney_health2);// {"sk_barney_health2","0"};
-	Cvar_RegisterVariable(&sk_barney_health3);// {"sk_barney_health3","0"};
-
-	// Bullsquid
-	Cvar_RegisterVariable(&sk_bullsquid_health1);// {"sk_bullsquid_health1","0"};
-	Cvar_RegisterVariable(&sk_bullsquid_health2);// {"sk_bullsquid_health2","0"};
-	Cvar_RegisterVariable(&sk_bullsquid_health3);// {"sk_bullsquid_health3","0"};
-
-	Cvar_RegisterVariable(&sk_bullsquid_dmg_bite1);// {"sk_bullsquid_dmg_bite1","0"};
-	Cvar_RegisterVariable(&sk_bullsquid_dmg_bite2);// {"sk_bullsquid_dmg_bite2","0"};
-	Cvar_RegisterVariable(&sk_bullsquid_dmg_bite3);// {"sk_bullsquid_dmg_bite3","0"};
-
-	Cvar_RegisterVariable(&sk_bullsquid_dmg_whip1);// {"sk_bullsquid_dmg_whip1","0"};
-	Cvar_RegisterVariable(&sk_bullsquid_dmg_whip2);// {"sk_bullsquid_dmg_whip2","0"};
-	Cvar_RegisterVariable(&sk_bullsquid_dmg_whip3);// {"sk_bullsquid_dmg_whip3","0"};
-
-	Cvar_RegisterVariable(&sk_bullsquid_dmg_spit1);// {"sk_bullsquid_dmg_spit1","0"};
-	Cvar_RegisterVariable(&sk_bullsquid_dmg_spit2);// {"sk_bullsquid_dmg_spit2","0"};
-	Cvar_RegisterVariable(&sk_bullsquid_dmg_spit3);// {"sk_bullsquid_dmg_spit3","0"};
-
-	// Gargantua
-	Cvar_RegisterVariable(&sk_gargantua_health1);// {"sk_gargantua_health1","0"};
-	Cvar_RegisterVariable(&sk_gargantua_health2);// {"sk_gargantua_health2","0"};
-	Cvar_RegisterVariable(&sk_gargantua_health3);// {"sk_gargantua_health3","0"};
-
-	Cvar_RegisterVariable(&sk_gargantua_dmg_slash1);// {"sk_gargantua_dmg_slash1","0"};
-	Cvar_RegisterVariable(&sk_gargantua_dmg_slash2);// {"sk_gargantua_dmg_slash2","0"};
-	Cvar_RegisterVariable(&sk_gargantua_dmg_slash3);// {"sk_gargantua_dmg_slash3","0"};
-
-	Cvar_RegisterVariable(&sk_gargantua_dmg_fire1);// {"sk_gargantua_dmg_fire1","0"};
-	Cvar_RegisterVariable(&sk_gargantua_dmg_fire2);// {"sk_gargantua_dmg_fire2","0"};
-	Cvar_RegisterVariable(&sk_gargantua_dmg_fire3);// {"sk_gargantua_dmg_fire3","0"};
-
-	Cvar_RegisterVariable(&sk_gargantua_dmg_stomp1);// {"sk_gargantua_dmg_stomp1","0"};
-	Cvar_RegisterVariable(&sk_gargantua_dmg_stomp2);// {"sk_gargantua_dmg_stomp2","0"};
-	Cvar_RegisterVariable(&sk_gargantua_dmg_stomp3);// {"sk_gargantua_dmg_stomp3","0"};
-
-
-	// Hassassin
-	Cvar_RegisterVariable(&sk_hassassin_health1);// {"sk_hassassin_health1","0"};
-	Cvar_RegisterVariable(&sk_hassassin_health2);// {"sk_hassassin_health2","0"};
-	Cvar_RegisterVariable(&sk_hassassin_health3);// {"sk_hassassin_health3","0"};
-
-
-	// Headcrab
-	Cvar_RegisterVariable(&sk_headcrab_health1);// {"sk_headcrab_health1","0"};
-	Cvar_RegisterVariable(&sk_headcrab_health2);// {"sk_headcrab_health2","0"};
-	Cvar_RegisterVariable(&sk_headcrab_health3);// {"sk_headcrab_health3","0"};
-
-	Cvar_RegisterVariable(&sk_headcrab_dmg_bite1);// {"sk_headcrab_dmg_bite1","0"};
-	Cvar_RegisterVariable(&sk_headcrab_dmg_bite2);// {"sk_headcrab_dmg_bite2","0"};
-	Cvar_RegisterVariable(&sk_headcrab_dmg_bite3);// {"sk_headcrab_dmg_bite3","0"};
-
-
-	// Hgrunt 
-	Cvar_RegisterVariable(&sk_hgrunt_health1);// {"sk_hgrunt_health1","0"};
-	Cvar_RegisterVariable(&sk_hgrunt_health2);// {"sk_hgrunt_health2","0"};
-	Cvar_RegisterVariable(&sk_hgrunt_health3);// {"sk_hgrunt_health3","0"};
-
-	Cvar_RegisterVariable(&sk_hgrunt_kick1);// {"sk_hgrunt_kick1","0"};
-	Cvar_RegisterVariable(&sk_hgrunt_kick2);// {"sk_hgrunt_kick2","0"};
-	Cvar_RegisterVariable(&sk_hgrunt_kick3);// {"sk_hgrunt_kick3","0"};
-
-	Cvar_RegisterVariable(&sk_hgrunt_pellets1);
-	Cvar_RegisterVariable(&sk_hgrunt_pellets2);
-	Cvar_RegisterVariable(&sk_hgrunt_pellets3);
-
-	Cvar_RegisterVariable(&sk_hgrunt_gspeed1);
-	Cvar_RegisterVariable(&sk_hgrunt_gspeed2);
-	Cvar_RegisterVariable(&sk_hgrunt_gspeed3);
-
-	// Houndeye
-	Cvar_RegisterVariable(&sk_houndeye_health1);// {"sk_houndeye_health1","0"};
-	Cvar_RegisterVariable(&sk_houndeye_health2);// {"sk_houndeye_health2","0"};
-	Cvar_RegisterVariable(&sk_houndeye_health3);// {"sk_houndeye_health3","0"};
-
-	Cvar_RegisterVariable(&sk_houndeye_dmg_blast1);// {"sk_houndeye_dmg_blast1","0"};
-	Cvar_RegisterVariable(&sk_houndeye_dmg_blast2);// {"sk_houndeye_dmg_blast2","0"};
-	Cvar_RegisterVariable(&sk_houndeye_dmg_blast3);// {"sk_houndeye_dmg_blast3","0"};
-
-
-	// ISlave
-	Cvar_RegisterVariable(&sk_islave_health1);// {"sk_islave_health1","0"};
-	Cvar_RegisterVariable(&sk_islave_health2);// {"sk_islave_health2","0"};
-	Cvar_RegisterVariable(&sk_islave_health3);// {"sk_islave_health3","0"};
-
-	Cvar_RegisterVariable(&sk_islave_dmg_claw1);// {"sk_islave_dmg_claw1","0"};
-	Cvar_RegisterVariable(&sk_islave_dmg_claw2);// {"sk_islave_dmg_claw2","0"};
-	Cvar_RegisterVariable(&sk_islave_dmg_claw3);// {"sk_islave_dmg_claw3","0"};
-
-	Cvar_RegisterVariable(&sk_islave_dmg_clawrake1);// {"sk_islave_dmg_clawrake1","0"};
-	Cvar_RegisterVariable(&sk_islave_dmg_clawrake2);// {"sk_islave_dmg_clawrake2","0"};
-	Cvar_RegisterVariable(&sk_islave_dmg_clawrake3);// {"sk_islave_dmg_clawrake3","0"};
-
-	Cvar_RegisterVariable(&sk_islave_dmg_zap1);// {"sk_islave_dmg_zap1","0"};
-	Cvar_RegisterVariable(&sk_islave_dmg_zap2);// {"sk_islave_dmg_zap2","0"};
-	Cvar_RegisterVariable(&sk_islave_dmg_zap3);// {"sk_islave_dmg_zap3","0"};
-
-
-	// Icthyosaur
-	Cvar_RegisterVariable(&sk_ichthyosaur_health1);// {"sk_ichthyosaur_health1","0"};
-	Cvar_RegisterVariable(&sk_ichthyosaur_health2);// {"sk_ichthyosaur_health2","0"};
-	Cvar_RegisterVariable(&sk_ichthyosaur_health3);// {"sk_ichthyosaur_health3","0"};
-
-	Cvar_RegisterVariable(&sk_ichthyosaur_shake1);// {"sk_ichthyosaur_health3","0"};
-	Cvar_RegisterVariable(&sk_ichthyosaur_shake2);// {"sk_ichthyosaur_health3","0"};
-	Cvar_RegisterVariable(&sk_ichthyosaur_shake3);// {"sk_ichthyosaur_health3","0"};
-
-
-
-	// Leech
-	Cvar_RegisterVariable(&sk_leech_health1);// {"sk_leech_health1","0"};
-	Cvar_RegisterVariable(&sk_leech_health2);// {"sk_leech_health2","0"};
-	Cvar_RegisterVariable(&sk_leech_health3);// {"sk_leech_health3","0"};
-
-	Cvar_RegisterVariable(&sk_leech_dmg_bite1);// {"sk_leech_dmg_bite1","0"};
-	Cvar_RegisterVariable(&sk_leech_dmg_bite2);// {"sk_leech_dmg_bite2","0"};
-	Cvar_RegisterVariable(&sk_leech_dmg_bite3);// {"sk_leech_dmg_bite3","0"};
-
-
-	// Controller
-	Cvar_RegisterVariable(&sk_controller_health1);
-	Cvar_RegisterVariable(&sk_controller_health2);
-	Cvar_RegisterVariable(&sk_controller_health3);
-
-	Cvar_RegisterVariable(&sk_controller_dmgzap1);
-	Cvar_RegisterVariable(&sk_controller_dmgzap2);
-	Cvar_RegisterVariable(&sk_controller_dmgzap3);
-
-	Cvar_RegisterVariable(&sk_controller_speedball1);
-	Cvar_RegisterVariable(&sk_controller_speedball2);
-	Cvar_RegisterVariable(&sk_controller_speedball3);
-
-	Cvar_RegisterVariable(&sk_controller_dmgball1);
-	Cvar_RegisterVariable(&sk_controller_dmgball2);
-	Cvar_RegisterVariable(&sk_controller_dmgball3);
-
-	// Nihilanth
-	Cvar_RegisterVariable(&sk_nihilanth_health1);// {"sk_nihilanth_health1","0"};
-	Cvar_RegisterVariable(&sk_nihilanth_health2);// {"sk_nihilanth_health2","0"};
-	Cvar_RegisterVariable(&sk_nihilanth_health3);// {"sk_nihilanth_health3","0"};
-
-	Cvar_RegisterVariable(&sk_nihilanth_zap1);
-	Cvar_RegisterVariable(&sk_nihilanth_zap2);
-	Cvar_RegisterVariable(&sk_nihilanth_zap3);
-
-	// Scientist
-	Cvar_RegisterVariable(&sk_scientist_health1);// {"sk_scientist_health1","0"};
-	Cvar_RegisterVariable(&sk_scientist_health2);// {"sk_scientist_health2","0"};
-	Cvar_RegisterVariable(&sk_scientist_health3);// {"sk_scientist_health3","0"};
-
-
-	// Snark
-	Cvar_RegisterVariable(&sk_snark_health1);// {"sk_snark_health1","0"};
-	Cvar_RegisterVariable(&sk_snark_health2);// {"sk_snark_health2","0"};
-	Cvar_RegisterVariable(&sk_snark_health3);// {"sk_snark_health3","0"};
-
-	Cvar_RegisterVariable(&sk_snark_dmg_bite1);// {"sk_snark_dmg_bite1","0"};
-	Cvar_RegisterVariable(&sk_snark_dmg_bite2);// {"sk_snark_dmg_bite2","0"};
-	Cvar_RegisterVariable(&sk_snark_dmg_bite3);// {"sk_snark_dmg_bite3","0"};
-
-	Cvar_RegisterVariable(&sk_snark_dmg_pop1);// {"sk_snark_dmg_pop1","0"};
-	Cvar_RegisterVariable(&sk_snark_dmg_pop2);// {"sk_snark_dmg_pop2","0"};
-	Cvar_RegisterVariable(&sk_snark_dmg_pop3);// {"sk_snark_dmg_pop3","0"};
-
-
-
-	// Zombie
-	Cvar_RegisterVariable(&sk_zombie_health1);// {"sk_zombie_health1","0"};
-	Cvar_RegisterVariable(&sk_zombie_health2);// {"sk_zombie_health3","0"};
-	Cvar_RegisterVariable(&sk_zombie_health3);// {"sk_zombie_health3","0"};
-
-	Cvar_RegisterVariable(&sk_zombie_dmg_one_slash1);// {"sk_zombie_dmg_one_slash1","0"};
-	Cvar_RegisterVariable(&sk_zombie_dmg_one_slash2);// {"sk_zombie_dmg_one_slash2","0"};
-	Cvar_RegisterVariable(&sk_zombie_dmg_one_slash3);// {"sk_zombie_dmg_one_slash3","0"};
-
-	Cvar_RegisterVariable(&sk_zombie_dmg_both_slash1);// {"sk_zombie_dmg_both_slash1","0"};
-	Cvar_RegisterVariable(&sk_zombie_dmg_both_slash2);// {"sk_zombie_dmg_both_slash2","0"};
-	Cvar_RegisterVariable(&sk_zombie_dmg_both_slash3);// {"sk_zombie_dmg_both_slash3","0"};
-
-
-	//Turret
-	Cvar_RegisterVariable(&sk_turret_health1);// {"sk_turret_health1","0"};
-	Cvar_RegisterVariable(&sk_turret_health2);// {"sk_turret_health2","0"};
-	Cvar_RegisterVariable(&sk_turret_health3);// {"sk_turret_health3","0"};
-
-
-	// MiniTurret
-	Cvar_RegisterVariable(&sk_miniturret_health1);// {"sk_miniturret_health1","0"};
-	Cvar_RegisterVariable(&sk_miniturret_health2);// {"sk_miniturret_health2","0"};
-	Cvar_RegisterVariable(&sk_miniturret_health3);// {"sk_miniturret_health3","0"};
-
-
-	// Sentry Turret
-	Cvar_RegisterVariable(&sk_sentry_health1);// {"sk_sentry_health1","0"};
-	Cvar_RegisterVariable(&sk_sentry_health2);// {"sk_sentry_health2","0"};
-	Cvar_RegisterVariable(&sk_sentry_health3);// {"sk_sentry_health3","0"};
-
-
-	// PLAYER WEAPONS
-
-	// Crowbar whack
-	Cvar_RegisterVariable(&sk_plr_crowbar1);// {"sk_plr_crowbar1","0"};
-	Cvar_RegisterVariable(&sk_plr_crowbar2);// {"sk_plr_crowbar2","0"};
-	Cvar_RegisterVariable(&sk_plr_crowbar3);// {"sk_plr_crowbar3","0"};
-
-	// Glock Round
-	Cvar_RegisterVariable(&sk_plr_9mm_bullet1);// {"sk_plr_9mm_bullet1","0"};
-	Cvar_RegisterVariable(&sk_plr_9mm_bullet2);// {"sk_plr_9mm_bullet2","0"};
-	Cvar_RegisterVariable(&sk_plr_9mm_bullet3);// {"sk_plr_9mm_bullet3","0"};
-
-	// 357 Round
-	Cvar_RegisterVariable(&sk_plr_357_bullet1);// {"sk_plr_357_bullet1","0"};
-	Cvar_RegisterVariable(&sk_plr_357_bullet2);// {"sk_plr_357_bullet2","0"};
-	Cvar_RegisterVariable(&sk_plr_357_bullet3);// {"sk_plr_357_bullet3","0"};
-
-	// MP5 Round
-	Cvar_RegisterVariable(&sk_plr_9mmAR_bullet1);// {"sk_plr_9mmAR_bullet1","0"};
-	Cvar_RegisterVariable(&sk_plr_9mmAR_bullet2);// {"sk_plr_9mmAR_bullet2","0"};
-	Cvar_RegisterVariable(&sk_plr_9mmAR_bullet3);// {"sk_plr_9mmAR_bullet3","0"};
-
-
-	// M203 grenade
-	Cvar_RegisterVariable(&sk_plr_9mmAR_grenade1);// {"sk_plr_9mmAR_grenade1","0"};
-	Cvar_RegisterVariable(&sk_plr_9mmAR_grenade2);// {"sk_plr_9mmAR_grenade2","0"};
-	Cvar_RegisterVariable(&sk_plr_9mmAR_grenade3);// {"sk_plr_9mmAR_grenade3","0"};
-
-
-	// Shotgun buckshot
-	Cvar_RegisterVariable(&sk_plr_buckshot1);// {"sk_plr_buckshot1","0"};
-	Cvar_RegisterVariable(&sk_plr_buckshot2);// {"sk_plr_buckshot2","0"};
-	Cvar_RegisterVariable(&sk_plr_buckshot3);// {"sk_plr_buckshot3","0"};
-
-
-	// Crossbow
-	Cvar_RegisterVariable(&sk_plr_xbow_bolt_monster1);// {"sk_plr_xbow_bolt1","0"};
-	Cvar_RegisterVariable(&sk_plr_xbow_bolt_monster2);// {"sk_plr_xbow_bolt2","0"};
-	Cvar_RegisterVariable(&sk_plr_xbow_bolt_monster3);// {"sk_plr_xbow_bolt3","0"};
-
-	Cvar_RegisterVariable(&sk_plr_xbow_bolt_client1);// {"sk_plr_xbow_bolt1","0"};
-	Cvar_RegisterVariable(&sk_plr_xbow_bolt_client2);// {"sk_plr_xbow_bolt2","0"};
-	Cvar_RegisterVariable(&sk_plr_xbow_bolt_client3);// {"sk_plr_xbow_bolt3","0"};
-
-
-	// RPG
-	Cvar_RegisterVariable(&sk_plr_rpg1);// {"sk_plr_rpg1","0"};
-	Cvar_RegisterVariable(&sk_plr_rpg2);// {"sk_plr_rpg2","0"};
-	Cvar_RegisterVariable(&sk_plr_rpg3);// {"sk_plr_rpg3","0"};
-
-
-	// Gauss Gun
-	Cvar_RegisterVariable(&sk_plr_gauss1);// {"sk_plr_gauss1","0"};
-	Cvar_RegisterVariable(&sk_plr_gauss2);// {"sk_plr_gauss2","0"};
-	Cvar_RegisterVariable(&sk_plr_gauss3);// {"sk_plr_gauss3","0"};
-
-
-	// Egon Gun
-	Cvar_RegisterVariable(&sk_plr_egon_narrow1);// {"sk_plr_egon_narrow1","0"};
-	Cvar_RegisterVariable(&sk_plr_egon_narrow2);// {"sk_plr_egon_narrow2","0"};
-	Cvar_RegisterVariable(&sk_plr_egon_narrow3);// {"sk_plr_egon_narrow3","0"};
-
-	Cvar_RegisterVariable(&sk_plr_egon_wide1);// {"sk_plr_egon_wide1","0"};
-	Cvar_RegisterVariable(&sk_plr_egon_wide2);// {"sk_plr_egon_wide2","0"};
-	Cvar_RegisterVariable(&sk_plr_egon_wide3);// {"sk_plr_egon_wide3","0"};
-
-
-	// Hand Grendade
-	Cvar_RegisterVariable(&sk_plr_hand_grenade1);// {"sk_plr_hand_grenade1","0"};
-	Cvar_RegisterVariable(&sk_plr_hand_grenade2);// {"sk_plr_hand_grenade2","0"};
-	Cvar_RegisterVariable(&sk_plr_hand_grenade3);// {"sk_plr_hand_grenade3","0"};
-
-
-	// Satchel Charge
-	Cvar_RegisterVariable(&sk_plr_satchel1);// {"sk_plr_satchel1","0"};
-	Cvar_RegisterVariable(&sk_plr_satchel2);// {"sk_plr_satchel2","0"};
-	Cvar_RegisterVariable(&sk_plr_satchel3);// {"sk_plr_satchel3","0"};
-
-
-	// Tripmine
-	Cvar_RegisterVariable(&sk_plr_tripmine1);// {"sk_plr_tripmine1","0"};
-	Cvar_RegisterVariable(&sk_plr_tripmine2);// {"sk_plr_tripmine2","0"};
-	Cvar_RegisterVariable(&sk_plr_tripmine3);// {"sk_plr_tripmine3","0"};
-
-
-	// WORLD WEAPONS
-	Cvar_RegisterVariable(&sk_12mm_bullet1);// {"sk_12mm_bullet1","0"};
-	Cvar_RegisterVariable(&sk_12mm_bullet2);// {"sk_12mm_bullet2","0"};
-	Cvar_RegisterVariable(&sk_12mm_bullet3);// {"sk_12mm_bullet3","0"};
-
-	Cvar_RegisterVariable(&sk_9mmAR_bullet1);// {"sk_9mm_bullet1","0"};
-	Cvar_RegisterVariable(&sk_9mmAR_bullet2);// {"sk_9mm_bullet1","0"};
-	Cvar_RegisterVariable(&sk_9mmAR_bullet3);// {"sk_9mm_bullet1","0"};
-
-	Cvar_RegisterVariable(&sk_9mm_bullet1);// {"sk_9mm_bullet1","0"};
-	Cvar_RegisterVariable(&sk_9mm_bullet2);// {"sk_9mm_bullet2","0"};
-	Cvar_RegisterVariable(&sk_9mm_bullet3);// {"sk_9mm_bullet3","0"};
-
-
-	// HORNET
-	Cvar_RegisterVariable(&sk_hornet_dmg1);// {"sk_hornet_dmg1","0"};
-	Cvar_RegisterVariable(&sk_hornet_dmg2);// {"sk_hornet_dmg2","0"};
-	Cvar_RegisterVariable(&sk_hornet_dmg3);// {"sk_hornet_dmg3","0"};
-
-	// HEALTH/SUIT CHARGE DISTRIBUTION
-	Cvar_RegisterVariable(&sk_suitcharger1);
-	Cvar_RegisterVariable(&sk_suitcharger2);
-	Cvar_RegisterVariable(&sk_suitcharger3);
-
-	Cvar_RegisterVariable(&sk_battery1);
-	Cvar_RegisterVariable(&sk_battery2);
-	Cvar_RegisterVariable(&sk_battery3);
-
-	Cvar_RegisterVariable(&sk_healthcharger1);
-	Cvar_RegisterVariable(&sk_healthcharger2);
-	Cvar_RegisterVariable(&sk_healthcharger3);
-
-	Cvar_RegisterVariable(&sk_healthkit1);
-	Cvar_RegisterVariable(&sk_healthkit2);
-	Cvar_RegisterVariable(&sk_healthkit3);
-
-	Cvar_RegisterVariable(&sk_scientist_heal1);
-	Cvar_RegisterVariable(&sk_scientist_heal2);
-	Cvar_RegisterVariable(&sk_scientist_heal3);
-
-// monster damage adjusters
-	Cvar_RegisterVariable(&sk_monster_head1);
-	Cvar_RegisterVariable(&sk_monster_head2);
-	Cvar_RegisterVariable(&sk_monster_head3);
-
-	Cvar_RegisterVariable(&sk_monster_chest1);
-	Cvar_RegisterVariable(&sk_monster_chest2);
-	Cvar_RegisterVariable(&sk_monster_chest3);
-
-	Cvar_RegisterVariable(&sk_monster_stomach1);
-	Cvar_RegisterVariable(&sk_monster_stomach2);
-	Cvar_RegisterVariable(&sk_monster_stomach3);
-
-	Cvar_RegisterVariable(&sk_monster_arm1);
-	Cvar_RegisterVariable(&sk_monster_arm2);
-	Cvar_RegisterVariable(&sk_monster_arm3);
-
-	Cvar_RegisterVariable(&sk_monster_leg1);
-	Cvar_RegisterVariable(&sk_monster_leg2);
-	Cvar_RegisterVariable(&sk_monster_leg3);
-
-// player damage adjusters
-	Cvar_RegisterVariable(&sk_player_head1);
-	Cvar_RegisterVariable(&sk_player_head2);
-	Cvar_RegisterVariable(&sk_player_head3);
-
-	Cvar_RegisterVariable(&sk_player_chest1);
-	Cvar_RegisterVariable(&sk_player_chest2);
-	Cvar_RegisterVariable(&sk_player_chest3);
-
-	Cvar_RegisterVariable(&sk_player_stomach1);
-	Cvar_RegisterVariable(&sk_player_stomach2);
-	Cvar_RegisterVariable(&sk_player_stomach3);
-
-	Cvar_RegisterVariable(&sk_player_arm1);
-	Cvar_RegisterVariable(&sk_player_arm2);
-	Cvar_RegisterVariable(&sk_player_arm3);
-
-	Cvar_RegisterVariable(&sk_player_leg1);
-	Cvar_RegisterVariable(&sk_player_leg2);
-	Cvar_RegisterVariable(&sk_player_leg3);
-// END REGISTER CVARS FOR SKILL LEVEL STUFF
-
 	Host_FindMaxClients();
 
-	host_time = 1.0;		// so a think at time 0 won't get called
+	host_time = 1.0;		// so a think at time 0 will not get called
 }
 
 /*
@@ -1111,23 +296,42 @@ Writes key bindings and archived cvars to config.cfg
 */
 void Host_WriteConfiguration( void )
 {
-	FILE* f;
+	void	*f;
+	int		nbinds;
 
 // dedicated servers initialize the host but don't parse and set the
 // config.cfg cvars
 	if (host_initialized && cls.state != ca_dedicated)
 	{
-		f = fopen(va("%s/config.cfg", com_gamedir), "w");
+		nbinds = Key_CountBindings();
+		if (nbinds < 2)
+		{
+			Con_Printf("skipping config.cfg output, no keys bound\n");
+			return;
+		}
+
+		f = (void *)Bopen("halflife.cfg", "w");
 		if (!f)
 		{
 			Con_Printf("Couldn't write config.cfg.\n");
 			return;
 		}
 
+		Sys_FPrintf(f, "unbindall\n");
 		Key_WriteBindings(f);
 		Cvar_WriteVariables(f);
+		Info_WriteVars(f);
 
-		fclose(f);
+		if (in_mlook.state & 1)
+			Sys_FPrintf(f, "+mlook\n");
+		if (in_jlook.state & 1)
+			Sys_FPrintf(f, "+jlook\n");
+
+		Sys_CloseHandle(f);
+
+		GDROM_SetDoorBehavior();
+		VMU_SaveGameHL4("halflife.cfg");
+		GDROM_ConfigureDoorBehavior();
 	}
 }
 
@@ -1145,12 +349,15 @@ void SV_ClientPrintf( char* fmt, ... )
 	va_list		argptr;
 	char		string[1024];
 
-	va_start(argptr, fmt);
-	vsprintf(string, fmt, argptr);
-	va_end(argptr);
+	if (!host_client->fakeclient)
+	{
+		va_start(argptr, fmt);
+		vsprintf(string, fmt, argptr);
+		va_end(argptr);
 
-	MSG_WriteByte(&host_client->netchan.message, svc_print);
-	MSG_WriteString(&host_client->netchan.message, string);
+		MSG_WriteByte(&host_client->netchan.message, svc_print);
+		MSG_WriteString(&host_client->netchan.message, string);
+	}
 }
 
 /*
@@ -1172,7 +379,7 @@ void SV_BroadcastPrintf( char* fmt, ... )
 
 	for (i = 0; i < svs.maxclients; i++)
 	{
-		if (svs.clients[i].active || svs.clients[i].spawned)
+		if ((svs.clients[i].active || svs.clients[i].spawned) && !svs.clients[i].fakeclient)
 		{
 			MSG_WriteByte(&svs.clients[i].netchan.message, svc_print);
 			MSG_WriteString(&svs.clients[i].netchan.message, string);
@@ -1210,11 +417,16 @@ if (crash = true), don't bother sending signofs
 */
 void SV_DropClient( client_t *cl, qboolean crash )
 {
+	byte	final[20];
+
 	if (!crash)
 	{
 		// add the disconnect
 		if (!cl->fakeclient)
+		{
 			MSG_WriteByte(&cl->netchan.message, svc_disconnect);
+			final[0] = svc_disconnect;
+		}
 
 		if (cl->edict && cl->spawned)
 		{
@@ -1232,25 +444,20 @@ void SV_DropClient( client_t *cl, qboolean crash )
 
 		if (cl->upload)
 		{
-			fclose(cl->upload);
+			Sys_CloseHandle(cl->upload);
 			cl->upload = NULL;
 		}
 
-		if (cl->spectator)
-			Sys_Printf("Dropped %s (spectator) from server\n", cl->name);
-		else
-			Sys_Printf("Dropped %s from server\n", cl->name);
+		// flush the final disconnect message out immediately
+		Netchan_Transmit(&cl->netchan, 1, final);
 	}
 
 // free the client (the body stays around)
 	cl->active = FALSE;
-	cl->connected = FALSE;
 	cl->spawned = FALSE;
-	cl->name[0] = 0;
+	cl->connected = FALSE;
 	cl->connection_started = realtime;
-	cl->maxspeed = 0;
-
-	net_activeconnections--;
+	memset(cl->name, 0, sizeof(cl->name));
 
 // send notification to all other clients
 	SV_FullClientUpdate(cl, &sv.reliable_datagram);
@@ -1266,27 +473,23 @@ void Host_ClearClients( qboolean bFramesOnly )
 {
 	int		i, j;
 	client_frame_t* frame;
-	packet_entities_t* pack;
 
 	host_client = svs.clients;
 
 	for (i = 0; i < svs.maxclients; i++, host_client++)
 	{
-		for (j = 0; j < MAX_CLIENTS; j++)
+		if (host_client->frames)
 		{
-			frame = &host_client->frames[j];
-
-			// Must clear out all dynamic data for each frame
-			pack = &frame->entities;
-			if (pack->entities)
+			for (j = 0; j < SV_UPDATE_BACKUP; j++)
 			{
-				free(pack->entities);
-			}
-			pack->entities = NULL;
-			pack->num_entities = 0;
+				frame = &host_client->frames[j];
 
-			frame->ping_time = -1;
-			frame->senttime = 0;
+				// Must clear out all dynamic data for each frame
+				SV_ClearPacketEntities(frame);
+
+				frame->senttime = 0;
+				frame->ping_time = -1;
+			}
 		}
 
 		if (host_client->netchan.remote_address.type != NA_UNUSED)
@@ -1296,13 +499,17 @@ void Host_ClearClients( qboolean bFramesOnly )
 			memset(&host_client->netchan, 0, sizeof(netchan_t));
 			Netchan_Setup(NS_SERVER, &host_client->netchan, save);
 		}
-
-		COM_ClearCustomizationList(&host_client->customdata, FALSE);
 	}
 
 	if (!bFramesOnly)
 	{
+		host_client = svs.clients;
+		for (i = 0; i < svs.maxclientslimit; i++, host_client++)
+			SV_ClearFrames(&host_client->frames);
+
 		memset(svs.clients, 0, sizeof(client_t) * svs.maxclientslimit);
+
+		SV_AllocClientFrames();
 	}
 }
 
@@ -1330,19 +537,14 @@ void Host_ShutdownServer( qboolean crash )
 		CL_Disconnect();
 	}
 
-	if (sv.active)
+	for (i = 0, host_client = svs.clients; i < svs.maxclients; i++, host_client++)
 	{
-		for (i = 0, host_client = svs.clients; i < svs.maxclients; i++, host_client++)
-		{
-			if ((host_client->active || host_client->connected) && !host_client->fakeclient)
-			{
-				SV_DropClient(host_client, crash);
-			}
-		}
-
-		// Clear all entities
-		SV_ClearEntities();
+		if ((host_client->active || host_client->connected) && !host_client->fakeclient)
+			SV_DropClient(host_client, crash);
 	}
+
+	// Clear all entities
+	SV_ClearEntities();
 
 	memset(&sv, 0, sizeof(server_t));
 
@@ -1351,12 +553,18 @@ void Host_ShutdownServer( qboolean crash )
 	//
 
 	CL_ClearClientState();
-
 	SV_ClearClientStates();
-
 	Host_ClearClients(FALSE);
 
+	for (i = 0, host_client = svs.clients; i < svs.maxclientslimit; i++, host_client++)
+		SV_ClearFrames(&host_client->frames);
+
+	memset(svs.clients, 0, sizeof(client_t) * svs.maxclientslimit);
+
 	Master_Shutdown();
+
+	Log_Printf("Server shutdown\n");
+	Log_Close();
 }
 
 void SV_ClearClientStates( void )
@@ -1366,8 +574,32 @@ void SV_ClearClientStates( void )
 
 	for (i = 0, cl = svs.clients; i < svs.maxclients; i++, cl++)
 	{
-		COM_ClearCustomizationList(&cl->customdata, FALSE);
 		SV_ClearResourceLists(cl);
+	}
+}
+
+/*
+================
+Host_DeallocateDynamicData
+
+Release any per-client frame data still allocated across all client slots
+================
+*/
+void Host_DeallocateDynamicData( void )
+{
+	int		i;
+	client_t* cl;
+
+	if (svs.clients)
+	{
+		for (i = 0, cl = svs.clients; i < svs.maxclientslimit; i++, cl++)
+		{
+			if (!cl)
+				return;
+
+			if (cl->frames)
+				SV_ClearFrames(&cl->frames);
+		}
 	}
 }
 
@@ -1384,14 +616,14 @@ void Host_ClearMemory( qboolean bQuiet )
 	CM_FreePAS();
 	SV_ClearEntities();
 
-	if (!bQuiet)
-		Con_DPrintf("Clearing memory\n");
-
 	D_FlushCaches();
 	Mod_ClearAll();
 
 	if (host_hunklevel)
+	{
+		Host_DeallocateDynamicData();
 		Hunk_FreeToLowMark(host_hunklevel);
+	}
 
 	cls.signon = 0;
 	memset(&sv, 0, sizeof(server_t));
@@ -1413,24 +645,35 @@ Computes simulation time (FPS value)
 */
 qboolean Host_FilterTime( float time )
 {
-	float fDelta;
+	float fps;
 
-	realtime = (float)Sys_FloatTime();
+	realtime += time;
 
 	if (!isDedicated)
 	{
-		fDelta = fps_single.value;
+		fps = fps_single.value;
 
+		if (!sv.active)
 		{
-			if (sv.active)
+			fps = fps_modem.value;
+			if (rate.value > 5000.0f)
+				fps = fps_lan.value;
+		}
+
+		if (fps != 0.0f)
+		{
+			// Clamp the requested framerate to a sane range.
+			if (fps >= 0.1f)
 			{
-				if (rate.value > 5000.0f)
-					fDelta = fps_lan.value;
-				else
-					fDelta = fps_modem.value;
+				if (fps > 72.0f)
+					fps = 72.0f;
+			}
+			else
+			{
+				fps = 0.1f;
 			}
 
-			if (fDelta > 0.0f && (realtime - oldrealtime) < 1.0f / fDelta)
+			if ((realtime - oldrealtime) < 1.0f / fps)
 				return FALSE;	/* framerate is too high */
 		}
 	}
@@ -1438,56 +681,18 @@ qboolean Host_FilterTime( float time )
 	host_frametime = realtime - oldrealtime;
 	oldrealtime = realtime;
 
-	if (host_framerate.value > 0.0f)
-		host_frametime = host_framerate.value;
-	else
+	if (host_framerate.value <= 0.0f || !SV_Active())
 	{
 		if (host_frametime > 0.1f)
 			host_frametime = 0.1f;
 		if (host_frametime < 0.001f)
 			host_frametime = 0.001f;
 	}
+	else
+	{
+		host_frametime = host_framerate.value;
+	}
 
-	return TRUE;
-}
-
-/*
-===============
-SV_FilterTime
-
-===============
-*/
-qboolean SV_FilterTime( float time )
-{
-	static float sv_extratime = 0.0;
-	static float sv_oldrealtime;
-
-	sv_extratime += host_frametime;
-
-	if (time - sv_oldrealtime < 1.0 / 10.0)
-		return FALSE;
-
-	host_frametime = sv_extratime;
-	sv_extratime = 0.0;
-
-	sv_oldrealtime = time;
-	return TRUE;
-}
-
-/*
-===============
-CL_FilterTime
-
-===============
-*/
-qboolean CL_FilterTime( float time )
-{
-	static float sv_oldrealtime = 0.0;
-
-	if (time - sv_oldrealtime < 1.0 / 30.0)
-		return FALSE;
-
-	sv_oldrealtime = time;
 	return TRUE;
 }
 
@@ -1499,16 +704,16 @@ Host_ServerFrame
 */
 void Host_ServerFrame( void )
 {
-	double	time1 = 0;
-	double	time2 = 0;
-	double	time3 = 0;
-	double	time4 = 0;
-	double	time5 = 0;
+	float	time1 = 0;
+	float	time2 = 0;
+	float	time3 = 0;
+	float	time4 = 0;
+	float	time5 = 0;
 
 	if (host_speeds.value)
 		time1 = Sys_FloatTime();
 
-// run the world state	
+// run the world state
 	gGlobalVariables.frametime = host_frametime;
 
 // read client messages
@@ -1534,9 +739,6 @@ void Host_ServerFrame( void )
 
 // send a heartbeat to the master if needed
 	Master_Heartbeat();
-
-	if (host_killtime.value && sv.time > host_killtime.value)
-		Host_Quit_f();
 
 	if (host_speeds.value)
 		time5 = Sys_FloatTime();
@@ -1615,30 +817,35 @@ let it know we are alive, and log information
 #define	HEARTBEAT_SECONDS	300
 void Master_Heartbeat( void )
 {
-	unsigned char c;    // Buffer for sending heartbeat
+	master_t		*p;
+	unsigned char	c;
 
 	if (gfNoMasterServer ||      // We are ignoring heartbeats
-		(realtime - gfLastHearbeat) < HEARTBEAT_SECONDS ||  // not time to send yet
-		(svs.maxclients <= 1))  // not a multiplayer server.
+		gfUseLANAuthentication ||
+		sv_lan.value ||
+		svs.maxclients <= 1 ||   // not a multiplayer server
+		!sv.active)
 		return;
 
-	if (!NET_StringToAdr(gszMasterAddress, &master_adr))
-		return;
+	Master_Init();
 
-	// Should we resend challenge request?
-	if (gfHeartbeatWaiting &&
-		((realtime - gfHeartbeatWaitingTime) < HB_TIMEOUT))
-		return;
+	for (p = valvemaster_adr; p != NULL; p = p->next)
+	{
+		if (HEARTBEAT_SECONDS <= realtime - p->heartbeattime)
+		{
+			// Resend a challenge request only if the last one has timed out.
+			if (p->state == 0 || HB_TIMEOUT <= realtime - p->challengetime)
+			{
+				p->state = 1;
+				p->challengetime = realtime;
+				p->heartbeattime = realtime;
 
-	gfHeartbeatWaiting = TRUE;
-	gfHeartbeatWaitingTime = realtime;
-
-	gfLastHearbeat = realtime;  // Flag at start so we don't just keep trying for hb's when
-
-	c = A2A_GETCHALLENGE;
-
-	// Send to master asking for a challenge #
-	NET_SendPacket(NS_SERVER, 1, &c, master_adr);
+				// Send to master asking for a challenge #
+				c = A2A_GETCHALLENGE;
+				NET_SendPacket(NS_SERVER, 1, &c, p->adr);
+			}
+		}
+	}
 }
 
 /*
@@ -1650,20 +857,242 @@ Server is shutting down, unload master servers list, tell masters that we are cl
 */
 void Master_Shutdown( void )
 {
+	master_t	*p;
+	master_t	*next;
 	char		string[2048];
 
 	if (gfNoMasterServer ||      // We are ignoring heartbeats
-		(svs.maxclients <= 1))   // not a multiplayer server.
+		gfUseLANAuthentication ||
+		sv_lan.value ||
+		svs.maxclients <= 1)     // not a multiplayer server
 		return;
 
-	sprintf(string, "%c\n", S2M_SHUTDOWN);
+	Master_Init();
 
-	if (!NET_StringToAdr(gszMasterAddress, &master_adr))
+	sprintf(string, "%c", S2M_SHUTDOWN);
+
+	for (p = valvemaster_adr; p != NULL; p = p->next)
+		NET_SendPacket(NS_SERVER, strlen(string), string, p->adr);
+
+	// unload the master list
+	if (valvemaster_adr)
+	{
+		for (p = valvemaster_adr; p != NULL; p = next)
+		{
+			next = p->next;
+			free(p);
+		}
+
+		valvemaster_adr = NULL;
+	}
+}
+
+/*
+==================
+Master_AddServer
+
+Add a master server to the list, if it isn't already present
+==================
+*/
+void Master_AddServer( netadr_t *adr )
+{
+	master_t	*p;
+
+	Master_Init();
+
+	for (p = valvemaster_adr; p != NULL; p = p->next)
+	{
+		if (NET_CompareAdr(p->adr, *adr))
+			break;
+	}
+
+	if (p == NULL)
+	{
+		p = (master_t *)MnemoAllocDbg(sizeof(master_t), __FILE__, __LINE__);
+		if (p == NULL)
+			Sys_ErrorColor(RGB565_RED, "Error allocating %i bytes for master\n", sizeof(master_t));
+
+		memset(p, 0, sizeof(master_t));
+
+		p->adr = *adr;
+		p->heartbeattime = -99999.0f;
+
+		p->next = valvemaster_adr;
+		valvemaster_adr = p;
+	}
+}
+
+/*
+==================
+Master_SetMaster_f
+
+setmaster < add | remove | enable | disable > < IP:port >
+==================
+*/
+void Master_SetMaster_f( void )
+{
+	int			argc;
+	char		*cmd;
+	char		*addr;
+	char		*pszPort;
+	int			port;
+	char		portstring[32];
+	char		string[256];
+	netadr_t	adr;
+	master_t	*p;
+	master_t	*prev;
+	int			i;
+
+	port = PORT_MASTER;
+	sprintf(portstring, "%i", PORT_MASTER);
+
+	argc = Cmd_Argc();
+	if (argc < 2 || argc > 4)
+	{
+		Con_Printf("Usage:\nSetmaster <add | remove | enable | disable> <IP:port>\n");
+
+		if (valvemaster_adr == NULL)
+		{
+			Con_Printf("Current:  None\n");
+		}
+		else
+		{
+			i = 1;
+			Con_Printf("Current:\n");
+			for (p = valvemaster_adr; p != NULL; p = p->next)
+			{
+				Con_Printf("  %i:  %s\n", i, NET_AdrToString(p->adr));
+				i++;
+			}
+		}
+
+		return;
+	}
+
+	cmd = Cmd_Argv(1);
+	if (!cmd || !cmd[0])
 		return;
 
-	Con_DPrintf("Sending shutdown to %s\n", NET_AdrToString(master_adr));
+	if (!Q_stricmp(cmd, "disable"))
+	{
+		gfNoMasterServer = TRUE;
+		return;
+	}
 
-	NET_SendPacket(NS_SERVER, strlen(string), string, master_adr);
+	if (!Q_stricmp(cmd, "enable"))
+	{
+		gfNoMasterServer = FALSE;
+		return;
+	}
+
+	if (Q_stricmp(cmd, "add") && Q_stricmp(cmd, "remove"))
+	{
+		Con_Printf("Setmaster:  Unknown command %s\n", cmd);
+		return;
+	}
+
+	addr = Cmd_Argv(2);
+
+	if (argc == 4)
+	{
+		pszPort = Cmd_Argv(3);
+		if (!pszPort || !pszPort[0])
+		{
+			pszPort = portstring;
+		}
+		else
+		{
+			port = atoi(pszPort);
+			if (!port)
+				port = PORT_MASTER;
+		}
+	}
+
+	sprintf(string, "%s:%i", addr, port);
+
+	if (!NET_StringToAdr(string, &adr))
+	{
+		Con_Printf(" Invalid address \"%s\", setmaster command ignored\n", string);
+		return;
+	}
+
+	if (!Q_stricmp(cmd, "add"))
+	{
+		Master_Init();
+		Master_AddServer(&adr);
+		gfNoMasterServer = FALSE;
+		Con_Printf("Adding master at %s\n", string);
+	}
+	else
+	{
+		Master_Init();
+
+		if (valvemaster_adr == NULL)
+		{
+			Con_Printf("Can't remove master, list is empty\n");
+			return;
+		}
+
+		for (p = valvemaster_adr; p != NULL; p = p->next)
+		{
+			if (NET_CompareAdr(p->adr, adr))
+				break;
+		}
+
+		if (p == NULL)
+		{
+			Con_Printf("Can't remove master %s, not in list\n", string);
+		}
+		else if (p == valvemaster_adr)
+		{
+			valvemaster_adr = valvemaster_adr->next;
+			free(p);
+		}
+		else
+		{
+			for (prev = valvemaster_adr; prev != NULL && prev->next != p; prev = prev->next)
+				;
+
+			if (prev != NULL)
+			{
+				prev->next = p->next;
+				free(p);
+			}
+		}
+	}
+}
+
+/*
+==================
+Master_Heartbeat_f
+
+Force a heartbeat to be sent to all masters on the next server frame
+==================
+*/
+void Master_Heartbeat_f( void )
+{
+	master_t	*p;
+
+	for (p = valvemaster_adr; p != NULL; p = p->next)
+		p->heartbeattime = -99999.0f;
+}
+
+/*
+==================
+Master_UseDefault
+
+No masters were parsed from the list; fall back to the built-in one
+==================
+*/
+void Master_UseDefault( void )
+{
+	netadr_t	adr;
+	char		string[256];
+
+	sprintf(string, "half-life.east.won.net:27010");
+
+	if (NET_StringToAdr(string, &adr))
+		Master_AddServer(&adr);
 }
 
 /*
@@ -1675,103 +1104,121 @@ Request for MOTD from Server Master
 */
 void Master_RequestMOTD_f( void )
 {
+	master_t	*p;
 	char		string[2048];
 
-	if (gfNoMasterServer)      // We are ignoring heartbeats
-		return;
-
-	sprintf(string, "%c\n", A2M_GET_MOTD);
-
-	if (!NET_StringToAdr(gszMasterAddress, &master_adr))
-		return;
-
-	Con_DPrintf("Requesting MOTD from %s\n", NET_AdrToString(master_adr));
-
-	NET_SendPacket(NS_CLIENT, strlen(string), string, master_adr);
-}
-
-/*
-==================
-Master_SetRegKeyValue
-
-Sets the master server settings in the registry
-==================
-*/
-void Master_SetRegKeyValue( char* pszSubKey, char* pszElement, char* pszReturnString, int nReturnLength, char* pszDefaultValue )
-{
-	LONG lResult;           // Registry function result code
-	HKEY hKey;              // Handle of opened/created key
-	char szBuff[128];		// Temp. buffer
-	DWORD dwDisposition;    // Type of key opening event
-	DWORD dwType;           // Type of key
-	DWORD dwSize;           // Size of element data
-
-	sprintf(pszReturnString, pszDefaultValue);
-
-	lResult = RegCreateKeyEx(
-		HKEY_CURRENT_USER,	// handle of open key 
-		pszSubKey,			// address of name of subkey to open 
-		0,					// DWORD ulOptions,	  // reserved 
-		"String",			// Type of value
-		REG_OPTION_NON_VOLATILE, // Store permanently in reg.
-		KEY_ALL_ACCESS,		// REGSAM samDesired, // security access mask 
-		NULL,
-		&hKey,				// Key we are creating
-		&dwDisposition);    // Type of creation
-
-	if (lResult != ERROR_SUCCESS)  // Failure
-		return;
-
-	// First time, just set to Valve default
-	if (dwDisposition == REG_CREATED_NEW_KEY)
+	if (!gfNoMasterServer && valvemaster_adr)
 	{
-		// Just Set the Values according to the defaults
-		lResult = RegSetValueEx(hKey, pszElement, 0, REG_SZ, (CONST BYTE*)pszDefaultValue, strlen(pszDefaultValue) + 1);
-	}
-	else
-	{
-		// We opened the existing key. Now go ahead and find out how big the key is.
-		dwSize = nReturnLength;
-		lResult = RegQueryValueEx(hKey, pszElement, 0, &dwType, (unsigned char*)szBuff, &dwSize);
+		NET_Config(TRUE);
 
-		if (lResult == ERROR_SUCCESS)
-		{
-			// Only copy strings, and only copy as much data as requested.
-			if (dwType == REG_SZ)
-			{
-				strncpy(pszReturnString, szBuff, nReturnLength);
-				pszReturnString[nReturnLength - 1] = '\0';
-			}
-		}
-		else
-		// Didn't find it, so write out new value
-		{
-			// Just Set the Values according to the defaults
-			lResult = RegSetValueEx(hKey, pszElement, 0, REG_SZ, (CONST BYTE*)pszDefaultValue, strlen(pszDefaultValue) + 1);
-		}
-	}
+		sprintf(string, "%c", A2M_GET_MOTD);
 
-	// Always close this key before exiting.
-	RegCloseKey(hKey);
+		for (p = valvemaster_adr; p != NULL; p = p->next)
+			NET_SendPacket(NS_CLIENT, strlen(string), string, p->adr);
+	}
 }
 
 /*
 ==================
 Master_Init
 
-Initializes the default master server address
+Build the list of master servers from woncomm.lst, or fall back to the default
 ==================
 */
 void Master_Init( void )
 {
-	char szRegistryPath[128];
+	static qboolean	initialized = FALSE;
+	char		address[256];
+	char		filename[256];
+	char		*data;
+	char		*p;
+	int			comm;
+	int			count;
+	int			port;
+	netadr_t	adr;
 
-	sprintf(gszMasterAddress, DEFAULT_MASTER_ADDRESS);
-	sprintf(gszDefaultRoom, "#Main");
-	sprintf(szRegistryPath, "Software\\Valve\\Half-Life");
+	if (gfNoMasterServer ||
+		gfUseLANAuthentication ||
+		sv_lan.value ||
+		svs.maxclients <= 1 ||
+		initialized)
+		return;
 
-	Master_SetRegKeyValue(szRegistryPath, "MasterServerAddress", gszMasterAddress, sizeof(gszMasterAddress) - 1, gszMasterAddress);
-	Master_SetRegKeyValue(szRegistryPath, "DefaultRoom", gszDefaultRoom, sizeof(gszDefaultRoom) - 1, gszDefaultRoom);
+	initialized = TRUE;
+
+	sprintf(address, "half-life.east.won.net:27010");
+	sprintf(filename, "%s", "woncomm.lst");
+
+	comm = COM_CheckParm("-comm");
+	if (comm && comm < com_argc - 1)
+		strcpy(filename, com_argv[comm + 1]);
+
+	data = (char *)COM_LoadFile(filename, 5, NULL);
+	if (!data)
+	{
+		Con_Printf("Couldn't load woncomm.lst\nUsing default master\n");
+		Master_UseDefault();
+		return;
+	}
+
+	count = 0;
+
+	for (p = data; ; )
+	{
+		p = COM_Parse(p);
+		if (!strlen(com_token))
+			break;
+
+		if (!Q_stricmp(com_token, "Master"))
+			port = PORT_MASTER;
+
+		p = COM_Parse(p);
+		if (!strlen(com_token))
+			break;
+		if (Q_stricmp(com_token, "{"))
+			break;
+
+		while (1)
+		{
+			p = COM_Parse(p);
+			if (!strlen(com_token))
+				break;
+			if (!Q_stricmp(com_token, "}"))
+				break;
+
+			sprintf(address, "%s", com_token);
+
+			p = COM_Parse(p);
+			if (!strlen(com_token))
+				break;
+			if (Q_stricmp(com_token, ":"))
+				break;
+
+			p = COM_Parse(p);
+			if (!strlen(com_token))
+				break;
+
+			port = atoi(com_token);
+			if (!port)
+				port = PORT_MASTER;
+
+			sprintf(filename, "%s:%i", address, port);
+			if (NET_StringToAdr(filename, &adr))
+			{
+				Con_Printf("Adding master server %s\n", NET_AdrToString(adr));
+				Master_AddServer(&adr);
+				count++;
+			}
+		}
+	}
+
+	if (count == 0)
+	{
+		Con_Printf("No masters parsed from woncomm.lst\nUsing default master\n");
+		Master_UseDefault();
+	}
+
+	free(data);
 }
 
 /*
@@ -1818,6 +1265,87 @@ DLL_EXPORT void Host_GetHostInfo( float* fps, int* nActive, int* nSpectators, in
 }
 
 /*
+===================
+Host_Speeds
+
+Print and update the running frame timings
+===================
+*/
+void Host_Speeds( float time0, float time1, float time2, float time3 )
+{
+	float	frameTime;
+	float	fps;
+	int		ent_count;
+	int		i;
+
+	frameTime = (time1 - time0) * 1000.0f + (time2 - time1) * 1000.0f + (time3 - time2) * 1000.0f;
+
+	if (frameTime >= 1.0f)
+		fps = 1000.0f / frameTime;
+	else
+		fps = 100.0f;
+
+	Host_PostFrameRate(fps);
+
+	if (host_speeds.value)
+	{
+		ent_count = 0;
+		for (i = 0; i < sv.num_edicts; i++)
+		{
+			if (!sv.edicts[i].free)
+				ent_count++;
+		}
+	}
+}
+
+/*
+===================
+Host_HandleRconPacket
+
+A connectionless packet arrived on the server socket; run it if it's an rcon command
+===================
+*/
+void Host_HandleRconPacket( void )
+{
+	MSG_BeginReading();
+	MSG_ReadLong();
+
+	Cmd_TokenizeString( MSG_ReadStringLine() );
+
+	if (!strcmp( Cmd_Argv( 0 ), "rcon" ))
+		Host_RemoteCommand( &net_from );
+}
+
+/*
+===================
+Host_CheckForRcon
+
+Pull any pending packets off the server socket and handle bans / rcon
+===================
+*/
+void Host_CheckForRcon( void )
+{
+	while (NET_GetPacket( NS_SERVER ))
+	{
+		if (SV_FilterPacket())
+			SV_SendBan();
+		else if (*(int *)net_message.data == -1)
+			Host_HandleRconPacket();
+	}
+}
+
+/*
+===================
+Host_UpdateScreen
+===================
+*/
+void Host_UpdateScreen( void )
+{
+	Mnemo_ProfileMeter();
+	DC_PrintFileCounts();
+}
+
+/*
 ==================
 Host_Frame
 
@@ -1826,12 +1354,12 @@ Runs all active servers
 */
 void _Host_Frame( float time )
 {
-	static double		time1 = 0;
-	static double		time2 = 0;
-	static double		time3 = 0;
-	float		pass1, pass2, pass3;
-	float		frameTime;
-	float		fps;
+	static float		time0 = 0;
+	static float		time1 = 0;
+	static float		time2 = 0;
+	static float		time3 = 0;
+
+	Host_UpdateScreen();
 
 	if (setjmp(host_enddemo))
 		return;			// demo finished.
@@ -1847,8 +1375,7 @@ void _Host_Frame( float time )
 		cls.state = ca_active;
 	}
 
-// get new key events
-	Sys_SendKeyEvents();
+	Sys_ShutdownFloatTime();
 
 	if (g_bInactive)
 		return;
@@ -1874,6 +1401,9 @@ void _Host_Frame( float time )
 
 	if (sv.active)
 		Host_ServerFrame();
+
+	if (!sv.active && cls.state == ca_disconnected)
+		Host_CheckForRcon();
 
 //-------------------
 //
@@ -1903,8 +1433,14 @@ void _Host_Frame( float time )
 
 	while (CL_RequestMissingResources());
 
+	R_UpdateAdaptive();
+
+	WON_HandleClientAuthMsgs();
+
 // check timeouts
 	SV_CheckTimeouts();
+
+	WON_HandleServerAuthMsgs();
 
 	host_time += host_frametime;
 
@@ -1941,44 +1477,10 @@ void _Host_Frame( float time )
 		}
 	}
 
-	CDAudio_Update();
-
-	pass1 = (float)((time1 - time3) * 1000.0);
+	time0 = time3;
 	time3 = Sys_FloatTime();
-	pass2 = (float)((time2 - time1) * 1000.0);
-	pass3 = (float)((time3 - time2) * 1000.0);
 
-	frameTime = pass3 + pass2 + pass1;
-	if (frameTime == 0.0)
-	{
-		fps = 100.0;
-		Host_PostFrameRate(fps);
-	}
-	else
-	{
-		fps = 1000.0 / frameTime;
-		Host_PostFrameRate(fps);
-	}
-
-	if (host_speeds.value)
-	{
-		int ent_count = 0;
-		int i;
-
-		// count used entities
-		for (i = 0; i < sv.num_edicts; i++)
-		{
-			if (!sv.edicts[i].free)
-				ent_count++;
-		}
-
-		Con_DPrintf("%3i fps tot %3.0f server %3.0f gfx %3.0f snd %d ents\n",
-			(int)fps,
-			pass1,
-			pass2,
-			pass3,
-			ent_count);
-	}
+	Host_Speeds(time0, time1, time2, time3);
 
 	if ((giSubState & 4) && cls.state == ca_disconnected)
 	{
@@ -1996,8 +1498,8 @@ Host_Frame
 */
 DLL_EXPORT int Host_Frame( float time, int iState, int* stateInfo )
 {
-	double	time1, time2;
-	static double	timetotal = 0;
+	float	time1, time2;
+	static float	timetotal = 0;
 	static int		timecount = 0;
 	int		i, c, m;
 
@@ -2067,12 +1569,88 @@ DLL_EXPORT int Host_Frame( float time, int iState, int* stateInfo )
 }
 
 /*
+==================
+CheckGore
+
+The Dreamcast build always ships with violence enabled
+==================
+*/
+void CheckGore( void )
+{
+	Cvar_SetValue("violence_hblood", 1.0);
+	Cvar_SetValue("violence_hgibs", 1.0);
+	Cvar_SetValue("violence_ablood", 1.0);
+	Cvar_SetValue("violence_agibs", 1.0);
+}
+
+/*
+==================
+Host_Version
+
+Read the patch version out of sierra.inf and print the build banner
+==================
+*/
+void Host_Version( void )
+{
+	char	name[256];
+	void	*fp;
+	int		length;
+	char	*data;
+	char	*p;
+
+	strcpy(gpszVersionString, "1.0.1.3");
+
+	sprintf(name, "sierra.inf");
+
+	fp = (void *)Sys_OpenHandle(name, "r");
+	if (fp)
+	{
+		DC_fseek(fp, 0, SEEK_END);
+		length = DC_ftell(fp);
+		DC_fseek(fp, 0, SEEK_SET);
+
+		data = (char *)MnemoAllocDbg(length + 1, __FILE__, __LINE__);
+		DC_fread(data, length, 1, fp);
+		Sys_CloseHandle(fp);
+		data[length] = 0;
+
+		p = data;
+		while (1)
+		{
+			p = COM_Parse(p);
+			if (!p)
+				break;
+			if (!strlen(com_token))
+				break;
+
+			if (!Q_strnicmp(com_token, "PatchVersion=", strlen("PatchVersion=")))
+			{
+				strcpy(gpszVersionString, com_token + strlen("PatchVersion="));
+				break;
+			}
+		}
+
+		if (data)
+			free(data);
+	}
+
+	if (cls.state == ca_dedicated)
+	{
+		Con_Printf("Protocol version %i\nExe version %s\n", PROTOCOL_VERSION, gpszVersionString);
+		Con_Printf("Exe build: Dreamcast " __TIME__ " " __DATE__ " (Dreamcast %i)\n", build_number());
+	}
+}
+
+/*
 ====================
 Host_Init
 ====================
 */
 int Host_Init( quakeparms_t* parms )
 {
+	int		i;
+	int		protocol;
+
 	if (standard_quake)
 		minimum_memory = MINIMUM_MEMORY;
 	else
@@ -2083,15 +1661,18 @@ int Host_Init( quakeparms_t* parms )
 
 	host_parms = *parms;
 
-	if (parms->memsize < minimum_memory)
-		Sys_Error("Only %4.1f megs of memory available, can't execute game", parms->memsize / (float)0x100000);
-
 	com_argc = parms->argc;
 	com_argv = parms->argv;
 
-	Master_Init();
-
 	realtime = 0.0;
+
+	// Allow the network protocol to be forced back to the legacy version.
+	i = COM_CheckParm("-protocol");
+	protocol = 0;
+	if (i && (protocol = Q_atoi(com_argv[i + 1])) == PROTOCOL_VERSION_OLD)
+		PROTOCOL_VERSION = PROTOCOL_VERSION_OLD;
+
+	Protocol_Init(PROTOCOL_VERSION);
 
 	Memory_Init(parms->membase, parms->memsize);
 
@@ -2126,16 +1707,19 @@ int Host_Init( quakeparms_t* parms )
 
 	SV_Init();
 
+	Text_LoadLangTags();
+
+	Host_Version();
+
 	R_InitTextures();		// needed even for dedicated servers
 
 	if (cls.state != ca_dedicated)
 	{
-		int i;
 		char* disk_basepal;
 
 		disk_basepal = (char*)COM_LoadHunkFile("gfx/palette.lmp");
 		if (!disk_basepal)
-			Sys_Error("Couldn't load gfx/palette.lmp");
+			Sys_ErrorColor(RGB565_RED, "Couldn't load gfx/palette.lmp", 0);
 
 		host_basepal = Hunk_AllocName(sizeof(PackedColorVec) * 256, "palette.lmp");
 
@@ -2152,35 +1736,33 @@ int Host_Init( quakeparms_t* parms )
 		if (!VID_Init(host_basepal))
 			return 0;
 
-		ClientDLL_HudVidInit();
-
 		Draw_Init();
 
 		SCR_Init();
 
 		R_Init();
 
-#if 0
 		S_Init();
-#endif
 
 		CL_Init();
 
 		IN_Init();
 
+		Host_UpdateScreenSaver(0);
 	}
 
-	// Execute valve.rc
+	// Execute the startup configs
 	Cbuf_InsertText("exec preset_a.cfg\n");
 	Cbuf_InsertText("exec valve.rc\n");
-	Cbuf_InsertText("exec halflife.cfg\n");
 
-#if 0
-	GL_Config();
-#endif
+	if (FileExists("/CD-ROM/valve/halflife.cfg"))
+		Cbuf_AddText("exec halflife.cfg\n");
+
+	GL_Init();
+
+	WON_InitAuthentication();
 
 	// Mark hunklevel at end of startup
-	Hunk_AllocName(0, "-HOST_HUNKLEVEL-");
 	host_hunklevel = Hunk_LowMark();
 
 	// Mark DLL as active
@@ -2188,12 +1770,14 @@ int Host_Init( quakeparms_t* parms )
 	// Enable rendering
 	scr_skipupdate = FALSE;
 
-	// Check for special -dev flag
-	if (COM_CheckParm("-dev"))
-	{
-		Cvar_SetValue("sv_cheats", 1.0);
+	Cvar_SetValue("sv_cheats", 1.0);
+
+	if (COM_CheckParm("-developer"))
 		Cvar_SetValue("developer", 1.0);
-	}
+
+	CheckGore();
+
+	host_initialized = TRUE;
 
 	return 1;
 }
@@ -2217,8 +1801,6 @@ void Host_Shutdown( void )
 		return;
 	}
 	isdown = TRUE;
-
-	Host_DeallocateDynamicData();
 
 	Master_Shutdown();
 

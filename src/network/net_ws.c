@@ -31,12 +31,12 @@ static cvar_t ipx_clientport = { "ipx_clientport", "0" };
 cvar_t fakelag = { "fakelag", "0.0" };  // Lag all incoming network data (including loopback) by xxx ms.
 cvar_t fakeloss = { "fakeloss", "0.0" }; // Act like we dropped the packet this % of the time.
 
-cvar_t noip = { "noip", "1" };    // Disable IP Support
+qboolean noip = TRUE;    // Disable IP Support
 
 netadr_t net_local_adr;
 
 #ifdef _WIN32
-cvar_t noipx = { "noipx", "0" };    // Disable IPX Support
+qboolean noipx = FALSE;    // Disable IPX Support
 
 netadr_t net_local_ipx_adr;
 #endif
@@ -1006,13 +1006,13 @@ void NET_Config( qboolean multiplayer )
 	{
 		// open sockets
 
-		if (!noip.value)
+		if (!noip)
 		{
 			NET_OpenIP();
 		}
 
 #if defined( _WIN32 ) && !defined ( _WIN32_WCE )
-		if (!noipx.value)
+		if (!noipx)
 		{
 			NET_OpenIPX();
 		}
@@ -1039,7 +1039,7 @@ void NET_GetLocalAddress( void )
 	memset(&net_local_ipx_adr, 0, sizeof(netadr_t));
 #endif
 
-	if (noip.value)
+	if (noip)
 	{
 		Con_Printf("TCP/IP Disabled.\n");
 	}
@@ -1055,7 +1055,7 @@ void NET_GetLocalAddress( void )
 		namelen = sizeof(address);
 		if (getsockname(ip_sockets[NS_SERVER], (struct sockaddr*)&address, (socklen_t*)&namelen) != 0)
 		{
-			Cvar_SetValue("noip", 1.0f);
+			noip = TRUE;
 //			net_error = errno;
 			Con_Printf("Could not get TCP/IP address, TCP/IP disabled\nReason:  %s\n", NET_ErrorString(net_error));
 		}
@@ -1067,7 +1067,7 @@ void NET_GetLocalAddress( void )
 	}
 
 #if defined( _WIN32 ) && !defined ( _WIN32_WCE )
-	if (noipx.value)
+	if (noipx)
 	{
 		Con_Printf("No IPX Support.\n");
 	}
@@ -1076,7 +1076,7 @@ void NET_GetLocalAddress( void )
 		namelen = sizeof(SOCKADDR_IPX);
 		if (getsockname(ipx_sockets[NS_SERVER], (struct sockaddr*)&address, &namelen) != 0)
 		{
-			Cvar_SetValue("noipx", 1.0f);
+			noipx = TRUE;
 			net_error = errno;
 			Con_Printf("Could not get IPX socket name, IPX disabled\nReason:  %s\n", NET_ErrorString(net_error));
 		}
@@ -1168,19 +1168,6 @@ void NET_Init( void )
 
 	Cmd_AddCommand("maxplayers", MaxPlayers_f);
 	Cmd_AddCommand("netbad", Net_BadConnection_f);
-
-	Cvar_RegisterVariable(&noipx);
-	Cvar_RegisterVariable(&noip);
-
-	if (COM_CheckParm("-noipx"))
-	{
-		Cvar_SetValue("noipx", 1.0);
-	}
-
-	if (COM_CheckParm("-noip"))
-	{
-		Cvar_SetValue("noip", 1.0);
-	}
 
 	Cvar_RegisterVariable(&ipname);
 	Cvar_RegisterVariable(&iphostport);

@@ -1182,6 +1182,17 @@ void R_SetStackBase( void )
 
 /*
 ================
+R_UpdateAdaptive
+
+Adjust the adaptive detail level based on recent frame timings
+================
+*/
+void R_UpdateAdaptive( void )
+{
+}
+
+/*
+================
 R_RenderView
 
 r_refdef must be set before the first call

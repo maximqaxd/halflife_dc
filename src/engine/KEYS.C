@@ -609,6 +609,25 @@ void Key_WriteBindings(FILE* f)
 				fprintf(f, "bind \"%s\" \"%s\"\n", Key_KeynumToString(i), keybindings[i]);
 }
 
+/*
+===================
+Key_CountBindings
+
+Number of keys that currently have a non-empty binding
+===================
+*/
+int Key_CountBindings( void )
+{
+	int		i;
+	int		count = 0;
+
+	for (i = 0; i < 256; i++)
+		if (keybindings[i] && keybindings[i][0])
+			count++;
+
+	return count;
+}
+
 
 /*
 ===================

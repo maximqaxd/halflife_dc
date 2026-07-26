@@ -155,6 +155,7 @@ typedef struct _UserMsg
 #include "screen.h"
 #include "net.h"
 #include "protocol.h"
+#include "info.h"
 #include "cmd.h"
 #include "sbar.h"
 #include "sound.h"
@@ -221,7 +222,7 @@ extern	float		realtime;			// not bounded in any way, changed at
 
 // Master server
 extern	qboolean	gfNoMasterServer;
-extern	double		gfLastHearbeat;
+extern	float		gfLastHearbeat;
 extern	qboolean	gfHeartbeatWaiting;
 extern	float		gfHeartbeatWaitingTime;
 extern	int			gHeartbeatSequence;
@@ -230,7 +231,11 @@ extern	char		gszMasterAddress[128];
 extern	netadr_t	master_adr;
 
 void Master_Heartbeat( void );
+void Master_Heartbeat_f( void );
 void Master_Shutdown( void );
+void Master_AddServer( netadr_t *adr );
+void Master_SetMaster_f( void );
+void Master_UseDefault( void );
 void Master_RequestMOTD_f( void );
 void Master_RequestHeartbeat( void );
 
@@ -252,10 +257,8 @@ DLL_EXPORT void Host_Shutdown( void );
 void Host_Error( char* error, ... );
 void Host_EndGame( char* message, ... );
 void Host_ClientCommands( char* fmt, ... );
-void Host_Quit_f( void );
 void Host_ShutdownServer( qboolean crash );
 void Host_DeallocateDynamicData( void );
-void Host_ReallocateDynamicData( void );
 
 void Master_Init( void );
 

@@ -146,6 +146,12 @@ char* strrchr( const char* s, int c )
 }
 
 
+// Single-precision floating point remainder.
+float fmodf( float x, float y )
+{
+	return x - (float)(int)(x / y) * y;
+}
+
 // Time shim.
 long time( long* t )
 {

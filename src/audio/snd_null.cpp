@@ -38,6 +38,10 @@ void S_ClearBuffer( void )
 
 }
 
+void S_Init( void )
+{
+}
+
 
 void S_StartDynamicSound( int entnum, int entchannel, sfx_t* sfx, vec_t* origin, float fvol, float attenuation, int flags, int pitch )
 {

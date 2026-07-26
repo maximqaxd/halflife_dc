@@ -378,3 +378,14 @@ char* Info_Serverinfo( void )
 {
 	return serverinfo;
 }
+
+/*
+===============
+Info_WriteVars
+
+Write the archived info-string cvars out to a config file
+===============
+*/
+void Info_WriteVars( void* f )
+{
+}

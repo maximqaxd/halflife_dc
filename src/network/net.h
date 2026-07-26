@@ -38,6 +38,22 @@ typedef struct netadr_s
 	unsigned short	port;
 } netadr_t;
 
+
+// A WON master server we heartbeat to and can ask for a server list.
+typedef struct master_s
+{
+	short		state;				// challenge request state
+	float		challengetime;		// time the challenge request was sent
+	int			challenge;
+	int			heartbeatsequence;
+	float		heartbeattime;		// time the last heartbeat was sent
+	netadr_t	adr;				// master server address
+	struct master_s	*next;
+} master_t;
+
+extern	master_t*	valvemaster_adr;
+extern	qboolean	gfNoMasterServer;
+
 extern	netadr_t	net_local_adr;
 extern	netadr_t	net_from;		// address of who sent the packet
 extern	sizebuf_t	net_message;
@@ -146,10 +162,10 @@ extern	cvar_t	r_netgraph;
 
 extern	cvar_t	fakelag;
 
-extern	cvar_t	noip;    // Disable IP Support
+extern	qboolean	noip;    // Disable IP Support
 
 #ifdef _WIN32
-extern	cvar_t	noipx;    // Disable IPX Support
+extern	qboolean	noipx;    // Disable IPX Support
 extern	netadr_t net_local_ipx_adr;
 #endif //_WIN32
 

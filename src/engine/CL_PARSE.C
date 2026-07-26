@@ -1048,7 +1048,7 @@ CL_ReallocateDynamicData
 */
 void CL_ReallocateDynamicData( int nMaxClients )
 {
-	cl.max_edicts = COM_EntsForPlayerSlots(nMaxClients);
+	cl.max_edicts = 15 * (nMaxClients - 1) + 800;
 	if (cl.max_edicts <= 0)
 		Sys_Error("CL_ReallocateDynamicData allocating 0 entities");
 

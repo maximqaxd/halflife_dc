@@ -725,8 +725,8 @@ int Zip_CompressFile( char* pszFileName, int level )
 	return result;
 }
 
-// Inflate a previously compressed file back to disk.
-int Zip_DecompressFile( char* pszFileName )
+// Inflate a previously compressed file out to a separate destination.
+int Zip_DecompressFile( char* pszFileName, char* pszOutName )
 {
 	int			result = 0;
 	bfile_t*	in;
@@ -756,7 +756,7 @@ int Zip_DecompressFile( char* pszFileName )
 			result = (z->avail_in == 0);
 			if (result)
 			{
-				out = (bfile_t*)Bopen(pszFileName, "wb");
+				out = (bfile_t*)Bopen(pszOutName, "wb");
 				Bwrite(pOutBuffer, 1, nUncompressed, out);
 				Bclose(out);
 			}

@@ -4744,9 +4744,16 @@ NODEP_CPP_HASHP=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\engine\won.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\engine\host.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+# ADD CPP /Od
+# SUBTRACT CPP /O2 /Ob2 /Oa
 
 DEP_CPP_HOST_=\
 	"..\src\common\dll_state.h"\

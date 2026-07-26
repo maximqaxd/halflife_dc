@@ -28,7 +28,9 @@ int CRC_MapFile( CRC32_t* crcvalue, char* pszFileName );
 
 int Zip_GetUncompressedSize( void* pHeader );
 int Zip_CompressFile( char* pszFileName, int level );
-int Zip_DecompressFile( char* pszFileName );
+int Zip_DecompressFile( char* pszFileName, char* pszOutName );
+void UnzipSaveGame( char* pszDir, char* pszName );
+void ZipSaveGame( char* pszDir, char* pszName );
 void GrowOutBuffer( void* pStream, void** ppOutBuffer, int* pnOutSize );
 
 #endif
