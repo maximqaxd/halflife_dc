@@ -1146,10 +1146,10 @@ void SVC_Info( void )
 	if (svs.maxclients <= 1)   // ignore in single player
 		return;
 
-	if (!noip.value && NET_CompareClassBAdr(net_local_adr, net_from))
+	if (!noip && NET_CompareClassBAdr(net_local_adr, net_from))
 		return;
 #ifdef _WIN32
-	if (!noipx.value && NET_CompareClassBAdr(net_local_ipx_adr, net_from))
+	if (!noipx && NET_CompareClassBAdr(net_local_ipx_adr, net_from))
 		return;
 #endif //_WIN32
 
@@ -4236,4 +4236,19 @@ void SV_Keys_f( void )
 		}
 	}
 	Con_Printf("==========================\n");
+}
+/*
+=================
+SV_PrintLogos
+
+Report which players still owe the server their spray logo.
+=================
+*/
+void SV_PrintLogos( void )
+{
+	Con_Printf("Server Rep. of Player Logos:\n");
+
+	// TODO: walk svs.clients[] and print each one's outstanding resources
+
+	Con_Printf("--------------------------\n");
 }

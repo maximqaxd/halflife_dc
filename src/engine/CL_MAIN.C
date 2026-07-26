@@ -300,7 +300,7 @@ void CL_PingServers_f( void )
 
 	cls.slist_time = Sys_FloatTime();
 
-	if (!noip.value)
+	if (!noip)
 	{
 		adr.type = NA_BROADCAST;
 		adr.port = BigShort((unsigned short)atoi(PORT_SERVER));
@@ -308,7 +308,7 @@ void CL_PingServers_f( void )
 	}
 
 #ifdef _WIN32
-	if (!noipx.value)
+	if (!noipx)
 	{
 		adr.type = NA_BROADCAST_IPX;
 		adr.port = BigShort((unsigned short)atoi(PORT_SERVER));
@@ -2215,4 +2215,33 @@ void CL_Init( void )
 
 	cl.resourcesneeded.pNext = cl.resourcesneeded.pPrev = &cl.resourcesneeded;
 	cl.resourcesonhand.pNext = cl.resourcesonhand.pPrev = &cl.resourcesonhand;
+}
+// Realtime the current load began, so the bar can pace itself
+float	cl_progress_start;
+
+/*
+=================
+CL_StartProgressBar
+
+Reset the loading bar and note when the wait began.
+=================
+*/
+void CL_StartProgressBar( void )
+{
+	cl_progress_start = Sys_FloatTime();
+
+	DCV_SetProgress(0);
+	Sys_SetTaskName("start");
+}
+
+/*
+=================
+CL_PrintLogoList
+
+Dump the spray logos the client has seen this session.
+=================
+*/
+void CL_PrintLogoList( void )
+{
+	// TODO: walk cl.players[] and print each one's logo name
 }

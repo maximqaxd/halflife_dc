@@ -3740,6 +3740,9 @@ void CBasePlayer::ImpulseCommands( )
 
 //=========================================================
 //=========================================================
+// Set while the ally monsters have been told to stop shooting the player.
+extern "C" int gAlliesFriendly = FALSE;
+
 void CBasePlayer::CheatImpulseCommands( int iImpulse )
 {
 #if !defined( HLDEMO_BUILD )

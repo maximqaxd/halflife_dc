@@ -43,7 +43,9 @@ BOOL WINAPI DllMain(
 
 // The engine service table (g_engfuncs) is built at compile time in
 // enginecallback.h; gpGlobals is wired up in GameDLL_RegisterModules.
+extern "C" {
 globalvars_t  *gpGlobals;
+}
 
 // Exported for compatibility; the static build never routes through it.
 void DLLEXPORT GiveFnptrsToDll(	enginefuncs_t* pengfuncsFromEngine, globalvars_t *pGlobals )

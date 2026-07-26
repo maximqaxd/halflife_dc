@@ -755,3 +755,47 @@ void SV_Drop_f( void )
 		SV_BroadcastPrintf("%s dropped\n", host_client->name);
 	SV_DropClient(host_client, FALSE);
 }
+/*
+==================
+SV_SetPlayer
+
+Point host_client/sv_player at the client with the given userid.
+==================
+*/
+qboolean SV_SetPlayer( int userid )
+{
+	client_t*	cl;
+	int			i;
+
+	for (i = 0, cl = svs.clients; i < svs.maxclients; i++, cl++)
+	{
+		if (cl->spawned && cl->active && cl->connected && cl->userid == userid)
+		{
+			host_client = cl;
+			sv_player = host_client->edict;
+			return TRUE;
+		}
+	}
+
+	Con_Printf("Userid %i is not on the server\n", userid);
+	return FALSE;
+}
+
+/*
+==================
+SV_Info_f
+
+Print one player's userinfo string.
+==================
+*/
+void SV_Info_f( void )
+{
+	if (Cmd_Argc() != 2)
+	{
+		Con_Printf("Usage: info <userid>\n");
+		return;
+	}
+
+	if (SV_SetPlayer(atoi(Cmd_Argv(1))))
+		Info_Print(host_client->userinfo);
+}

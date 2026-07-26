@@ -2173,7 +2173,7 @@ COM_HexConvert
 Convert a string of hex characters into the equivalent bytes.
 ================
 */
-static __inline int COM_HexDigit( char c )
+unsigned char COM_Nibble( char c )
 {
 	if (c >= '0' && c <= '9')
 		return c - '0';
@@ -2192,7 +2192,7 @@ void COM_HexConvert( char* pszInput, int nInputLength, byte* pOutput )
 	out = pOutput;
 	for (i = 0; i < nInputLength; i += 2)
 	{
-		*out = (COM_HexDigit(pszInput[0]) << 4) | COM_HexDigit(pszInput[1]);
+		*out = (COM_Nibble(pszInput[0]) << 4) | COM_Nibble(pszInput[1]);
 		out++;
 		pszInput += 2;
 	}
@@ -2832,6 +2832,39 @@ int COM_OpenFileByName( char* gamedir, char* filename, int* handle )
 
 /*
 ===========
+COM_FileSize
+
+Length of a file without keeping it open.
+===========
+*/
+int COM_FileSize( char* filename )
+{
+	int	hFile = 0;
+	int	len;
+
+	len = COM_FindFileSearch(NULL, NULL, filename, &hFile, NULL);
+	if (hFile)
+		Sys_CloseHandle((void*)hFile);
+
+	return len;
+}
+
+/*
+===========
+COM_ChangeGameDir
+
+Drop every search path the previous campaign added and bring the new one's
+directory in behind it.
+===========
+*/
+void COM_ChangeGameDir( char* pszDir )
+{
+	// TODO: unlink and free the non-default search paths, then
+	// COM_AddGameDirectory(host_parms.basedir, pszDir)
+}
+
+/*
+===========
 COM_FOpenFile
 
 If the requested file is inside a packfile, a new FILE * will be opened
@@ -3318,7 +3351,7 @@ Lists all maps matching the substring
 If the substring is empty, or "*", then lists all maps
 ================
 */
-int COM_ListMaps( char* pszFileName, char* pszSubString )
+void COM_ListMaps( char* pszSubString )
 {
 	//Con_Printf
 	("COM_ListMaps is, um, non-trivial when abbreviated pak-names are involved.\n");

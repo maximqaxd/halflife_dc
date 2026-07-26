@@ -4,6 +4,27 @@
 
 #include "quakedef.h"
 
+#define VMU_MAX_DEVICES		8		// two slots on each of the four ports
+
+// Per-card state the Maple driver keeps: whether a card answered, its
+// directory, and the block staging area reads and writes run through.
+typedef struct
+{
+	int		present;
+	byte	state[2176];
+} vmudevice_t;
+
+vmudevice_t	vmuDevices[VMU_MAX_DEVICES];
+int			vmuCurrentDevice;
+
+// Bytes the save occupies on the card, and the two strings its file browser shows.
+int			gSaveGameSize;
+char		vmuSaveComment[64];
+char		vmuSaveTitle[16];
+
+// Save the player last picked, as "<port><slot>:<name>".
+char		vmuRecentSave[64];
+
 // Open \Device\CDROM0 and lock the GD-ROM door closed.
 void GDROM_SetDoorBehavior( void )
 {
@@ -112,6 +133,30 @@ void VMU_FormatSlotName( char *saveName )
 {
 }
 
+/*
+==================
+Host_FindRecentSave
+
+Name of the save the player last picked, prefixed with the card it came off.
+Selects that card again if it is still in, so the level files load from the
+same place the header did.
+==================
+*/
+char *Host_FindRecentSave( void )
+{
+	int	slot;
+
+	if (!vmuRecentSave[0])
+		return NULL;
+
+	slot = vmuRecentSave[1] - '0';
+
+	if (vmuDevices[slot].present)
+		vmuCurrentDevice = slot;
+
+	return vmuRecentSave + 3;
+}
+
 // Compute the storage size needed for the HL4/HL1 save-game files.
 int Host_SaveGameSize( void )
 {
@@ -124,7 +169,7 @@ void VMU_SetCurrentDevice( int device )
 }
 
 // Mark the current slot as having a saved game and return its device handle.
-void *VMU_MarkSlotSaved( void )
+char *VMU_MarkSlotSaved( void )
 {
 	return NULL;
 }
@@ -172,7 +217,7 @@ int FileExists( char *path )
 }
 
 // Thunk to the HL4 load path.
-void VMU_LoadGameHL4_Thunk( void )
+void VMU_LoadGameHL4_Thunk( char *saveName )
 {
 }
 

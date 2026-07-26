@@ -46,7 +46,7 @@ typedef unsigned char byte;
 #include "enginecallback.h"
 #endif
 
-extern globalvars_t				*gpGlobals;
+extern "C" globalvars_t			*gpGlobals;
 
 #pragma warning( disable : 4244 )
 
