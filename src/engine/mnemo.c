@@ -1662,6 +1662,19 @@ int Cache_FreeAll( void )
 	return 0;
 }
 
+/*
+============
+Cache_FlushToDisk
+
+Write back every cache block that still has somewhere to go, so the block can
+be dropped now and reloaded later instead of holding on to arena space.
+============
+*/
+int Cache_FlushToDisk( void )
+{
+	return 0;
+}
+
 int Cache_FreeAllLRU( void )
 {
 	int count;

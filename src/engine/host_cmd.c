@@ -37,6 +37,16 @@ extern char* VMU_MarkSlotSaved( void );
 
 extern int	g_Language;
 
+extern cvar_t	exportsaves;
+
+int		Cache_FlushToDisk( void );
+int		Host_SaveGameSize( void );
+int		Host_SaveGameSizeHL1( char* pName );
+int		VMU_SaveGameHL1( char* pName );
+void	VMU_FormatSlotName( char* pName );
+void	VMU_SetCurrentDevice( int device );
+void	GDROM_ConfigureDoorBehavior( void );
+
 typedef struct
 {
 	char*	pBSPName;
@@ -1265,11 +1275,16 @@ Do a save game
 */
 BOOL SaveGameSlot( const char* pSaveName, const char* pSaveComment, int fake )
 {
-	char			hlPath[256], name[256], * pTokenData;
+	char			hlPath[MAX_PATH], name[MAX_PATH], * pTokenData;
+	char			exportName[64];
 	int				tag, i;
 	bfile_t* pFile;
 	SAVERESTOREDATA* pSaveData;
 	GAME_HEADER		gameHeader;
+
+	// The save block is big, so give the cache back its memory first
+	Cache_FlushToDisk();
+	Cache_FreeAll();
 
 	pSaveData = SaveGamestate();
 
@@ -1277,6 +1292,7 @@ BOOL SaveGameSlot( const char* pSaveName, const char* pSaveComment, int fake )
 		return FALSE;
 
 	SaveExit(pSaveData);
+	Host_SaveGameSize();
 	pSaveData = SaveInit(0);
 
 	sprintf(hlPath, "%s*.HL?", Host_SaveGameDirectory());
@@ -1334,11 +1350,16 @@ BOOL SaveGameSlot( const char* pSaveName, const char* pSaveComment, int fake )
 	pSaveData->tokenSize = pSaveData->pCurrentData - pTokenData;
 	if (pSaveData->size < pSaveData->bufferSize)
 		pSaveData->size -= pSaveData->tokenSize;
+	pSaveData->size = (pSaveData->size + 3) & ~3;
 
 	sprintf(name, "%s%s", Host_SaveGameDirectory(), pSaveName);
 	COM_DefaultExtension(name, ".sav");
 	COM_FixSlashes(name);
-	Con_DPrintf("Saving game to %s...\n", name);
+
+	// The quicksave and the autosave each keep a single slot; everything else
+	// keeps a short history
+	if (Q_stricmp(pSaveName, "quick") || Q_stricmp(pSaveName, "autosave"))
+		Host_AgeSaveList(pSaveName, 1);
 
 	pFile = Bopen(name, "wb");
 	// Write the header -- THIS SHOULD NEVER CHANGE STRUCTURE, USE SAVE_HEADER FOR NEW HEADER INFORMATION
@@ -1358,6 +1379,36 @@ BOOL SaveGameSlot( const char* pSaveName, const char* pSaveComment, int fake )
 
 	DirectoryCopy(hlPath, pFile);
 	Bclose(pFile);
+
+	// Settle the file back into the file table before it is compressed
+	pFile = Bopen(name, "rb");
+	Bclose(pFile);
+
+	if (!Zip_CompressFile(name, 9))
+	{
+		// Out of room - send the player back to the memory card screen
+		VMU_SetCurrentDevice(4);
+	}
+	else
+	{
+		if (exportsaves.value > 0)
+		{
+			sprintf(exportName, "%s.sav", sv.name);
+			Bexport_path(name, exportName);
+		}
+
+		if (!fake)
+		{
+			VMU_SaveGameHL1(name);
+			VMU_FormatSlotName(name);
+			GDROM_ConfigureDoorBehavior();
+		}
+		else
+		{
+			Host_SaveGameSizeHL1(name);
+		}
+	}
+
 	SaveExit(pSaveData);
 
 	return TRUE;
@@ -2485,7 +2536,10 @@ int DirectoryCount( const char* pPath )
 	pFound = Bfind_first((char*)pPath, NULL);
 	while (pFound)
 	{
-		count++;
+		// The gamestate for the level being saved isn't part of the bundle
+		if (!strstr(pFound, ".hl1"))
+			count++;
+
 		// Any more save files
 		pFound = Bfind_next(NULL);
 	}

@@ -234,7 +234,20 @@ def trim_pool(insns):
     pool after an unconditional transfer (bra/jmp/rts) and execution can only
     resume at a branch target, so anything between a transfer's delay slot and
     the next known branch target is data. The trailing pool (after the final
-    rts) has no following target and is dropped entirely."""
+    rts) has no following target and is dropped entirely.
+
+    Run to a fixed point: pool words that happen to decode as branches seed
+    targets that end a pool early, leaving the rest of it in. Recomputing the
+    target set from only the surviving instructions drops those, which exposes
+    more of the pool, so repeat until nothing more falls out."""
+    prev = None
+    while prev != len(insns):
+        prev = len(insns)
+        insns = _trim_pool_once(insns)
+    return insns
+
+
+def _trim_pool_once(insns):
     targets = set()
     for va, m, o in insns:
         if m.lower() in ("bt", "bf", "bt/s", "bf/s", "bra", "bsr"):

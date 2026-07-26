@@ -107,8 +107,8 @@ int VMU_IsDevicePresent( int slot )
 	return 0;
 }
 
-// Build the short VMU file name for the given slot into the shared buffer.
-void VMU_FormatSlotName( int slot )
+// Build the short VMU file name for the given save into the shared buffer.
+void VMU_FormatSlotName( char *saveName )
 {
 }
 
@@ -148,7 +148,7 @@ int VMU_SaveGameHL1( char *saveName )
 }
 
 // Compute the total size of the HL1 save-game data.
-int Host_SaveGameSizeHL1( void )
+int Host_SaveGameSizeHL1( char *saveName )
 {
 	return 0;
 }

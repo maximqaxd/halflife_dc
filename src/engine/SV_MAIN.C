@@ -41,6 +41,10 @@ int giNextUserMsg = 64;
 float g_fLastPingUpdateTime = 0.0f;
 qboolean g_bShouldUpdatePing = FALSE;
 
+int		SV_UPDATE_BACKUP = 0;		// depth of the per-client frame history ring
+int		SV_UPDATE_MASK = 0;
+
+cvar_t	sv_lan = { "sv_lan", "0" };
 cvar_t	sv_language = { "sv_language", "0" };
 cvar_t	violence_hblood = { "violence_hblood", "1" };
 cvar_t	violence_ablood = { "violence_ablood", "1" };
@@ -68,11 +72,16 @@ cvar_t	sv_masterprinttime = { "sv_masterprinttime", "5.0" };
 
 cvar_t	sv_netsize = { "sv_netsize", "0" };
 
-cvar_t	sv_allow_download = { "sv_allowdownload", "1", FALSE, TRUE };
-cvar_t	sv_allow_upload = { "sv_allowupload", "1", FALSE, TRUE };
-cvar_t	sv_upload_maxsize = { "sv_upload_maxsize", "0", FALSE, TRUE };
+cvar_t	sv_allow_download = { "sv_allowdownload", "1", FCVAR_SERVER };
+cvar_t	sv_allow_upload = { "sv_allowupload", "1", FCVAR_SERVER };
+cvar_t	sv_upload_maxsize = { "sv_upload_maxsize", "0", FCVAR_SERVER };
 
 cvar_t	sv_showcmd = { "sv_showcmd", "0" };
+
+// Mirror the gamestate and the save file out to the development host as they
+// are written, so a save can be inspected off the machine
+cvar_t	exportdicts = { "exportdicts", "0" };
+cvar_t	exportsaves = { "exportsaves", "0" };
 
 int sv_playermodel;
 
@@ -93,6 +102,7 @@ void SV_Init( void )
 	Cvar_RegisterVariable(&sv_masterprinttime);
 	Cvar_RegisterVariable(&sv_idealpitchscale);
 	Cvar_RegisterVariable(&sv_aim);
+	Cvar_RegisterVariable(&sv_lan);
 	Cvar_RegisterVariable(&sv_language);
 	Cvar_RegisterVariable(&violence_hblood);
 	Cvar_RegisterVariable(&violence_ablood);
@@ -133,6 +143,9 @@ void SV_Init( void )
 	Cvar_RegisterVariable(&sv_upload_maxsize);
 	Cvar_RegisterVariable(&sv_allow_download);
 	Cvar_RegisterVariable(&sv_allow_upload);
+
+	Cvar_RegisterVariable(&exportdicts);
+	Cvar_RegisterVariable(&exportsaves);
 
 	Pmove_Init();
 
@@ -743,18 +756,6 @@ void SV_SpawnSpectator( void )
 	}
 }
 
-// MAX_CHALLENGES is made large to prevent a denial
-//  of service attack that could cycle all of them
-//  out before legitimate users connected
-#define	MAX_CHALLENGES	1024
-typedef struct
-{
-	netadr_t    adr;       // Address where challenge value was sent to.
-	int			challenge; // To connect, adr IP address must respond with this #
-	int			time;      // # is valid for only a short duration.
-} challenge_t;
-
-challenge_t	g_rg_sv_challenges[MAX_CHALLENGES];	// to prevent spoofed IPs from connecting
 
 /*
 ================
@@ -804,9 +805,9 @@ void SV_ConnectClient( void )
 	{
 		for (i = 0; i < MAX_CHALLENGES; i++)
 		{
-			if (NET_CompareClassBAdr(net_from, g_rg_sv_challenges[i].adr))
+			if (NET_CompareClassBAdr(net_from, svs.challenges[i].adr))
 			{
-				if (challenge == g_rg_sv_challenges[i].challenge)
+				if (challenge == svs.challenges[i].challenge)
 					break;		// good
 				SV_RejectConnection(&adr, "Bad challenge.\n");
 				return;
@@ -1101,11 +1102,11 @@ void SVC_GetChallenge( void )
 	// see if we already have a challenge for this ip
 	for (i = 0; i < MAX_CHALLENGES; i++)
 	{
-		if (NET_CompareClassBAdr(net_from, g_rg_sv_challenges[i].adr))
+		if (NET_CompareClassBAdr(net_from, svs.challenges[i].adr))
 			break;
-		if (g_rg_sv_challenges[i].time < oldestTime)
+		if (svs.challenges[i].time < oldestTime)
 		{
-			oldestTime = g_rg_sv_challenges[i].time;
+			oldestTime = svs.challenges[i].time;
 			oldest = i;
 		}
 	}
@@ -1113,15 +1114,15 @@ void SVC_GetChallenge( void )
 	if (i == MAX_CHALLENGES)
 	{
 		// overwrite the oldest
-		g_rg_sv_challenges[oldest].challenge = (RandomLong(0, 0xFFFF) << 16 | RandomLong(0, 0xFFFF));
-		g_rg_sv_challenges[oldest].adr = net_from;
-		g_rg_sv_challenges[oldest].time = realtime;
+		svs.challenges[oldest].challenge = (RandomLong(0, 0xFFFF) << 16 | RandomLong(0, 0xFFFF));
+		svs.challenges[oldest].adr = net_from;
+		svs.challenges[oldest].time = realtime;
 		i = oldest;
 	}
 
 	// send it back
 	sprintf(data, "%c%c%c%c%c", 255, 255, 255, 255, S2C_CHALLENGE);
-	ch = BigLong(g_rg_sv_challenges[i].challenge);
+	ch = BigLong(svs.challenges[i].challenge);
 	memcpy(data + 5, &ch, sizeof(ch));
 
 	NET_SendPacket(NS_SERVER, 9, data, net_from);
@@ -3361,6 +3362,10 @@ void Log_Printf( char* fmt, ... )
 {
 }
 
+void Log_Close( void )
+{
+}
+
 /*
 =================
 SV_BroadcastCommand
@@ -3515,6 +3520,110 @@ void SV_ActivateServer( int runPhysics )
 
 /*
 ================
+SV_Active
+
+True when a server we drive the timestep for is running
+================
+*/
+qboolean SV_Active( void )
+{
+	return sv.active;
+}
+
+/*
+================
+SV_ReallocateDynamicData
+
+Allocate the per-edict scratch buffers used by the push physics
+================
+*/
+void SV_ReallocateDynamicData( void )
+{
+	if (!sv.max_edicts)
+	{
+		Con_DPrintf("SV_ReallocateDynamicData with sv.max_edicts == 0");
+		return;
+	}
+
+	if (g_moved_edict)
+		Con_Printf("Reallocate on moved_edict\n");
+	g_moved_edict = (edict_t**)MnemoAllocDbg(sizeof(edict_t*) * sv.max_edicts, __FILE__, __LINE__);
+	memset(g_moved_edict, 0, sizeof(edict_t*) * sv.max_edicts);
+
+	if (g_moved_from)
+		Con_Printf("Reallocate on moved_from\n");
+	g_moved_from = (vec3_t*)MnemoAllocDbg(sizeof(vec3_t) * sv.max_edicts, __FILE__, __LINE__);
+	memset(g_moved_from, 0, sizeof(vec3_t) * sv.max_edicts);
+
+	if (g_playertouch)
+		Con_Printf("Reallocate on playertouch\n");
+	g_playertouch = (byte*)MnemoAllocDbg((sv.max_edicts + 7) / 8, __FILE__, __LINE__);
+	memset(g_playertouch, 0, (sv.max_edicts + 7) / 8);
+}
+
+/*
+================
+SV_ClearPacketEntities
+
+Release the delta entity buffer attached to a single client frame
+================
+*/
+void SV_ClearPacketEntities( client_frame_t* frame )
+{
+	if (frame)
+	{
+		if (frame->entities.entities)
+			free(frame->entities.entities);
+
+		frame->entities.entities = NULL;
+		frame->entities.num_entities = 0;
+	}
+}
+
+/*
+================
+SV_ClearFrames
+
+Free a client's frame ring and everything hanging off it
+================
+*/
+void SV_ClearFrames( client_frame_t** frames )
+{
+	client_frame_t* pframe;
+	int i;
+
+	pframe = *frames;
+	if (pframe)
+	{
+		for (i = 0; i < SV_UPDATE_BACKUP; i++)
+			SV_ClearPacketEntities(&pframe[i]);
+
+		free(*frames);
+		*frames = NULL;
+	}
+}
+
+/*
+================
+SV_AllocClientFrames
+
+Allocate the frame ring for every client slot
+================
+*/
+void SV_AllocClientFrames( void )
+{
+	client_t* cl;
+	int i;
+
+	for (i = 0, cl = svs.clients; i < svs.maxclientslimit; i++, cl++)
+	{
+		cl->frames = (client_frame_t*)MnemoAllocDbg(sizeof(client_frame_t) * SV_UPDATE_BACKUP, __FILE__, __LINE__);
+		memset(cl->frames, 0, sizeof(client_frame_t) * SV_UPDATE_BACKUP);
+	}
+}
+
+/*
+================
 SV_SpawnServer
 
 This is called at the start of each level
@@ -3584,10 +3693,9 @@ int SV_SpawnServer( qboolean bIsDemo, char* server, char* startspot )
 		Cvar_SetValue("sv_clienttrace", 1);
 
 // allocate server memory
-	sv.max_edicts = COM_EntsForPlayerSlots(svs.maxclients);
+	sv.max_edicts = 15 * (svs.maxclients - 1) + 800;
 
-	Host_DeallocateDynamicData();
-	Host_ReallocateDynamicData();
+	SV_ReallocateDynamicData();
 
 	// Assume no entities beyond world and client slots
 	gGlobalVariables.maxEntities = sv.max_edicts;
