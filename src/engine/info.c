@@ -370,6 +370,34 @@ void Info_Print( char* s )
 }
 
 /*
+===============
+COM_CheckAuthenticationType
+
+Decide how the server will authenticate the people joining it. Without a
+network stack there is nobody to ask, so it falls back to the LAN scheme.
+===============
+*/
+void COM_CheckAuthenticationType( void )
+{
+	float	start, end;
+
+	if (noip)
+	{
+		gfUseLANAuthentication = TRUE;
+		return;
+	}
+
+	start = Sys_FloatTime();
+
+	gfUseLANAuthentication = FALSE;
+
+	end = Sys_FloatTime();
+
+	// Time spent asking doesn't count against the connection attempt
+	cls.connect_time += end - start;
+}
+
+/*
 ===================
 Info_Serverinfo
 ===================

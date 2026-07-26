@@ -51,7 +51,6 @@ int		gResumedSave;
 
 
 extern cvar_t	sv_lan;
-void	COM_CheckAuthenticationType( void );
 
 extern cvar_t*	sv_allow_download;
 extern cvar_t*	sv_allow_upload;

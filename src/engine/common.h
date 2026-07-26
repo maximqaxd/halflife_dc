@@ -228,6 +228,7 @@ void COM_ClearCustomizationList( struct customization_s* pHead, qboolean bCleanD
 void COM_ListMaps( char* pszSubString );
 
 unsigned char COM_Nibble( char c );
+void COM_CheckAuthenticationType( void );
 void COM_ChangeGameDir( char* pszDir );
 
 void COM_GetGameDir( char* szGameDir );

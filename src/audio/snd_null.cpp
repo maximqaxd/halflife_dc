@@ -69,6 +69,16 @@ void S_StopAllSounds( qboolean clear )
 
 }
 
+void S_BlockSound( qboolean clear )
+{
+
+}
+
+void S_UnblockSound( void )
+{
+
+}
+
 void S_BeginPrecaching( void )
 {
 	

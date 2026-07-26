@@ -33,5 +33,3 @@ extern RECT		window_rect;
 
 DLL_EXPORT void IN_UpdateClipCursor( void );
 
-DLL_EXPORT void S_BlockSound( void );
-DLL_EXPORT void S_UnblockSound( void );
