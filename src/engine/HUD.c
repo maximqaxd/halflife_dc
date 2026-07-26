@@ -27,7 +27,6 @@ extern cvar_t crosshair;
 extern vrect_t scr_vrect;
 
 void DrawCrosshair( int x, int y );
-int  R_WorldToScreen( vec_t* point, vec_t* screen );
 
 void HudSizeUp( void )
 {
@@ -174,10 +173,6 @@ void Sbar_Draw( void )
 	vec3_t forward;
 	vec3_t point, screen;
 
-#if !defined( GLQUAKE )
-	FillBackGround();
-#endif
-
 	if (cls.state != ca_active)
 		return;
 
@@ -198,38 +193,8 @@ void Sbar_Draw( void )
 		AngleVectors(angles, forward, NULL, NULL);
 		VectorAdd(r_origin, forward, point);
 		R_WorldToScreen(point, screen);
-#if defined( GLQUAKE )
 		DrawCrosshair(x + (0.5f * screen[0] * scr_vrect.width + 0.5f), y + (0.5f * screen[1] * scr_vrect.height + 0.5f));
-#else
-		DrawCrosshair(xscale * screen[0] + x + 0.5f, yscale * screen[1] + y + 0.5f);
-#endif
 	}
 
 	ClientDLL_HudRedraw(0);
 }
-
-#if !defined( GLQUAKE )
-/*
-===============
-FillBackGround
-===============
-*/
-void FillBackGround( void )
-{
-	if (scr_vrect.width == vid.width &&
-		scr_vrect.height == vid.height)
-		return;
-
-	if (scr_vrect.height != vid.height)
-		Draw_Fill(0, scr_vrect.height + scr_vrect.y, vid.width, vid.height - (scr_vrect.height + scr_vrect.y), 0);
-
-	if (scr_vrect.x)
-	{
-		Draw_Fill(0, 0, scr_vrect.x, scr_vrect.height + scr_vrect.y, 0);
-		Draw_Fill(scr_vrect.x + scr_vrect.width, 0, scr_vrect.x, scr_vrect.height + scr_vrect.y, 0);
-	}
-
-	if (scr_vrect.height != vid.height)
-		Draw_Fill(scr_vrect.x, 0, vid.width, scr_vrect.y, 0);
-}
-#endif
