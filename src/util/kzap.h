@@ -36,6 +36,12 @@ int   Brename_path( char *oldpath, char *newpath );
 int   Bcompress_path( char *path );
 int   Bexport_path( char *path );
 
+// Wildcard search over the resident files. Each call returns the next matching
+// name, or NULL when the list runs out.
+char *Bfind_first( char *pattern, char *nameOut );
+char *Bfind_next( char *nameOut );
+void  Bfind_reset( void );
+
 // heap wrappers shared with the zlib glue (util/zapsave.c)
 void *mallocx( int size );
 void  freex( void *ptr );

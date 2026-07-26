@@ -1115,6 +1115,39 @@ void Host_SavegameComment( char* pszBuffer )
 	sprintf(vmuSaveTitle, "%-15.15s", pszMapName);
 }
 
+/*
+==================
+Host_AgeSaveList
+
+Roll the numbered save slots down one, dropping the oldest, so the newest save
+can take the unnumbered name
+==================
+*/
+void Host_AgeSaveList( const char* pName, int count )
+{
+	char	newName[MAX_PATH], oldName[MAX_PATH];
+
+	// The last one falls off the end of the list
+	sprintf(newName, "%s%s%02d.sav", Host_SaveGameDirectory(), pName, count);
+	COM_FixSlashes(newName);
+	Bremove_path(newName);
+
+	while (count > 0)
+	{
+		if (count == 1)
+			sprintf(oldName, "%s%s.sav", Host_SaveGameDirectory(), pName);
+		else
+			sprintf(oldName, "%s%s%02d.sav", Host_SaveGameDirectory(), pName, count - 1);
+		COM_FixSlashes(oldName);
+
+		sprintf(newName, "%s%s%02d.sav", Host_SaveGameDirectory(), pName, count);
+		COM_FixSlashes(newName);
+
+		Brename_path(oldName, newName);
+		count--;
+	}
+}
+
 int Host_ValidSave( void )
 {
 	if (cmd_source != src_command)
@@ -1796,6 +1829,7 @@ void CL_Save( char* name )
 		}
 
 		Bclose(pFile);
+		Bcompress_path(name);
 	}
 }
 
@@ -2391,33 +2425,28 @@ void FileCopy( void* pOutput, void* pInput, int fileSize )
 
 void DirectoryCopy( const char* pPath, void* pFile )
 {
-	HANDLE			findfn;
-	BOOL			nextfile;
-	WIN32_FIND_DATAA ffd;
+	char*			pFound;
 	int				fileSize;
-	void* pCopy;
+	void*			pCopy;
 	char			szName[MAX_PATH];
 
-	findfn = FindFirstFile(pPath, &ffd);
-	if (findfn == INVALID_HANDLE_VALUE)
-		return;
-
-	do
+	pFound = Bfind_first((char*)pPath, NULL);
+	while (pFound)
 	{
-		sprintf(szName, "%s%s", Host_SaveGameDirectory(), ffd.cFileName);
+		sprintf(szName, "%s%s", Host_SaveGameDirectory(), pFound);
 		COM_FixSlashes(szName);
 		pCopy = Sys_OpenHandle(szName, "rb");
 		fileSize = FileSize(pCopy);
-		DC_fwrite(ffd.cFileName, sizeof(char), MAX_PATH, pFile);		// Filename can only be as long as a map name + extension
+		DC_fwrite(pFound, sizeof(char), MAX_PATH, pFile);		// Filename can only be as long as a map name + extension
 		DC_fwrite(&fileSize, sizeof(int), 1, pFile);
 		FileCopy(pFile, pCopy, fileSize);
 		Sys_CloseHandle(pCopy);
 
 		// Any more save files?
-		nextfile = FindNextFile(findfn, &ffd);
-	} while (nextfile);
+		pFound = Bfind_next(NULL);
+	}
 
-	FindClose(findfn);
+	Bfind_reset();
 }
 
 void DirectoryExtract( void* pFile, int fileCount )
@@ -2444,48 +2473,37 @@ void DirectoryExtract( void* pFile, int fileCount )
 
 int DirectoryCount( const char* pPath )
 {
-	int count;
-	HANDLE			findfn;
-	BOOL			nextfile;
-	WIN32_FIND_DATAA ffd;
+	int		count;
+	char*	pFound;
 
 	count = 0;
-	findfn = FindFirstFile(pPath, &ffd);
-	if (findfn == INVALID_HANDLE_VALUE)
-		return count;
-
-	do
+	pFound = Bfind_first((char*)pPath, NULL);
+	while (pFound)
 	{
 		count++;
 		// Any more save files
-		nextfile = FindNextFile(findfn, &ffd);
-	} while (nextfile);
-	FindClose(findfn);
+		pFound = Bfind_next(NULL);
+	}
+	Bfind_reset();
 
 	return count;
 }
 
 void DirectoryClear( const char* pPath )
 {
-	char			szName[MAX_PATH];
-	HANDLE			findfn;
-	BOOL			nextfile;
-	WIN32_FIND_DATAA ffd;
+	char	szName[MAX_PATH];
+	char*	pFound;
 
-	findfn = FindFirstFile(pPath, &ffd);
-	if (findfn == INVALID_HANDLE_VALUE)
-		return;
-
-	do
+	pFound = Bfind_first((char*)pPath, NULL);
+	while (pFound)
 	{
-		sprintf(szName, "%s%s", Host_SaveGameDirectory(), ffd.cFileName);
-		COM_FixSlashes(szName);
-
+		sprintf(szName, "%s%s", Host_SaveGameDirectory(), pFound);
+		Bremove_path(szName);
 
 		// Any more save files
-		nextfile = FindNextFile(findfn, &ffd);
-	} while (nextfile);
-	FindClose(findfn);
+		pFound = Bfind_next(NULL);
+	}
+	Bfind_reset();
 }
 
 /*
@@ -2510,6 +2528,7 @@ void Host_ClearSaveDirectory( void )
 void Host_ClearGameState( void )
 {
 	S_StopAllSounds(TRUE);
+	S_ClearBuffer(TRUE);
 	Host_ClearSaveDirectory();
 
 	ResetGlobalState();
