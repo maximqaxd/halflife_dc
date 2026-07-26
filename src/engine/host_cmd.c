@@ -2429,21 +2429,26 @@ void DirectoryCopy( const char* pPath, void* pFile )
 	int				fileSize;
 	void*			pCopy;
 	char			szName[MAX_PATH];
+	char			fileName[MAX_PATH];
 
-	pFound = Bfind_first((char*)pPath, NULL);
+	pFound = Bfind_first((char*)pPath, fileName);
 	while (pFound)
 	{
-		sprintf(szName, "%s%s", Host_SaveGameDirectory(), pFound);
-		COM_FixSlashes(szName);
-		pCopy = Sys_OpenHandle(szName, "rb");
-		fileSize = FileSize(pCopy);
-		DC_fwrite(pFound, sizeof(char), MAX_PATH, pFile);		// Filename can only be as long as a map name + extension
-		DC_fwrite(&fileSize, sizeof(int), 1, pFile);
-		FileCopy(pFile, pCopy, fileSize);
-		Sys_CloseHandle(pCopy);
+		// The gamestate for the level being saved is written out on its own
+		if (!strstr(pFound, ".hl1"))
+		{
+			sprintf(szName, "%s%s", Host_SaveGameDirectory(), pFound);
+			COM_FixSlashes(szName);
+			pCopy = Sys_OpenHandle(szName, "rb");
+			fileSize = Bfilesize_path(szName);
+			DC_fwrite(pFound, sizeof(char), MAX_PATH, pFile);		// Filename can only be as long as a map name + extension
+			DC_fwrite(&fileSize, sizeof(int), 1, pFile);
+			FileCopy(pFile, pCopy, fileSize);
+			Sys_CloseHandle(pCopy);
+		}
 
 		// Any more save files?
-		pFound = Bfind_next(NULL);
+		pFound = Bfind_next(fileName);
 	}
 
 	Bfind_reset();
