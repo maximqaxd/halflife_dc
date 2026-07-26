@@ -229,21 +229,59 @@ def label_to_gname(line):
     return None
 
 
-def trim_pool(insns):
-    """Drop literal-pool words that dumpbin disassembles as code. SHCL places a
-    pool after an unconditional transfer (bra/jmp/rts) and execution can only
-    resume at a branch target, so anything between a transfer's delay slot and
-    the next known branch target is data. The trailing pool (after the final
-    rts) has no following target and is dropped entirely.
+# pc-relative pool loads name their own operand: mov.l @(disp,pc) reads 4 bytes
+# at ((va & ~3) + 4 + disp), mov.w @(disp,pc) reads 2 bytes at (va + 4 + disp).
+POOL_LOAD = re.compile(r"^mov\.(l|w)$")
+POOL_OPERAND = re.compile(r"@\((-?[0-9a-f]+),pc\)", re.I)
 
-    Run to a fixed point: pool words that happen to decode as branches seed
-    targets that end a pool early, leaving the rest of it in. Recomputing the
-    target set from only the surviving instructions drops those, which exposes
-    more of the pool, so repeat until nothing more falls out."""
+
+def pool_slots(insns):
+    """Addresses covered by literal pools, taken from the loads that read them.
+    Exact, unlike inferring pool extent from control flow."""
+    data = set()
+    for va, m, o in insns:
+        mm = POOL_LOAD.match(m.lower())
+        if not mm:
+            continue
+        g = POOL_OPERAND.search(o)
+        if not g:
+            continue
+        try:
+            disp = int(g.group(1), 16)
+        except ValueError:
+            continue
+        if mm.group(1) == "l":
+            base, width = (va & ~3) + 4, 4
+        else:
+            base, width = va + 4, 2
+        for k in range(0, width, 2):
+            data.add(base + disp + k)
+    return data
+
+
+def trim_pool(insns, known_data=None):
+    """Drop literal-pool words that dumpbin disassembles as code.
+
+    Two passes. The structural one first: SHCL places a pool after an
+    unconditional transfer and execution can only resume at a branch target, so
+    anything between the transfer's delay slot and the next target is data, and
+    the tail after the final rts is data outright. It runs to a fixed point,
+    because pool words that happen to decode as branches seed targets that end a
+    pool early and leave the rest of it in; recomputing the targets from only the
+    survivors drops those.
+
+    Then the exact one, which catches pools the first pass can't see (one wedged
+    between two branch targets, say): every pc-relative load names the address it
+    reads, so those addresses are data by definition."""
     prev = None
     while prev != len(insns):
         prev = len(insns)
         insns = _trim_pool_once(insns)
+    data = pool_slots(insns)
+    if known_data:
+        data |= known_data
+    if data:
+        insns = [t for t in insns if t[0] not in data]
     return insns
 
 
@@ -415,10 +453,11 @@ def main():
     ofuncs = obj_functions(args.dumpbin, args.obj)
     print("[objdiff] obj functions: %d" % len(ofuncs))
 
-    exe_dis = exe_ext = None
+    exe_dis = exe_ext = exe_data = None
     if not args.listing:
         exe_dis = load_exe_disasm(args.dumpbin, args.exe)
         exe_ext = exe_function_extents(syms)
+        exe_data = None
 
     if args.locate:
         # --locate still needs the flat exe disassembly (dumpbin, cached)
@@ -467,7 +506,8 @@ def main():
             end = exe_ext.get(start, start + size)
             gh = bininsns.get(format(start, "x"))
             bin_insns = cut_at_epilogue(
-                trim_pool(slice_exe(exe_dis, start, end - start)), len(gh or ()))
+                trim_pool(slice_exe(exe_dis, start, end - start), exe_data),
+                len(gh or ()))
             r, rn = diff_one(gname, insns, bin_insns, full=args.full)
             results.append((gname, r, rn))
             score_rows.append((gname, len(insns), len(bin_insns), r * 100, rn * 100))

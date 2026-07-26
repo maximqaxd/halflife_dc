@@ -4,7 +4,14 @@
 
 #ifdef _WIN32_WCE
 
+// Pull the C runtime headers in first. The shims below deliberately shadow a
+// few of their declarations, and that only works if the originals are already
+// in scope - otherwise the runtime's copy arrives second and collides.
+#include <stdlib.h>
+
+#ifndef _INC_STDLIB
 typedef unsigned int size_t;
+#endif
 
 #define ARRAYSIZE(a)         (sizeof(a)/sizeof(a[0]))
 #define offsetof(s,m)        ((size_t)&(((s*)0)->m))
