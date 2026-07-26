@@ -7,48 +7,62 @@
 #include "r_studio.h"
 #include "pr_edict.h"
 #include "kzap.h"
+#include "vmu.h"
+#include "ui.h"
+#include "text_draw.h"
 
 int	current_skill;
 int	gHostSpawnCount = 0;
+
+
+// Cheat page of the debug menu. Each of these points at the menu item's own
+// value, so the poller can see when the player flips one and issue the command
+// that brings the game back in step.
+int*		gpCheatFly;
+int*		gpCheatNoclip;
+int*		gpCheatNotarget;
+int*		gpCheatGod;
+int*		gpCheatSlomo;
+int*		gpCheatAllies;
+int*		gpCheatAmmo;
+int*		gpCheatWeapons;
+int*		gpCheatEverything;
+int*		gpCheatHealth;
+int*		gpCheatUnused;
+int*		gpCheatGravity;
+
+// What the give lists still owe the player, and where the weapon list is up to
+int			gGiveHealth;
+int			gGiveItems;
+int			gGiveWeapon;
+int			gGiving;
+
+extern int		gAlliesFriendly;
+extern cvar_t	host_framerate;
+
+// Whether the slow-motion debug framerate is on.
+int		gSlomo;
+
+// Save the skill-select screen is about to load, and whether the game resumed
+// into the middle of a chapter rather than its opening.
+char	gszPreloadSkill[64];
+int		gResumedSave;
+
+
+
+extern cvar_t	sv_lan;
+void	COM_CheckAuthenticationType( void );
+
+extern cvar_t*	sv_allow_download;
+extern cvar_t*	sv_allow_upload;
 
 // Slack at the end of a save block. The token list is walked one step past its
 // last terminator and the data buffer is rounded up to four bytes, so the block
 // needs a little more room than the sizes stored in the file account for.
 #define SAVE_HEAPSLACK	32
 
-// Savegame file I/O goes through the GD-ROM aware handle helpers rather than
-// stdio, so a save can be read straight out of a pack or the memory card.
-void*			Sys_OpenHandle( const char* path, const char* mode );
-int				Sys_CloseHandle( void* hFile );
-unsigned int	DC_fread( void* buffer, unsigned int size, unsigned int count, void* hFile );
-unsigned int	DC_fwrite( void* buffer, unsigned int size, unsigned int count, void* hFile );
-int				DC_fseek( void* hFile, int offset, int whence );
-int				DC_ftell( void* hFile );
-unsigned long	DC_fsize( void* hFile );
-
-extern	cvar_t*	sv_allow_download;
-extern	cvar_t*	sv_allow_upload;
-
-// Memory card save storage
-extern int	gSaveGameSize;
-extern char	vmuSaveComment[64];
-extern char	vmuSaveTitle[16];
-extern char* VMU_MarkSlotSaved( void );
-
-extern int	g_Language;
-
-extern cvar_t	exportdicts;
-extern cvar_t	exportsaves;
-
-int		Cache_FlushToDisk( void );
-int		Host_SaveGameSize( void );
-int		Host_SaveGameSizeHL1( char* pName );
-int		VMU_SaveGameHL1( char* pName );
-void	VMU_FormatSlotName( char* pName );
-void	VMU_SetCurrentDevice( int device );
-void	GDROM_ConfigureDoorBehavior( void );
-void	UnzipSaveGame( char* pszDir, char* pszName );
-int		Bexport_handle( bfile_t* h );
+// Scratch path a packed save is expanded into before it is read back
+#define UNZIP_TEMP_FILE	"\\CD-ROM\\valve\\SAVE\\UnzipTmp.sdj"
 
 typedef struct
 {
@@ -249,10 +263,7 @@ static int Rcon_Validate( void )
 	if (!strlen(rcon_password.string))
 		return 0;
 
-	if (strcmp(Cmd_Argv(1), rcon_password.string))
-		return 0;
-
-	return 1;
+	return !strcmp(Cmd_Argv(1), rcon_password.string);
 }
 
 /*
@@ -276,12 +287,12 @@ void Host_RemoteCommand( netadr_t* net_from )
 	if (valid)
 	{
 		Con_Printf("Rcon from %s:\n%s\n", NET_AdrToString(*net_from), net_message.data + 4);
-		Log_Printf("Rcon from \"%s\": \"%s\"\n", NET_AdrToString(*net_from), net_message.data + 4);
+		Log_Printf("Rcon from \"%s\":\"(%s)\"\n", NET_AdrToString(*net_from), net_message.data + 4);
 	}
 	else
 	{
 		Con_Printf("Bad rcon from %s:\n%s\n", NET_AdrToString(*net_from), net_message.data + 4);
-		Log_Printf("Bad Rcon from \"%s\": \"%s\"\n", NET_AdrToString(*net_from), net_message.data + 4);
+		Log_Printf("Bad Rcon from \"%s\":\"(%s)\"\n", NET_AdrToString(*net_from), net_message.data + 4);
 	}
 
 	Host_BeginRedirect(RD_PACKET, net_from);
@@ -308,92 +319,11 @@ void Host_RemoteCommand( netadr_t* net_from )
 
 /*
 ==================
-Host_Quit_f
-==================
-*/
-void Host_Quit_f( void )
-{
-	if (Cmd_Argc() == 1)
-	{
-		giActive = DLL_CLOSE;
-
-		if (cls.state != ca_dedicated)
-			CL_Disconnect();
-
-		Host_ShutdownServer(FALSE);
-		Sys_Quit();
-	}
-
-	giActive = DLL_PAUSED;
-	giStateInfo = 4;
-}
-
-/*
-==================
-Host_Status_PrintClient
-
-Print client info to console
-==================
-*/
-void Host_Status_PrintClient( char* pszState, qboolean fromcbuf, void (*print) ( char* fmt, ... ), int playernum, client_t* client )
-{
-	int			seconds;
-	int			minutes;
-	int			hours = 0;
-
-	seconds = (int)(realtime - client->netchan.connect_time);
-	minutes = seconds / 60;
-	if (minutes)
-	{
-		seconds %= 60;
-		hours = minutes / 60;
-		if (hours)
-			minutes %= 60;
-	}
-	else
-		hours = 0;
-
-	print("#%-2u %-12.12s\n", playernum + 1, client->name);
-	print("   frags:  %3i\n", client->edict->v.frags);
-
-	if (hours)
-		print("   time :  %2i:%02i:%02i\n", hours, minutes, seconds);
-	else
-		print("   time :  %02i:%02i\n", minutes, seconds);
-
-	print("   frame rate :  %4i\n", (int)(1000.0f * client->netchan.frame_rate));
-	print("   frame latency :  %4i\n", (int)(1000.0f * client->netchan.frame_latency));
-	print("   ping :  %4i\n", SV_CalcPing(client));
-	print("   drop :  %5.2f %%\n", 100.0f * client->netchan.drop_count / client->netchan.incoming_sequence);
-
-	if (pszState && pszState[0])
-		print("   %s\n", pszState);
-
-	if (client->spectator)
-	{
-		print("  (spectator) %s\n", NET_BaseAdrToString(client->netchan.remote_address));
-	}
-	else if (client->fakeclient)
-	{
-		print("  (fake)\n");
-	}
-	else if (fromcbuf)
-	{
-		print("   %s\n", NET_BaseAdrToString(client->netchan.remote_address));
-	}
-	print("\n");
-}
-
-
-/*
-==================
 Host_Status_f
 ==================
 */
 void Host_Status_f( void )
 {
-	client_t* client;
-	int			j;
 	int			players, spectators;
 	void		(*print) ( char* fmt, ... );
 
@@ -412,9 +342,17 @@ void Host_Status_f( void )
 	// ============================================================
 	// Server status information.
 	print("hostname:  %s\n", Cvar_VariableString("hostname"));
-	print("build   :  %d\n", build_number());
-	print("tcp/ip  :  %s\n", NET_AdrToString(net_local_adr));
-	print(" map     :  %s\n", sv.name);
+	print("version :  %s\n", gpszVersionString);
+	print("build   :  Dreamcast %d\n", build_number());
+
+	if (!noip)
+		print("tcp/ip  :  %s\n", NET_AdrToString(net_local_adr));
+
+	if (!noipx)
+		print("ipx     :  %s\n", NET_AdrToString(net_local_ipx_adr));
+
+	print(" map     :  %s at: %d x, %d y, %d z\n", sv.name,
+		(int)r_origin[0], (int)r_origin[1], (int)r_origin[2]);
 
 	SV_CountPlayers(&players, &spectators);
 
@@ -422,18 +360,6 @@ void Host_Status_f( void )
 		print(" players: %i active (%i spectators) (%i max)\n\n", players, spectators, svs.maxclients);
 	else
 		print(" players: %i active (%i max)\n\n", players, svs.maxclients);
-
-	for (j = 0, client = svs.clients; j < svs.maxclients; j++, client++)
-	{
-		if (!client->active)
-		{
-			if (client->connected)
-				Host_Status_PrintClient("CONNECTING", cmd_source == src_command, print, j, client);		
-			continue;
-		}
-
-		Host_Status_PrintClient(NULL, cmd_source == src_command, print, j, client);
-	}
 }
 
 /*
@@ -462,6 +388,23 @@ void Host_God_f( void )
 		SV_ClientPrintf("godmode OFF\n");
 	else
 		SV_ClientPrintf("godmode ON\n");
+}
+
+/*
+==================
+Cmd_slomo_f
+
+Toggle the slow-motion debug framerate
+==================
+*/
+void Cmd_slomo_f( void )
+{
+	gSlomo = !gSlomo;
+
+	if (gSlomo)
+		Cbuf_AddText("host_framerate 0.007\n");
+	else
+		Cbuf_AddText("host_framerate 0\n");
 }
 
 void Host_Notarget_f( void )
@@ -497,7 +440,9 @@ int FindPassableSpace( edict_t* pEdict, vec_t* direction, float step )
 
     for (i = 0; i < 100; i++)
     {
-        VectorMA(pEdict->v.origin, step, direction, pEdict->v.origin);
+		pEdict->v.origin[0] += direction[0] * step;
+		pEdict->v.origin[1] += direction[1] * step;
+		pEdict->v.origin[2] += direction[2] * step;
 
 		if (!SV_TestEntityPosition(pEdict))
         {
@@ -527,36 +472,35 @@ void Host_Noclip_f( void )
 		return;
 
 	if (sv_player->v.movetype != MOVETYPE_NOCLIP)
-    {
+	{
 		noclip_anglehack = TRUE;
 		sv_player->v.movetype = MOVETYPE_NOCLIP;
 		SV_ClientPrintf("noclip ON\n");
-    }
-    else
-    {
+	}
+	else
+	{
 		noclip_anglehack = FALSE;
-        sv_player->v.movetype = MOVETYPE_WALK;
-        VectorCopy(sv_player->v.origin, sv_player->v.oldorigin);
+		sv_player->v.movetype = MOVETYPE_WALK;
+		VectorCopy(sv_player->v.origin, sv_player->v.oldorigin);
 		SV_ClientPrintf("noclip OFF\n");
 
 		if (SV_TestEntityPosition(sv_player))
-        {
-            vec3_t forward, right, up;
+		{
+			vec3_t forward, right, up;
 			AngleVectors(sv_player->v.v_angle, forward, right, up);
 
 			if (!FindPassableSpace(sv_player, forward, 1.0)
-                && !FindPassableSpace(sv_player, right, 1.0)
-                && !FindPassableSpace(sv_player, right, -1.0)		// left
-                && !FindPassableSpace(sv_player, up, 1.0)			// up
-                && !FindPassableSpace(sv_player, up, -1.0)			// down
-                && !FindPassableSpace(sv_player, forward, -1.0))	// back
-            {
-				Con_DPrintf("Can't find the world\n");
-            }
+				&& !FindPassableSpace(sv_player, right, 1.0)
+				&& !FindPassableSpace(sv_player, right, -1.0)	// left
+				&& !FindPassableSpace(sv_player, up, 1.0)		// up
+				&& !FindPassableSpace(sv_player, up, -1.0))		// down
+			{
+				FindPassableSpace(sv_player, forward, -1.0);	// back
+			}
 
-            VectorCopy(sv_player->v.oldorigin, sv_player->v.origin);
-        }
-    }
+			VectorCopy(sv_player->v.oldorigin, sv_player->v.origin);
+		}
+	}
 }
 
 /*
@@ -589,6 +533,195 @@ void Host_Fly_f( void )
 	}
 }
 
+
+/*
+==================
+Host_ValidGame
+
+Keep the cheat page of the debug menu in step with the game: whenever a toggle
+and the state it controls disagree, run the command that reconciles them. The
+give lists are handed out one entry per call so a full loadout arrives over
+several frames instead of all at once.
+==================
+*/
+void Host_ValidGame( void )
+{
+	if (gpCheatFly)
+	{
+		if (*gpCheatFly && sv_player->v.movetype != MOVETYPE_FLY)
+			Cbuf_AddText("fly\n");
+
+		if (!*gpCheatFly && sv_player->v.movetype == MOVETYPE_FLY)
+			Cbuf_AddText("fly\n");
+	}
+
+	if (gpCheatNoclip)
+	{
+		if (*gpCheatNoclip && sv_player->v.movetype != MOVETYPE_NOCLIP)
+			Cbuf_AddText("noclip\n");
+
+		if (!*gpCheatNoclip && sv_player->v.movetype == MOVETYPE_NOCLIP)
+			Cbuf_AddText("noclip\n");
+	}
+
+	if (gpCheatNotarget)
+	{
+		if (*gpCheatNotarget && !((int)sv_player->v.flags & FL_NOTARGET))
+			Cbuf_AddText("notarget\n");
+
+		if (!*gpCheatNotarget && ((int)sv_player->v.flags & FL_NOTARGET))
+			Cbuf_AddText("notarget\n");
+	}
+
+	if (gpCheatGod)
+	{
+		if (*gpCheatGod && !((int)sv_player->v.flags & FL_GODMODE))
+			Cbuf_AddText("god\n");
+
+		if (!*gpCheatGod && ((int)sv_player->v.flags & FL_GODMODE))
+			Cbuf_AddText("god\n");
+	}
+
+	if (gpCheatSlomo)
+	{
+		if (*gpCheatSlomo && host_framerate.value == 0)
+			Cbuf_AddText("slomo\n");
+
+		if (!*gpCheatSlomo && host_framerate.value != 0)
+			Cbuf_AddText("slomo\n");
+	}
+
+	if (gpCheatAllies)
+	{
+		if (*gpCheatAllies && !gAlliesFriendly)
+			Cbuf_AddText("impulse 222\n");
+
+		if (!*gpCheatAllies && gAlliesFriendly)
+			Cbuf_AddText("impulse 222\n");
+	}
+
+	if (gpCheatGravity)
+	{
+		if (*gpCheatGravity && sv_gravity.value > 400)
+			Cbuf_AddText("sv_gravity 200\n");
+
+		if (!*gpCheatGravity && sv_gravity.value < 400)
+			Cbuf_AddText("sv_gravity 800\n");
+	}
+
+	// Health arrives a kit at a time
+	if (gpCheatHealth && *gpCheatHealth)
+	{
+		gGiveHealth += 8;
+		*gpCheatHealth = 0;
+	}
+
+	if (gGiveHealth)
+	{
+		gGiving = TRUE;
+		gGiveHealth--;
+		Cbuf_AddText("give item_healthkit\n");
+	}
+	else
+	{
+		gGiving = FALSE;
+	}
+
+	if (gpCheatAmmo && *gpCheatAmmo)
+	{
+		gGiveItems += 8;
+		*gpCheatAmmo = 0;
+	}
+
+	if (gpCheatWeapons && *gpCheatWeapons)
+	{
+		gGiveItems += 16;
+		*gpCheatWeapons = 0;
+	}
+
+	if (gpCheatEverything && *gpCheatEverything)
+	{
+		gGiveItems += 24;
+		*gpCheatEverything = 0;
+	}
+
+	if (!gGiveItems)
+	{
+		gGiving = FALSE;
+		return;
+	}
+
+	gGiving = TRUE;
+
+	if (gGiveItems >= 8)
+		Cbuf_AddText("give item_suit\n");
+
+	gGiveItems--;
+
+	switch (gGiveWeapon % 9)
+	{
+	case 0:
+		Cbuf_AddText("give item_battery\n");
+		break;
+	case 1:
+		Cbuf_AddText("give weapon_9mmhandgun\n");
+		Cbuf_AddText("give ammo_9mmclip\n");
+		break;
+	case 2:
+		Cbuf_AddText("give weapon_shotgun\n");
+		Cbuf_AddText("give ammo_buckshot\n");
+		break;
+	case 3:
+		Cbuf_AddText("give weapon_9mmAR\n");
+		Cbuf_AddText("give ammo_9mmAR\n");
+		break;
+	case 4:
+		Cbuf_AddText("give weapon_9mmAR\n");
+		Cbuf_AddText("give ammo_ARgrenades\n");
+		break;
+	case 5:
+		Cbuf_AddText("give weapon_357\n");
+		Cbuf_AddText("give ammo_357\n");
+		break;
+	case 6:
+		Cbuf_AddText("give weapon_rpg\n");
+		Cbuf_AddText("give ammo_rpgclip\n");
+		break;
+	case 7:
+		Cbuf_AddText("give weapon_satchel\n");
+		break;
+	case 8:
+		Cbuf_AddText("give weapon_snark\n");
+		break;
+	}
+
+	// The second campaign never sees the Xen weapons
+	if (strncmp(sv.name, "ba_", 3))
+	{
+		gGiveItems--;
+
+		switch (gGiveWeapon % 4)
+		{
+		case 0:
+			Cbuf_AddText("give weapon_tripmine\n");
+			break;
+		case 1:
+			Cbuf_AddText("give weapon_crossbow\n");
+			Cbuf_AddText("give ammo_crossbow\n");
+			break;
+		case 2:
+			Cbuf_AddText("give weapon_gauss\n");
+			Cbuf_AddText("give weapon_egon\n");
+			Cbuf_AddText("give ammo_gaussclip\n");
+			break;
+		case 3:
+			Cbuf_AddText("give weapon_hornetgun\n");
+			break;
+		}
+	}
+
+	gGiveWeapon++;
+}
 
 /*
 ==================
@@ -626,6 +759,87 @@ SERVER TRANSITIONS
 
 
 /*
+==================
+Cmd_menu_f
+
+Open a menu page by name; "main" becomes the in-game menu once a level is up
+==================
+*/
+void Cmd_menu_f( void )
+{
+	if (!strcmp("main", Cmd_Argv(1)) && cls.state == ca_active)
+		UI_OpenMenu("gamemenu");
+	else
+		UI_OpenMenu(Cmd_Argv(1));
+}
+
+/*
+==================
+Cmd_c0dez_f
+
+Unlock every menu entry
+==================
+*/
+void Cmd_c0dez_f( void )
+{
+	M_EnableAllItems();
+}
+
+/*
+==================
+Cmd_screensaver_f
+==================
+*/
+void Cmd_screensaver_f( void )
+{
+	g_bScreenSaverActive = atoi(Cmd_Argv(1));
+}
+
+/*
+==================
+Cmd_startgame_f
+
+Switch to the named campaign and set up the map it starts on
+==================
+*/
+void Cmd_startgame_f( void )
+{
+	COM_ChangeGameDir(Cmd_Argv(1));
+	Cache_FreeAllLRU();
+	CL_Disconnect_f();
+	GL_UnloadTextures();
+
+	if (!strcmp(Cmd_Argv(1), "barney"))
+		Cvar_Set("HostMap", "ba_tram1");
+	else
+		Cvar_Set("HostMap", "c0a0");
+
+	S_Init();
+	HUD_Reset();
+}
+
+/*
+==================
+Host_AllowChangelevel
+
+A single player game walks from level to level as the story goes; a server with
+other people on it only does it when deathmatch is running the map rotation.
+==================
+*/
+static __inline qboolean Host_AllowChangelevel( void )
+{
+	if (svs.maxclients > 1)
+	{
+		if (deathmatch.value)
+			return TRUE;
+
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+/*
 ======================
 Host_Map
 ======================
@@ -637,7 +851,9 @@ void Host_Map( qboolean bIsDemo, char* mapstring, char* mapName, qboolean loadGa
 	CL_Disconnect();
 	Host_ShutdownServer(FALSE);
 
+	con_backscroll = 0;
 	key_dest = key_game;			// remove console or menu
+	Sys_SetTaskName("client disconnected and server shut down");
 	SCR_BeginLoadingPlaque();
 
 	if (!loadGame)
@@ -649,8 +865,18 @@ void Host_Map( qboolean bIsDemo, char* mapstring, char* mapName, qboolean loadGa
 
 	strcpy(cls.mapstring, mapstring);
 
+	if (!Host_AllowChangelevel())
+		return;
+
+	// Give the level all the memory that is going spare
+	Cache_FreeAll();
+	Bshrink_all();
+	CompactAllHeaps();
+
 	if (!SV_SpawnServer(bIsDemo, mapName, NULL))
 		return;
+
+	Sys_SetTaskName("SV_SpawnServer complete");
 
 	if (loadGame)
 	{
@@ -659,14 +885,19 @@ void Host_Map( qboolean bIsDemo, char* mapstring, char* mapName, qboolean loadGa
 			SV_LoadEntities();
 		}
 
+		Sys_SetTaskName("entities loaded");
+
 		sv.paused = TRUE;		// pause until all clients connect
 		sv.loadgame = TRUE;
 		SV_ActivateServer(FALSE);
+		Sys_SetTaskName("server activated");
 	}
 	else
 	{
 		SV_LoadEntities();
+		Sys_SetTaskName("entities loaded");
 		SV_ActivateServer(TRUE);
+		Sys_SetTaskName("server activated");
 
 		if (!sv.active)
 			return;
@@ -705,6 +936,8 @@ void Host_Map( qboolean bIsDemo, char* mapstring, char* mapName, qboolean loadGa
 	{
 		Cmd_ExecuteString("connect local", src_command);
 	}
+
+	Sys_SetTaskName("local client connected");
 }
 
 /*
@@ -719,8 +952,10 @@ command from the console.  Active clients are kicked off.
 void Host_Map_f( void )
 {
 	int		i, len;
-	char	mapstring[MAX_QPATH];
-	char	name[MAX_QPATH];
+	char	mapstring[48];
+	char	name[48];
+
+	CL_StartProgressBar();
 
 	if (cmd_source != src_command)
 		return;
@@ -734,9 +969,20 @@ void Host_Map_f( void )
 	strcat(mapstring, "\n");
 
 	strcpy(name, Cmd_Argv(1));
+	COM_StringToLower(name);
+
+	// Starting a map from the console: the game rules have to be up before the
+	// level can spawn into them
+	if (!svs.dll_initialized)
+	{
+		Cbuf_Execute();
+		gpGlobals = &gGlobalVariables;
+		GameDLLInit();
+		Cbuf_Execute();
+	}
 
 	len = strlen(name);
-	if (len > 4 && !_stricmp(&name[len - 4], ".bsp"))
+	if (len > 4 && !Q_strcasecmp(&name[len - 4], ".bsp"))
 		name[len - 4] = 0;
 
 	if (!PF_IsMapValid_I(name))
@@ -747,9 +993,16 @@ void Host_Map_f( void )
 		return;
 	}
 
+	// A server with other people on it has to know how it is authenticating them
+	if (svs.maxclients > 1 && !sv_lan.value)
+		COM_CheckAuthenticationType();
+
+	GL_UnloadTextures();
 	Cvar_Set("HostMap", name);
 
+	Sys_SetTaskName("About to Host_Map");
 	Host_Map(FALSE, mapstring, name, FALSE);
+	Sys_SetTaskName("Host_Map complete");
 }
 
 /*
@@ -788,12 +1041,13 @@ Goes to a new map, taking all clients along
 */
 void Host_Changelevel_f( void )
 {
-	char	level[MAX_QPATH];
-	char	_startspot[MAX_QPATH];
+	char	level[48];
+	char	_startspot[48];
 	char*   startspot;
 
+	CL_StartProgressBar();
 
-	if (Cmd_Argc() < 2)
+	if (Cmd_Argc() < 2 || !Host_AllowChangelevel())
 	{
 		Con_Printf("changelevel <levelname> : continue game on a new level\n");
 		return;
@@ -817,6 +1071,7 @@ void Host_Changelevel_f( void )
 
 	// stop sounds (especially looping!)
 	S_StopAllSounds(TRUE);
+	S_ClearBuffer(TRUE);
 
 	strcpy(level, Cmd_Argv(1));
 	if (Cmd_Argc() == 2)
@@ -829,51 +1084,22 @@ void Host_Changelevel_f( void )
 
 	SV_InactivateClients();
 
+	// Make room for the new level
+	Cache_FlushToDisk();
+	Cache_FreeAll();
+	Bshrink_all();
+	CompactAllHeaps();
+
 	SV_SpawnServer(FALSE, level, startspot);
 	SV_LoadEntities();
 	SV_ActivateServer(TRUE);
-}
 
-char* Host_FindRecentSave( char* pNameBuf )
-{
-	HANDLE		findfn;
-	BOOL		nextfile;
-	WIN32_FIND_DATAA ffd;
-	int	        found;
-	FILETIME	newest;
-
-	sprintf(pNameBuf, "%s*.sav", Host_SaveGameDirectory());
-
-	findfn = FindFirstFile(pNameBuf, &ffd);
-	if (findfn == INVALID_HANDLE_VALUE)
-		return NULL;
-
-	found = 0;
-
-	do
-	{
-		// Don't load HLSave.sav -- it's a temporary file used by the launcher when switching video modes
-		if (_stricmp(ffd.cFileName, "HLSave.sav"))
-		{
-			// Should we use the matche?
-			if (!found || CompareFileTime(&newest, &ffd.ftLastWriteTime) < 0)
-			{
-				newest = ffd.ftLastWriteTime;
-				strcpy(pNameBuf, ffd.cFileName);
-				found = 1;
-			}
-		}
-
-		// Any more save files
-		nextfile = FindNextFile(findfn, &ffd);
-	} while (nextfile);
-
-	FindClose(findfn);
-
-	if (found)
-		return pNameBuf;
-
-	return NULL;
+	// And drop everything the old level left behind
+	Cache_FreeStale();
+	Cache_FlushToDisk();
+	Cache_FreeAll();
+	Cache_FlushUnlocked();
+	GL_UnloadTextures();
 }
 
 /*
@@ -927,7 +1153,7 @@ void Host_Reload_f( void )
 	// See if there is a most recently saved game
 	// Restart that game if there is
 	// Otherwise, restart the starting game map
-	pSaveName = Host_FindRecentSave(name);
+	pSaveName = Host_FindRecentSave();
 	if (pSaveName && Host_Load(pSaveName))
 		return;
 
@@ -993,29 +1219,6 @@ void Host_Connect_f( void )
 	strcpy(name, Cmd_Args());
 	strncpy(cls.servername, name, sizeof(cls.servername) - 1);
 	CL_Connect_f();
-}
-
-/*
-=====================
-Host_Spectate_f
-
-User command to connect to server as spectator
-=====================
-*/
-void Host_Spectate_f( void )
-{
-	char	name[MAX_QPATH];
-
-	cls.demonum = -1;		// stop demo loop in case this fails
-	if (Cmd_Argc() < 2 || !Cmd_Args())
-	{
-		Con_Printf("Usage:  spectate <server>\n");
-		return;
-	}
-
-	strcpy(name, Cmd_Args());
-	strncpy(cls.servername, name, sizeof(cls.servername) - 1);
-	CL_Spectate_f();
 }
 
 /*
@@ -1214,7 +1417,7 @@ SAVERESTOREDATA* SaveInit( int size )
 	pSaveData->pTable = (ENTITYTABLE*)(pSaveData + 1); // skip the save structure
 	pSaveData->tokenSize = 0;
 	pSaveData->tokenCount = 0xfff; // Assume a maximum of 4K-1 symbol table entries(each of some length)
-	pSaveData->pTokens = (char**)calloc(pSaveData->tokenCount, sizeof(char*));
+	pSaveData->pTokens = (char**)calloc(pSaveData->tokenCount + 8, sizeof(char*));
 
 	for (i = 0; i < sv.num_edicts; i++)
 	{
@@ -1229,16 +1432,16 @@ SAVERESTOREDATA* SaveInit( int size )
 	}
 
 	pSaveData->tableCount = sv.num_edicts;
-	pSaveData->size = 0;
-	pSaveData->time = gGlobalVariables.time; // Use DLL time
-	pSaveData->fUseLandmark = FALSE;
-	pSaveData->bufferSize = size;
 	pSaveData->connectionCount = 0;
 
 	pSaveData->pBaseData = (char*)(pSaveData->pTable + sv.num_edicts); // skip the save structure
-	pSaveData->pCurrentData = (char*)(pSaveData->pTable + sv.num_edicts); // reset the pointer
+	pSaveData->pCurrentData = pSaveData->pBaseData; // reset the pointer
+	pSaveData->size = 0;
+	pSaveData->bufferSize = size;
 
+	pSaveData->time = gGlobalVariables.time; // Use DLL time
 	VectorCopy(vec3_origin, pSaveData->vecLandmarkOffset);
+	pSaveData->fUseLandmark = FALSE;
 
 	// share with dlls
 	gGlobalVariables.pSaveData = pSaveData;
@@ -1415,18 +1618,6 @@ BOOL SaveGameSlot( const char* pSaveName, const char* pSaveComment, int fake )
 	SaveExit(pSaveData);
 
 	return TRUE;
-}
-
-/*
-=================
-CL_HudMessage
-
-Let the engine execute HUD message from client
-=================
-*/
-void CL_HudMessage( const char* pMessage )
-{
-	DispatchDirectUserMsg("HudText", strlen(pMessage), (void*)pMessage);
 }
 
 /*
@@ -1619,6 +1810,79 @@ DLL_EXPORT int LoadGame( char* pName )
 	return iRet;
 }
 
+/*
+==================
+Cmd_preloadskill_f
+
+Remember which save the skill-select screen is about to load
+==================
+*/
+void Cmd_preloadskill_f( void )
+{
+	strcpy(gszPreloadSkill, Cmd_Argv(1));
+}
+
+/*
+==================
+Cmd_loadskill_f
+
+Load the save that goes with the skill the player just chose
+==================
+*/
+void Cmd_loadskill_f( void )
+{
+	char	name[64];
+	char*	pFormat;
+
+	if (cmd_source != src_command)
+		return;
+
+	switch ((int)skill.value)
+	{
+	case 1:
+		pFormat = "%s_easy.sav";
+		break;
+	case 2:
+		pFormat = "%s.sav";
+		break;
+	case 3:
+		pFormat = "%s_hard.sav";
+		break;
+	default:
+		pFormat = "%s.sav";
+		break;
+	}
+
+	if (Cmd_Argc() == 2)
+	{
+		sprintf(name, pFormat, Cmd_Argv(1));
+	}
+	else
+	{
+		if (Cmd_Argc() != 1)
+		{
+			Con_Printf("loadskill <savename> : load a game\n");
+			return;
+		}
+
+		sprintf(name, pFormat, gszPreloadSkill);
+	}
+
+	if (!Host_Load(name))
+	{
+		Con_Printf("Error loading saved game\n");
+	}
+	else
+	{
+		// The chapter openings play their own intro instead
+		if (strncmp(gszPreloadSkill, "c0a0", 4)
+		 && strncmp(gszPreloadSkill, "c1a0", 4)
+		 && strncmp(gszPreloadSkill, "ba_security", 11)
+		 && strncmp(gszPreloadSkill, "ba_tram", 7))
+			gResumedSave = 1;
+	}
+}
+
 int Host_Load( const char* pName )
 {
 	void* pFile;
@@ -1626,9 +1890,12 @@ int Host_Load( const char* pName )
 	char			name[256];
 	int             c;
 	char* pTempNumber;
-	char            szNumber[5] = { 0 };
+	char            szNumber[5];
 	int             nSlot;
-	
+
+	// The loaded level brings its own set in, and the save block needs the room
+	GL_UnloadTextures();
+
 	if (!pName || !pName[0])
 		return FALSE;
 
@@ -1639,34 +1906,47 @@ int Host_Load( const char* pName )
 		c = 0;
 
 		// Extract up to 5 digits from slot number
-		while (*pTempNumber && c < sizeof(szNumber))
-		{
-			if (!isdigit(*pTempNumber))
-				break;
-
+		while (*pTempNumber && isdigit(*pTempNumber) && c < 5)
 			szNumber[c++] = *pTempNumber++;
-		}
+
 		szNumber[c] = 0;
 
 		nSlot = atoi(szNumber);
-		if (nSlot < 1 || nSlot > 12)
+		if (nSlot >= 1 && nSlot <= 12)
+			sprintf(name, "%sHalf-Life-%i", Host_SaveGameDirectory(), nSlot);
+		else
 			return FALSE;
-
-		sprintf(name, "%sHalf-Life-%i", Host_SaveGameDirectory(), nSlot);
 	}
 	else
 	{
 		sprintf(name, "%s%s", Host_SaveGameDirectory(), pName);
 	}
 
+	// Loading straight off the title screen: the game rules have to be up
+	// before there is anything to restore into
+	if (!svs.dll_initialized)
+	{
+		Cbuf_Execute();
+		gpGlobals = &gGlobalVariables;
+		GameDLLInit();
+		Cbuf_Execute();
+	}
+
 	COM_DefaultExtension(name, ".sav");
 	COM_FixSlashes(name);
-	Con_Printf("Loading game from %s...\n", name);
 
-	pFile = Sys_OpenHandle(name, "rb");
+	// A save the player picked off the memory card isn't resident yet
+	if (!FileExists(name))
+		Bfetch_disc(name);
+
+	if (Zip_DecompressFile(name, UNZIP_TEMP_FILE) != 1)
+		return FALSE;
+
+	pFile = Sys_OpenHandle(UNZIP_TEMP_FILE, "rb");
 	if (!pFile)
 		return FALSE;
 
+	CL_StartProgressBar();
 	Host_ClearGameState();
 
 	if (!SaveReadHeader(pFile, &gameHeader, TRUE))
@@ -1682,10 +1962,13 @@ int Host_Load( const char* pName )
 
 	DirectoryExtract(pFile, gameHeader.mapCount);
 	Sys_CloseHandle(pFile);
+	Bremove_path(UNZIP_TEMP_FILE);
+
+	// Bring the memory card's copy of the level set in behind it
+	VMU_LoadGameHL4_Thunk(name);
 
 	Cvar_SetValue("deathmatch", 0.0);
 	Cvar_SetValue("coop", 0.0);
-	Cvar_SetValue("mp_teamplay", 0.0);
 
 	sprintf(name, "map %s\n", gameHeader.mapName);
 	Host_Map(FALSE, name, gameHeader.mapName, TRUE);
@@ -1705,7 +1988,7 @@ SAVERESTOREDATA* SaveGamestate( void )
 	char            name[256];
 	char* pTableData, * pTokenData;
 	bfile_t* pFile;
-	int             i, id, version;
+	int             i;
 	int			    dataSize, tableSize;
 	edict_t* pent;
 	SAVE_HEADER     header;
@@ -1831,12 +2114,11 @@ SAVERESTOREDATA* SaveGamestate( void )
 
 	// Write the header -- THIS SHOULD NEVER CHANGE STRUCTURE, USE SAVE_HEADER FOR NEW HEADER INFORMATION
 	// THIS IS ONLY HERE TO IDENTIFY THE FILE AND GET IT'S SIZE.
-	id = SAVEFILE_HEADER;
-	version = SAVEGAME_VERSION;
+	i = SAVEFILE_HEADER;
+	Bwrite(&i, sizeof(int), 1, pFile);
 
-	// Write the header
-	Bwrite(&id, sizeof(int), 1, pFile);
-	Bwrite(&version, sizeof(int), 1, pFile);
+	i = SAVEGAME_VERSION;
+	Bwrite(&i, sizeof(int), 1, pFile);
 
 	// Write out the tokens first so we can load them before we load the entities
 	Bwrite(&pSaveData->size, sizeof(int), 1, pFile);		// total size of all data to initialize read buffer
@@ -1939,12 +2221,32 @@ SAVERESTOREDATA* LoadSaveData( const char* level )
 
 	sprintf(name, "%s%s.HL1", Host_SaveGameDirectory(), level);
 	COM_FixSlashes(name);
-	Con_Printf("Loading game from %s...\n", name);
 
 	pFile = Sys_OpenHandle(name, "rb");
 	if (!pFile)
 	{
-		Con_Printf("ERROR: couldn't open.\n");
+		// Not unpacked yet - pull it back out of the save bundle
+		ZipSaveGame(Host_SaveGameDirectory(), level);
+
+		pFile = Sys_OpenHandle(name, "rb");
+		if (!pFile)
+		{
+			Con_Printf("ERROR: couldn't open %s.\n", name);
+			return NULL;
+		}
+	}
+	Sys_CloseHandle(pFile);
+
+	if (Zip_DecompressFile(name, UNZIP_TEMP_FILE) != 1)
+	{
+		Con_Printf("ERROR: couldn't open %s.\n", name);
+		return NULL;
+	}
+
+	pFile = Sys_OpenHandle(UNZIP_TEMP_FILE, "rb");
+	if (!pFile)
+	{
+		Con_Printf("ERROR: couldn't open %s.\n", UNZIP_TEMP_FILE);
 		return NULL;
 	}
 
@@ -1980,7 +2282,7 @@ SAVERESTOREDATA* LoadSaveData( const char* level )
 		DC_fread(pszTokenList, pSaveData->tokenSize, 1, pFile);
 
 		if (!pSaveData->pTokens)
-			pSaveData->pTokens = (char**)calloc(tokenCount, sizeof(char*));
+			pSaveData->pTokens = (char**)calloc(tokenCount + 8, sizeof(char*));
 
 		for (i = 0; i < tokenCount; i++)
 		{
@@ -1989,27 +2291,29 @@ SAVERESTOREDATA* LoadSaveData( const char* level )
 			else
 				pSaveData->pTokens[i] = NULL;
 
-			pszTokenList += strlen(pszTokenList) + 1;
+			while (*pszTokenList++)
+				;
 		}
 	}
 
-	pSaveData->pTable = (ENTITYTABLE*)pszTokenList;
-	pSaveData->connectionCount = 0;
-	pSaveData->size = 0;
+	pSaveData->pTable = (ENTITYTABLE*)(((unsigned int)pszTokenList + 3) & ~3);
+	pSaveData->currentIndex = 0;
 
 	//---------------------------------
 	// Set up the restore basis
-	pSaveData->pBaseData = (char*)(pszTokenList + (sizeof(ENTITYTABLE) * pSaveData->tableCount));
+	pSaveData->pBaseData = (char*)pSaveData->pTable + (sizeof(ENTITYTABLE) * pSaveData->tableCount);
 	pSaveData->pCurrentData = pSaveData->pBaseData;
 
-	pSaveData->fUseLandmark = TRUE;
+	pSaveData->size = 0;
 	pSaveData->bufferSize = size;
+	pSaveData->fUseLandmark = TRUE;
 	pSaveData->time = 0.0;
 	VectorCopy(vec3_origin, pSaveData->vecLandmarkOffset);
 	gGlobalVariables.pSaveData = pSaveData;
 
-	DC_fread(pSaveData->pBaseData, size, 1, pFile);
+	DC_fread(pSaveData->pBaseData, size + 3, 1, pFile);
 	Sys_CloseHandle(pFile);
+	Bremove_path(UNZIP_TEMP_FILE);
 
 	return pSaveData;
 }
@@ -2168,36 +2472,36 @@ int LoadGamestate( char* level, int createPlayers )
 		ENTITYTABLE* table;
 
 		table = &pSaveData->pTable[i];
-		pent = NULL;
 
-		if (table->classname && table->size && !(table->flags & FENTTABLE_REMOVED))
+		if (!table->classname || !table->size || (table->flags & FENTTABLE_REMOVED))
 		{
-			if (table->id)
-			{
-				if (table->id < svs.maxclients + 1)
-				{
-					if (!(table->flags & FENTTABLE_PLAYER))
-						Sys_Error("ENTITY IS NOT A PLAYER: %d\n", i);
-
-					pent = svs.clients[table->id - 1].edict;
-					if (createPlayers && pent)
-						EntityInit(pent, table->classname);
-					else
-						pent = NULL;
-				}
-				else
-				{
-					pent = CreateNamedEntity(table->classname);
-				}
-			}
-			else
+			table->pent = NULL;
+		}
+		else
+		{
+			if (!table->id)
 			{
 				pent = sv.edicts;
 				EntityInit(pent, table->classname);
 			}
-		}
+			else if (table->id < svs.maxclients + 1)
+			{
+				if (!(table->flags & FENTTABLE_PLAYER))
+					Sys_Error("ENTITY IS NOT A PLAYER: %d\n", i);
 
-		table->pent = pent;
+				pent = svs.clients[table->id - 1].edict;
+				if (createPlayers && pent)
+					EntityInit(pent, table->classname);
+				else
+					pent = NULL;
+			}
+			else
+			{
+				pent = CreateNamedEntity(table->classname);
+			}
+
+			table->pent = pent;
+		}
 	}
 
 	for (i = 0; i < pSaveData->tableCount; i++)
@@ -2205,22 +2509,23 @@ int LoadGamestate( char* level, int createPlayers )
 		ENTITYTABLE* table;
 
 		table = &pSaveData->pTable[i];
+		pent = table->pent;
 
 		pSaveData->currentIndex = i;
 		pSaveData->size = table->location;
 		pSaveData->pCurrentData = pSaveData->pBaseData + table->location;
 
-		if (table->pent)
+		if (pent)
 		{
-			if (DispatchRestore(table->pent, pSaveData, FALSE) < 0)
+			if (DispatchRestore(pent, pSaveData, FALSE) < 0)
 			{
-				ED_Free(table->pent);
 				table->pent = NULL;
+				ED_Free(pent);
 			}
 			else
 			{
 				// force the entity to be relinked
-				SV_LinkEdict(table->pent, FALSE);
+				SV_LinkEdict(pent, FALSE);
 			}
 		}
 	}
@@ -2335,11 +2640,12 @@ int CreateEntityList( SAVERESTOREDATA* pSaveData, int levelMask )
 	// Now spawn entities
 	for (i = 0; i < pSaveData->tableCount; i++)
 	{
+		pent = pSaveData->pTable[i].pent;
 		pSaveData->currentIndex = i;
 		pSaveData->size = pSaveData->pTable[i].location;
 		pSaveData->pCurrentData = pSaveData->pBaseData + pSaveData->pTable[i].location;
 
-		if (pSaveData->pTable[i].pent)
+		if (pent)
 		{
 			active = (pSaveData->pTable[i].flags & levelMask) != 0;
 
@@ -2349,29 +2655,29 @@ int CreateEntityList( SAVERESTOREDATA* pSaveData, int levelMask )
 				{
 					// Pass the "global" flag to the DLL to indicate this entity should only override
 					// a matching entity, not be spawned
-					DispatchRestore(pSaveData->pTable[i].pent, pSaveData, TRUE);
-					ED_Free(pSaveData->pTable[i].pent);
+					DispatchRestore(pent, pSaveData, TRUE);
+					ED_Free(pent);
 				}
 				else
 				{
-					if (DispatchRestore(pSaveData->pTable[i].pent, pSaveData, FALSE) < 0)
+					if (DispatchRestore(pent, pSaveData, FALSE) < 0)
 					{
-						ED_Free(pSaveData->pTable[i].pent);
+						ED_Free(pent);
 					}
 					else
 					{
-						SV_LinkEdict(pSaveData->pTable[i].pent, FALSE);
+						SV_LinkEdict(pent, FALSE);
 
-						if (!(pSaveData->pTable[i].flags & FENTTABLE_PLAYER) && EntityInSolid(pSaveData->pTable[i].pent))
+						if (!(pSaveData->pTable[i].flags & FENTTABLE_PLAYER) && EntityInSolid(pent))
 						{
 							// this can happen during normal processing - PVS is just a guess,
 							// some map areas won't exist in the new map
-							ED_Free(pSaveData->pTable[i].pent);
+							ED_Free(pent);
 						}
 						else
 						{
-							pSaveData->pTable[i].flags = FENTTABLE_REMOVED;
 							movedCount++;
+							pSaveData->pTable[i].flags = FENTTABLE_REMOVED;
 						}
 					}
 				}
@@ -2605,16 +2911,16 @@ Changing levels within a unit, uses save/restore
 */
 void Host_Changelevel2_f( void )
 {
-	char	level[MAX_QPATH];
-	char    oldlevel[MAX_QPATH];
-	char    _startspot[MAX_QPATH];
-	char* startspot;
+	char	level[48];
+	char	_startspot[48];
+	char	oldlevel[48];
+	char*	startspot;
 	SAVERESTOREDATA* pSaveData;
-	qboolean newUnit;
+	qboolean restored;
+
+	CL_StartProgressBar();
 
 	giActive = DLL_TRANS;
-
-	newUnit = FALSE;
 
 	if (Cmd_Argc() < 2)
 	{
@@ -2631,7 +2937,8 @@ void Host_Changelevel2_f( void )
 	SCR_BeginLoadingPlaque();
 
 	// stop sounds (especially looping!)
-	S_StopAllSounds(TRUE);
+	S_BlockSound(TRUE);
+	S_ClearBuffer(TRUE);
 
 	strcpy(level, Cmd_Argv(1));
 	if (Cmd_Argc() == 2)
@@ -2649,8 +2956,19 @@ void Host_Changelevel2_f( void )
 
 	strcpy(oldlevel, sv.name);
 
+	// Give the save block room to build
+	Cache_FlushToDisk();
+	Cache_FreeAll();
+
 	// save the current level's state
 	pSaveData = SaveGamestate();
+	if (pSaveData)
+		SaveExit(pSaveData);
+
+	// And give what is left to the level coming in
+	Cache_FlushToDisk();
+	Bshrink_all();
+	CompactAllHeaps();
 
 	if (!SV_SpawnServer(FALSE, level, startspot))
 	{
@@ -2658,14 +2976,10 @@ void Host_Changelevel2_f( void )
 		return;
 	}
 
-	SaveExit(pSaveData);
-
 	// try to restore the new level
-	if (!LoadGamestate(level, FALSE))
-	{
-		newUnit = TRUE;
+	restored = LoadGamestate(level, FALSE);
+	if (!restored)
 		SV_LoadEntities();
-	}
 
 	LoadAdjacentEntities(oldlevel, startspot);
 
@@ -2673,75 +2987,113 @@ void Host_Changelevel2_f( void )
 	sv.loadgame = TRUE;
 	gGlobalVariables.time = sv.time;
 
-	if (newUnit && sv_newunit.value)
+	// Walking into a fresh unit leaves nothing worth carrying over
+	if (!restored && sv_newunit.value)
 		Host_ClearSaveDirectory();
 
 	SV_ActivateServer(FALSE);
+
+	Cache_FreeStale();
+	Cache_FlushToDisk();
+	Cache_FreeAll();
+	Cache_FlushUnlocked();
+	GL_UnloadTextures();
 }
 
 //============================================================================
-
-/*
-======================
-Host_Name_f
-======================
-*/
-void Host_Name_f( void )
-{
-	char* newName;
-
-	if (Cmd_Argc() == 1)
-	{
-		Con_Printf("\"name\" is \"%s\"\n", cl_name.string);
-		return;
-	}
-	if (Cmd_Argc() == 2)
-		newName = Cmd_Argv(1);
-	else
-		newName = Cmd_Args();
-
-	if (!newName || !newName[0])
-	{
-		Con_Printf("Usage:  name <name>\n");
-		return;
-	}
-
-	newName[15] = 0;
-
-	if (cmd_source == src_command)
-	{
-		if (!Q_strcmp(cl_name.string, newName))
-			return;
-
-		Cvar_Set("_cl_name", newName);
-
-		Host_ClearSaveDirectory();
-
-		if (cls.state == ca_connected || cls.state == ca_uninitialized || cls.state == ca_active)
-			Cmd_ForwardToServer();
-		return;
-	}
-
-	if (host_client->name[0] && strcmp(host_client->name, "unconnected"))
-	{
-		if (Q_strcmp(host_client->name, newName) != 0)
-			Con_Printf("%s renamed to %s\n", host_client->name, newName);
-	}
-
-	Q_strcpy(host_client->name, newName);
-	host_client->edict->v.netname = host_client->name - pr_strings;
-
-// send notification to all clients
-
-	MSG_WriteByte(&sv.reliable_datagram, svc_updatename);
-	MSG_WriteByte(&sv.reliable_datagram, host_client - svs.clients);
-	MSG_WriteString(&sv.reliable_datagram, host_client->name);
-}
 
 void Host_Version_f( void )
 {
 	Con_Printf("Protocol version %i\nExe version %s\n", PROTOCOL_VERSION, gpszVersionString);
 	Con_Printf("Exe build: " __TIME__ " " __DATE__ "\n", build_number());
+}
+
+/*
+==================
+Host_FullInfo_f
+
+Allow clients to change userinfo
+==================
+*/
+void Host_FullInfo_f( void )
+{
+	char	key[512];
+	char	value[512];
+	char*	o;
+	char*	s;
+
+	if (Cmd_Argc() != 2)
+	{
+		Con_Printf("fullinfo <complete info string>\n");
+		return;
+	}
+
+	s = Cmd_Argv(1);
+	if (*s == '\\')
+		s++;
+
+	while (*s)
+	{
+		o = key;
+		while (*s && *s != '\\')
+			*o++ = *s++;
+		*o = 0;
+
+		if (!*s)
+		{
+			Con_Printf("MISSING VALUE\n");
+			return;
+		}
+
+		s++;
+		o = value;
+		while (*s && *s != '\\')
+			*o++ = *s++;
+		*o = 0;
+
+		if (*s)
+			s++;
+
+		if (cmd_source == src_command)
+		{
+			Info_SetValueForKey(cls.userinfo, key, value, MAX_INFO_STRING);
+			Cmd_ForwardToServer();
+			return;
+		}
+
+		Info_SetValueForKey(host_client->userinfo, key, value, MAX_INFO_STRING);
+		host_client->sendinfo = TRUE;
+	}
+}
+
+/*
+==================
+Host_SetInfo_f
+==================
+*/
+void Host_SetInfo_f( void )
+{
+	if (Cmd_Argc() == 1)
+	{
+		Info_Print(cls.userinfo);
+		return;
+	}
+
+	if (Cmd_Argc() != 3)
+	{
+		Con_Printf("usage: setinfo [ <key> <value> ]\n");
+		return;
+	}
+
+	if (cmd_source == src_command)
+	{
+		Info_SetValueForKey(cls.userinfo, Cmd_Argv(1), Cmd_Argv(2), MAX_INFO_STRING);
+		Cmd_ForwardToServer();
+		return;
+	}
+
+	Info_SetValueForKey(host_client->userinfo, Cmd_Argv(1), Cmd_Argv(2), MAX_INFO_STRING);
+	host_client->sendinfo = TRUE;
 }
 
 void Host_Say( qboolean teamonly )
@@ -2750,7 +3102,7 @@ void Host_Say( qboolean teamonly )
 	client_t* save;
 	int			j;
 	char* p;
-	char		text[64];
+	char		text[128];
 
 	if (cls.state != ca_dedicated)
 	{
@@ -2778,6 +3130,10 @@ void Host_Say( qboolean teamonly )
 
 	sprintf(text, "%c<%s> ", 1, host_name.string);
 
+	// Keep what the player typed short enough to leave room for the name
+	if (Q_strlen(p) > 63)
+		p[63] = 0;
+
 	j = sizeof(text) - 2 - Q_strlen(text);  // -2 for /n and null terminator
 	if (Q_strlen(p) > j)
 		p[j] = 0;
@@ -2787,7 +3143,7 @@ void Host_Say( qboolean teamonly )
 
 	for (j = 0, client = svs.clients; j < svs.maxclients; j++, client++)
 	{
-		if (!client || !client->active || !client->spawned)
+		if (!client || !client->active || !client->spawned || client->fakeclient)
 			continue;
 
 		host_client = client;
@@ -2797,8 +3153,6 @@ void Host_Say( qboolean teamonly )
 		PF_MessageEnd_I();
 	}
 	host_client = save;
-
-	Sys_Printf("%s", &text[1]);
 }
 
 
@@ -2867,57 +3221,6 @@ void Host_Tell_f( void )
 	host_client = save;
 }
 
-
-/*
-==================
-Host_Color_f
-==================
-*/
-void Host_Color_f( void )
-{
-	int		top, bottom;
-	int		playercolor;
-
-	if (Cmd_Argc() == 1)
-	{
-		Con_Printf("\"color\" is \"%i %i\"\n", ((int)cl_color.value) >> 4, ((int)cl_color.value) & 0x0f);
-		Con_Printf("color <0-13> [0-13]\n");
-		return;
-	}
-
-	if (Cmd_Argc() == 2)
-		top = bottom = atoi(Cmd_Argv(1));
-	else
-	{
-		top = atoi(Cmd_Argv(1));
-		bottom = atoi(Cmd_Argv(2));
-	}
-
-	top &= 15;
-	if (top > 13)
-		top = 13;
-	bottom &= 15;
-	if (bottom > 13)
-		bottom = 13;
-
-	playercolor = top * 16 + bottom;
-
-	if (cmd_source == src_command)
-	{
-		Cvar_SetValue("_cl_color", playercolor);
-		if (cls.state == ca_connected || cls.state == ca_uninitialized || cls.state == ca_active)
-			Cmd_ForwardToServer();
-		return;
-	}
-
-	host_client->colors = playercolor;
-	host_client->edict->v.team = bottom + 1;
-
-// send notification to all clients
-	MSG_WriteByte(&sv.reliable_datagram, svc_updatecolors);
-	MSG_WriteByte(&sv.reliable_datagram, host_client - svs.clients);
-	MSG_WriteByte(&sv.reliable_datagram, host_client->colors);
-}
 
 /*
 ==================
@@ -3079,7 +3382,6 @@ void Host_Spawn_f( void )
 		memset(&ent->v, 0, sizeof(ent->v));
 		InitEntityDLLFields(ent);
 		ent->v.colormap = NUM_FOR_EDICT(ent);
-		ent->v.team = (host_client->colors & 15) + 1;
 		ent->v.netname = host_client->name - pr_strings;
 
 		// make sure the time is set
@@ -3100,21 +3402,7 @@ void Host_Spawn_f( void )
 	MSG_WriteFloat(&host_client->netchan.message, sv.time);
 
 	for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
-	{
-		MSG_WriteByte(&host_client->netchan.message, svc_updatename);
-		MSG_WriteByte(&host_client->netchan.message, i);
-		MSG_WriteString(&host_client->netchan.message, client->name);
-		MSG_WriteByte(&host_client->netchan.message, svc_updatecolors);
-		MSG_WriteByte(&host_client->netchan.message, i);
-		MSG_WriteByte(&host_client->netchan.message, client->colors);
-
-		if (host_client->maxspeed)
-		{
-			MSG_WriteByte(&host_client->netchan.message, svc_clientmaxspeed);
-			MSG_WriteByte(&host_client->netchan.message, i);
-			MSG_WriteByte(&host_client->netchan.message, client->maxspeed);
-		}
-	}
+		SV_FullClientUpdate(client, &host_client->netchan.message);
 
 // send all current light styles
 	for (i = 0; i < MAX_LIGHTSTYLES; i++)
@@ -3435,23 +3723,6 @@ void Host_Viewprev_f( void )
 }
 
 /*
-==================
-Host_Interp_f
-
-Enable frame interpolation
-==================
-*/
-void Host_Interp_f( void )
-{
-	r_dointerp ^= 1;
-
-	if (!r_dointerp)
-		Con_Printf("Frame Interpolation OFF\n");
-	else
-		Con_Printf("Frame Interpolation ON\n");	
-}
-
-/*
 ===============================================================================
 
 DEMO LOOP CONTROL
@@ -3459,73 +3730,6 @@ DEMO LOOP CONTROL
 ===============================================================================
 */
 
-
-/*
-==================
-Host_Startdemos_f
-==================
-*/
-void Host_Startdemos_f( void )
-{
-	int		i, c;
-
-	if (cls.state == ca_dedicated)
-	{
-		if (!sv.active)
-			Con_Printf("Cannot play demos on a dedicated server.\n");
-		return;
-	}
-
-	c = Cmd_Argc() - 1;
-	if (c > MAX_DEMOS)
-	{
-		c = MAX_DEMOS;
-		Con_Printf("Max %i demos in demoloop\n", MAX_DEMOS);
-	}
-	Con_Printf("%i demo(s) in loop\n", c);
-
-	for (i = 1; i < c + 1; i++)
-		strncpy(cls.demos[i - 1], Cmd_Argv(i), sizeof(cls.demos[0]) - 1);
-
-	if (!sv.active && cls.demonum != -1)
-	{
-		cls.demonum = 0;
-		CL_NextDemo();
-	}
-	else
-		cls.demonum = -1;
-}
-
-
-/*
-==================
-Host_Demos_f
-
-Return to looping demos
-==================
-*/
-void Host_Demos_f( void )
-{
-	if (cls.state == ca_dedicated)
-		return;
-	if (cls.demonum == -1)
-		cls.demonum = 0;
-	CL_Disconnect_f();
-	CL_NextDemo();
-}
-
-/*
-==================
-Host_Stopdemo_f
-
-Return to looping demos
-==================
-*/
-void Host_Stopdemo_f( void )
-{
-	if (cls.state == ca_dedicated)
-		return;
-}
 
 //=============================================================================
 
@@ -3555,146 +3759,6 @@ qboolean SV_CheckChannel( char* pszChannel )
 	}
 
 	return FALSE;
-}
-
-/*
-==================
-SV_AddChannel_f
-
-Add server room
-==================
-*/
-void SV_AddChannel_f( void )
-{
-	int i;
-	qboolean bFound;
-	svchannel_t* pChannel;
-
-	if (Cmd_Argc() == 2)
-	{
-		bFound = FALSE;
-
-		// See if this channel already exists
-		i = 0;
-		pChannel = svchannels;
-		while (pChannel)
-		{
-			i++;
-			if (!_stricmp(pChannel->szServerChannel, Cmd_Argv(1)))
-			{
-				bFound = TRUE;
-				strncpy(pChannel->szServerChannel, Cmd_Argv(1), sizeof(pChannel->szServerChannel));
-				pChannel->szServerChannel[sizeof(pChannel->szServerChannel) - 1] = 0;
-				break;
-			}
-
-			pChannel = pChannel->pNext;
-		}
-
-		if (!bFound)
-		{
-			if (i >= MAX_SVCHANNELS)
-				return;
-
-			pChannel = (svchannel_t*)malloc(sizeof(svchannel_t));
-			if (!pChannel)
-				Sys_Error("Failed to allocate channel!");
-			memset(pChannel, 0, 64);
-			strncpy(pChannel->szServerChannel, Cmd_Argv(1), sizeof(pChannel->szServerChannel));
-			pChannel->szServerChannel[sizeof(pChannel->szServerChannel) - 1] = 0;
-			pChannel->bIsDefault = FALSE;
-			pChannel->pNext = svchannels;
-			svchannels = pChannel;
-		}
-
-		gfLastHearbeat = -99999;
-	}
-	else
-	{
-		Con_Printf("svaddchannel:  Adds server room (16 chars max)\ncurrent:  \n");
-
-		if (!svchannels)
-		{
-			Con_Printf("none\n");
-			return;
-		}
-
-		i = 0;
-		pChannel = svchannels;
-		while (pChannel)
-		{
-			i++;
-			if (pChannel->bIsDefault)
-				Con_Printf("  %i : %s (default)\n", i, pChannel);
-			else
-				Con_Printf("  %i : %s\n", i, pChannel);
-
-			pChannel = pChannel->pNext;
-		}
-	}
-}
-
-/*
-==================
-SV_RemoveChannel_f
-
-Remove server room
-==================
-*/
-void SV_RemoveChannel_f( void )
-{
-	qboolean bFound;
-	svchannel_t* pChannel, * pPrev;
-
-	if (Cmd_Argc() != 2)
-	{
-		Con_Printf("svremovechannel:  Removes server room (16 chars max)\n");
-		return;
-	}
-
-	bFound = FALSE;
-
-	pChannel = svchannels;
-	while (pChannel)
-	{
-		if (!_stricmp(pChannel->szServerChannel, Cmd_Argv(1)))
-		{
-			bFound = TRUE;
-			break;
-		}
-
-		pChannel = pChannel->pNext;
-	}
-
-	if (!bFound || !pChannel)
-	{
-		Con_Printf("Unknown server:  %s\n", Cmd_Argv(1));
-		return;
-	}
-
-	if (pChannel->bIsDefault)
-	{
-		Con_Printf("Can't delete default server:  %s\n", Cmd_Argv(1));
-		return;
-	}
-
-	// Remove from linked list
-	if (pChannel == svchannels)
-	{
-		svchannels = svchannels->pNext;
-	}
-	else
-	{
-		pPrev = svchannels;
-		while (pPrev->pNext != pChannel)
-		{
-			pPrev = pPrev->pNext;
-		}
-		pPrev->pNext = pChannel->pNext;
-	}
-	free(pChannel);
-
-	gfLastHearbeat = -99999;
 }
 
 /*
@@ -3735,24 +3799,6 @@ void SV_ClearChannels( qboolean bLeaveDefault )
 
 /*
 ==================
-SV_ClearChannels_f
-
-==================
-*/
-void SV_ClearChannels_f( void )
-{
-	if (Cmd_Argc() != 1)
-	{
-		Con_Printf("svclearchannels:  Clears all server room associations (except default)\n");
-		return;
-	}
-	
-	SV_ClearChannels(TRUE);
-	gfLastHearbeat = -99999;
-}
-
-/*
-==================
 SV_NextDownload_f
 
 Sends next file chunk to client. Called automatically during downloads.
@@ -3764,6 +3810,7 @@ void SV_NextDownload_f( void )
 	int		r;
 	int		percent;
 	int		size;
+	int		chunk;
 
 	if (cmd_source == src_command)
 	{
@@ -3775,22 +3822,27 @@ void SV_NextDownload_f( void )
 		return;
 
 	r = host_client->downloadsize - host_client->downloadpos;
-	if (r > 1024)
-		r = 1024;
+
+	chunk = 1024;
+	if (host_client->downloadcustom)
+		chunk = host_client->downloadchunk;
+
+	percent = host_client->downloadpos / chunk;
+	if (r > chunk)
+		r = chunk;
 	CRC32_ProcessBuffer(&host_client->downloadCRC, host_client->download + host_client->downloadpos, r);
 
 	// Send download info packet
 	MSG_WriteByte(&host_client->netchan.message, svc_download);
 	MSG_WriteShort(&host_client->netchan.message, r);
-	MSG_WriteShort(&host_client->netchan.message, host_client->downloadpos / 1024);
+	MSG_WriteShort(&host_client->netchan.message, percent);
 	MSG_WriteLong(&host_client->netchan.message, host_client->downloadCRC);
 
 	host_client->downloadpos += r;
 	size = host_client->downloadsize;
 	if (!size)
 		size = 1;
-	percent = host_client->downloadpos * 100 / size;
-	MSG_WriteByte(&host_client->netchan.message, percent);
+	MSG_WriteByte(&host_client->netchan.message, host_client->downloadpos * 100 / size);
 	SZ_Write(&host_client->netchan.message, &host_client->download[host_client->downloadpos - r], r);
 
 	if (host_client->downloadpos != host_client->downloadsize)
@@ -3798,6 +3850,8 @@ void SV_NextDownload_f( void )
 
 	COM_FreeFile(host_client->download);
 	host_client->download = NULL;
+	host_client->downloadcustom = FALSE;
+	host_client->downloadchunk = 1024;
 }
 
 /*
@@ -3862,27 +3916,6 @@ void SV_AllowUpload_f( void )
 
 /*
 ==================
-COM_Nibble
-
-Returns the 4 bit nibble for a hex character
-==================
-*/
-unsigned char COM_Nibble( char c )
-{
-	if ((c >= '0') && (c <= '9'))
-		return (unsigned char)(c - '0');
-
-	if ((c >= 'A') && (c <= 'F'))
-		return (unsigned char)(c - 'A' + 0x0a);
-
-	if ((c >= 'a') && (c <= 'f'))
-		return (unsigned char)(c - 'a' + 0x0a);
-
-	return c;
-}
-
-/*
-==================
 SV_BeginDownload_f
 
 Starts file download to client, handles both normal files and MD5-hashed resources
@@ -3891,7 +3924,6 @@ Starts file download to client, handles both normal files and MD5-hashed resourc
 void SV_BeginDownload_f( void )
 {
 	char* name;
-	FILE* file;
 
 	name = Cmd_Argv(1);
 
@@ -3917,10 +3949,8 @@ void SV_BeginDownload_f( void )
 		host_client->download = NULL;
 	}
 
-	file = NULL;
-
 	// Handle customizations
-	if (strlen(name) == 36 && !_strnicmp(name, "!MD5", 4))
+	if (strlen(name) == 36 && !Q_strnicmp(name, "!MD5", 4))
 	{
 		resource_t resource;
 		unsigned char rgucMD5_hash[16];
@@ -3933,16 +3963,29 @@ void SV_BeginDownload_f( void )
 		{
 			HPAK_GetDataPointer(HASHPAK_FILENAME, &resource, (void**)&host_client->download, &host_client->downloadsize);
 		}
+
+		// A player's own resource goes out in pieces the client's rate can take
+		host_client->downloadcustom = TRUE;
+
+		if (!host_client->active)
+			host_client->downloadchunk = 128;
+		else if (host_client->netchan.rate == 0 || host_client->netchan.rate <= 3400)
+			host_client->downloadchunk = 64;
+		else if (host_client->netchan.rate <= 4900)
+			host_client->downloadchunk = 128;
+		else if (host_client->netchan.rate <= 9900)
+			host_client->downloadchunk = 192;
+		else
+			host_client->downloadchunk = 256;
 	}
 	else
 	{
-		host_client->downloadsize = COM_FindFile(name, NULL, &file);
-		if (host_client->downloadsize != -1 && file)
-		{
+		host_client->downloadsize = COM_FileSize(name);
+		if (host_client->downloadsize != -1)
 			host_client->download = COM_LoadFile(name, 5, NULL);
-			fclose(file);
-			file = NULL;
-		}
+
+		host_client->downloadcustom = FALSE;
+		host_client->downloadchunk = 1024;
 	}
 
 	host_client->downloadpos = 0;
@@ -3968,11 +4011,6 @@ void SV_BeginDownload_f( void )
 
 	SV_NextDownload_f();
 	Con_DPrintf("Downloading %s to %s\n", name, host_client->name);
-}
-
-void Host_Reactivate_f( void )
-{
-	
 }
 
 /*
@@ -4041,8 +4079,8 @@ void Host_Soundfade_f( void )
 			inTime = 255;
 	}
 
-	cls.soundfade.nStartPercent = percent;
 	cls.soundfade.soundFadeStartTime = realtime;
+	cls.soundfade.nStartPercent = percent;
 	cls.soundfade.soundFadeOutTime = outTime;
 	cls.soundfade.soundFadeHoldTime = holdTime;
 	cls.soundfade.soundFadeInTime = inTime;
@@ -4089,28 +4127,218 @@ void Host_KillServer_f( void )
 Host_InitCommands
 ==================
 */
+/*
+==================
+Host_CRC_f
+
+Print the CRC of a map, so a server and client can be compared
+==================
+*/
+void Host_CRC_f( void )
+{
+	char		name[128];
+	CRC32_t		crc;
+	char*		pMapName;
+
+	pMapName = Cmd_Argv(1);
+	if (!pMapName)
+		return;
+
+	sprintf(name, "maps\\%s.bsp", pMapName);
+
+	CRC32_Init(&crc);
+	if (CRC_MapFile(&crc, name))
+		Con_Printf("CRC of %s = %i\n", name, crc);
+	else
+		Con_Printf("Couldn't CRC %s\n", name);
+}
+
+/*
+==================
+Cmd_logos_f
+==================
+*/
+void Cmd_logos_f( void )
+{
+	if (sv.active)
+		SV_PrintLogos();
+
+	if (cls.state != ca_dedicated && cls.state != ca_disconnected)
+		CL_PrintLogoList();
+}
+
+/*
+==================
+Host_Protocol_f
+
+Report or force the network protocol version
+==================
+*/
+void Host_Protocol_f( void )
+{
+	int		version;
+
+	if (Cmd_Argc() != 2)
+	{
+		Con_Printf("protocol is %i\n", PROTOCOL_VERSION);
+		return;
+	}
+
+	if (sv.active)
+	{
+		Con_Printf("protocol cannot be changed while a server is running.\n");
+		return;
+	}
+
+	if (cls.state != ca_dedicated && cls.state != ca_disconnected)
+	{
+		Con_Printf("protocol cannot be changed while in a game.\n");
+		return;
+	}
+
+	version = Q_atoi(Cmd_Argv(1));
+	if (version < PROTOCOL_VERSION_OLD || version > PROTOCOL_VERSION_CURRENT)
+	{
+		Con_Printf("invalid protocol, valid protocols are 35 through %i\n", PROTOCOL_VERSION_CURRENT);
+		return;
+	}
+
+	PROTOCOL_VERSION = version;
+	Protocol_Init(version);
+	Con_Printf("protocol set to %i\n", PROTOCOL_VERSION);
+}
+
+/*
+==================
+Host_GetServerList_f
+==================
+*/
+void Host_GetServerList_f( void )
+{
+	master_t*	p;
+	char		msg[5];
+
+	NET_Config(TRUE);
+
+	if (gfNoMasterServer || !valvemaster_adr)
+		return;
+
+	msg[0] = 'c';
+
+	for (p = valvemaster_adr; p != NULL; p = p->next)
+	{
+		Con_Printf("Requesting server list from %s\n", NET_AdrToString(p->adr));
+		NET_SendPacket(NS_CLIENT, 1, msg, p->adr);
+	}
+}
+
+/*
+==================
+Host_GetBatchServerList_f
+==================
+*/
+void Host_GetBatchServerList_f( void )
+{
+	master_t*	p;
+	char		msg[5];
+
+	NET_Config(TRUE);
+
+	if (!gfNoMasterServer && valvemaster_adr)
+	{
+		msg[0] = 'e';
+		*(int*)&msg[1] = 0;
+
+		for (p = valvemaster_adr; p != NULL; p = p->next)
+		{
+			Con_Printf("Requesting batch server list from %s\n", NET_AdrToString(p->adr));
+			NET_SendPacket(NS_CLIENT, sizeof(char) + sizeof(int), msg, p->adr);
+		}
+	}
+}
+
+/*
+==================
+Host_GetBatchModList_f
+==================
+*/
+void Host_GetBatchModList_f( void )
+{
+	master_t*	p;
+	char		msg[256];
+
+	NET_Config(TRUE);
+
+	if (gfNoMasterServer || !valvemaster_adr)
+		return;
+
+	sprintf(msg, "%c\r\nstart-of-list\r\n", 'x');
+
+	for (p = valvemaster_adr; p != NULL; p = p->next)
+	{
+		Con_Printf("Requesting batch mod status from %s\n", NET_AdrToString(p->adr));
+		NET_SendPacket(NS_CLIENT, strlen(msg) + 1, msg, p->adr);
+	}
+}
+
+/*
+==================
+Cmd_pingsv_f
+==================
+*/
+void Cmd_pingsv_f( void )
+{
+}
+
+/*
+==================
+Cmd_notify_f
+==================
+*/
+void Cmd_notify_f( void )
+{
+	UI_OpenMenu("notify");
+}
+
+/*
+==================
+Cmd_getcertificate_f
+==================
+*/
+void Cmd_getcertificate_f( void )
+{
+}
+
 void Host_InitCommands( void )
 {
+	Cmd_AddCommand("menu", Cmd_menu_f);
+	Cmd_AddCommand("startgame", Cmd_startgame_f);
+	Cmd_AddCommand("c0dez", Cmd_c0dez_f);
+	Cmd_AddCommand("screensaver", Cmd_screensaver_f);
+	Cmd_AddCommand("getcertificate", Cmd_getcertificate_f);
+	Cmd_AddCommand("notify", Cmd_notify_f);
+	Cmd_AddCommand("getsv", Host_GetServerList_f);
+	Cmd_AddCommand("bgetsv", Host_GetBatchServerList_f);
+	Cmd_AddCommand("bgetmod", Host_GetBatchModList_f);
+	Cmd_AddCommand("pingsv", Cmd_pingsv_f);
+	Cmd_AddCommand("protocol", Host_Protocol_f);
+	Cmd_AddCommand("logos", Cmd_logos_f);
+	Cmd_AddCommand("crc", Host_CRC_f);
 	Cmd_AddCommand("killserver", Host_KillServer_f);
 	Cmd_AddCommand("soundfade", Host_Soundfade_f);
 	Cmd_AddCommand("wc", Host_WC_f);
 	Cmd_AddCommand("status", Host_Status_f);
-	Cmd_AddCommand("quit", Host_Quit_f);
-	Cmd_AddCommand("exit", Host_Quit_f);
+	Cmd_AddCommand("changelevel2", Host_Changelevel2_f);
+	Cmd_AddCommand("reconnect", Host_Reconnect_f);
 	Cmd_AddCommand("map", Host_Map_f);
 	Cmd_AddCommand("maps", Host_Maps_f);
 	Cmd_AddCommand("restart", Host_Restart_f);
 	Cmd_AddCommand("reload", Host_Reload_f);
 	Cmd_AddCommand("changelevel", Host_Changelevel_f);
-	Cmd_AddCommand("changelevel2", Host_Changelevel2_f);
 	Cmd_AddCommand("connect", Host_Connect_f);
-	Cmd_AddCommand("reconnect", Host_Reconnect_f);
-	Cmd_AddCommand("name", Host_Name_f);
-	Cmd_AddCommand("version", Host_Version_f);
 	Cmd_AddCommand("say", Host_Say_f);
 	Cmd_AddCommand("say_team", Host_Say_Team_f);
 	Cmd_AddCommand("tell", Host_Tell_f);
-	Cmd_AddCommand("color", Host_Color_f);
 	Cmd_AddCommand("kill", Host_Kill_f);
 	Cmd_AddCommand("pause", Host_Pause_f);
 	Cmd_AddCommand("spawn", Host_Spawn_f);
@@ -4119,42 +4347,33 @@ void Host_InitCommands( void )
 	Cmd_AddCommand("kick", Host_Kick_f);
 	Cmd_AddCommand("ping", Host_Ping_f);
 	Cmd_AddCommand("load", Host_Loadgame_f);
+	Cmd_AddCommand("loadskill", Cmd_loadskill_f);
+	Cmd_AddCommand("preloadskill", Cmd_preloadskill_f);
 	Cmd_AddCommand("save", Host_Savegame_f);
 	Cmd_AddCommand("autosave", Host_AutoSave_f);
-
-	Cmd_AddCommand("startdemos", Host_Startdemos_f);
-	Cmd_AddCommand("demos", Host_Demos_f);
-	Cmd_AddCommand("stopdemo", Host_Stopdemo_f);
-
-	Cmd_AddCommand("reactivate", Host_Reactivate_f);
+	Cmd_AddCommand("dumpvmu", Cmd_dumpvmu_f);
+	Cmd_AddCommand("setinfo", Host_SetInfo_f);
+	Cmd_AddCommand("fullinfo", Host_FullInfo_f);
 	Cmd_AddCommand("ptrack", SV_PTrack_f);
 	Cmd_AddCommand("customrsrclist", SV_RequestResourceList_f);
 	Cmd_AddCommand("god", Host_God_f);
 	Cmd_AddCommand("notarget", Host_Notarget_f);
 	Cmd_AddCommand("fly", Host_Fly_f);
 	Cmd_AddCommand("noclip", Host_Noclip_f);
-	Cmd_AddCommand("spectate", Host_Spectate_f);
-
 	Cmd_AddCommand("viewmodel", Host_Viewmodel_f);
 	Cmd_AddCommand("viewframe", Host_Viewframe_f);
 	Cmd_AddCommand("viewnext", Host_Viewnext_f);
 	Cmd_AddCommand("viewprev", Host_Viewprev_f);
-
+	Cmd_AddCommand("slomo", Cmd_slomo_f);
 	Cmd_AddCommand("mcache", Mod_Print);
-
-	Cmd_AddCommand("interp", Host_Interp_f);
 	Cmd_AddCommand("setmaster", Master_SetMaster_f);
 	Cmd_AddCommand("heartbeat", Master_Heartbeat_f);
-	Cmd_AddCommand("svaddchannel", SV_AddChannel_f);
 	Cmd_AddCommand("motd", Master_RequestMOTD_f);
-	Cmd_AddCommand("svremovechannel", SV_RemoveChannel_f);
-	Cmd_AddCommand("svclearchannels", SV_ClearChannels_f);
 	Cmd_AddCommand("sv_print_custom", SV_PrintCusomizations_f);
 	Cmd_AddCommand("addip", SV_AddIP_f);
 	Cmd_AddCommand("removeip", SV_RemoveIP_f);
 	Cmd_AddCommand("listip", SV_ListIP_f);
 	Cmd_AddCommand("writeip", SV_WriteIP_f);
-	Cmd_AddCommand("mem_prediction", SV_MemPrediction_f);
 	Cmd_AddCommand("download", SV_BeginDownload_f);
 	Cmd_AddCommand("nextdl", SV_NextDownload_f);
 	Cmd_AddCommand("sv_allow_download", SV_AllowDownload_f);
@@ -4166,19 +4385,29 @@ void Host_InitCommands( void )
 
 	Cmd_AddCommand("new", SV_New_f);
 	Cmd_AddCommand("dropclient", SV_Drop_f);
+	Cmd_AddCommand("info", SV_Info_f);
 
 	Cvar_RegisterVariable(&gHostMap);
 
 	Cmd_AddCommand("keys", SV_Keys_f);
 
+	Cvar_RegisterVariable(&sv_language);
+
 	Host_ClearSaveDirectory();
 }
-
 //=============================================================================
 
 // Controller-status message drawn over the HUD.
 static char		hostMessage[80];
 static float	hostMessageTime;
+
+// Time the controller was last seen, and when the last warning went up
+static float	hostControllerTime;
+static float	hostControllerWarned;
+
+#define HOSTMESSAGE_HOLD	2.0f	// seconds at full brightness
+#define HOSTMESSAGE_GONE	2.5f	// seconds until it is off the screen
+#define CONTROLLER_GRACE	3.0f	// seconds before the controller counts as gone
 
 /*
 ==================
@@ -4200,8 +4429,32 @@ Pause the game and post a message while the controller is unplugged.
 */
 void Host_CheckController( void )
 {
-	// TODO: pause and post "#check_controller"/"#no_controller" while the
-	// controller is missing, unpause once it returns
+	float	time;
+
+	time = Sys_FloatTime();
+
+	if (!IN_ControllerPresent())
+	{
+		if (time - hostControllerWarned > CONTROLLER_GRACE)
+		{
+			if (!sv.paused)
+				Cbuf_AddText("pause\n");
+
+			if (time - hostControllerTime >= CONTROLLER_GRACE)
+				Host_SetMessage("%no_controller");
+			else
+				Host_SetMessage("%check_controller");
+
+			hostControllerWarned = time;
+		}
+	}
+	else
+	{
+		if (sv.paused)
+			Cbuf_AddText("pause\n");
+
+		hostControllerTime = time;
+	}
 }
 
 /*
@@ -4214,5 +4467,37 @@ few seconds.
 */
 void Host_DrawMessage( void )
 {
-	// TODO: draw hostMessage with fade-out
+	float	elapsed;
+	int		level;
+	int		width;
+	int		x, y;
+
+	if (hostMessageTime == 0)
+		hostMessageTime = Sys_FloatTime();
+
+	elapsed = Sys_FloatTime() - hostMessageTime;
+
+	if (elapsed > HOSTMESSAGE_GONE || !strlen(hostMessage))
+		return;
+
+	level = 200;
+	if (elapsed > HOSTMESSAGE_HOLD)
+	{
+		level = 200 - (int)((elapsed - HOSTMESSAGE_HOLD) * 400);
+		if (level < 0)
+			return;
+		if (level > 200)
+			level = 200;
+	}
+
+	Font_SetScale(1.0f, 1.3333f);
+	width = Font_StringWidth(draw_chars, hostMessage);
+
+	// Centred across the screen, sitting just inside the title-safe area
+	x = 320 - width / 2;
+	y = 416 - scr_safe_y;
+
+	DCV_TexState_Additive();
+	DCV_SetHudDepth(3.0f);
+	Text_DrawString(1.0f, 1.3333f, hostMessage, x, y, level, level, level);
 }
