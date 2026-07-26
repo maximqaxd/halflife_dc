@@ -11,6 +11,11 @@
 int	current_skill;
 int	gHostSpawnCount = 0;
 
+// Slack at the end of a save block. The token list is walked one step past its
+// last terminator and the data buffer is rounded up to four bytes, so the block
+// needs a little more room than the sizes stored in the file account for.
+#define SAVE_HEAPSLACK	32
+
 // Savegame file I/O goes through the GD-ROM aware handle helpers rather than
 // stdio, so a save can be read straight out of a pack or the memory card.
 void*			Sys_OpenHandle( const char* path, const char* mode );
@@ -1229,7 +1234,7 @@ BOOL SaveGameSlot( const char* pSaveName, const char* pSaveComment, int fake )
 {
 	char			hlPath[256], name[256], * pTokenData;
 	int				tag, i;
-	FILE* pFile;
+	bfile_t* pFile;
 	SAVERESTOREDATA* pSaveData;
 	GAME_HEADER		gameHeader;
 
@@ -1302,24 +1307,24 @@ BOOL SaveGameSlot( const char* pSaveName, const char* pSaveComment, int fake )
 	COM_FixSlashes(name);
 	Con_DPrintf("Saving game to %s...\n", name);
 
-	pFile = fopen(name, "wb");
+	pFile = Bopen(name, "wb");
 	// Write the header -- THIS SHOULD NEVER CHANGE STRUCTURE, USE SAVE_HEADER FOR NEW HEADER INFORMATION
 	// THIS IS ONLY HERE TO IDENTIFY THE FILE AND GET IT'S SIZE.
 	tag = SAVEGAME_HEADER;
-	fwrite(&tag, sizeof(int), 1, pFile);   // Write header
+	Bwrite(&tag, sizeof(int), 1, pFile);   // Write header
 	tag = SAVEGAME_VERSION;
-	fwrite(&tag, sizeof(int), 1, pFile);   // Write version
-	fwrite(&pSaveData->size, sizeof(int), 1, pFile);   // Does not include token table
+	Bwrite(&tag, sizeof(int), 1, pFile);   // Write version
+	Bwrite(&pSaveData->size, sizeof(int), 1, pFile);   // Does not include token table
 
 	// Write out the tokens first so we can load them before we load the entities
-	fwrite(&pSaveData->tokenCount, sizeof(int), 1, pFile);
-	fwrite(&pSaveData->tokenSize, sizeof(int), 1, pFile);
-	fwrite(pTokenData, pSaveData->tokenSize, 1, pFile);
+	Bwrite(&pSaveData->tokenCount, sizeof(int), 1, pFile);
+	Bwrite(&pSaveData->tokenSize, sizeof(int), 1, pFile);
+	Bwrite(pTokenData, pSaveData->tokenSize, 1, pFile);
 
-	fwrite(pSaveData->pBaseData, pSaveData->size, 1, pFile);
+	Bwrite(pSaveData->pBaseData, pSaveData->size, 1, pFile);
 
 	DirectoryCopy(hlPath, pFile);
-	fclose(pFile);
+	Bclose(pFile);
 	SaveExit(pSaveData);
 
 	return TRUE;
@@ -1407,31 +1412,31 @@ DLL_EXPORT BOOL SaveGame( char* pszSlot, char* pszComment )
 	return qret;
 }
 
-int SaveReadHeader( FILE* pFile, GAME_HEADER* pHeader, int readGlobalState )
+int SaveReadHeader( void* pFile, GAME_HEADER* pHeader, int readGlobalState )
 {
 	int             i, tag, size, tokenCount, tokenSize;
 	char* pszTokenList;
 	SAVERESTOREDATA* pSaveData;
 
-	fread(&tag, sizeof(int), 1, pFile);
+	DC_fread(&tag, sizeof(int), 1, pFile);
 	if (tag != SAVEGAME_HEADER)
 	{
-		fclose(pFile);
+		Sys_CloseHandle(pFile);
 		return 0;
 	}
 
-	fread(&tag, sizeof(int), 1, pFile);
+	DC_fread(&tag, sizeof(int), 1, pFile);
 	if (tag != SAVEGAME_VERSION) // Enforce version for now
 	{
-		fclose(pFile);
+		Sys_CloseHandle(pFile);
 		return 0;
 	}
 
-	fread(&size, sizeof(int), 1, pFile);
-	fread(&tokenCount, sizeof(int), 1, pFile); // These two ints are the token list
-	fread(&tokenSize, sizeof(int), 1, pFile);
+	DC_fread(&size, sizeof(int), 1, pFile);
+	DC_fread(&tokenCount, sizeof(int), 1, pFile); // These two ints are the token list
+	DC_fread(&tokenSize, sizeof(int), 1, pFile);
 
-	pSaveData = (SAVERESTOREDATA*)calloc(sizeof(SAVERESTOREDATA) + tokenSize + size, sizeof(char));
+	pSaveData = (SAVERESTOREDATA*)calloc(sizeof(SAVERESTOREDATA) + tokenSize + size + SAVE_HEAPSLACK, sizeof(char));
 	pSaveData->tableCount = 0;
 	pSaveData->pTable = NULL;
 	pSaveData->connectionCount = 0;
@@ -1444,10 +1449,10 @@ int SaveReadHeader( FILE* pFile, GAME_HEADER* pHeader, int readGlobalState )
 		pSaveData->tokenCount = tokenCount;
 		pSaveData->tokenSize = tokenSize;
 
-		fread(pszTokenList, tokenSize, 1, pFile);
+		DC_fread(pszTokenList, tokenSize, 1, pFile);
 
 		if (!pSaveData->pTokens)
-			pSaveData->pTokens = (char**)calloc(tokenCount, sizeof(char*));
+			pSaveData->pTokens = (char**)calloc(tokenCount + 8, sizeof(char*));
 
 		// Make sure the token strings pointed to by the pToken hashtable.
 		for (i = 0; i < tokenCount; i++)
@@ -1457,7 +1462,8 @@ int SaveReadHeader( FILE* pFile, GAME_HEADER* pHeader, int readGlobalState )
 			else
 				pSaveData->pTokens[i] = NULL;
 
-			pszTokenList += strlen(pszTokenList) + 1;
+			while (*pszTokenList++)
+				;
 		}
 	}
 
@@ -1469,7 +1475,7 @@ int SaveReadHeader( FILE* pFile, GAME_HEADER* pHeader, int readGlobalState )
 	pSaveData->pCurrentData = pszTokenList;
 	pSaveData->pBaseData = pszTokenList;
 
-	fread(pSaveData->pBaseData, size, 1, pFile);
+	DC_fread(pSaveData->pBaseData, size, 1, pFile);
 
 	SaveReadFields(pSaveData, "GameHeader", pHeader, gGameHeaderDescription, Q_ARRAYSIZE(gGameHeaderDescription));
 	if (readGlobalState)
@@ -1479,7 +1485,7 @@ int SaveReadHeader( FILE* pFile, GAME_HEADER* pHeader, int readGlobalState )
 	return 1;
 }
 
-void SaveReadComment( FILE* f, char* name )
+void SaveReadComment( void* f, char* name )
 {
 	GAME_HEADER gameHeader;
 
@@ -1528,7 +1534,7 @@ DLL_EXPORT int LoadGame( char* pName )
 
 int Host_Load( const char* pName )
 {
-	FILE* pFile;
+	void* pFile;
 	GAME_HEADER     gameHeader;
 	char			name[256];
 	int             c;
@@ -1570,7 +1576,7 @@ int Host_Load( const char* pName )
 	COM_FixSlashes(name);
 	Con_Printf("Loading game from %s...\n", name);
 
-	pFile = fopen(name, "rb");
+	pFile = Sys_OpenHandle(name, "rb");
 	if (!pFile)
 		return FALSE;
 
@@ -1588,7 +1594,7 @@ int Host_Load( const char* pName )
 	SCR_BeginLoadingPlaque();
 
 	DirectoryExtract(pFile, gameHeader.mapCount);
-	fclose(pFile);
+	Sys_CloseHandle(pFile);
 
 	Cvar_SetValue("deathmatch", 0.0);
 	Cvar_SetValue("coop", 0.0);
@@ -1611,7 +1617,7 @@ SAVERESTOREDATA* SaveGamestate( void )
 {
 	char            name[256];
 	char* pTableData, * pTokenData;
-	FILE* pFile;
+	bfile_t* pFile;
 	int             i, id, version;
 	int			    dataSize, tableSize;
 	edict_t* pent;
@@ -1726,7 +1732,7 @@ SAVERESTOREDATA* SaveGamestate( void )
 
 	// Output to disk
 	COM_CreatePath(name);
-	pFile = fopen(name, "wb");
+	pFile = Bopen(name, "wb");
 	if (!pFile)
 	{
 		Con_Printf("Unable to open save game file %s.", name);
@@ -1739,18 +1745,18 @@ SAVERESTOREDATA* SaveGamestate( void )
 	version = SAVEGAME_VERSION;
 
 	// Write the header
-	fwrite(&id, sizeof(int), 1, pFile);
-	fwrite(&version, sizeof(int), 1, pFile);
+	Bwrite(&id, sizeof(int), 1, pFile);
+	Bwrite(&version, sizeof(int), 1, pFile);
 
 	// Write out the tokens first so we can load them before we load the entities
-	fwrite(&pSaveData->size, sizeof(int), 1, pFile);		// total size of all data to initialize read buffer
-	fwrite(&pSaveData->tableCount, sizeof(int), 1, pFile);	// entities count to right initialize entity table
-	fwrite(&pSaveData->tokenCount, sizeof(int), 1, pFile);	// num hash tokens to prepare token table
-	fwrite(&pSaveData->tokenSize, sizeof(int), 1, pFile);	// total size of hash tokens
-	fwrite(pTokenData, pSaveData->tokenSize, 1, pFile);		// write tokens into the file
-	fwrite(pTableData, tableSize, 1, pFile);				// dump ETABLE structures
-	fwrite(pSaveData->pBaseData, dataSize, 1, pFile);		// and finally store all the other data
-	fclose(pFile);
+	Bwrite(&pSaveData->size, sizeof(int), 1, pFile);		// total size of all data to initialize read buffer
+	Bwrite(&pSaveData->tableCount, sizeof(int), 1, pFile);	// entities count to right initialize entity table
+	Bwrite(&pSaveData->tokenCount, sizeof(int), 1, pFile);	// num hash tokens to prepare token table
+	Bwrite(&pSaveData->tokenSize, sizeof(int), 1, pFile);	// total size of hash tokens
+	Bwrite(pTokenData, pSaveData->tokenSize, 1, pFile);		// write tokens into the file
+	Bwrite(pTableData, tableSize, 1, pFile);				// dump ETABLE structures
+	Bwrite(pSaveData->pBaseData, dataSize, 1, pFile);		// and finally store all the other data
+	Bclose(pFile);
 
 	EntityPatchWrite(pSaveData, sv.name);
 
@@ -1767,29 +1773,29 @@ void CL_Save( char* name )
 	DECALLIST       decalList[MAX_DECALS];
 	int				i, decalCount;
 	int             temp;
-	FILE* pFile;
+	bfile_t* pFile;
 
 	decalCount = DecalListCreate(decalList);
-	pFile = fopen(name, "wb");
+	pFile = Bopen(name, "wb");
 	if (pFile)
 	{
 		temp = SAVEFILE_HEADER;
-		fwrite(&temp, sizeof(int), 1, pFile);
+		Bwrite(&temp, sizeof(int), 1, pFile);
 		temp = SAVEGAME_VERSION;
-		fwrite(&temp, sizeof(int), 1, pFile);
+		Bwrite(&temp, sizeof(int), 1, pFile);
 
-		fwrite(&decalCount, sizeof(int), 1, pFile);
+		Bwrite(&decalCount, sizeof(int), 1, pFile);
 
 		for (i = 0; i < decalCount; i++)
 		{
-			fwrite(decalList[i].name, sizeof(char), 16, pFile);
-			fwrite(&decalList[i].entityIndex, sizeof(short), 1, pFile);
-			fwrite(&decalList[i].depth, sizeof(byte), 1, pFile);
-			fwrite(&decalList[i].flags, sizeof(byte), 1, pFile);
-			fwrite(decalList[i].position, sizeof(vec3_t), 1, pFile);
+			Bwrite(decalList[i].name, sizeof(char), 16, pFile);
+			Bwrite(&decalList[i].entityIndex, sizeof(short), 1, pFile);
+			Bwrite(&decalList[i].depth, sizeof(byte), 1, pFile);
+			Bwrite(&decalList[i].flags, sizeof(byte), 1, pFile);
+			Bwrite(decalList[i].position, sizeof(vec3_t), 1, pFile);
 		}
 
-		fclose(pFile);
+		Bclose(pFile);
 	}
 }
 
@@ -1826,7 +1832,7 @@ SAVERESTOREDATA* LoadSaveData( const char* level )
 {
 	char			name[128];
 	char* pszTokenList;
-	FILE* pFile;
+	void* pFile;
 	int             i, tag;
 	int             size;
 	int		        tokenCount, tokenSize;
@@ -1837,7 +1843,7 @@ SAVERESTOREDATA* LoadSaveData( const char* level )
 	COM_FixSlashes(name);
 	Con_Printf("Loading game from %s...\n", name);
 
-	pFile = fopen(name, "rb");
+	pFile = Sys_OpenHandle(name, "rb");
 	if (!pFile)
 	{
 		Con_Printf("ERROR: couldn't open.\n");
@@ -1846,22 +1852,22 @@ SAVERESTOREDATA* LoadSaveData( const char* level )
 
 	//---------------------------------
 	// Read the header
-	fread(&tag, sizeof(int), 1, pFile);
+	DC_fread(&tag, sizeof(int), 1, pFile);
 	// Is this a valid save?
 	if (tag != SAVEFILE_HEADER)
 		return NULL;
 
-	fread(&tag, sizeof(int), 1, pFile);
+	DC_fread(&tag, sizeof(int), 1, pFile);
 	if (tag > SAVEGAME_VERSION)
 		return NULL;
 
 	// Read the sections info and the data
-	fread(&size, sizeof(int), 1, pFile);		// total size of all data to initialize read buffer
-	fread(&tableCount, sizeof(int), 1, pFile);	// entities count to right initialize entity table
-	fread(&tokenCount, sizeof(int), 1, pFile);	// num hash tokens to prepare token table
-	fread(&tokenSize, sizeof(int), 1, pFile);	// total size of hash tokens
+	DC_fread(&size, sizeof(int), 1, pFile);		// total size of all data to initialize read buffer
+	DC_fread(&tableCount, sizeof(int), 1, pFile);	// entities count to right initialize entity table
+	DC_fread(&tokenCount, sizeof(int), 1, pFile);	// num hash tokens to prepare token table
+	DC_fread(&tokenSize, sizeof(int), 1, pFile);	// total size of hash tokens
 
-	pSaveData = (SAVERESTOREDATA*)calloc(sizeof(SAVERESTOREDATA) + tokenSize + size + (sizeof(ENTITYTABLE) * tableCount), sizeof(char));
+	pSaveData = (SAVERESTOREDATA*)calloc(sizeof(SAVERESTOREDATA) + tokenSize + size + (sizeof(ENTITYTABLE) * tableCount) + SAVE_HEAPSLACK, sizeof(char));
 	pSaveData->tableCount = tableCount;
 	pSaveData->tokenCount = tokenCount;
 	pSaveData->tokenSize = tokenSize;
@@ -1873,7 +1879,7 @@ SAVERESTOREDATA* LoadSaveData( const char* level )
 
 	if (tokenSize > 0)
 	{
-		fread(pszTokenList, pSaveData->tokenSize, 1, pFile);
+		DC_fread(pszTokenList, pSaveData->tokenSize, 1, pFile);
 
 		if (!pSaveData->pTokens)
 			pSaveData->pTokens = (char**)calloc(tokenCount, sizeof(char*));
@@ -1904,8 +1910,8 @@ SAVERESTOREDATA* LoadSaveData( const char* level )
 	VectorCopy(vec3_origin, pSaveData->vecLandmarkOffset);
 	gGlobalVariables.pSaveData = pSaveData;
 
-	fread(pSaveData->pBaseData, size, 1, pFile);
-	fclose(pFile);
+	DC_fread(pSaveData->pBaseData, size, 1, pFile);
+	Sys_CloseHandle(pFile);
 
 	return pSaveData;
 }
@@ -2383,13 +2389,13 @@ void FileCopy( void* pOutput, void* pInput, int fileSize )
 	}
 }
 
-void DirectoryCopy( const char* pPath, FILE* pFile )
+void DirectoryCopy( const char* pPath, void* pFile )
 {
 	HANDLE			findfn;
 	BOOL			nextfile;
 	WIN32_FIND_DATAA ffd;
 	int				fileSize;
-	FILE* pCopy;
+	void* pCopy;
 	char			szName[MAX_PATH];
 
 	findfn = FindFirstFile(pPath, &ffd);
@@ -2400,12 +2406,12 @@ void DirectoryCopy( const char* pPath, FILE* pFile )
 	{
 		sprintf(szName, "%s%s", Host_SaveGameDirectory(), ffd.cFileName);
 		COM_FixSlashes(szName);
-		pCopy = fopen(szName, "rb");
+		pCopy = Sys_OpenHandle(szName, "rb");
 		fileSize = FileSize(pCopy);
-		fwrite(ffd.cFileName, sizeof(char), MAX_PATH, pFile);		// Filename can only be as long as a map name + extension
-		fwrite(&fileSize, sizeof(int), 1, pFile);
+		DC_fwrite(ffd.cFileName, sizeof(char), MAX_PATH, pFile);		// Filename can only be as long as a map name + extension
+		DC_fwrite(&fileSize, sizeof(int), 1, pFile);
 		FileCopy(pFile, pCopy, fileSize);
-		fclose(pCopy);
+		Sys_CloseHandle(pCopy);
 
 		// Any more save files?
 		nextfile = FindNextFile(findfn, &ffd);
@@ -2414,21 +2420,25 @@ void DirectoryCopy( const char* pPath, FILE* pFile )
 	FindClose(findfn);
 }
 
-void DirectoryExtract( FILE* pFile, int fileCount )
+void DirectoryExtract( void* pFile, int fileCount )
 {
     int				i, fileSize;
-    FILE* pCopy;
+    void* pCopy;
     char			szName[MAX_PATH], fileName[MAX_PATH];
 
 	for (i = 0; i < fileCount; i++)
 	{
-		fread(fileName, sizeof(char), MAX_PATH, pFile);		// Filename can only be as long as a map name + extension
-		fread(&fileSize, sizeof(int), 1, pFile);
+		DC_fread(fileName, sizeof(char), MAX_PATH, pFile);		// Filename can only be as long as a map name + extension
+		DC_fread(&fileSize, sizeof(int), 1, pFile);
 		sprintf(szName, "%s%s", Host_SaveGameDirectory(), fileName);
 		COM_FixSlashes(szName);
-		pCopy = fopen(szName, "wb");
+		pCopy = (void*)Bopen(szName, "wb");
 		FileCopy(pCopy, pFile, fileSize);
-		fclose(pCopy);
+		Sys_CloseHandle(pCopy);
+
+		// The landmark table has to stay readable for the level transition
+		if (!strstr(szName, ".hl4"))
+			Bcompress_path(szName);
 	}
 }
 
