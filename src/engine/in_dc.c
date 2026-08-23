@@ -784,11 +784,11 @@ qboolean IN_StartupMouse( maplemouse_t *pMouse )
 	}
 	did1->Release();
 
+	prop.dwData = 0;
 	prop.diph.dwSize = sizeof(DIPROPDWORD);
 	prop.diph.dwHeaderSize = sizeof(DIPROPHEADER);
 	prop.diph.dwObj = 0;
 	prop.diph.dwHow = 0;
-	prop.dwData = 0;
 	g_hResult = did2->GetProperty(DIPROP_PORTNUMBER, &prop.diph);
 	if (IN_LogResult(TEXT("Get Port Number")))
 	{
