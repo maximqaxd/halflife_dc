@@ -5315,6 +5315,18 @@ NODEP_CPP_IN_DC=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\engine\in_joy.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\engine\in_kbd.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\engine\in_mouse.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\engine\KEYS.C
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
