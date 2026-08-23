@@ -9,6 +9,20 @@
 #include <maplusag.h>
 #endif 
 extern int iMouseInUse;
+extern HINSTANCE g_hInstance;
+
+BOOL CALLBACK IN_EnumDevicesCallback( LPCDIDEVICEINSTANCE lpddi, LPVOID pvRef );
+
+struct maplemouse_t;
+qboolean IN_ReadMouseState( maplemouse_t *pMouse );
+void IN_DebugPrintf( LPCTSTR fmt, ... );
+qboolean IN_LogResult( LPCTSTR what );
+void IN_UpdateMapleDevices( void );
+void IN_ReadMouse( void );
+void GDROM_DoorReset( void );
+void M_DecodeStateFlags( void );
+struct maplejoystick_t;
+qboolean IN_ReadJoystick( maplejoystick_t *pJoy );
 
 void Host_UpdateScreenSaver( int bCheckOnly );
 
@@ -56,13 +70,22 @@ static int	mouseshowtoggle = 1;
 // where should defines be moved?
 #define JOY_ABSOLUTE_AXIS	0x00000000		// control like a joystick
 #define JOY_RELATIVE_AXIS	0x00000010		// control like a mouse, spinner, trackball
-#define	JOY_MAX_AXES		6				// X, Y, Z, R, U, V
+#define	JOY_MAX_AXES		2				// X, Y
 #define JOY_AXIS_X			0
 #define JOY_AXIS_Y			1
-#define JOY_AXIS_Z			2
-#define JOY_AXIS_R			3
-#define JOY_AXIS_U			4
-#define JOY_AXIS_V			5
+
+// Buttons and hat switches the pad can report, addressed by usage
+#define MAX_JOY_BUTTONS		22
+#define MAX_JOY_POVS		11
+
+// A usage slot that no object claimed
+#define JOY_USAGE_NONE		255
+
+// Holding a shift button moves the pad onto one of two alternate key ranges,
+// and holding both moves it onto a third
+#define K_JOYSHIFT1			160
+#define K_JOYSHIFT2			171
+#define K_JOYSHIFT12		182
 
 enum _ControlList
 {
@@ -106,47 +129,175 @@ cvar_t	joy_wwhack2 = { "joywwhack2", "0.0" };
 // The analog stick is smoothed rather than read raw: softstick turns the
 // filtering on, softaccel and softdamp set how fast it winds up and decays,
 // and softstop is the deflection below which it snaps back to centre.
-cvar_t	cvar_softstick = { "softstick", "1", FCVAR_ARCHIVE };
-cvar_t	cvar_softaccel = { "softaccel", "0.5", FCVAR_ARCHIVE };
-cvar_t	cvar_softdamp = { "softdamp", "0.5", FCVAR_ARCHIVE };
-cvar_t	cvar_softstop = { "softstop", "0.4", FCVAR_ARCHIVE };
+cvar_t	softstick = { "softstick", "1", FCVAR_ARCHIVE };
+cvar_t	softaccel = { "softaccel", "0.5", FCVAR_ARCHIVE };
+cvar_t	softdamp = { "softdamp", "0.5", FCVAR_ARCHIVE };
+cvar_t	softstop = { "softstop", "0.4", FCVAR_ARCHIVE };
 
 // Buttons that shift the pad into its alternate binding set
-cvar_t	cvar_joyshift1 = { "joyshift1", "AUX6", FCVAR_ARCHIVE };
-cvar_t	cvar_joyshift2 = { "joyshift2", "", FCVAR_ARCHIVE };
+cvar_t	joyshift1 = { "joyshift1", "AUX6", FCVAR_ARCHIVE };
+cvar_t	joyshift2 = { "joyshift2", "", FCVAR_ARCHIVE };
 
 // Frames the controller-missing warning stays up after the pad is unplugged
 #define CONTROLLER_GRACE_FRAMES		3
 
-// The pointing device as the Maple driver reports it. Only the cursor position
-// is read here; the driver owns the rest of the record.
+// Every unit hanging off the four Maple sockets is described the same way:
+// the GUID the driver knows it by, the socket it turned up in, what kind of
+// device it is, and the DirectInput device created to talk to it.
 typedef struct
 {
-	int		reserved[2];
-	int		x;
-	int		y;
-} maplemouse_t;
+	GUID					guid;
+	int						port;
+	int						type;
+	LPDIRECTINPUTDEVICE2	pDevice;
+} mapledevice_t;
 
-// The attached pad and mouse, NULL while nothing is plugged into the port
-LPDIRECTINPUTDEVICE2	pJoystickDevice;
+// One analogue axis of the pad, paired up with the object the driver reports
+// for it while the device is being enumerated.
+typedef struct
+{
+	byte	usage;
+	int		axis;
+} maplejoyaxis_t;
+
+// The pad. Buttons and axes are addressed by usage rather than by position,
+// so a stick and a hat land in the right place whatever order they enumerate.
+struct maplejoystick_t
+{
+	byte			buttonUsage[MAX_JOY_BUTTONS];
+	maplejoyaxis_t	axes[4];
+	byte			oldButtons[MAX_JOY_BUTTONS];
+	int				buttonChanged[MAX_JOY_BUTTONS];
+	int				axisValue[4];
+	byte			povUsage[MAX_JOY_POVS];
+	int				pov[MAX_JOY_POVS][2];
+	DIPROPRANGE		range[2];
+	int				numAxes;
+	int				numButtons;
+	DIDEVCAPS		caps;
+	mapledevice_t	device;
+
+	maplejoystick_t( GUID guid, int type );
+};
+
+// The keyboard. The driver hands over a full scan-code table each read.
+struct maplekeyboard_t
+{
+	mapledevice_t	device;
+	DIDEVCAPS		caps;
+	byte			state[256];
+
+	maplekeyboard_t( GUID guid, int type );
+};
+
+// The pointing device. The driver reports movement, and the cursor position is
+// carried here between frames so it can be pulled back to the centre.
+struct maplemouse_t
+{
+	int				numAxes;
+	int				numButtons;
+	int				x;
+	int				y;
+	int				z;
+	int				lastx;
+	int				lasty;
+	int				acquired;
+	byte			oldButtons[4];
+	int				buttonChanged[4];
+	DIMOUSESTATE	state;
+	DIDEVCAPS		caps;
+	mapledevice_t	device;
+
+	maplemouse_t( GUID guid, int type );
+};
+
+// What is plugged into each of the four Maple sockets. A port that has been
+// seen this scan has its stale flag cleared; whatever is left marked stale
+// when the scan finishes has been unplugged.
+typedef struct
+{
+	int		type;
+	int		stale;
+	int		present;
+	void*	pDevice;
+} mapleport_t;
+
+#define MAPLE_MAX_PORTS		4
+
+#define MAPLE_KEYBOARD		1
+#define MAPLE_CONTROLLER	2
+#define MAPLE_MOUSE			3
+
+mapleport_t				g_MapleDevices[MAPLE_MAX_PORTS];
+
+// Signalled by the driver when something is plugged in or pulled out
+HANDLE					hNewDevice;
+HANDLE					hDeviceRemoved;
+
+LPDIRECTINPUT			g_pDI;
+HRESULT					g_hResult;
+
+// What a call is expected to come back with, and whether the successful ones
+// are worth a line of their own
+HRESULT					g_hrExpected;
+int						g_bLogFailuresOnly;
+
+// The attached pad, mouse and keyboard; NULL while the socket is empty
+void*					pKeyboardDevice;
+maplejoystick_t*		pJoystickDevice;
 maplemouse_t*			pMouseDevice;
 
 int			gnControllerGrace;
 
+// Where the pointer sat last frame, so small twitches can be ignored
+int			mouse_lastx, mouse_lasty;
+
 // Where the sticks read when they are not being pushed
 int			joy_centerx, joy_centery;
 
-// Mouse position this frame, and how far it can move before it is recentred
-int			mouse_pos_x, mouse_pos_y;
+// Where the pointing device is sitting this frame
+POINT		mouse_pos;
 
 // Set from the client's client_data_t every frame
 float		gMouseSensitivity;
+float		gJoySensitivity = 1.0f;
 
-int			joy_avail, joy_advancedinit, joy_haspov;
+// Which way the pad is pushing this frame, so the walk cycle can lean the
+// right way; zeroed every move and set to -1 or 1 as the sticks are read
+int			joy_forwarddir, joy_sidedir;
+
+// Smoothed stick deflection carried between frames, one per axis
+float		joy_softvalue[JOY_MAX_AXES];
+
+// The pad button that each of the eleven shiftable positions reports as
+int			joykeys[10] =
+{
+	K_JOY1, K_JOY2, K_JOY3, K_JOY4,
+	K_AUX1, K_AUX2, K_AUX3, K_AUX4, K_AUX5, K_AUX6
+};
+
+// Which button each shiftable position maps to, and the key each button sends
+const int	joyshiftmap[MAX_JOY_POVS] = { 0, 1, 8, 9, 4, 5, 6, 7, 16, 17, 3 };
+const int	joybuttonkeys[MAX_JOY_BUTTONS] =
+{
+	K_JOY1,  K_JOY2,  K_AUX8,  K_AUX7,  K_AUX1,  K_AUX2,  K_AUX3,  K_AUX4,
+	K_JOY3,  K_JOY4,  K_AUX9,  K_AUX10, K_AUX11, K_AUX12, K_AUX13, K_AUX14,
+	K_AUX5,  K_AUX6,  K_AUX15, K_AUX14, K_AUX16, K_AUX17
+};
+
+// What the menu sees as held this frame. The analogue stick drives the four
+// direction slots as well, so a stick and a d-pad navigate the same way.
+int			joymenubuttons[MAX_JOY_BUTTONS];
+
+// Stick deflection last frame, so a push only counts once until it recentres
+int			joy_lastx, joy_lasty;
+
+// Which positions the two shift buttons are bound to
+int			joyshift1keys[MAX_JOY_POVS], joyshift1count;
+int			joyshift2keys[MAX_JOY_POVS], joyshift2count;
+
+qboolean	joy_advancedinit, joy_haspov;
 DWORD		joy_oldbuttonstate, joy_oldpovstate;
-
-int			joy_id;
-DWORD		joy_flags;
 DWORD		joy_numbuttons;
 
 /* WinCE/Dreamcast: DirectInput controller support (MAPLE). */
@@ -382,13 +533,13 @@ static void IN_StartupKeyboard(void)
 		return;
 
 	pDev1 = NULL;
-	hr = s_di->lpVtbl->CreateDevice(s_di, &GUID_SysKeyboard, &pDev1, NULL);
+	hr = s_di->CreateDevice(GUID_SysKeyboard, &pDev1, NULL);
 	if (FAILED(hr) || !pDev1)
 	{
 		/* Some WinCE builds don’t expose GUID_SysKeyboard; fall back to enumeration. */
 		haveGuid = 0;
 		memset(&kbdGuid, 0, sizeof(kbdGuid));
-		s_di->lpVtbl->EnumDevices(s_di, DIDEVTYPE_KEYBOARD, IN_DI_EnumKeyboardProc, &kbdGuid, 0);
+		s_di->EnumDevices(DIDEVTYPE_KEYBOARD, IN_DI_EnumKeyboardProc, &kbdGuid, 0);
 
 		/* A zero GUID likely means we didn’t find anything. */
 		if (!IN_DI_IsZeroGuid(&kbdGuid))
@@ -398,25 +549,25 @@ static void IN_StartupKeyboard(void)
 			return;
 
 		pDev1 = NULL;
-		hr = s_di->lpVtbl->CreateDevice(s_di, &kbdGuid, &pDev1, NULL);
+		hr = s_di->CreateDevice(kbdGuid, &pDev1, NULL);
 		if (FAILED(hr) || !pDev1)
 			return;
 	}
 	if (FAILED(hr) || !pDev1)
 		return;
 
-	hr = pDev1->lpVtbl->QueryInterface(pDev1, &IID_IDirectInputDevice2, (LPVOID*)&s_di_kbd);
-	pDev1->lpVtbl->Release(pDev1);
+	hr = pDev1->QueryInterface(IID_IDirectInputDevice2, (LPVOID*)&s_di_kbd);
+	pDev1->Release();
 	if (FAILED(hr) || !s_di_kbd)
 	{
 		s_di_kbd = NULL;
 		return;
 	}
 
-	hr = s_di_kbd->lpVtbl->SetDataFormat(s_di_kbd, &c_dfDIKeyboard);
+	hr = s_di_kbd->SetDataFormat(&c_dfDIKeyboard);
 	if (FAILED(hr))
 	{
-		s_di_kbd->lpVtbl->Release(s_di_kbd);
+		s_di_kbd->Release();
 		s_di_kbd = NULL;
 		return;
 	}
@@ -425,7 +576,7 @@ static void IN_StartupKeyboard(void)
 	memset(s_kbd_oldstate, 0, sizeof(s_kbd_oldstate));
 
 	/* No cooperative level on WinCE sample; just acquire. */
-	s_di_kbd->lpVtbl->Acquire(s_di_kbd);
+	s_di_kbd->Acquire();
 }
 
 static void IN_ReadKeyboard(void)
@@ -436,17 +587,17 @@ static void IN_ReadKeyboard(void)
 	if (!s_di_kbd)
 		return;
 
-	hr = s_di_kbd->lpVtbl->Poll(s_di_kbd);
+	hr = s_di_kbd->Poll();
 	if (FAILED(hr))
 	{
-		s_di_kbd->lpVtbl->Acquire(s_di_kbd);
-		hr = s_di_kbd->lpVtbl->Poll(s_di_kbd);
+		s_di_kbd->Acquire();
+		hr = s_di_kbd->Poll();
 	}
 	if (FAILED(hr))
 		return;
 
 	memset(s_kbd_state, 0, sizeof(s_kbd_state));
-	hr = s_di_kbd->lpVtbl->GetDeviceState(s_di_kbd, sizeof(s_kbd_state), (LPVOID)s_kbd_state);
+	hr = s_di_kbd->GetDeviceState(sizeof(s_kbd_state), (LPVOID)s_kbd_state);
 	if (FAILED(hr))
 		return;
 
@@ -497,6 +648,26 @@ int IN_ControllerPresent( void )
 		gnControllerGrace = 0;
 
 	return TRUE;
+}
+
+
+/*
+===========
+IN_DebugPrintf
+
+Format a message about the state of the attached controllers. The text is
+only wanted when tracking down a hotplug problem, so nothing is emitted.
+===========
+*/
+void IN_DebugPrintf( LPCTSTR fmt, ... )
+{
+	TCHAR	buf[256];
+	va_list	args;
+
+	va_start(args, fmt);
+	wvsprintf(buf, fmt, args);
+	//OutputDebugString
+		(buf);
 }
 
 
@@ -595,35 +766,122 @@ void IN_DeactivateMouse( void )
 IN_StartupMouse
 ===========
 */
-void IN_StartupMouse( void )
+qboolean IN_StartupMouse( maplemouse_t *pMouse )
 {
-	if (COM_CheckParm("-nomouse"))
-		return;
-	
-	mouseinitialized = TRUE;
+	LPDIRECTINPUTDEVICE		did1;
+	LPDIRECTINPUTDEVICE2	did2;
+	DIPROPDWORD				prop;
 
-	mouseparmsvalid = SystemParametersInfo(SPI_GETMOUSE, 0, originalmouseparms, 0);
+	g_hResult = g_pDI->CreateDevice(pMouse->device.guid, &did1, NULL);
+	if (IN_LogResult(TEXT("Create Device")))
+		return FALSE;
 
-	if (mouseparmsvalid)
+	g_hResult = did1->QueryInterface(IID_IDirectInputDevice2, (LPVOID*)&did2);
+	if (IN_LogResult(TEXT("Query Interface for DirectInputDevice2")))
 	{
-		if (COM_CheckParm("-noforcemspd"))
-			newmouseparms[2] = originalmouseparms[2];
+		did1->Release();
+		return FALSE;
+	}
+	did1->Release();
 
-		if (COM_CheckParm("-noforcemaccel"))
-		{
-			newmouseparms[0] = originalmouseparms[0];
-			newmouseparms[1] = originalmouseparms[1];
-		}
-
-		if (COM_CheckParm("-noforcemparms"))
-		{
-			newmouseparms[0] = originalmouseparms[0];
-			newmouseparms[1] = originalmouseparms[1];
-			newmouseparms[2] = originalmouseparms[2];
-		}
+	prop.diph.dwSize = sizeof(DIPROPDWORD);
+	prop.diph.dwHeaderSize = sizeof(DIPROPHEADER);
+	prop.diph.dwObj = 0;
+	prop.diph.dwHow = 0;
+	prop.dwData = 0;
+	g_hResult = did2->GetProperty(DIPROP_PORTNUMBER, &prop.diph);
+	if (IN_LogResult(TEXT("Get Port Number")))
+	{
+		did2->Release();
+		return FALSE;
 	}
 
-	mouse_buttons = 3;
+	pMouse->device.port = prop.dwData;
+	g_MapleDevices[pMouse->device.port].stale = 0;
+	if (g_MapleDevices[pMouse->device.port].present)
+	{
+		did2->Release();
+		return FALSE;
+	}
+
+	pMouse->acquired = 1;
+	pMouse->caps.dwSize = sizeof(DIDEVCAPS);
+	g_hResult = did2->GetCapabilities(&pMouse->caps);
+	if (IN_LogResult(TEXT("Get Device Capabilities")))
+	{
+		did2->Release();
+		return FALSE;
+	}
+
+	pMouse->numButtons = pMouse->caps.dwButtons;
+	pMouse->numAxes = pMouse->caps.dwAxes;
+
+	g_hResult = did2->SetDataFormat(&c_dfDIMouse);
+	if (IN_LogResult(TEXT("Set Data Format (Mouse)")))
+	{
+		did2->Release();
+		return FALSE;
+	}
+
+	g_hResult = did2->Acquire();
+	if (IN_LogResult(TEXT("Acquire port")))
+	{
+		did2->Release();
+		return FALSE;
+	}
+
+	pMouse->device.pDevice = did2;
+	IN_ReadMouseState(pMouse);
+
+	// start the cursor in the middle of the screen
+	pMouse->x = 320;
+	pMouse->y = 240;
+	pMouse->z = 0;
+	pMouse->lastx = pMouse->state.lX;
+	pMouse->lasty = pMouse->state.lY;
+
+	return TRUE;
+}
+
+
+/*
+===========
+IN_ReadMouseState
+===========
+*/
+qboolean IN_ReadMouseState( maplemouse_t *pMouse )
+{
+	int		i;
+
+	// the mouse is handed back to us whenever the game loses focus
+	if (pMouse->device.pDevice->GetDeviceState(sizeof(pMouse->state), &pMouse->state) == DIERR_INPUTLOST)
+	{
+		pMouse->device.pDevice->Acquire();
+		pMouse->device.pDevice->GetDeviceState(sizeof(pMouse->state), &pMouse->state);
+	}
+
+	for (i = 0; i < pMouse->numButtons; i++)
+	{
+		pMouse->buttonChanged[i] = (pMouse->oldButtons[i] != pMouse->state.rgbButtons[i]);
+		pMouse->oldButtons[i] = pMouse->state.rgbButtons[i];
+	}
+
+	return TRUE;
+}
+
+
+/*
+===========
+IN_ShutdownMouse
+===========
+*/
+void IN_ShutdownMouse( maplemouse_t *pMouse )
+{
+	if (pMouse->device.pDevice)
+	{
+		pMouse->device.pDevice->Unacquire();
+		pMouse->device.pDevice->Release();
+	}
 }
 
 
@@ -634,16 +892,663 @@ IN_Init
 */
 /*
 ===========
+IN_InitDeviceState
+
+Set up a freshly allocated pad. Every usage slot starts unclaimed so that
+whatever the object enumeration finds lands in the right place.
+===========
+*/
+maplejoystick_t::maplejoystick_t( GUID guid, int type )
+{
+	int		i;
+
+	device.guid = guid;
+	device.port = JOY_USAGE_NONE;
+	device.pDevice = NULL;
+	numAxes = 0;
+	numButtons = 0;
+
+	for (i = 0; i < MAX_JOY_POVS; i++)
+	{
+		povUsage[i] = JOY_USAGE_NONE;
+		pov[i][0] = 0;
+		pov[i][1] = 0;
+	}
+
+	device.type = type & 0xff;
+
+	memset(buttonUsage, JOY_USAGE_NONE, sizeof(buttonUsage));
+	memset(axes, JOY_USAGE_NONE, sizeof(axes));
+	memset(oldButtons, 0, sizeof(oldButtons));
+	memset(buttonChanged, 0, sizeof(buttonChanged));
+	memset(axisValue, 0, sizeof(axisValue));
+}
+
+
+/*
+===========
+IN_EnumAxesCallback
+
+Called once for every object the pad reports. Axes are numbered in the order
+they turn up; buttons are filed by the usage the driver gives them so that a
+pad with a different button order still lands on the right keys.
+===========
+*/
+BOOL IN_EnumAxesCallback( maplejoystick_t *pJoy, LPCDIDEVICEOBJECTINSTANCE lpddoi )
+{
+	int		usage;
+
+	if (lpddoi->dwType & DIDFT_AXIS)
+	{
+		if (memcmp(&lpddoi->guidType, &GUID_XAxis, sizeof(GUID)) == 0)
+			pJoy->axes[pJoy->numAxes].axis = 0;
+		else
+			pJoy->axes[pJoy->numAxes].axis = 1;
+
+		pJoy->axes[pJoy->numAxes].usage = pJoy->numAxes;
+		pJoy->numAxes++;
+	}
+	else if (lpddoi->dwType & DIDFT_BUTTON)
+	{
+		usage = lpddoi->wUsage - USAGE_FIRST_BUTTON;
+		pJoy->buttonUsage[usage] = pJoy->numButtons;
+
+		if (lpddoi->wUsage - USAGE_FIRST_BUTTON == 0)
+			pJoy->povUsage[0] = pJoy->numButtons;
+		if (lpddoi->wUsage - USAGE_FIRST_BUTTON == 1)
+			pJoy->povUsage[1] = pJoy->numButtons;
+		if (lpddoi->wUsage - USAGE_FIRST_BUTTON == 8)
+			pJoy->povUsage[2] = pJoy->numButtons;
+		if (lpddoi->wUsage - USAGE_FIRST_BUTTON == 9)
+			pJoy->povUsage[3] = pJoy->numButtons;
+		if (lpddoi->wUsage - USAGE_FIRST_BUTTON == 4)
+			pJoy->povUsage[4] = pJoy->numButtons;
+		if (lpddoi->wUsage - USAGE_FIRST_BUTTON == 5)
+			pJoy->povUsage[5] = pJoy->numButtons;
+		if (lpddoi->wUsage - USAGE_FIRST_BUTTON == 6)
+			pJoy->povUsage[6] = pJoy->numButtons;
+		if (lpddoi->wUsage - USAGE_FIRST_BUTTON == 7)
+			pJoy->povUsage[7] = pJoy->numButtons;
+		if (lpddoi->wUsage - USAGE_FIRST_BUTTON == 16)
+			pJoy->povUsage[8] = pJoy->numButtons;
+		if (lpddoi->wUsage - USAGE_FIRST_BUTTON == 17)
+			pJoy->povUsage[9] = pJoy->numButtons;
+		if (lpddoi->wUsage - USAGE_FIRST_BUTTON == 3)
+			pJoy->povUsage[10] = pJoy->numButtons;
+
+		pJoy->numButtons++;
+	}
+	else
+	{
+		IN_DebugPrintf(TEXT("Port %d EnumObjects -- UnknownObject 0x%X\n"), pJoy->device.port);
+	}
+
+	return DIENUM_CONTINUE;
+}
+
+
+static BOOL CALLBACK IN_EnumAxesProc( LPCDIDEVICEOBJECTINSTANCE lpddoi, LPVOID pvRef )
+{
+	return IN_EnumAxesCallback((maplejoystick_t*)pvRef, lpddoi);
+}
+
+
+/*
+===========
+IN_ActivateJoystick
+
+Bring up the pad on whichever port it turned up in, matching each object the
+driver reports to the axis that uses it.
+===========
+*/
+qboolean IN_ActivateJoystick( maplejoystick_t *pJoy )
+{
+	LPDIRECTINPUTDEVICE		did1;
+	LPDIRECTINPUTDEVICE2	did2;
+	DIPROPDWORD				prop;
+	int						i;
+
+	g_hResult = g_pDI->CreateDevice(pJoy->device.guid, &did1, NULL);
+	if (IN_LogResult(TEXT("Create Device")))
+		return FALSE;
+
+	g_hResult = did1->QueryInterface(IID_IDirectInputDevice2, (LPVOID*)&did2);
+	if (IN_LogResult(TEXT("Query Interface for DirectInputDevice2")))
+	{
+		did1->Release();
+		return FALSE;
+	}
+	did1->Release();
+
+	prop.diph.dwSize = sizeof(DIPROPDWORD);
+	prop.diph.dwHeaderSize = sizeof(DIPROPHEADER);
+	prop.diph.dwObj = 0;
+	prop.diph.dwHow = 0;
+	g_hResult = did2->GetProperty(DIPROP_PORTNUMBER, &prop.diph);
+	if (IN_LogResult(TEXT("Get Port Number")))
+	{
+		did2->Release();
+		return FALSE;
+	}
+
+	pJoy->device.port = prop.dwData;
+	g_MapleDevices[pJoy->device.port].stale = 0;
+	if (g_MapleDevices[pJoy->device.port].present)
+	{
+		did2->Release();
+		return FALSE;
+	}
+
+	pJoy->device.pDevice = did2;
+	pJoy->caps.dwSize = sizeof(DIDEVCAPS);
+	g_hResult = pJoy->device.pDevice->GetCapabilities(&pJoy->caps);
+	if (IN_LogResult(TEXT("Get Device Capabilities")))
+	{
+		pJoy->device.pDevice->Release();
+		return FALSE;
+	}
+
+	g_hResult = pJoy->device.pDevice->EnumObjects(IN_EnumAxesProc, pJoy, 0);
+	if (IN_LogResult(TEXT("Enumerate Objects")))
+	{
+		pJoy->device.pDevice->Release();
+		return FALSE;
+	}
+
+	g_hResult = pJoy->device.pDevice->SetDataFormat(&c_dfDIJoystick);
+	if (IN_LogResult(TEXT("Set Data Format (Joystick)")))
+	{
+		pJoy->device.pDevice->Release();
+		return FALSE;
+	}
+
+	for (i = 0; i < 4; i++)
+	{
+		if (pJoy->axes[i].usage != JOY_USAGE_NONE)
+		{
+			prop.diph.dwSize = sizeof(DIPROPDWORD);
+			prop.diph.dwHeaderSize = sizeof(DIPROPHEADER);
+			prop.diph.dwHow = DIPH_BYOFFSET;
+			prop.dwData = 1000;
+
+			if (pJoy->axes[i].axis == 0)
+			{
+				pJoy->range[0].diph.dwSize = sizeof(DIPROPRANGE);
+				pJoy->range[0].diph.dwHeaderSize = sizeof(DIPROPHEADER);
+				pJoy->range[0].diph.dwHow = DIPH_BYOFFSET;
+				pJoy->range[0].diph.dwObj = 0;
+				g_hResult = pJoy->device.pDevice->GetProperty(DIPROP_RANGE, &pJoy->range[0].diph);
+				if (IN_LogResult(TEXT("Get Digital X Range")))
+				{
+					pJoy->device.pDevice->Release();
+					return FALSE;
+				}
+
+				prop.diph.dwObj = 0;
+				g_hResult = pJoy->device.pDevice->SetProperty(DIPROP_DEADZONE, &prop.diph);
+				if (IN_LogResult(TEXT("Set X DeadZone")))
+				{
+					pJoy->device.pDevice->Release();
+					return FALSE;
+				}
+			}
+			else if (pJoy->axes[i].axis == 1)
+			{
+				pJoy->range[1].diph.dwSize = sizeof(DIPROPRANGE);
+				pJoy->range[1].diph.dwHeaderSize = sizeof(DIPROPHEADER);
+				pJoy->range[1].diph.dwHow = DIPH_BYOFFSET;
+				pJoy->range[1].diph.dwObj = 4;
+				g_hResult = pJoy->device.pDevice->GetProperty(DIPROP_RANGE, &pJoy->range[1].diph);
+				if (IN_LogResult(TEXT("Get Digital Y Range")))
+				{
+					pJoy->device.pDevice->Release();
+					return FALSE;
+				}
+
+				prop.diph.dwObj = 4;
+				g_hResult = pJoy->device.pDevice->SetProperty(DIPROP_DEADZONE, &prop.diph);
+				if (IN_LogResult(TEXT("Set Y DeadZone")))
+				{
+					pJoy->device.pDevice->Release();
+					return FALSE;
+				}
+			}
+		}
+	}
+
+	g_hResult = pJoy->device.pDevice->Acquire();
+	if (IN_LogResult(TEXT("Acquire port")))
+	{
+		pJoy->device.pDevice->Release();
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+
+/*
+===========
+IN_ReleaseJoystick
+===========
+*/
+void IN_ReleaseJoystick( maplejoystick_t *pJoy )
+{
+	if (pJoy->device.pDevice)
+	{
+		pJoy->device.pDevice->Unacquire();
+		pJoy->device.pDevice->Release();
+	}
+}
+
+
+/*
+===========
+IN_InitMapleDeviceRecord
+===========
+*/
+maplekeyboard_t::maplekeyboard_t( GUID guid, int type )
+{
+	device.guid = guid;
+	device.port = JOY_USAGE_NONE;
+	device.type = type;
+	device.pDevice = NULL;
+
+	memset(state, 0, sizeof(state));
+}
+
+
+/*
+===========
+IN_CreateMapleDevice
+
+Bring up the keyboard on whichever port it turned up in.
+===========
+*/
+qboolean IN_CreateMapleDevice( maplekeyboard_t *pKbd )
+{
+	LPDIRECTINPUTDEVICE		did1;
+	LPDIRECTINPUTDEVICE2	did2;
+	DIPROPDWORD				prop;
+
+	g_hResult = g_pDI->CreateDevice(pKbd->device.guid, &did1, NULL);
+	if (IN_LogResult(TEXT("Create Device")))
+		return FALSE;
+
+	g_hResult = did1->QueryInterface(IID_IDirectInputDevice2, (LPVOID*)&did2);
+	if (IN_LogResult(TEXT("Query Interface for DirectInputDevice2")))
+	{
+		did1->Release();
+		return FALSE;
+	}
+	did1->Release();
+
+	prop.diph.dwSize = sizeof(DIPROPDWORD);
+	prop.diph.dwHeaderSize = sizeof(DIPROPHEADER);
+	prop.diph.dwObj = 0;
+	prop.diph.dwHow = 0;
+	g_hResult = did2->GetProperty(DIPROP_PORTNUMBER, &prop.diph);
+	if (IN_LogResult(TEXT("Get Port Number")))
+	{
+		did2->Release();
+		return FALSE;
+	}
+
+	pKbd->device.port = prop.dwData;
+	g_MapleDevices[pKbd->device.port].stale = 0;
+	if (g_MapleDevices[pKbd->device.port].present)
+	{
+		did2->Release();
+		return FALSE;
+	}
+
+	pKbd->device.pDevice = did2;
+	pKbd->caps.dwSize = sizeof(DIDEVCAPS);
+	g_hResult = did2->GetCapabilities(&pKbd->caps);
+	if (IN_LogResult(TEXT("Get Device Capabilities")))
+	{
+		pKbd->device.pDevice->Release();
+		return FALSE;
+	}
+
+	g_hResult = pKbd->device.pDevice->SetDataFormat(&c_dfDIKeyboard);
+	if (IN_LogResult(TEXT("Set Data Format (Keyboard)")))
+	{
+		pKbd->device.pDevice->Release();
+		return FALSE;
+	}
+
+	g_hResult = pKbd->device.pDevice->Acquire();
+	if (IN_LogResult(TEXT("Acquire port")))
+	{
+		pKbd->device.pDevice->Release();
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+
+/*
+===========
+IN_ReleaseMapleDevice
+===========
+*/
+void IN_ReleaseMapleDevice( maplekeyboard_t *pKbd )
+{
+	if (pKbd->device.pDevice)
+	{
+		pKbd->device.pDevice->Unacquire();
+		pKbd->device.pDevice->Release();
+	}
+}
+
+
+/*
+===========
+IN_InitMouseDevice
+===========
+*/
+maplemouse_t::maplemouse_t( GUID guid, int type )
+{
+	device.guid = guid;
+	device.port = JOY_USAGE_NONE;
+	device.type = type;
+	device.pDevice = NULL;
+	numButtons = 0;
+	numAxes = 0;
+
+	memset(&state, 0, sizeof(state));
+	memset(oldButtons, 0, sizeof(oldButtons));
+	memset(buttonChanged, 0, sizeof(buttonChanged));
+}
+
+
+/*
+===========
+IN_EnumDevicesCallback
+
+Called once for every device the driver reports. Whatever comes up is built,
+brought online and filed against the port it is plugged into.
+===========
+*/
+BOOL CALLBACK IN_EnumDevicesCallback( LPCDIDEVICEINSTANCE lpddi, LPVOID pvRef )
+{
+	maplemouse_t		*pMouse;
+	maplekeyboard_t		*pKbd;
+	maplejoystick_t		*pJoy;
+	mapleport_t			*pPort;
+
+	switch (GET_DIDEVICE_TYPE(lpddi->dwDevType))
+	{
+	case DIDEVTYPE_MOUSE:
+		pMouse = new maplemouse_t(lpddi->guidInstance, lpddi->dwDevType);
+
+		if (!IN_StartupMouse(pMouse))
+		{
+			if (pMouse)
+			{
+				IN_ShutdownMouse(pMouse);
+				delete pMouse;
+			}
+		}
+		else
+		{
+			pPort = &g_MapleDevices[pMouse->device.port];
+			pPort->stale = 0;
+			pPort->present = (int)pMouse->device.pDevice;
+			pPort->pDevice = pMouse;
+			pPort->type = MAPLE_MOUSE;
+		}
+		break;
+
+	case DIDEVTYPE_KEYBOARD:
+		pKbd = new maplekeyboard_t(lpddi->guidInstance, lpddi->dwDevType);
+
+		if (!IN_CreateMapleDevice(pKbd))
+		{
+			if (pKbd)
+			{
+				IN_ReleaseMapleDevice(pKbd);
+				delete pKbd;
+			}
+		}
+		else
+		{
+			pPort = &g_MapleDevices[pKbd->device.port];
+			pPort->present = (int)pKbd->device.pDevice;
+			pPort->pDevice = pKbd;
+			pPort->type = MAPLE_KEYBOARD;
+		}
+		break;
+
+	case DIDEVTYPE_JOYSTICK:
+		pJoy = new maplejoystick_t(lpddi->guidInstance, lpddi->dwDevType);
+
+		if (!IN_ActivateJoystick(pJoy))
+		{
+			if (pJoy)
+			{
+				IN_ReleaseJoystick(pJoy);
+				delete pJoy;
+			}
+		}
+		else
+		{
+			pPort = &g_MapleDevices[pJoy->device.port];
+			pPort->stale = 0;
+			pPort->present = (int)pJoy->device.pDevice;
+			pPort->pDevice = pJoy;
+			pPort->type = MAPLE_CONTROLLER;
+		}
+		break;
+
+	default:
+		IN_DebugPrintf(TEXT("Enum Devices: Unknown Device type\n"));
+		break;
+	}
+
+	return DIENUM_CONTINUE;
+}
+
+
+/*
+===========
+IN_LogResult
+
+Note the outcome of the last DirectInput call. The text is only wanted when
+tracking down a device problem, so nothing is emitted.
+===========
+*/
+qboolean IN_LogResult( LPCTSTR what )
+{
+	TCHAR	buf[256];
+
+	if (g_hResult == g_hrExpected)
+	{
+		if (!g_bLogFailuresOnly)
+			wsprintf(buf, TEXT("%s succeeded.\n"), what);
+	}
+	else
+	{
+		wsprintf(buf, TEXT("****%s failed (Error # = 0x%08x).\n"), what, g_hResult);
+	}
+
+	return g_hResult != g_hrExpected;
+}
+
+
+/*
+===========
+IN_UpdateMapleDevices
+
+Re-scan the four sockets. Anything that has gone is released, and the first
+pad, mouse and keyboard found become the ones the game reads.
+===========
+*/
+void IN_UpdateMapleDevices( void )
+{
+	void	*pDevice;
+	int		i;
+
+	// assume everything already known has gone until the scan finds it again
+	for (i = 0; i < MAPLE_MAX_PORTS; i++)
+	{
+		if (g_MapleDevices[i].present)
+			g_MapleDevices[i].stale = 1;
+	}
+
+	g_pDI->EnumDevices(0, IN_EnumDevicesCallback, NULL, 0);
+	g_pDI->EnumDevices(2, IN_EnumDevicesCallback, NULL, 0);
+
+	// let go of whatever did not turn up this time
+	for (i = 0; i < MAPLE_MAX_PORTS; i++)
+	{
+		if (g_MapleDevices[i].present && g_MapleDevices[i].stale == 1)
+		{
+			switch (g_MapleDevices[i].type)
+			{
+			case MAPLE_KEYBOARD:
+				if (g_MapleDevices[i].pDevice == pKeyboardDevice)
+					pKeyboardDevice = NULL;
+				pDevice = g_MapleDevices[i].pDevice;
+				if (pDevice)
+				{
+					IN_ReleaseMapleDevice((maplekeyboard_t*)pDevice);
+					delete pDevice;
+				}
+				IN_DebugPrintf(TEXT("Keyboard removed from port %d\n"), i);
+				break;
+			case MAPLE_CONTROLLER:
+				if (g_MapleDevices[i].pDevice == pJoystickDevice)
+					pJoystickDevice = NULL;
+				pDevice = g_MapleDevices[i].pDevice;
+				if (pDevice)
+				{
+					IN_ReleaseJoystick((maplejoystick_t*)pDevice);
+					delete pDevice;
+				}
+				IN_DebugPrintf(TEXT("Controller removed from port %d\n"), i);
+				break;
+			case MAPLE_MOUSE:
+				if (g_MapleDevices[i].pDevice == pMouseDevice)
+					pMouseDevice = NULL;
+				pDevice = g_MapleDevices[i].pDevice;
+				if (pDevice)
+				{
+					IN_ShutdownMouse((maplemouse_t*)pDevice);
+					delete pDevice;
+				}
+				IN_DebugPrintf(TEXT("Mouse removed from port %d\n"), i);
+				break;
+			}
+
+			memset(&g_MapleDevices[i], 0, sizeof(g_MapleDevices[i]));
+		}
+	}
+
+	if (!pMouseDevice)
+	{
+		for (i = 0; i < MAPLE_MAX_PORTS; i++)
+		{
+			if (g_MapleDevices[i].type == MAPLE_MOUSE)
+			{
+				pMouseDevice = (maplemouse_t*)g_MapleDevices[i].pDevice;
+				IN_DebugPrintf(TEXT("Mouse installed on port %d\n"), i);
+				break;
+			}
+		}
+	}
+
+	if (!pKeyboardDevice)
+	{
+		for (i = 0; i < MAPLE_MAX_PORTS; i++)
+		{
+			if (g_MapleDevices[i].type == MAPLE_KEYBOARD)
+			{
+				pKeyboardDevice = g_MapleDevices[i].pDevice;
+				IN_DebugPrintf(TEXT("Keyboard installed on port %d\n"), i);
+				break;
+			}
+		}
+	}
+
+	for (i = 0; i < MAPLE_MAX_PORTS; i++)
+	{
+		if (g_MapleDevices[i].type == MAPLE_CONTROLLER)
+		{
+			pJoystickDevice = (maplejoystick_t*)g_MapleDevices[i].pDevice;
+			IN_DebugPrintf(TEXT("Controller installed on port %d\n"), i);
+			IN_StartupJoystick();
+			break;
+		}
+	}
+
+	VMU_ResetDeviceTable();
+}
+
+
+/*
+===========
+IN_CheckMapleHotplug
+===========
+*/
+void IN_CheckMapleHotplug( void )
+{
+	HANDLE	handles[2];
+	int		result;
+
+	handles[0] = hNewDevice;
+	handles[1] = hDeviceRemoved;
+
+	result = WaitForMultipleObjects(2, handles, FALSE, 0);
+	if (result != WAIT_FAILED
+		&& (result == WAIT_OBJECT_0 || result == WAIT_OBJECT_0 + 1 || result != WAIT_TIMEOUT))
+		IN_UpdateMapleDevices();
+}
+
+
+/*
+===========
 IN_StartupDevices
 
 Bring up whatever is plugged into the Maple ports.
 ===========
 */
-void IN_StartupDevices( void )
+qboolean IN_StartupDevices( void )
 {
-	IN_StartupMouse();
-	IN_StartupJoystick();
-	IN_StartupKeyboard();
+	pJoystickDevice = NULL;
+	pMouseDevice = NULL;
+	pKeyboardDevice = NULL;
+
+	g_hResult = DirectInputCreate(g_hInstance, DIRECTINPUT_VERSION, &g_pDI, NULL);
+	if (IN_LogResult(TEXT("DirectInputCreate")) || !g_pDI)
+	{
+		if (hNewDevice)
+		{
+			CloseHandle(hNewDevice);
+			hNewDevice = NULL;
+		}
+		if (hDeviceRemoved)
+		{
+			CloseHandle(hDeviceRemoved);
+			hDeviceRemoved = NULL;
+		}
+		return FALSE;
+	}
+
+	memset(g_MapleDevices, 0, sizeof(g_MapleDevices));
+
+	// pick up whatever is already plugged in
+	IN_UpdateMapleDevices();
+
+	hNewDevice = CreateEvent(NULL, FALSE, FALSE, TEXT("MAPLE_NEW_DEVICE"));
+	if (!hNewDevice)
+		return FALSE;
+
+	hDeviceRemoved = CreateEvent(NULL, FALSE, FALSE, TEXT("MAPLE_DEVICE_REMOVED"));
+
+	return hDeviceRemoved != NULL;
 }
 
 void IN_Init( void )
@@ -670,16 +1575,16 @@ void IN_Init( void )
 	Cvar_RegisterVariable(&joy_wwhack2);
 
 	// analog stick smoothing
-	Cvar_RegisterVariable(&cvar_softstick);
-	Cvar_RegisterVariable(&cvar_softaccel);
-	Cvar_RegisterVariable(&cvar_softdamp);
-	Cvar_RegisterVariable(&cvar_softstop);
+	Cvar_RegisterVariable(&softstick);
+	Cvar_RegisterVariable(&softaccel);
+	Cvar_RegisterVariable(&softdamp);
+	Cvar_RegisterVariable(&softstop);
 
 	Cmd_AddCommand("force_centerview", Force_CenterView_f);
 	Cmd_AddCommand("joyadvancedupdate", Joy_AdvancedUpdate_f);
 
-	Cvar_RegisterVariable(&cvar_joyshift1);
-	Cvar_RegisterVariable(&cvar_joyshift2);
+	Cvar_RegisterVariable(&joyshift1);
+	Cvar_RegisterVariable(&joyshift2);
 
 	// The sticks read centred until the pad reports otherwise
 	joy_centerx = 127;
@@ -701,19 +1606,19 @@ void IN_Shutdown( void )
 
 	if (s_di_kbd)
 	{
-		s_di_kbd->lpVtbl->Unacquire(s_di_kbd);
-		s_di_kbd->lpVtbl->Release(s_di_kbd);
+		s_di_kbd->Unacquire();
+		s_di_kbd->Release();
 		s_di_kbd = NULL;
 	}
     if (s_di_joy)
     {
-        s_di_joy->lpVtbl->Unacquire(s_di_joy);
-        s_di_joy->lpVtbl->Release(s_di_joy);
+        s_di_joy->Unacquire();
+        s_di_joy->Release();
         s_di_joy = NULL;
     }
     if (s_di)
     {
-        s_di->lpVtbl->Release(s_di);
+        s_di->Release();
         s_di = NULL;
     }
 	if (s_di_newdev_event)
@@ -767,26 +1672,26 @@ void IN_MouseMove( usercmd_t* cmd )
 
 	if (pMouseDevice)
 	{
-		mouse_pos_x = pMouseDevice->x;
-		mouse_pos_y = pMouseDevice->y;
+		mouse_pos.x = pMouseDevice->x;
+		mouse_pos.y = pMouseDevice->y;
 	}
 
-	mx = mouse_pos_x - window_center_x + mx_accum;
-	my = mouse_pos_y - window_center_y + my_accum;
+	mx = mouse_pos.x - window_center_x + mx_accum;
+	my = mouse_pos.y - window_center_y + my_accum;
 	mx_accum = 0;
 	my_accum = 0;
 
 	old_mouse_x = mx;
 	old_mouse_y = my;
 
-	mouse_x = mx * gMouseSensitivity * 4.0f;
-	mouse_y = my * gMouseSensitivity * 4.0f;
+	mouse_x = mx * (gMouseSensitivity * 4.0f);
+	mouse_y = my * (gMouseSensitivity * 4.0f);
 
 // add mouse X/Y movement to cmd
-	if (!(in_strafe.state & 1) && !(lookstrafe.value && (in_mlook.state & 1)))
-		cl.viewangles[YAW] -= m_yaw.value * mouse_x;
-	else
+	if ((in_strafe.state & 1) || (lookstrafe.value && (in_mlook.state & 1)))
 		cmd->sidemove += m_side.value * mouse_x;
+	else
+		cl.viewangles[YAW] -= m_yaw.value * mouse_x;
 
 	V_StopPitchDrift();
 
@@ -841,20 +1746,7 @@ IN_Accumulate
 */
 void IN_Accumulate( void )
 {
-	//only accumulate mouse if we are not moving the camera with the mouse
-	if (!iMouseInUse)
-	{
-		if (mouseactive)
-		{
-			GetCursorPos(&current_pos);
-
-			mx_accum += current_pos.x - window_center_x;
-			my_accum += current_pos.y - window_center_y;
-
-		// force the mouse to the center, so there's room to move
-			SetCursorPos(window_center_x, window_center_y);
-		}
-	}
+	IN_ReadMouse();
 }
 
 
@@ -865,12 +1757,6 @@ IN_ClearStates
 */
 void IN_ClearStates( void )
 {
-	if (mouseactive)
-	{
-		mx_accum = 0;
-		my_accum = 0;
-		mouse_oldbuttonstate = 0;
-	}
 }
 
 
@@ -881,72 +1767,24 @@ IN_StartupJoystick
 */
 void IN_StartupJoystick( void )
 {
-	HRESULT hr;
-	LPDIRECTINPUTDEVICE did1;
-	int i;
-
-	// assume no joystick
-	joy_avail = FALSE;
-
 	// abort startup if user requests no joystick
 	if (COM_CheckParm("-nojoy"))
 		return;
 
-	/* Create the event that is triggered when a device is added. */
-	if (!s_di_newdev_event)
-		s_di_newdev_event = CreateEvent(NULL, FALSE, FALSE, TEXT("MAPLE_NEW_DEVICE"));
-
-	/* Ensure DirectInput object exists (used by keyboard too). */
-	if (!IN_DI_EnsureDirectInput())
+	// nothing plugged in yet; this runs again when one turns up
+	if (!pJoystickDevice)
 		return;
 
-	/* Enumerate devices to find a controller. */
-	s_joy_guid_valid = 0;
-    s_di->lpVtbl->EnumDevices(s_di, 0, IN_DI_EnumDevicesProc, NULL, 0);
-	if (!s_joy_guid_valid)
-	{
-		Con_DPrintf("\njoystick not found -- no DirectInput devices\n\n");
-		return;
-	}
+	// save the joystick's number of buttons and whether it has a hat switch
+	joy_numbuttons = pJoystickDevice->caps.dwButtons;
+	joy_haspov = pJoystickDevice->caps.dwPOVs;
 
-	/* Create device and get IDirectInputDevice2. */
-	did1 = NULL;
-    hr = s_di->lpVtbl->CreateDevice(s_di, &s_joy_guid, &did1, NULL);
-	if (FAILED(hr) || !did1)
-		return;
-    hr = did1->lpVtbl->QueryInterface(did1, &IID_IDirectInputDevice2, (LPVOID*)&s_di_joy);
-    did1->lpVtbl->Release(did1);
-	if (FAILED(hr) || !s_di_joy)
-		return;
-
-	/* Use joystick format and acquire. */
-    hr = s_di_joy->lpVtbl->SetDataFormat(s_di_joy, &c_dfDIJoystick);
-	if (FAILED(hr))
-	{
-        s_di_joy->lpVtbl->Release(s_di_joy);
-		s_di_joy = NULL;
-		return;
-	}
-    /* Build usage->offset maps so we read the right fields on Dreamcast. */
-	s_di_ofs_x = s_di_ofs_y = s_di_ofs_rx = s_di_ofs_ry = s_di_ofs_slider0 = s_di_ofs_pov0 = -1;
-	for (i = 0; i < DI_BUTTON_USAGE_COUNT; i++)
-		s_di_ofs_button_usage[i] = -1;
-	s_di_joy->lpVtbl->EnumObjects(s_di_joy, IN_DI_EnumObjectsProc, NULL, 0);
-
-    s_di_joy->lpVtbl->Acquire(s_di_joy);
-
-	memset(&s_di_state, 0, sizeof(s_di_state));
-	memset(s_joy_raw, 0, sizeof(s_joy_raw));
-	s_joy_buttons = 0;
-	s_joy_pov = 0xFFFF;
-
-	joy_numbuttons = 32;
-	joy_haspov = 1;
+	// old button state defaults to no buttons pressed
 	joy_oldbuttonstate = 0;
-	joy_oldpovstate = 0;
-	joy_avail = TRUE;
-	joy_advancedinit = 0;
-	Con_Printf("\nDirectInput joystick found\n\n");
+
+	// mark advanced initialization as not completed
+	// this is needed as cvars are not available during initialization
+	joy_advancedinit = FALSE;
 }
 
 
@@ -980,25 +1818,23 @@ void Joy_AdvancedUpdate_f( void )
 	{
 		dwAxisMap[i] = AxisNada;
 		dwControlMap[i] = JOY_ABSOLUTE_AXIS;
-		pdwRawValue[i] = &s_joy_raw[i];
 	}
 
-	if (joy_advanced.value == 0.0)
+	if (joy_advanced.value == 0.0f)
 	{
 		// default joystick initialization
 		// 2 axes only with joystick control
 		dwAxisMap[JOY_AXIS_X] = AxisTurn;
 		// dwControlMap[JOY_AXIS_X] = JOY_ABSOLUTE_AXIS;
-		/* Dreamcast default: left stick Y controls look pitch (mlook-style). */
-		dwAxisMap[JOY_AXIS_Y] = AxisLook;
+		dwAxisMap[JOY_AXIS_Y] = AxisForward;
 		// dwControlMap[JOY_AXIS_Y] = JOY_ABSOLUTE_AXIS;
 	}
 	else
 	{
-		if (Q_strcmp(joy_name.string, "joystick") != 0)
+		if (strcmp(joy_name.string, "joystick") != 0)
 		{
 			// notify user of advanced controller
-			Con_Printf("\n%s configured\n\n", joy_name.string);
+			IN_DebugPrintf(TEXT("%s configured\n"), joy_name.string);
 		}
 
 		// advanced initialization here
@@ -1009,22 +1845,109 @@ void Joy_AdvancedUpdate_f( void )
 		dwTemp = (DWORD)joy_advaxisy.value;
 		dwAxisMap[JOY_AXIS_Y] = dwTemp & 0x0000000f;
 		dwControlMap[JOY_AXIS_Y] = dwTemp & JOY_RELATIVE_AXIS;
-		dwTemp = (DWORD)joy_advaxisz.value;
-		dwAxisMap[JOY_AXIS_Z] = dwTemp & 0x0000000f;
-		dwControlMap[JOY_AXIS_Z] = dwTemp & JOY_RELATIVE_AXIS;
-		dwTemp = (DWORD)joy_advaxisr.value;
-		dwAxisMap[JOY_AXIS_R] = dwTemp & 0x0000000f;
-		dwControlMap[JOY_AXIS_R] = dwTemp & JOY_RELATIVE_AXIS;
-		dwTemp = (DWORD)joy_advaxisu.value;
-		dwAxisMap[JOY_AXIS_U] = dwTemp & 0x0000000f;
-		dwControlMap[JOY_AXIS_U] = dwTemp & JOY_RELATIVE_AXIS;
-		dwTemp = (DWORD)joy_advaxisv.value;
-		dwAxisMap[JOY_AXIS_V] = dwTemp & 0x0000000f;
-		dwControlMap[JOY_AXIS_V] = dwTemp & JOY_RELATIVE_AXIS;
+	}
+}
+
+
+/*
+===========
+IN_ReadMouse
+
+Fold this frame's mouse movement into the cursor, and turn the wheel and
+buttons into key events.
+===========
+*/
+void IN_ReadMouse( void )
+{
+	int		i;
+	int		delta;
+	int		wheel;
+
+	if (!pMouseDevice)
+		return;
+
+	IN_ReadMouseState(pMouseDevice);
+
+	pMouseDevice->x += pMouseDevice->state.lX;
+	pMouseDevice->y += pMouseDevice->state.lY;
+
+	// only a real move counts against the screen saver
+	delta = mouse_lastx - pMouseDevice->x;
+	if (delta < 0)
+		delta = -delta;
+	if (delta < 5)
+	{
+		delta = mouse_lasty - pMouseDevice->y;
+		if (delta < 0)
+			delta = -delta;
+		if (delta < 5)
+			goto settled;
+	}
+	Host_UpdateScreenSaver(FALSE);
+
+settled:
+	mouse_lastx = pMouseDevice->x;
+	mouse_lasty = pMouseDevice->y;
+
+	// the wheel reports a position rather than clicks, so turn the change into
+	// a press of whichever direction it moved
+	wheel = pMouseDevice->state.lZ;
+	if (wheel != pMouseDevice->z)
+	{
+		if (wheel == 0)
+		{
+			if (pMouseDevice->z < 1)
+				Key_Event(K_MWHEELDOWN, FALSE);
+			else
+				Key_Event(K_MWHEELUP, FALSE);
+		}
+		else if (wheel < 1)
+		{
+			if (pMouseDevice->z > 0)
+				Key_Event(K_MWHEELUP, FALSE);
+			Key_Event(K_MWHEELDOWN, TRUE);
+		}
+		else
+		{
+			if (pMouseDevice->z < 0)
+				Key_Event(K_MWHEELDOWN, FALSE);
+			Key_Event(K_MWHEELUP, TRUE);
+		}
+		pMouseDevice->z = wheel;
 	}
 
-    /* DirectInput path: we always poll full DIJOYSTATE; no JOY_* flags. */
-    joy_flags = 0;
+	for (i = 0; i < 4; i++)
+	{
+		if (pMouseDevice->buttonChanged[i])
+		{
+			if (pMouseDevice->oldButtons[i])
+				Key_Event(K_MOUSE1 + i, TRUE);
+			else
+				Key_Event(K_MOUSE1 + i, FALSE);
+		}
+	}
+}
+
+
+/*
+===========
+IN_KeyboardActive
+===========
+*/
+qboolean IN_KeyboardActive( void )
+{
+	return pKeyboardDevice != NULL;
+}
+
+
+/*
+===========
+IN_JoystickActive
+===========
+*/
+qboolean IN_JoystickActive( void )
+{
+	return pJoystickDevice != NULL;
 }
 
 
@@ -1035,65 +1958,229 @@ IN_Commands
 */
 void IN_Commands( void )
 {
-	int		i, key_index;
-	DWORD	buttonstate, povstate;
+	int			i, j, key;
+	int			modifier;
+	int			value;
+	int			held;
+	int			bShift1, bShift2;
+	int			bShifted;
+	int			changed[MAX_JOY_POVS];
+	int			pressed[MAX_JOY_POVS];
 
-	/* Keyboard input is independent of controller availability. */
-	IN_ReadKeyboard();
+	IN_CheckMapleHotplug();
+	VMU_UpdateDeviceIcons();
+	IN_ReadMouse();
 
-	if (!joy_avail)
+	if (!pJoystickDevice)
 		return;
 
-	// loop through the joystick buttons
-	// key a joystick event or auxillary event for higher number buttons for each state change
-	buttonstate = s_joy_buttons;
-	for (i = 0; i < (int)joy_numbuttons; i++)
-	{
-		if ((buttonstate & (1 << i)) && !(joy_oldbuttonstate & (1 << i)))
-		{
-			key_index = (i < 4) ? K_JOY1 : K_AUX1;
-			Key_Event(key_index + i, TRUE);
-		}
+	IN_ReadJoystick(pJoystickDevice);
 
-		if (!(buttonstate & (1 << i)) && (joy_oldbuttonstate & (1 << i)))
+	for (i = 0; i < MAX_JOY_POVS; i++)
+	{
+		changed[i] = pJoystickDevice->buttonChanged[pJoystickDevice->povUsage[i]];
+		pressed[i] = pJoystickDevice->oldButtons[pJoystickDevice->povUsage[i]];
+	}
+
+	// find which pad positions the two shift buttons are bound to
+	key = Key_StringToKeynum(joyshift1.string);
+	joyshift1count = 0;
+	if (key != -1)
+	{
+		for (j = 0; j < MAX_JOY_POVS; j++)
 		{
-			key_index = (i < 4) ? K_JOY1 : K_AUX1;
-			Key_Event(key_index + i, FALSE);
+			if (key == joykeys[j])
+			{
+				joyshift1keys[joyshift1count++] = j;
+				break;
+			}
 		}
 	}
-	joy_oldbuttonstate = buttonstate;
 
-	if (joy_haspov)
+	key = Key_StringToKeynum(joyshift2.string);
+	joyshift2count = 0;
+	if (key != -1)
 	{
-		// convert POV information into 4 bits of state information
-		// this avoids any potential problems related to moving from one
-		// direction to another without going through the center position
-		povstate = 0;
-		if (s_joy_pov != 0xFFFF)
+		for (j = 0; j < MAX_JOY_POVS; j++)
 		{
-			if (s_joy_pov == 0)
-				povstate |= 0x01;
-			if (s_joy_pov == 9000)
-				povstate |= 0x02;
-			if (s_joy_pov == 18000)
-				povstate |= 0x04;
-			if (s_joy_pov == 27000)
-				povstate |= 0x08;
-		}
-		// determine which bits have changed and key an auxillary event for each change
-		for (i = 0; i < 4; i++)
-		{
-			if ((povstate & (1 << i)) && !(joy_oldpovstate & (1 << i)))
+			if (key == joykeys[j])
 			{
-				Key_Event(K_AUX29 + i, TRUE);
+				joyshift2keys[joyshift2count++] = j;
+				break;
 			}
+		}
+	}
 
-			if (!(povstate & (1 << i)) && (joy_oldpovstate & (1 << i)))
+	// a shift is in effect only while every button bound to it is held, and the
+	// buttons themselves stop reporting as ordinary presses
+	held = 0;
+	bShift1 = FALSE;
+	for (i = 0; i < joyshift1count; i++)
+	{
+		if (pressed[joyshift1keys[i]])
+			held++;
+		changed[joyshift1keys[i]] = 0;
+	}
+	if (held > 0 && held == joyshift1count)
+		bShift1 = TRUE;
+
+	held = 0;
+	bShift2 = FALSE;
+	for (i = 0; i < joyshift2count; i++)
+	{
+		if (pressed[joyshift2keys[i]])
+			held++;
+		changed[joyshift2keys[i]] = 0;
+	}
+	if (held > 0 && held == joyshift2count)
+		bShift2 = TRUE;
+
+	modifier = 0;
+	if (bShift1 && bShift2)
+		modifier = K_JOYSHIFT12;
+	else if (bShift1)
+		modifier = K_JOYSHIFT1;
+	else if (bShift2)
+		modifier = K_JOYSHIFT2;
+
+	bShifted = (modifier != 0);
+	if (bShifted)
+		Host_UpdateScreenSaver(FALSE);
+
+	// a button pressed while shifted keeps sending the shifted key until it is
+	// let go, even if the shift button is released first
+	for (i = 0; i < MAX_JOY_POVS; i++)
+	{
+		if (changed[i])
+		{
+			if (pJoystickDevice->pov[i][0] == 0)
 			{
-				Key_Event(K_AUX29 + i, FALSE);
+				if (!pressed[i])
+				{
+					Key_Event(joybuttonkeys[joyshiftmap[i]], FALSE);
+				}
+				else if (bShifted)
+				{
+					pJoystickDevice->pov[i][0] = 1;
+					pJoystickDevice->pov[i][1] = i + modifier;
+					Key_Event(i + modifier, TRUE);
+				}
+				else
+				{
+					Key_Event(joybuttonkeys[joyshiftmap[i]], TRUE);
+				}
+				changed[i] = 0;
+			}
+			else
+			{
+				pJoystickDevice->pov[i][0] = 0;
+				changed[i] = 0;
+				Key_Event(pJoystickDevice->pov[i][1], FALSE);
 			}
 		}
-		joy_oldpovstate = povstate;
+	}
+
+	// the buttons that are not shiftable report straight through
+	for (i = 0; i < MAX_JOY_BUTTONS; i++)
+	{
+		if (pJoystickDevice->buttonUsage[i] != JOY_USAGE_NONE
+			&& i != 0 && i != 1 && i != 8 && i != 9
+			&& i != 4 && i != 5 && i != 6 && i != 7
+			&& i != 16 && i != 17 && i != 3
+			&& pJoystickDevice->buttonChanged[pJoystickDevice->buttonUsage[i]])
+		{
+			if (pJoystickDevice->oldButtons[pJoystickDevice->buttonUsage[i]])
+				Key_Event(joybuttonkeys[i], TRUE);
+			else
+				Key_Event(joybuttonkeys[i], FALSE);
+		}
+	}
+
+	// tell the menu which buttons are down, unless something else owns the pad
+	for (i = 0; i < MAX_JOY_BUTTONS; i++)
+	{
+		joymenubuttons[i] = 0;
+		if (key_dest != key_message)
+		{
+			if (pJoystickDevice->buttonUsage[i] != JOY_USAGE_NONE
+				&& pJoystickDevice->buttonChanged[pJoystickDevice->buttonUsage[i]]
+				&& pJoystickDevice->oldButtons[pJoystickDevice->buttonUsage[i]])
+			{
+				joymenubuttons[i] = 1;
+			}
+		}
+	}
+
+	// holding the whole face of the pad down drops back to the menu, or opens
+	// the drive door when there is nothing to drop back to
+	if (pJoystickDevice->oldButtons[pJoystickDevice->buttonUsage[0]]
+		&& pJoystickDevice->oldButtons[pJoystickDevice->buttonUsage[1]]
+		&& pJoystickDevice->oldButtons[pJoystickDevice->buttonUsage[8]]
+		&& pJoystickDevice->oldButtons[pJoystickDevice->buttonUsage[9]]
+		&& pJoystickDevice->oldButtons[pJoystickDevice->buttonUsage[3]])
+	{
+		if (cls.state == ca_active && sv.state != ss_active)
+			Cbuf_AddText("disconnect\nmenu splash");
+		else
+			GDROM_DoorReset();
+	}
+
+	M_DecodeStateFlags();
+
+	if (!pJoystickDevice->numAxes)
+		return;
+
+	if (gnControllerGrace)
+		return;
+
+	// the stick has to come back to the middle before it counts as pushed again
+	for (i = 0; i < JOY_MAX_AXES; i++)
+	{
+		if (pJoystickDevice->axes[i].usage == JOY_USAGE_NONE)
+			continue;
+
+		value = pJoystickDevice->axisValue[pJoystickDevice->axes[i].usage] - 127;
+
+		if (pJoystickDevice->axes[i].axis == 0)
+		{
+			if (value < -7 || value > 7)
+				Host_UpdateScreenSaver(FALSE);
+
+			if (value > 120 && joy_lastx < 7)
+			{
+				joymenubuttons[13] = 1;
+				joy_lastx = value;
+			}
+			else if (value < -120 && joy_lastx > -7)
+			{
+				joymenubuttons[12] = 1;
+				joy_lastx = value;
+			}
+			else if (value > -7 && value < 7)
+			{
+				joy_lastx = value;
+			}
+		}
+		else if (pJoystickDevice->axes[i].axis == 1)
+		{
+			if (value < -7 || value > 7)
+				Host_UpdateScreenSaver(FALSE);
+
+			if (value > 120 && joy_lasty < 7)
+			{
+				joymenubuttons[14] = 1;
+				joy_lasty = value;
+			}
+			else if (value < -120 && joy_lasty > -7)
+			{
+				joymenubuttons[15] = 1;
+				joy_lasty = value;
+			}
+			else if (value > -7 && value < 7)
+			{
+				joy_lasty = value;
+			}
+		}
 	}
 }
 
@@ -1103,138 +2190,53 @@ void IN_Commands( void )
 IN_ReadJoystick
 ===============
 */
-qboolean IN_ReadJoystick( void )
+qboolean IN_ReadJoystick( maplejoystick_t *pJoy )
 {
-	HRESULT hr;
-	LONG lx, ly;
-	const BYTE *base;
-	int ofs;
-	int usage_idx;
-	int up, down, left, right;
-	static int s_last_dump_frame = -1;
+	DIJOYSTATE	js;
+	int			i;
+	int			usage;
+	int			value;
 
-	if (!s_di_joy)
-		return FALSE;
-
-    hr = s_di_joy->lpVtbl->Poll(s_di_joy);
-	if (FAILED(hr))
+	// the pad is handed back to us whenever the game loses focus
+	if (pJoy->device.pDevice->GetDeviceState(sizeof(js), &js) == DIERR_INPUTLOST)
 	{
-        s_di_joy->lpVtbl->Acquire(s_di_joy);
-        hr = s_di_joy->lpVtbl->Poll(s_di_joy);
-	}
-	if (FAILED(hr))
-		return FALSE;
-
-	memset(&s_di_state, 0, sizeof(s_di_state));
-    hr = s_di_joy->lpVtbl->GetDeviceState(s_di_joy, sizeof(s_di_state), &s_di_state);
-	if (FAILED(hr))
-		return FALSE;
-
-	base = (const BYTE *)&s_di_state;
-
-	/* Axes: prefer usage-mapped offsets; fall back to standard DIJOFS_* fields. */
-	ofs = (s_di_ofs_x >= 0) ? s_di_ofs_x : (int)DIJOFS_X;
-	lx = *(const LONG *)(base + ofs);
-	ofs = (s_di_ofs_y >= 0) ? s_di_ofs_y : (int)DIJOFS_Y;
-	ly = *(const LONG *)(base + ofs);
-
-	/* Some devices report the main stick as Rx/Ry or Slider. */
-	if ((lx == 0 && ly == 0) && (s_di_ofs_rx >= 0 && s_di_ofs_ry >= 0))
-	{
-		lx = *(const LONG *)(base + s_di_ofs_rx);
-		ly = *(const LONG *)(base + s_di_ofs_ry);
-	}
-	if ((lx == 0 && ly == 0) && (s_di_ofs_slider0 >= 0))
-	{
-		lx = *(const LONG *)(base + s_di_ofs_slider0);
-		ly = 0;
+		pJoy->device.pDevice->Acquire();
+		pJoy->device.pDevice->GetDeviceState(sizeof(js), &js);
 	}
 
-	/*
-	 * Dreamcast MAPLE devices often report analog axes as 8-bit unsigned (0..255)
-	 * with a center around 128. Normalize that into a signed 16-bit-ish range
-	 * so the existing Quake joystick math works (-32768..32767 after subtracting 32768).
-	 */
-	if ((lx >= 0 && lx <= 255) && (ly >= 0 && ly <= 255))
+	for (i = 0; i < MAX_JOY_BUTTONS; i++)
 	{
-		lx = (lx - 128) * 256;
-		/* Dreamcast Y axis is typically inverted (up = smaller). */
-		ly = (128 - ly) * 256;
+		usage = pJoy->buttonUsage[i];
+		if (usage != JOY_USAGE_NONE)
+		{
+			if (i == 16 || i == 17)
+			{
+				// the triggers report how far they are held; only the top bit
+				// of that is a press
+				pJoy->buttonChanged[usage] = (pJoy->oldButtons[usage] != (js.rgbButtons[usage] & 0x80));
+				pJoy->oldButtons[usage] = js.rgbButtons[usage] & 0x80;
+			}
+			else
+			{
+				pJoy->buttonChanged[usage] = (pJoy->oldButtons[usage] != js.rgbButtons[usage]);
+				pJoy->oldButtons[usage] = js.rgbButtons[usage];
+			}
+		}
 	}
 
-	s_joy_raw[JOY_AXIS_X] = (DWORD)(lx + 32768L);
-	s_joy_raw[JOY_AXIS_Y] = (DWORD)(ly + 32768L);
-
-	/* Remaining axes keep best-effort defaults. */
-	s_joy_raw[JOY_AXIS_Z] = (DWORD)(s_di_state.lZ + 32768L);
-	s_joy_raw[JOY_AXIS_R] = (DWORD)(s_di_state.lRz + 32768L);
-	s_joy_raw[JOY_AXIS_U] = (DWORD)(s_di_state.rglSlider[0] + 32768L);
-	s_joy_raw[JOY_AXIS_V] = (DWORD)(s_di_state.rglSlider[1] + 32768L);
-
-#if defined(_WIN32_WCE)
-	/* Buttons: build a stable logical layout using USAGE_* offsets (Dreamcast MAPLE). */
-	s_joy_buttons = 0;
-	usage_idx = (int)(USAGE_A_BUTTON - USAGE_FIRST_BUTTON);
-	if (usage_idx >= 0 && usage_idx < DI_BUTTON_USAGE_COUNT &&
-		s_di_ofs_button_usage[usage_idx] >= 0 && (base[s_di_ofs_button_usage[usage_idx]] & 0x80))
-		s_joy_buttons |= (1u << 0);
-	usage_idx = (int)(USAGE_B_BUTTON - USAGE_FIRST_BUTTON);
-	if (usage_idx >= 0 && usage_idx < DI_BUTTON_USAGE_COUNT &&
-		s_di_ofs_button_usage[usage_idx] >= 0 && (base[s_di_ofs_button_usage[usage_idx]] & 0x80))
-		s_joy_buttons |= (1u << 1);
-	usage_idx = (int)(USAGE_X_BUTTON - USAGE_FIRST_BUTTON);
-	if (usage_idx >= 0 && usage_idx < DI_BUTTON_USAGE_COUNT &&
-		s_di_ofs_button_usage[usage_idx] >= 0 && (base[s_di_ofs_button_usage[usage_idx]] & 0x80))
-		s_joy_buttons |= (1u << 2);
-	usage_idx = (int)(USAGE_Y_BUTTON - USAGE_FIRST_BUTTON);
-	if (usage_idx >= 0 && usage_idx < DI_BUTTON_USAGE_COUNT &&
-		s_di_ofs_button_usage[usage_idx] >= 0 && (base[s_di_ofs_button_usage[usage_idx]] & 0x80))
-		s_joy_buttons |= (1u << 3);
-
-	usage_idx = (int)(USAGE_START_BUTTON - USAGE_FIRST_BUTTON);
-	if (usage_idx >= 0 && usage_idx < DI_BUTTON_USAGE_COUNT && s_di_ofs_button_usage[usage_idx] >= 0 && (base[s_di_ofs_button_usage[usage_idx]] & 0x80))
-		s_joy_buttons |= (1u << 4);
-	usage_idx = (int)(USAGE_LTRIG_BUTTON - USAGE_FIRST_BUTTON);
-	if (usage_idx >= 0 && usage_idx < DI_BUTTON_USAGE_COUNT && s_di_ofs_button_usage[usage_idx] >= 0 && (base[s_di_ofs_button_usage[usage_idx]] & 0x80))
-		s_joy_buttons |= (1u << 5);
-	usage_idx = (int)(USAGE_RTRIG_BUTTON - USAGE_FIRST_BUTTON);
-	if (usage_idx >= 0 && usage_idx < DI_BUTTON_USAGE_COUNT && s_di_ofs_button_usage[usage_idx] >= 0 && (base[s_di_ofs_button_usage[usage_idx]] & 0x80))
-		s_joy_buttons |= (1u << 6);
-
-	s_joy_pov = 0xFFFF;
-	if (s_di_ofs_pov0 >= 0)
-		s_joy_pov = *(const DWORD *)(base + s_di_ofs_pov0);
-
-	up = down = left = right = 0;
-	usage_idx = (int)(USAGE_UA_BUTTON - USAGE_FIRST_BUTTON);
-	if (usage_idx >= 0 && usage_idx < DI_BUTTON_USAGE_COUNT && s_di_ofs_button_usage[usage_idx] >= 0 && (base[s_di_ofs_button_usage[usage_idx]] & 0x80)) up = 1;
-	usage_idx = (int)(USAGE_DA_BUTTON - USAGE_FIRST_BUTTON);
-	if (usage_idx >= 0 && usage_idx < DI_BUTTON_USAGE_COUNT && s_di_ofs_button_usage[usage_idx] >= 0 && (base[s_di_ofs_button_usage[usage_idx]] & 0x80)) down = 1;
-	usage_idx = (int)(USAGE_LA_BUTTON - USAGE_FIRST_BUTTON);
-	if (usage_idx >= 0 && usage_idx < DI_BUTTON_USAGE_COUNT && s_di_ofs_button_usage[usage_idx] >= 0 && (base[s_di_ofs_button_usage[usage_idx]] & 0x80)) left = 1;
-	usage_idx = (int)(USAGE_RA_BUTTON - USAGE_FIRST_BUTTON);
-	if (usage_idx >= 0 && usage_idx < DI_BUTTON_USAGE_COUNT && s_di_ofs_button_usage[usage_idx] >= 0 && (base[s_di_ofs_button_usage[usage_idx]] & 0x80)) right = 1;
-
-	if (s_joy_pov == 0xFFFF)
+	for (i = 0; i < 4; i++)
 	{
-		if (up && !down && !left && !right) s_joy_pov = 0;
-		else if (right && !left && !up && !down) s_joy_pov = 9000;
-		else if (down && !up && !left && !right) s_joy_pov = 18000;
-		else if (left && !right && !up && !down) s_joy_pov = 27000;
-	}
-#else
-	/* Win32: use standard DIJOYSTATE layout. */
-	s_joy_buttons = 0;
-	if (s_di_state.rgbButtons[0] & 0x80) s_joy_buttons |= (1u << 0);
-	if (s_di_state.rgbButtons[1] & 0x80) s_joy_buttons |= (1u << 1);
-	if (s_di_state.rgbButtons[2] & 0x80) s_joy_buttons |= (1u << 2);
-	if (s_di_state.rgbButtons[3] & 0x80) s_joy_buttons |= (1u << 3);
-	if (joy_numbuttons > 4 && (s_di_state.rgbButtons[4] & 0x80)) s_joy_buttons |= (1u << 4);
-	if (joy_numbuttons > 5 && (s_di_state.rgbButtons[5] & 0x80)) s_joy_buttons |= (1u << 5);
-	if (joy_numbuttons > 6 && (s_di_state.rgbButtons[6] & 0x80)) s_joy_buttons |= (1u << 6);
-	s_joy_pov = s_di_state.rgdwPOV[0];
-#endif
+		usage = pJoy->axes[i].usage;
+		if (usage != JOY_USAGE_NONE)
+		{
+			if (pJoy->axes[i].axis == 0)
+				value = js.lX;
+			else if (pJoy->axes[i].axis == 1)
+				value = js.lY;
 
+			pJoy->axisValue[usage] = value;
+		}
+	}
 
 	return TRUE;
 }
@@ -1245,83 +2247,135 @@ qboolean IN_ReadJoystick( void )
 IN_JoyMove
 ===========
 */
+float IN_ApplySoftDamp( float current, float target )
+{
+	int			bMoving;
+
+	// A stick that is being held winds up towards where it is pushed. One that
+	// has been let go decays back towards the centre, and snaps to it once the
+	// remaining deflection is too small to be worth reporting.
+	bMoving = (target >= 0.01f || target <= -0.01f);
+	if (bMoving)
+	{
+		current = current + (target - current) * softaccel.value;
+	}
+	else
+	{
+		current = current * softdamp.value;
+		if (current < softstop.value && current > -softstop.value)
+			current = 0.0f;
+	}
+
+	return current;
+}
+
+
+/*
+===========
+IN_JoyMove
+===========
+*/
 void IN_JoyMove( usercmd_t *cmd )
 {
-	float	speed, aspeed;
+	float	speed, aspeed, aspeedkey;
 	float	fAxisValue, fTemp;
+	maplejoyaxis_t	*pAxis;
 	int		i;
 
 	// complete initialization if first time in
 	// this is needed as cvars are not available at initialization time
-	if (joy_advancedinit != 1)
+	if (!joy_advancedinit)
 	{
 		Joy_AdvancedUpdate_f();
-		joy_advancedinit = 1;
+		joy_advancedinit = TRUE;
 	}
 
-	// verify joystick is available and that the user wants to use it
-	if (!joy_avail || !in_joystick.value)
-	{
+	// verify the pad is plugged in and that we still hold it
+	if (!pJoystickDevice || !pJoystickDevice->numAxes)
 		return;
-	}
-
-	// collect the joystick data, if possible
-	if (IN_ReadJoystick() != TRUE)
-	{
-		return;
-	}
 
 	if (in_speed.state & 1)
+	{
+		aspeedkey = cl_anglespeedkey.value;
 		speed = cl_movespeedkey.value;
+		aspeed = host_frametime * aspeedkey;
+	}
 	else
-		speed = 1;
-	aspeed = speed * host_frametime;
+	{
+		speed = 1.0f;
+		aspeedkey = 1.0f;
+		aspeed = host_frametime;
+	}
+
+	joy_forwarddir = 0;
+	joy_sidedir = 0;
+
+	// don't act on the sticks while the pad is still being counted as missing
+	if (gnControllerGrace)
+		return;
 
 	// loop through the axes
 	for (i = 0; i < JOY_MAX_AXES; i++)
 	{
+		pAxis = &pJoystickDevice->axes[i];
+		if (pAxis->axis == JOY_USAGE_NONE)
+			continue;
+
 		// get the floating point zero-centered, potentially-inverted data for the current axis
-		fAxisValue = (float)*pdwRawValue[i];
-		// move centerpoint to zero
-		fAxisValue -= 32768.0;
+		fAxisValue = ((float)pJoystickDevice->axisValue[pAxis->usage] - 127.0f) / 127.0f;
 
-		if (joy_wwhack2.value != 0.0)
+		if (softstick.value)
 		{
-			if (dwAxisMap[i] == AxisTurn)
-			{
-				// this is a special formula for the Logitech WingMan Warrior
-				// y=ax^b; where a = 300 and b = 1.3
-				// also x values are in increments of 800 (so this is factored out)
-				// then bounds check result to level out excessively high spin rates
-				fTemp = 300.0 * pow(abs(fAxisValue) / 800.0, 1.3);
-				if (fTemp > 14000.0)
-					fTemp = 14000.0;
-				// restore direction information
-				fAxisValue = (fAxisValue > 0.0) ? fTemp : -fTemp;
-			}
+			fAxisValue = IN_ApplySoftDamp(joy_softvalue[i], fAxisValue);
+			joy_softvalue[i] = fAxisValue;
 		}
-
-		// convert range from -32768..32767 to -1..1 
-		fAxisValue /= 32768.0;
+		else
+		{
+			// raw stick: just ease off the first part of the throw
+			fTemp = fabs(fAxisValue);
+			if (fTemp < 0.4f)
+				fAxisValue = 0.2f * fTemp * (fAxisValue / fTemp);
+		}
 
 		switch (dwAxisMap[i])
 		{
+		case AxisTurn:
+			if ((in_strafe.state & 1) || (lookstrafe.value && (in_mlook.state & 1)))
+			{
+				// user wants turn control to become side control
+				if (fabs(fAxisValue) > joy_sidethreshold.value)
+				{
+					cmd->sidemove -= (fAxisValue * joy_sidesensitivity.value) * speed * cl_sidespeed.value;
+					if (fAxisValue <= 0.0f)
+						joy_sidedir = -1;
+					else
+						joy_sidedir = 1;
+				}
+			}
+			else
+			{
+				// user wants turn control to be turn control
+				if (fabs(fAxisValue) > joy_yawthreshold.value)
+				{
+					if (dwControlMap[i] == JOY_ABSOLUTE_AXIS)
+						cl.viewangles[YAW] += (fAxisValue * joy_yawsensitivity.value) * gJoySensitivity * aspeed * cl_yawspeed.value;
+					else
+						cl.viewangles[YAW] += (fAxisValue * joy_yawsensitivity.value) * gJoySensitivity * aspeedkey * 180.0f;
+				}
+			}
+			break;
 		case AxisForward:
-			if ((joy_advanced.value == 0.0) && (in_mlook.state & 1))
+			if (!(in_mlook.state & 1))
 			{
 				// user wants forward control to become look control
 				if (fabs(fAxisValue) > joy_pitchthreshold.value)
 				{
 					// if mouse invert is on, invert the joystick pitch value
 					// only absolute control support here (joy_advanced is 0)
-					if (m_pitch.value < 0.0)
-					{
-						cl.viewangles[PITCH] -= (fAxisValue * joy_pitchsensitivity.value) * aspeed * cl_pitchspeed.value;
-					}
+					if (m_pitch.value < 0.0f)
+						cl.viewangles[PITCH] -= (fAxisValue * joy_pitchsensitivity.value) * gJoySensitivity * aspeed * cl_pitchspeed.value;
 					else
-					{
-						cl.viewangles[PITCH] += (fAxisValue * joy_pitchsensitivity.value) * aspeed * cl_pitchspeed.value;
-					}
+						cl.viewangles[PITCH] += (fAxisValue * joy_pitchsensitivity.value) * gJoySensitivity * aspeed * cl_pitchspeed.value;
 					V_StopPitchDrift();
 				}
 				else
@@ -1330,7 +2384,7 @@ void IN_JoyMove( usercmd_t *cmd )
 					// disable pitch return-to-center unless requested by user
 					// *** this code can be removed when the lookspring bug is fixed
 					// *** the bug always has the lookspring feature on
-					if (lookspring.value == 0.0)
+					if (!lookspring.value)
 						V_StopPitchDrift();
 				}
 			}
@@ -1340,44 +2394,13 @@ void IN_JoyMove( usercmd_t *cmd )
 				if (fabs(fAxisValue) > joy_forwardthreshold.value)
 				{
 					cmd->forwardmove += (fAxisValue * joy_forwardsensitivity.value) * speed * cl_forwardspeed.value;
-				}
-			}
-			break;
-
-		case AxisSide:
-			if (fabs(fAxisValue) > joy_sidethreshold.value)
-			{
-				cmd->sidemove += (fAxisValue * joy_sidesensitivity.value) * speed * cl_sidespeed.value;
-			}
-			break;
-
-		case AxisTurn:
-			if ((in_strafe.state & 1) || (lookstrafe.value && (in_mlook.state & 1)))
-			{
-				// user wants turn control to become side control
-				if (fabs(fAxisValue) > joy_sidethreshold.value)
-				{
-					cmd->sidemove -= (fAxisValue * joy_sidesensitivity.value) * speed * cl_sidespeed.value;
-				}
-			}
-			else
-			{
-				// user wants turn control to be turn control
-				if (fabs(fAxisValue) > joy_yawthreshold.value)
-				{
-					if (dwControlMap[i] == JOY_ABSOLUTE_AXIS)
-					{
-						cl.viewangles[YAW] += (fAxisValue * joy_yawsensitivity.value) * aspeed * cl_yawspeed.value;
-					}
+					if ((fAxisValue * joy_forwardsensitivity.value) > 0.0f)
+						joy_forwarddir = 1;
 					else
-					{
-						cl.viewangles[YAW] += (fAxisValue * joy_yawsensitivity.value) * speed * 180.0;
-					}
-
+						joy_forwarddir = -1;
 				}
 			}
 			break;
-
 		case AxisLook:
 			if (in_mlook.state & 1)
 			{
@@ -1385,13 +2408,9 @@ void IN_JoyMove( usercmd_t *cmd )
 				{
 					// pitch movement detected and pitch movement desired by user
 					if (dwControlMap[i] == JOY_ABSOLUTE_AXIS)
-					{
-						cl.viewangles[PITCH] += (fAxisValue * joy_pitchsensitivity.value) * aspeed * cl_pitchspeed.value;
-					}
+						cl.viewangles[PITCH] += (fAxisValue * joy_pitchsensitivity.value) * gJoySensitivity * aspeed * cl_pitchspeed.value;
 					else
-					{
-						cl.viewangles[PITCH] += (fAxisValue * joy_pitchsensitivity.value) * speed * 180.0;
-					}
+						cl.viewangles[PITCH] += (fAxisValue * joy_pitchsensitivity.value) * gJoySensitivity * aspeedkey * 180.0f;
 					V_StopPitchDrift();
 				}
 				else
@@ -1400,12 +2419,21 @@ void IN_JoyMove( usercmd_t *cmd )
 					// disable pitch return-to-center unless requested by user
 					// *** this code can be removed when the lookspring bug is fixed
 					// *** the bug always has the lookspring feature on
-					if (lookspring.value == 0.0)
+					if (!lookspring.value)
 						V_StopPitchDrift();
 				}
 			}
 			break;
-
+		case AxisSide:
+			if (fabs(fAxisValue) > joy_sidethreshold.value)
+			{
+				cmd->sidemove += (fAxisValue * joy_sidesensitivity.value) * speed * cl_sidespeed.value;
+				if (fAxisValue > 0.0f)
+					joy_sidedir = 1;
+				else
+					joy_sidedir = -1;
+			}
+			break;
 		default:
 			break;
 		}
