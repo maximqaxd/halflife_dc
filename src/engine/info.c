@@ -20,7 +20,7 @@ char* Info_ValueForKey( char* s, char* key )
 	static int		valueindex;
 	char*			o;
 
-	valueindex = (valueindex + 1) & 3;
+	valueindex = (valueindex + 1) % 4;
 
 	if (*s == '\\')
 		s++;
@@ -183,8 +183,8 @@ char* Info_FindLargestKey( char* s, int maxsize )
 		o = key;
 		while (*s && *s != '\\')
 			*o++ = *s++;
-		l = o - key;
 		*o = 0;
+		l = strlen(key);
 
 		if (!*s)
 			return largest_key;
@@ -198,7 +198,7 @@ char* Info_FindLargestKey( char* s, int maxsize )
 		if (*s)
 			s++;
 
-		l += o - value;
+		l += strlen(value);
 		if (largest_size < l)
 		{
 			if (key[0] != '*'
@@ -226,6 +226,7 @@ void Info_SetValueForStarKey( char* s, char* key, char* value, int maxsize )
 {
 	char	newv[MAX_INFO_STRING], *v;
 	int		c;
+	int		len;
 
 	if (strstr(key, "\\") || strstr(value, "\\"))
 	{
@@ -239,7 +240,7 @@ void Info_SetValueForStarKey( char* s, char* key, char* value, int maxsize )
 		return;
 	}
 
-	if (strlen(key) >= 64 || strlen(value) >= 64)
+	if (strlen(key) > 63 || strlen(value) > 63)
 	{
 		Con_Printf("Keys and values must be < 64 characters.\n");
 		return;
@@ -251,12 +252,14 @@ void Info_SetValueForStarKey( char* s, char* key, char* value, int maxsize )
 
 	sprintf(newv, "\\%s\\%s", key, value);
 
-	if (strlen(newv) + strlen(s) >= maxsize)
+	len = strlen(s) + strlen(newv);
+	if (len >= maxsize)
 	{
 		// no room, so remove the largest data until it fits
 		if (*key != '*'
 			&& strcmp(key, "name")
 			&& strcmp(key, "model")
+			&& strcmp(key, "rate")
 			&& strcmp(key, "topcolor")
 			&& strcmp(key, "bottomcolor"))
 		{
@@ -268,7 +271,8 @@ void Info_SetValueForStarKey( char* s, char* key, char* value, int maxsize )
 		{
 			v = Info_FindLargestKey(s, maxsize);
 			Info_RemoveKey(s, v);
-			if (strlen(s) + strlen(newv) < maxsize)
+			len = strlen(s) + strlen(newv);
+			if (len < maxsize)
 				break;
 		} while (*v);
 
@@ -411,9 +415,49 @@ char* Info_Serverinfo( void )
 ===============
 Info_WriteVars
 
-Write the archived info-string cvars out to a config file
+Cvar_WriteVariables already wrote every archived cvar, so this only needs to
+save the userinfo keys that a mod set by hand and never backed with a cvar
+("*" keys are server-assigned and never saved).
 ===============
 */
 void Info_WriteVars( void* f )
 {
+	char	key[MAX_INFO_STRING];
+	char	value[MAX_INFO_STRING];
+	char	*s;
+	char	*o;
+	cvar_t	*var;
+
+	s = cls.userinfo;
+	if (*s == '\\')
+		s++;
+	while (1)
+	{
+		o = key;
+		while (*s != '\\')
+		{
+			if (!*s)
+				return;
+			*o++ = *s++;
+		}
+		*o = 0;
+		s++;
+
+		o = value;
+		while (*s != '\\' && *s)
+		{
+			if (!*s)
+				return;
+			*o++ = *s++;
+		}
+		*o = 0;
+
+		var = Cvar_FindVar(key);
+		if (!var && key[0] != '*')
+			Sys_FPrintf(f, "setinfo \"%s\" \"%s\"\n", key, value);
+
+		if (!*s)
+			return;
+		s++;
+	}
 }
