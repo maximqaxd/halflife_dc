@@ -111,6 +111,10 @@ extern maplemouse_t*		pMouseDevice;
 // shared with MapKey.
 extern unsigned char		scantokey[256];
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 qboolean	IN_LogResult( LPCTSTR what );
 void		IN_DebugPrintf( LPCTSTR fmt, ... );
 
@@ -129,5 +133,9 @@ void		IN_ShutdownMouse( maplemouse_t *pMouse );
 
 void		IN_UpdateMapleDevices( void );
 void		IN_ReadMouse( void );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // IN_DC_H

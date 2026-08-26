@@ -5179,6 +5179,7 @@ NODEP_CPP_HUD_C=\
 # Begin Source File
 
 SOURCE=..\src\engine\in_dc.c
+# ADD CPP /TP
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -5316,14 +5317,17 @@ NODEP_CPP_IN_DC=\
 # Begin Source File
 
 SOURCE=..\src\engine\in_joy.c
+# ADD CPP /TP
 # End Source File
 # Begin Source File
 
 SOURCE=..\src\engine\in_kbd.c
+# ADD CPP /TP
 # End Source File
 # Begin Source File
 
 SOURCE=..\src\engine\in_mouse.c
+# ADD CPP /TP
 # End Source File
 # Begin Source File
 

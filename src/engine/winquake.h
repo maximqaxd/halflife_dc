@@ -28,7 +28,13 @@ DLL_EXPORT void IN_ActivateMouse( void );
 void IN_SetQuakeMouseState( void );
 DLL_EXPORT void IN_MouseEvent( int mstate );
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern int		window_center_x, window_center_y;
+#ifdef __cplusplus
+}
+#endif
 extern RECT		window_rect;
 
 DLL_EXPORT void IN_UpdateClipCursor( void );

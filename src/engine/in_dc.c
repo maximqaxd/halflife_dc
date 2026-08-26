@@ -10,13 +10,32 @@
 #endif 
 #include "in_dc.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern int iMouseInUse;
 extern HINSTANCE g_hInstance;
+extern int window_center_x, window_center_y;
+extern short noclip_anglehack;
+extern float host_frametime;
+extern keydest_t key_dest;
+extern client_state_t cl;
+extern client_static_t cls;
+extern server_t sv;
+extern kbutton_t in_speed, in_mlook, in_strafe;
+extern cvar_t m_pitch, m_yaw, m_side, m_forward;
+extern cvar_t cl_movespeedkey, cl_pitchdown, cl_pitchup, cl_forwardspeed, cl_sidespeed,
+	cl_yawspeed, cl_pitchspeed, cl_anglespeedkey, lookspring, lookstrafe;
 
-BOOL CALLBACK IN_EnumDevicesCallback( LPCDIDEVICEINSTANCE lpddi, LPVOID pvRef );
 void GDROM_DoorReset( void );
 void M_DecodeStateFlags( void );
-void Host_UpdateScreenSaver( int bCheckOnly );
+
+#ifdef __cplusplus
+}
+#endif
+
+BOOL CALLBACK IN_EnumDevicesCallback( LPCDIDEVICEINSTANCE lpddi, LPVOID pvRef );
 
 // mouse variables
 

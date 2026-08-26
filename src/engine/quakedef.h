@@ -202,6 +202,10 @@ typedef struct
 
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern qboolean noclip_anglehack;
 
 
@@ -214,6 +218,10 @@ extern	cvar_t		developer;
 
 extern	qboolean	host_initialized;		// true if into command execution
 extern	float		host_frametime;
+
+#ifdef __cplusplus
+}
+#endif
 C_EXTERN	unsigned short* host_basepal;
 extern	unsigned char*	host_colormap;
 extern	int			host_framecount;	// incremented every frame, never reset
@@ -250,6 +258,13 @@ extern cvar_t		rcon_address;
 extern cvar_t		rcon_port;
 
 void Host_ClearMemory( qboolean bQuiet );
+#ifdef __cplusplus
+extern "C" {
+#endif
+void Host_UpdateScreenSaver( int bCheckOnly );
+#ifdef __cplusplus
+}
+#endif
 
 void Host_InitCommands( void );
 int Host_Init( quakeparms_t* parms );

@@ -580,13 +580,22 @@ void Key_Bind_f( void )
 		return;
 	}
 
-// copy the rest of the command line
-	cmd[0] = 0;		// start out with a null string
-	for (i = 2; i < c; i++)
+	if (b == K_ESCAPE)
 	{
-		if (i > 2)
-			strcat(cmd, " ");
-		strcat(cmd, Cmd_Argv(i));
+		// the menu's cancel button always sends the same command, no
+		// matter what was actually typed after it on the command line
+		strcpy(cmd, "cancelselect");
+	}
+	else
+	{
+		// copy the rest of the command line
+		cmd[0] = 0;		// start out with a null string
+		for (i = 2; i < c; i++)
+		{
+			if (i > 2)
+				strcat(cmd, " ");
+			strcat(cmd, Cmd_Argv(i));
+		}
 	}
 
 	Key_SetBinding(b, cmd);
@@ -716,6 +725,8 @@ void Key_Event( int key, qboolean down )
 {
 	char* kb;
 	char	cmd[1024];
+
+	Host_UpdateScreenSaver(FALSE);
 
 	keydown[key] = down;
 

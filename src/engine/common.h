@@ -162,7 +162,13 @@ void COM_HexConvert( char* pszInput, int nInputLength, byte* pOutput );
 extern	int		com_argc;
 extern	char** com_argv;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 int COM_CheckParm( char* parm );
+#ifdef __cplusplus
+}
+#endif
 void COM_Init( char* basedir );
 void COM_InitArgv( int argc, char** argv );
 

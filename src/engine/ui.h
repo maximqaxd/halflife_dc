@@ -11,6 +11,9 @@ extern "C" {
 void UI_OpenMenu( char* pszMenu );
 void M_EnableAllItems( void );
 
+// Called on screen-saver wakeup to resync menu/UI state
+void M_DecodeStateFlags( void );
+
 // Set while the attract-mode screen saver is running
 extern int g_bScreenSaverActive;
 

@@ -4,6 +4,10 @@
 #include "cdll_int.h"
 #include "cshift.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct
 {
 	int		length;
@@ -615,8 +619,14 @@ qboolean CL_CheckOrDownloadFile( char* filename );
 //
 // view
 //
+#ifdef __cplusplus
+extern "C" {
+#endif
 void V_StartPitchDrift( void );
 void V_StopPitchDrift( void );
+#ifdef __cplusplus
+}
+#endif
 
 //
 // CL_TENT.C
@@ -633,3 +643,7 @@ struct mspriteframe_s* R_GetSpriteFrame( struct msprite_s* pSprite, int frame );
 void R_GetSpriteAxes( cl_entity_t* pEntity, int type, vec_t* forward, vec_t* right, vec_t* up );
 void R_SpriteColor( colorVec* pColor, cl_entity_t* pEntity, int alpha );
 float* R_GetAttachmentPoint( int entity, int attachment );
+
+#ifdef __cplusplus
+}
+#endif

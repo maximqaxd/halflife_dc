@@ -42,6 +42,17 @@ void M_EnableAllItems( void )
 
 /*
 ==================
+M_DecodeStateFlags
+
+==================
+*/
+void M_DecodeStateFlags( void )
+{
+	// TODO: resync menu/UI state on screen-saver wakeup
+}
+
+/*
+==================
 UI_Draw
 
 Draw the open menu. Called from SCR_UpdateScreen when gfDrawMenu is set.
