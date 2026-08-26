@@ -54,6 +54,9 @@ D3DMATRIX gViewMatrix;
 static float g_frustum_xmax, g_frustum_ymax;
 float g_frustum_zn;
 
+// Rotating near-plane slot handed out to brush models by R_DrawBrushModel.
+int r_depthslot;
+
 //
 // screen size info
 //

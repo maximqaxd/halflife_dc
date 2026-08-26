@@ -60,6 +60,13 @@ void glTexSubImage2D( int target, int level, int xoffset, int yoffset,
 // of the base pass instead of z-fighting with it.
 #define LIGHTMAP_DEPTH_NUDGE	0.0005f
 
+// Brush models cycle through this many near-plane steps as they are drawn, so
+// that co-planar ones do not fight each other for depth.
+#define BMODEL_DEPTH_SLOTS	64
+#define BMODEL_DEPTH_STEP	0.005f
+
+extern int r_depthslot;
+
 extern float g_frustum_zn;
 void R_ApplyViewModelProjection( float zn );
 
@@ -1437,7 +1444,6 @@ void R_DrawBrushModel( cl_entity_t* e )
 	qboolean	rotated;
 
 	currententity = e;
-	currenttexture = -1;
 
 	clmodel = e->model;
 
@@ -1460,6 +1466,10 @@ void R_DrawBrushModel( cl_entity_t* e )
 	if (R_CullBox(mins, maxs))
 		return;
 
+	DCV_SetTextureWrap();
+	DCV_SetPackedColor(0xFFFFFFFFu);
+
+	memset(lightmap_polys, 0, sizeof(lightmap_polys));
 
 	VectorSubtract(r_refdef.vieworg, e->origin, modelorg);
 	if (rotated)
@@ -1499,9 +1509,12 @@ void R_DrawBrushModel( cl_entity_t* e )
 	}
 
 	DCV_PushMatrix(D3DTRANSFORMSTATE_WORLD);
-	DCV_SetClipRequired();
 
-	memset(lightmap_polys, 0, sizeof(lightmap_polys));
+	// Hand out a slightly different near plane to each brush model so that
+	// models sharing a wall do not fight each other for depth.
+	R_ApplyViewModelProjection((float)(r_depthslot % BMODEL_DEPTH_SLOTS)
+		* BMODEL_DEPTH_STEP / (float)BMODEL_DEPTH_SLOTS);
+	r_depthslot++;
 
 	R_RotateForEntity(e);
 	R_SetRenderMode(e);
@@ -1532,8 +1545,10 @@ void R_DrawBrushModel( cl_entity_t* e )
 			{
 				dot = DotProduct(modelorg, g_planeNormalTable[pplane->normalindex].normal) - pplane->dist;
 
-				bPass = (psurf->flags & SURF_PLANEBACK) ?
-					(dot <= -BACKFACE_EPSILON) : (dot >= BACKFACE_EPSILON);
+				bPass = FALSE;
+				if (((psurf->flags & SURF_PLANEBACK) && dot < -BACKFACE_EPSILON)
+					|| (!(psurf->flags & SURF_PLANEBACK) && dot > BACKFACE_EPSILON))
+					bPass = TRUE;
 			}
 
 			if (bPass && psurf->texinfo->texture)
@@ -1549,9 +1564,9 @@ void R_DrawBrushModel( cl_entity_t* e )
 				}
 
 				psurf->texturechain = NULL;
-				if (nchains > MAX_BMODEL_CHAINS - 1)
-					Sys_Error("Too many chains in brush model\n");
 				chains[nchains++] = psurf;
+				if (nchains >= MAX_BMODEL_CHAINS)
+					Sys_Error("Too many chains in brush model\n");
 			}
 next_surf:;
 		}
@@ -1560,24 +1575,22 @@ next_surf:;
 			R_DrawSequentialPoly(chains[c]);
 	}
 
-	if (e->rendermode == kRenderTransAdd)
+	if (currententity->rendermode == kRenderTransAlpha)
 	{
-		if (!r_fullbright.value)
+		if (gl_lightholes.value)
 			R_BlendLightmaps();
 	}
 	else
 	{
 		R_DrawDecals();
-		if (e->rendermode == kRenderNormal)
+		if (currententity->rendermode == kRenderNormal)
 			R_BlendLightmaps();
 	}
 
-	DCV_SetRenderState(D3DRENDERSTATE_ALPHABLENDENABLE, FALSE);
-	DCV_SetRenderState(D3DRENDERSTATE_ALPHATESTENABLE,  FALSE);
-	DCV_SetRenderState(D3DRENDERSTATE_ZWRITEENABLE,     TRUE);
-
 	DCV_PopMatrix(D3DTRANSFORMSTATE_WORLD);
-	DCV_SetNoClip();
+	DCV_SetTextureClamp();
+
+	r_alphatestmode = 0;
 }
 
 /*
@@ -1600,12 +1613,12 @@ void R_RecursiveWorldNode( mnode_t* node )
 	mplane_t* plane;
 	msurface_t* surf, ** mark;
 	mleaf_t* pleaf;
-	double		dot;
+	float		dot;
 
 	if (node->contents == CONTENTS_SOLID)
 		return;		// solid
 
-	if (node->visframe != r_visframecount)
+	if (node->visframe != (byte)r_visframecount)
 		return;
 
 	if (R_CullBoxShort(node->minmaxs, node->minmaxs + 3))
@@ -1675,29 +1688,22 @@ void R_RecursiveWorldNode( mnode_t* node )
 			side = SURF_PLANEBACK;
 		else if (dot > BACKFACE_EPSILON)
 			side = 0;
+		for (; c; c--, surf++)
 		{
-			for (; c; c--, surf++)
+			// warped surfaces are never backfaced, because they move off
+			// their own plane
+			if (surf->visframe == (byte)r_framecount
+				&& ((surf->flags & SURF_DRAWBACKGROUND)
+					|| ((dot < 0) == !!(surf->flags & SURF_PLANEBACK))))
 			{
-				if (surf->visframe != (byte)r_framecount)
-					continue;
-
-				// don't backface underwater surfaces, because they warp
-				if (!(surf->flags & SURF_UNDERWATER) && ((dot < 0) ^ !!(surf->flags & SURF_PLANEBACK)))
-					continue;		// wrong side
-
-				// if sorting by texture, just store it out
-				if (gl_texsort)
+				if (!mirror
+					|| surf->texinfo->texture != cl.worldmodel->textures[mirrortexturenum])
 				{
-					if (!mirror
-						|| surf->texinfo->texture != cl.worldmodel->textures[mirrortexturenum])
-					{
-						surf->texturechain = surf->texinfo->texture->texturechain;
-						surf->texinfo->texture->texturechain = surf;
-					}
+					surf->texturechain = surf->texinfo->texture->texturechain;
+					surf->texinfo->texture->texturechain = surf;
 				}
 			}
 		}
-
 	}
 
 // recurse down the back side
