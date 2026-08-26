@@ -420,6 +420,7 @@ save the userinfo keys that a mod set by hand and never backed with a cvar
 ("*" keys are server-assigned and never saved).
 ===============
 */
+#pragma optimize("", off)
 void Info_WriteVars( void* f )
 {
 	char	key[MAX_INFO_STRING];
@@ -461,3 +462,4 @@ void Info_WriteVars( void* f )
 		s++;
 	}
 }
+#pragma optimize("", on)

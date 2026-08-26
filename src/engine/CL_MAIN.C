@@ -1132,6 +1132,7 @@ void CL_SignonReply( void )
 
 	case 3:
 		SCR_EndLoadingPlaque();		// allow normal screen updates
+		CL_StopProgressBar();
 		break;
 	}
 }
@@ -2219,6 +2220,9 @@ void CL_Init( void )
 // Realtime the current load began, so the bar can pace itself
 float	cl_progress_start;
 
+// Elapsed time (from cl_progress_start) the bar was last redrawn at
+static float	cl_progress_lastupdate;
+
 /*
 =================
 CL_StartProgressBar
@@ -2232,6 +2236,71 @@ void CL_StartProgressBar( void )
 
 	DCV_SetProgress(0);
 	Sys_SetTaskName("start");
+}
+
+/*
+=================
+CL_StopProgressBar
+
+Loading is over; put the bar away.
+=================
+*/
+void CL_StopProgressBar( void )
+{
+	Sys_SetTaskName("end");
+	cl_progress_start = 0;
+	DCV_SetProgress(0);
+	Host_UpdateScreenSaver(FALSE);
+}
+
+/*
+=================
+CL_UpdateProgressBar
+
+Redraws the loading bar a few times a second while a long load is in
+progress, and pumps the ambient sound and input state so neither one goes
+stale during the wait.
+=================
+*/
+#pragma optimize("", off)
+qboolean CL_UpdateProgressBar( void )
+{
+	float	now;
+	float	elapsed;
+	float	sinceupdate;
+
+	if (cl_progress_start == 0)
+		return FALSE;
+
+	now = Sys_FloatTime();
+	elapsed = now - cl_progress_start;
+	sinceupdate = elapsed - cl_progress_lastupdate;
+
+	if (sinceupdate > 0.1f)
+	{
+		DCV_SetProgress((int)(elapsed * 5.0f));
+		IN_Accumulate();
+	}
+	cl_progress_lastupdate = elapsed;
+
+	if (sinceupdate <= 0.7f || sinceupdate >= 5.0f)
+		return FALSE;
+
+	return TRUE;
+}
+#pragma optimize("", on)
+
+/*
+=================
+CL_PollProgressBar
+
+Called from long-running load steps (studio model textures, etc.) so the
+loading bar keeps moving even while nothing else is servicing the frame.
+=================
+*/
+void CL_PollProgressBar( void )
+{
+	CL_UpdateProgressBar();
 }
 
 /*

@@ -140,6 +140,7 @@ void GL_BindStage( int texnum, int stage );
 int DC_LoadTexture( char *identifier, int texture_type, int width, int height, void *data, short mipmap, int tex_type, unsigned char *pPal );
 void DC_InitTextureList( void );
 int DCV_UpdateTextureSubRect( int texnum, int x, int y, int w, int h, const unsigned short* src, int src_pitch );
+void DC_TouchTexture( int texnum );
 extern float g_flHudDepth;
 #ifdef __cplusplus
 }

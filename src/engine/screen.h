@@ -57,6 +57,9 @@ extern	cvar_t		scr_graphmedian;
 extern	cvar_t		scr_downloading;
 
 void CL_StartProgressBar( void );
+void CL_StopProgressBar( void );
+qboolean CL_UpdateProgressBar( void );
+void CL_PollProgressBar( void );
 void DCV_SetProgress( int percent );
 extern float cl_progress_start;
 
