@@ -20,9 +20,13 @@ cvar_t	r_mmx = { "r_mmx", "0" };
 cvar_t	r_traceglow = { "r_traceglow", "0" };
 cvar_t	r_wadtextures = { "r_wadtextures", "0" };
 
+cvar_t	gl_monolights = { "gl_monolights", "0" };
+
+// Texture-sorted world rendering; always on for this build.
+int		gl_texsort = 1;
+
 cvar_t	gl_clear = { "gl_clear", "0" };
 cvar_t	gl_cull = { "gl_cull", "1" };
-cvar_t	gl_texsort = { "gl_texsort", "1" };
 cvar_t	gl_smoothmodels = { "gl_smoothmodels", "1" };
 cvar_t	gl_affinemodels = { "gl_affinemodels", "0" };
 cvar_t	gl_flashblend = { "gl_flashblend", "0" };
@@ -195,7 +199,7 @@ void R_Init( void )
 	Cvar_RegisterVariable(&r_traceglow);
 
 	Cvar_RegisterVariable(&gl_clear);
-	Cvar_RegisterVariable(&gl_texsort);
+	Cvar_RegisterVariable(&gl_monolights);
 	Cvar_RegisterVariable(&gl_cull);
 	Cvar_RegisterVariable(&gl_smoothmodels);
 	Cvar_RegisterVariable(&gl_affinemodels);

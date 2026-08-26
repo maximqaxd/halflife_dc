@@ -525,20 +525,20 @@ void SV_ExecuteClientMessage( client_t* cl )
 	usercmd_t nullcmd;
 
 	// calc ping time
-	frame = &cl->frames[cl->netchan.incoming_acknowledged & UPDATE_MASK];
+	frame = &cl->frames[cl->netchan.incoming_acknowledged & SV_UPDATE_MASK];
 	frame->ping_time = realtime - frame->frame_time - frame->senttime;
 
 	// make sure the reply sequence number matches the incoming
-	// sequence number 
+	// sequence number
 	if (cl->netchan.incoming_sequence >= cl->netchan.outgoing_sequence)
 		cl->netchan.outgoing_sequence = cl->netchan.incoming_sequence;
 	else
 		cl->send_message = FALSE;	// don't reply, sequences have slipped
 
 	// save time for ping calculations
-	cl->frames[cl->netchan.outgoing_sequence & UPDATE_MASK].senttime = realtime;
-	cl->frames[cl->netchan.outgoing_sequence & UPDATE_MASK].frame_time = host_frametime;
-	cl->frames[cl->netchan.outgoing_sequence & UPDATE_MASK].ping_time = -1;
+	cl->frames[cl->netchan.outgoing_sequence & SV_UPDATE_MASK].senttime = realtime;
+	cl->frames[cl->netchan.outgoing_sequence & SV_UPDATE_MASK].frame_time = host_frametime;
+	cl->frames[cl->netchan.outgoing_sequence & SV_UPDATE_MASK].ping_time = -1;
 
 	host_client = cl;
 	sv_player = cl->edict;

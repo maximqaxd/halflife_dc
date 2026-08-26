@@ -3,6 +3,7 @@
 #include "quakedef.h"
 #include "pr_cmds.h"
 #include "gl_water.h"
+#include "dc_accum.h"
 
 extern model_t* loadmodel;
 
@@ -192,7 +193,6 @@ float	turbsin[] =
 {
 	#include "gl_warp_sin.h"
 };
-#define TURBSCALE (256.0 / (2 * M_PI))
 
 /*
 =============
@@ -215,16 +215,20 @@ void D_SetFadeColor( int r, int g, int b, int fog )
 
 void EmitWaterPolys( msurface_t* fa, int direction )
 {
-#if 0
 	glpoly_t* p;
 	float* v;
-	int			i;
+	int			i, base;
 	float		s, t, os, ot, scale;
-	float		tempVert[3];
-	byte* pSourcePalette;
+	vec3_t		tempVert;
+	texture_t* ptexture;
 
-	pSourcePalette = fa->texinfo->texture->pPal;
-	D_SetFadeColor(pSourcePalette[9], pSourcePalette[10], pSourcePalette[11], pSourcePalette[12]);
+	ptexture = fa->texinfo->texture;
+	D_SetFadeColor(ptexture->fade_r, ptexture->fade_g, ptexture->fade_b, ptexture->fade_fog);
+
+	/* the fan can be walked in either winding direction (see below), so cull
+	 * nothing while the water surfaces are on screen */
+	DCV_FlushApplyRenderState(D3DRENDERSTATE_SWCULLMODE, D3DCULL_NONE);
+	DCV_FlushApplyRenderState(D3DRENDERSTATE_HWCULLMODE, D3DCULL_NONE);
 
 	if (fa->polys->verts[0][2] >= r_refdef.vieworg[2])
 		scale = -currententity->scale;
@@ -233,7 +237,10 @@ void EmitWaterPolys( msurface_t* fa, int direction )
 
 	for (p = fa->polys; p; p = p->next)
 	{
-		qglBegin(GL_POLYGON);
+		DCV_FlushIfLarge();
+		base = DCV_GetVertCount();
+		DCV_AddIndicesFan(base, p->numverts);
+
 		if (direction)
 			v = p->verts[p->numverts - 1];
 		else
@@ -241,30 +248,28 @@ void EmitWaterPolys( msurface_t* fa, int direction )
 
 		for (i = 0; i < p->numverts; i++)
 		{
-			os = v[3];
-			ot = v[4];
+			os = v[4];
+			ot = v[5];
 
 			VectorCopy(v, tempVert);
-			s = turbsin[(int)(cl.time * 160.0 + v[0] + v[1]) & 255] + 8.0;
-			s += (turbsin[(int)(cl.time * 171.0 + v[0] * 5.0 - v[1]) & 255] + 8.0) * 0.8;
+			s = turbsin[(int)(cl.time * 160.0f + v[0] + v[1]) & 255] + 8.0f;
+			s += (turbsin[(int)(cl.time * 171.0f + v[0] * 5.0f - v[1]) & 255] + 8.0f) * 0.8f;
 			tempVert[2] += s * scale;
 
-			s = os + turbsin[(int)((ot * 0.125 + cl.time) * TURBSCALE) & 255];
-			s *= (1.0 / 64);
-			t = ot + turbsin[(int)((os * 0.125 + cl.time) * TURBSCALE) & 255];
-			t *= (1.0 / 64);
+			s = (turbsin[(int)((ot * 0.125f + cl.time) * TURBSCALE) & 255] + os) * (1.0f / 64);
+			t = (turbsin[(int)((os * 0.125f + cl.time) * TURBSCALE) & 255] + ot) * (1.0f / 64);
 
-			qglTexCoord2f(s, t);
-			qglVertex3fv(tempVert);
+			DCV_AddVertexLit(s, t, tempVert);
 
 			if (direction)
 				v -= VERTEXSIZE;
 			else
 				v += VERTEXSIZE;
 		}
-		qglEnd();
 	}
-#endif
+
+	DCV_FlushApplyRenderState(D3DRENDERSTATE_SWCULLMODE, D3DCULL_CCW);
+	DCV_FlushApplyRenderState(D3DRENDERSTATE_HWCULLMODE, D3DCULL_CCW);
 }
 
 #if 0

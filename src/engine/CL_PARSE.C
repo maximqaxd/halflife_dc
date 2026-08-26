@@ -99,7 +99,6 @@ cl_entity_t* CL_EntityNum( int num )
 			Host_Error("CL_EntityNum: %i is an invalid number, cl.max_edicts is %i", num, cl.max_edicts);
 		while (cl.num_entities <= num)
 		{
-			cl_entities[cl.num_entities].colormap = vid.colormap;
 			cl.num_entities++;
 		}
 	}
@@ -1291,7 +1290,6 @@ void CL_ParseStatic( void )
 // copy it to the current state
 	ent->model = cl.model_precache[ent->baseline.modelindex];
 	ent->frame = ent->baseline.frame;
-	ent->colormap = (byte*)vid.colormap;
 	ent->skin = ent->baseline.skin;
 	ent->effects = ent->baseline.effects;
 	ent->scale = ent->baseline.scale;

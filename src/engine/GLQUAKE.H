@@ -78,7 +78,7 @@ void DCV_SetTexStateFromRenderMode( int rendermode );
 
 extern	int glx, gly, glwidth, glheight;
 
-#define BACKFACE_EPSILON	0.01
+#define BACKFACE_EPSILON	0.01f
 
 #pragma pack(push, 1)
 typedef struct gbix_s
@@ -215,7 +215,8 @@ extern	cvar_t	r_wadtextures;
 
 extern	cvar_t	gl_clear;
 extern	cvar_t	gl_cull;
-extern	cvar_t	gl_texsort;
+extern	int		gl_texsort;
+extern	cvar_t	gl_monolights;
 extern	cvar_t	gl_smoothmodels;
 extern	cvar_t	gl_affinemodels;
 extern	cvar_t	gl_flashblend;
@@ -299,6 +300,7 @@ void GL_EnableMultitexture( void );
 // gl_rmain.c
 //
 qboolean R_CullBox( vec_t* mins, vec_t* maxs );
+qboolean R_CullBoxShort( short* mins, short* maxs );
 void R_RotateForEntity( cl_entity_t* e );
 float CalcFov( float fov_x, float width, float height );
 

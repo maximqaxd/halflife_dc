@@ -634,8 +634,6 @@ void CL_ProcessEntityUpdate( cl_entity_t* ent, entity_state_t* state, qboolean s
 			ent->syncbase = 0.0;
 	}
 
-	ent->colormap = (byte*)vid.colormap;
-	ent->scoreboard = NULL;
 	ent->effects = state->effects;
 	ent->skin = state->skin;
 
@@ -1241,12 +1239,6 @@ void CL_ParsePlayerinfo( void )
 		ent->animtime = state->animtime;
 	}
 
-	ent->colormap = info->translations;
-	if (state->modelindex == cl_playerindex)
-		ent->scoreboard = info;		// use custom skin
-	else
-		ent->scoreboard = NULL;
-
 	ent->rendermode = state->rendermode;
 	ent->renderamt = state->renderamt;
 	ent->rendercolor = state->rendercolor;
@@ -1349,12 +1341,6 @@ void CL_LinkPlayers( void )
 		}
 		
 		VectorCopy(ent->origin, ent->prevorigin);
-
-		ent->colormap = info->translations;
-		if (state->modelindex == cl_playerindex)
-			ent->scoreboard = info;		// use custom skin
-		else
-			ent->scoreboard = NULL;
 
 		if (!flags || (ent->effects & EF_NOINTERP))
 		{

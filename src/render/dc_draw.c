@@ -2150,8 +2150,8 @@ void Draw_Pic( int x, int y, qpic_t *pic )
 	DCV_AddPolyIndices(base, 4);
 	DCV_AddVertex((float)x,                   (float)y,                   dc_depthhud.value - 0.1f, gl->sl, gl->tl);
 	DCV_AddVertex((float)(x + pic->width),    (float)y,                   dc_depthhud.value - 0.1f, gl->sh, gl->tl);
-	DCV_AddVertex((float)(x + pic->width),    (float)(y + pic->height),   dc_depthhud.value - 0.1f, gl->sh, gl->th);
 	DCV_AddVertex((float)x,                   (float)(y + pic->height),   dc_depthhud.value - 0.1f, gl->sl, gl->th);
+	DCV_AddVertex((float)(x + pic->width),    (float)(y + pic->height),   dc_depthhud.value - 0.1f, gl->sh, gl->th);
 }
 
 /*
@@ -2224,8 +2224,8 @@ void Draw_Pic2( int x, int y, int w, int h, qpic_t* pic )
 	DCV_AddPolyIndices(base, 4);
 	DCV_AddVertex((float)x,        (float)y,        dc_depthhud.value - 0.1f, gl->sl, gl->tl);
 	DCV_AddVertex((float)(x + w),  (float)y,        dc_depthhud.value - 0.1f, gl->sh, gl->tl);
-	DCV_AddVertex((float)(x + w),  (float)(y + h),  dc_depthhud.value - 0.1f, gl->sh, gl->th);
 	DCV_AddVertex((float)x,        (float)(y + h),  dc_depthhud.value - 0.1f, gl->sl, gl->th);
+	DCV_AddVertex((float)(x + w),  (float)(y + h),  dc_depthhud.value - 0.1f, gl->sh, gl->th);
 }
 
 /*
@@ -2399,8 +2399,8 @@ void Draw_Frame( mspriteframe_t* pFrame, int x, int y, const wrect_t* prcSubRect
 	DCV_AddPolyIndices(base, 4);
 	DCV_AddVertex((float)x,            (float)y,             dc_depthhud.value - 0.1f, fLeft,  fTop);
 	DCV_AddVertex((float)(x + iWidth), (float)y,             dc_depthhud.value - 0.1f, fRight, fTop);
-	DCV_AddVertex((float)(x + iWidth), (float)(y + iHeight), dc_depthhud.value - 0.1f, fRight, fBottom);
 	DCV_AddVertex((float)x,            (float)(y + iHeight), dc_depthhud.value - 0.1f, fLeft,  fBottom);
+	DCV_AddVertex((float)(x + iWidth), (float)(y + iHeight), dc_depthhud.value - 0.1f, fRight, fBottom);
 }
 
 void Draw_SpriteFrame( mspriteframe_t* pFrame, unsigned short* pPalette, int x, int y, const wrect_t* prcSubRect )
@@ -2442,8 +2442,8 @@ void Draw_FillRGBA( int x, int y, int w, int h, int r, int g, int b, int a )
 	DCV_AddPolyIndices(base, 4);
 	DCV_AddVertex((float)x,         (float)y,         1.0f, 0.0f, 0.0f);
 	DCV_AddVertex((float)(x + w),   (float)y,         1.0f, 1.0f, 0.0f);
-	DCV_AddVertex((float)(x + w),   (float)(y + h),   1.0f, 1.0f, 1.0f);
 	DCV_AddVertex((float)x,         (float)(y + h),   1.0f, 0.0f, 1.0f);
+	DCV_AddVertex((float)(x + w),   (float)(y + h),   1.0f, 1.0f, 1.0f);
 	DCV_SetPackedColor(0xFFFFFFFF);
 	DCV_FlushApplyRenderState((D3DRENDERSTATETYPE)0x1b, 0);
 }

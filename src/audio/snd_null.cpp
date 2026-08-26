@@ -112,6 +112,11 @@ void S_ExtraUpdate( void )
 
 }
 
+void S_UpdateAmbient( void )
+{
+
+}
+
 void S_Shutdown( void )
 {
 

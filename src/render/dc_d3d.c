@@ -905,3 +905,16 @@ qboolean DCV_CreateWindow( void )
 		return FALSE;
 	return DC_InitTextureList();
 }
+
+/*
+================
+glTexSubImage2D
+
+Lightmap pages are handed to the texture manager whole, so a partial refresh
+has nothing to do on this back end.
+================
+*/
+void glTexSubImage2D( int target, int level, int xoffset, int yoffset,
+	int width, int height, int format, int type, const void* pixels )
+{
+}

@@ -556,11 +556,6 @@ void Host_ShutdownServer( qboolean crash )
 	SV_ClearClientStates();
 	Host_ClearClients(FALSE);
 
-	for (i = 0, host_client = svs.clients; i < svs.maxclientslimit; i++, host_client++)
-		SV_ClearFrames(&host_client->frames);
-
-	memset(svs.clients, 0, sizeof(client_t) * svs.maxclientslimit);
-
 	Master_Shutdown();
 
 	Log_Printf("Server shutdown\n");

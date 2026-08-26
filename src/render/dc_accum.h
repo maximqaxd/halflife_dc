@@ -21,14 +21,31 @@ void          DCV_SetPackedColor( DWORD diffuse );
 DWORD         DCV_GetCurrentDiffuse( void );
 void          DCV_SetColorFloat( float r, float g, float b, float a );
 void          DCV_FlushIfLarge( void );
+void          DCV_FlushBatchCopy( void );
+void          DCV_FlushBatchGuarded( void );
 qboolean      DCV_EnsureSpace( int add_verts, int add_indices );
 int           DCV_GetVertCount( void );
 int           DCV_AddVertex( float x, float y, float z, float tu, float tv );
 void          DCV_AddLVertex( const D3DLVERTEX* v );
-void          DCV_AddPolyIndices( int base, int numverts );
+void          DCV_AddVertexLit( float tu, float tv, const vec_t *pos );
+void          DCV_AddVertexIndexed( float x, float y, float z, float tu, float tv );
+void          DCV_AddStudioMesh( int count, const short *pCmds, const byte *pVertices, const byte *pNormals );
+void          DCV_AddStudioMeshChrome( int count, const short *pCmds, const byte *pVertices, const byte *pNormals, const float *pChromeUV );
+void          DCV_AddStudioMeshTagged( int count, const short *pCmds, const byte *pVertices, const byte *pNormals, const byte *pVertTag );
+void          DCV_AddStudioMeshChromeTagged( int count, const short *pCmds, const byte *pVertices, const byte *pNormals, const float *pChromeUV, const byte *pVertTag );
+void          DCV_AddPolyIndices( short base, int numverts );
 void          DCV_AddIndicesQuad( int i0, int i1, int i2, int i3 );
 void          DCV_AddIndicesStrip( int base, int count );
-void          DCV_AddIndicesFan( int base, int count );
+void          DCV_AddIndicesFan( short base, int count );
+void          DCV_BuildStudioIndexList( const short *pCmds );
+void          DCV_AddIndicesStripRestart( short base, int count );
+void          DCV_AddIndicesFanRestart( short base, int count );
+void          DCV_AccumSolidPoly( const void *poly );
+void          DCV_AccumColoredPoly( const void *poly );
+void          DCV_AccumLightmapBatch( const void *poly );
+void          DCV_AccumScrollPoly( const void *poly );
+void          DCV_SetTextureClamp( void );
+void          DCV_SetTextureWrap( void );
 void          DCV_SetClipRequired( void );
 void          DCV_SetNoClip( void );
 void          DCV_SetTexStateFromRenderMode( int rendermode );
@@ -125,6 +142,7 @@ void DCV_2D_SetupStates( void );
 
 void DCV_TexState_Additive( void );
 void DCV_SetHudDepth( float depth );
+void DCV_DisableMultitexture( void );
 
 #ifdef __cplusplus
 }

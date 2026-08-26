@@ -778,7 +778,6 @@ void V_CalcRefdef( void )
 	
 	cl.viewent.model = cl.model_precache[cl.stats[STAT_WEAPON]];
 	cl.viewent.frame = 0.0;
-	cl.viewent.colormap = (byte*)vid.colormap;
 	cl.viewent.index = cl.playernum + 1;
 
 // set up the refresh position

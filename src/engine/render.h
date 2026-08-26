@@ -26,66 +26,67 @@ typedef struct
 
 typedef struct cl_entity_s
 {
+	byte			controller[4];
+	byte			blending[2];
+	byte			prevseqblending[2];
+	byte			prevcontroller[4];
+	byte			prevblending[2];
+	byte			reserved1[2];
+
+	short			rendermode;
+	short			renderamt;
+	short			renderfx;
+	short			movetype;
+	short			body;
+	short			sequence;
+	short			prevsequence;
+	short			reserved2;
+
 	int				index;      // Index into cl_entities
+	int				reserved3;
+	int				effects;
+	int				skin;
 
-	struct player_info_s* scoreboard;
+	byte			reserved4[12];
+	float			framerate;
+	int				trivial_accept;
 
-	qboolean		resetlatched;
+	struct model_s* model;			// cl.model_precache[ baseline.modelindex ];  all visible entities have a model
+	struct efrag_s* efrag;			// linked list of efrags
+	struct mnode_s* topnode;		// for bmodels, first world node that splits bmodel, or NULL if not split
 
-	entity_state_t	baseline;		// to fill in defaults in updates
+	float			frame;
+	float			syncbase;
+	float			animtime;
+	float			scale;
+
+	byte			reserved5[4];
+	float			prevanimtime;
+	float			prevframe;
+	float			sequencetime;
+	float			lastmove;
 
 	// Actual render position and angles
 	vec3_t			origin;
 	vec3_t			angles;
-
-	int				rendermode;
-	int				renderamt;
-	color24			rendercolor;
-	int				renderfx;
-
-	struct model_s* model;			// cl.model_precache[ baseline.modelindex ];  all visible entities have a model
-	struct efrag_s* efrag;			// linked list of efrags
-
-	float			frame;
-
-	float			syncbase;
-
-	byte* colormap;
-	int				effects;
-	int				skin;
-	int				visframe;
-
-	int				trivial_accept;
-
-	struct mnode_s* topnode;		// for bmodels, first world node that splits bmodel, or NULL if not split
-
-	int				movetype;
-	float			animtime;
-	float			framerate;
-	int				body;
-	int				sequence;
-
-	byte			controller[4];
-	byte			blending[2];
-
-	float			scale;
-	float			lastmove;
-	float			prevanimtime;
 	vec3_t			prevorigin;
 	vec3_t			prevangles;
-	float			prevframe;
-	float			sequencetime;
-	int				prevsequence;
-	byte			prevseqblending[2];
-	byte			prevcontroller[4];
-	byte			prevblending[2];
 
 	colorVec		cvFloorColor;
+	int				visframe;
+
+	mouth_t			mouth;			// For synchronizing mouth movements.
+	byte			reserved6[20];
+
+	color24			rendercolor;
+	byte			reserved7[13];
 
 	// Attachment points
 	vec3_t			attachment[4];
 
-	mouth_t			mouth;			// For synchronizing mouth movements.
+	entity_state_t	baseline;		// to fill in defaults in updates
+
+	qboolean		resetlatched;
 } cl_entity_t;
 
 typedef struct tempent_s

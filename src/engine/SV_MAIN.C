@@ -154,15 +154,23 @@ void SV_Init( void )
 		sprintf(localmodels[i], "*%i", i);
 	}
 
-	for (i = 0; i < svs.maxclients; i++)
+	for (i = 0; i < svs.maxclientslimit; i++)
 	{
 		client = &svs.clients[i];
+		SV_ClearFrames(&client->frames);
 		memset(client, 0, sizeof(client_t));
 
 		client->resourcesonhand.pPrev = &client->resourcesonhand;
 		client->resourcesonhand.pNext = &client->resourcesonhand;
 		client->resourcesneeded.pPrev = &client->resourcesneeded;
 		client->resourcesneeded.pNext = &client->resourcesneeded;
+	}
+
+	for (i = 0; i < svs.maxclientslimit; i++)
+	{
+		client = &svs.clients[i];
+		client->frames = (client_frame_t*)MnemoAllocDbg(sizeof(client_frame_t) * SV_UPDATE_BACKUP, __FILE__, __LINE__);
+		memset(client->frames, 0, sizeof(client_frame_t) * SV_UPDATE_BACKUP);
 	}
 }
 
@@ -983,12 +991,19 @@ void SV_ConnectClient( void )
 	host_client = client;
 
 	SV_ClearResourceLists(client);
+	SV_ClearFrames(&client->frames);
 	memset(client, 0, sizeof(client_t));
 
 	client->resourcesneeded.pPrev = &client->resourcesneeded;
 	client->resourcesneeded.pNext = &client->resourcesneeded;
 	client->resourcesonhand.pPrev = &client->resourcesonhand;
 	client->resourcesonhand.pNext = &client->resourcesonhand;
+
+	// This client's frame ring was just freed by SV_ClearFrames above (and
+	// zeroed again by the memset); give it a fresh one sized to the depth
+	// this spawn is using.
+	client->frames = (client_frame_t*)MnemoAllocDbg(sizeof(client_frame_t) * SV_UPDATE_BACKUP, __FILE__, __LINE__);
+	memset(client->frames, 0, sizeof(client_frame_t) * SV_UPDATE_BACKUP);
 
 ////////////////////////////////////////////////
 // Client can connect
@@ -1610,7 +1625,7 @@ int SV_CalcPing( client_t* cl )
 	ping = 0;
 	count = 0;
 
-	for (i = 0; i < UPDATE_BACKUP; i++)
+	for (i = 0; i < SV_UPDATE_BACKUP; i++)
 	{
 		frame = &cl->frames[i];
 		if (frame->ping_time > 0)
@@ -1795,9 +1810,9 @@ void SV_MemPrediction_f( void )
 		totalClients++;
 
 		// Analyze last frames
-		for (j = 0; j < UPDATE_BACKUP; j++)
+		for (j = 0; j < SV_UPDATE_BACKUP; j++)
 		{
-			frame = &cl->frames[j & UPDATE_MASK];
+			frame = &cl->frames[j & SV_UPDATE_MASK];
 			// Only count frames with entities
 			if (frame->entities.num_entities > 0)
 			{
@@ -2242,7 +2257,7 @@ void SV_EmitPacketEntities( client_t* client, packet_entities_t* to, sizebuf_t* 
 	// this is the frame that we are going to delta update from
 	if (client->delta_sequence != -1)
 	{
-		fromframe = &client->frames[client->delta_sequence & UPDATE_MASK];
+		fromframe = &client->frames[client->delta_sequence & SV_UPDATE_MASK];
 		from = &fromframe->entities;
 		oldmax = from->num_entities;
 
@@ -2670,7 +2685,7 @@ void SV_WriteEntitiesToClient( client_t* client, sizebuf_t* msg )
 	full_packet_entities_t fullpack;
 
 	// this is the frame we are creating
-	frame = &client->frames[client->netchan.incoming_sequence & UPDATE_MASK];
+	frame = &client->frames[client->netchan.incoming_sequence & SV_UPDATE_MASK];
 
 	// find the client's PVS
 	clent = client->edict;
@@ -3675,6 +3690,21 @@ int SV_SpawnServer( qboolean bIsDemo, char* server, char* startspot )
 // set up the new server
 //
 	Host_ClearMemory(FALSE);
+
+	// Release each client's old frame ring, re-derive the frame history depth for
+	// this spawn (single vs multiplayer client count can change between spawns),
+	// and allocate a fresh ring sized to it.
+	for (i = 0; i < svs.maxclientslimit; i++)
+		SV_ClearFrames(&svs.clients[i].frames);
+
+	SV_UPDATE_BACKUP = (svs.maxclients == 1) ? SINGLEPLAYER_BACKUP : MULTIPLAYER_BACKUP;
+	SV_UPDATE_MASK = SV_UPDATE_BACKUP - 1;
+
+	for (i = 0; i < svs.maxclientslimit; i++)
+	{
+		svs.clients[i].frames = (client_frame_t*)MnemoAllocDbg(sizeof(client_frame_t) * SV_UPDATE_BACKUP, __FILE__, __LINE__);
+		memset(svs.clients[i].frames, 0, sizeof(client_frame_t) * SV_UPDATE_BACKUP);
+	}
 
 	memset(&sv, 0, sizeof(sv));
 

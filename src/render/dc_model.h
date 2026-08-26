@@ -86,9 +86,23 @@ typedef struct mplane_s
 	float dist;
 	byte type;			// for texture axis selection and fast side tests
 	byte signbits;		// signx + signy<<1 + signz<<1
-	byte pad[2];
+	// Index into g_planeNormalTable, the hash-deduped table of unique plane
+	// normals built at load time (many planes -- especially axial ones --
+	// share the same normal, so the loader stores one shared copy instead of
+	// a redundant 12 bytes per plane). Some hot paths (e.g. player movement's
+	// PM_HullPointContents) still read `normal` below directly instead.
+	unsigned short normalindex;
 	vec3_t normal;
 } mplane_t;
+
+// One slot of the plane-normal dedup table; see mplane_t.normalindex above.
+typedef struct
+{
+	vec3_t	normal;
+	float	unused;		// hash-table occupancy/sentinel field, unused after lookup
+} planenormal_t;
+
+extern planenormal_t* g_planeNormalTable;
 
 // Compact form of mplane_t for axis-aligned planes: the normal is implicit from
 // `type` (which axis) so there's no need to store it. Used by hull_t's boxplanes
@@ -103,14 +117,15 @@ typedef struct
 typedef struct texture_s
 {
 	char		name[16];
-	unsigned	width, height;
+	unsigned short width, height;
 	int			gl_texturenum;
 	struct msurface_s* texturechain;
-	int			anim_total;				// total tenths in sequence ( 0 = no)
+	short		anim_total;				// total tenths in sequence ( 0 = no)
 	int			anim_min, anim_max;		// time for this frame min <=time< max
 	struct texture_s*	anim_next;		// in the animation sequence
 	struct texture_s*	alternate_anims;	// bmodels in frame 1 use these
 	unsigned int offsets[MIPLEVELS];		// four mip maps stored
+	byte		fade_r, fade_g, fade_b, fade_fog;	// water fade color/fog, from the WAD palette's tail
 	byte*		pPal;
 } texture_t;
 
@@ -146,8 +161,8 @@ typedef struct glpoly_s
 {
 	struct glpoly_s*	next;
 	struct glpoly_s*	chain;
-	int			numverts;
-	int			flags;					// for SURF_UNDERWATER
+	short		numverts;
+	short		flags;					// surface flags, for SURF_DRAWTURB / SURF_DRAWBACKGROUND
 	float		verts[4][VERTEXSIZE];	// variable sized (xyz s1t1 s2t2)
 } glpoly_t;
 

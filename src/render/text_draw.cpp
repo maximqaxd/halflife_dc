@@ -226,12 +226,13 @@ float Font_DrawChar( float x, float y, dcfont_t *font, int ch )
 		x2 = x + advance + g_flTextScaleX * (float)g_nTextCharGap;
 		ybot = y + (float)(int)height;
 
-		// Wind TL, TR, BR, BL so the shared fan index template (which triangulates
-		// on the vertex-0..vertex-2 diagonal) covers the whole glyph cell.
+		// DCV_AddPolyIndices splits the quad along the vertex-1/vertex-2 diagonal
+		// (triangles {0,1,2} and {1,3,2}), which needs the corners added in
+		// row-major order -- TL, TR, BL, BR -- not a perimeter walk.
 		DCV_AddVertex(x,  y,    dc_depthhud.value, u0, v0);
 		DCV_AddVertex(x2, y,    dc_depthhud.value, u1, v0);
-		DCV_AddVertex(x2, ybot, dc_depthhud.value, u1, v1);
 		DCV_AddVertex(x,  ybot, dc_depthhud.value, u0, v1);
+		DCV_AddVertex(x2, ybot, dc_depthhud.value, u1, v1);
 	}
 
 	return advance;

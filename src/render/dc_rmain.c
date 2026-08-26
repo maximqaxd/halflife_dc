@@ -51,7 +51,8 @@ float	gWorldToScreen[16];
 /* Current D3D view matrix */
 D3DMATRIX gViewMatrix;
 
-static float g_frustum_xmax, g_frustum_ymax, g_frustum_zn;
+static float g_frustum_xmax, g_frustum_ymax;
+float g_frustum_zn;
 
 //
 // screen size info
@@ -273,6 +274,20 @@ qboolean R_CullBox( vec_t* mins, vec_t* maxs )
 }
 
 
+// Same test as R_CullBox, but works directly off a node's short-packed
+// bounding box (mnode_t.minmaxs) instead of paying for a float conversion first.
+qboolean R_CullBoxShort( short* mins, short* maxs )
+{
+	int		i;
+
+	for (i = 0; i < 4; i++)
+		if (BoxOnPlaneSide_short(mins, maxs, &frustum[i]) == 2)
+			return TRUE;
+
+	return FALSE;
+}
+
+
 void R_RotateForEntity( cl_entity_t* e )
 {
 	int		i;
@@ -345,6 +360,46 @@ void R_RotateForEntity( cl_entity_t* e )
 
 /*
 
+
+/*
+==================
+R_ApplyViewModelProjection
+
+Rebuild the projection around a new near plane. Used for anything that has to
+be depth-sorted against the scene it is drawn over -- the view model, decals,
+and the lightmap pass.
+==================
+*/
+#define VIEWMODEL_ZNEAR		2.0f
+
+void R_ApplyViewModelProjection( float zn )
+{
+	extern	int	glwidth, glheight;
+	float	aspect, fov, fovy, xmax, ymax, msw, zf;
+
+	DCV_SetTransform( D3DTRANSFORMSTATE_PROJECTION, &g_identityMatrix );
+
+	aspect = (float)glwidth / (float)glheight;
+
+	fov = scr_fov_value;
+	if (fov < 1.0f || fov > 179.0f)
+		fov = 90.0f;
+
+	fovy = atan( (float)glheight / ((float)glwidth / tan( (fov / 360.0f) * (float)M_PI )) );
+	fovy = (fovy * 360.0f) / (float)M_PI;
+
+	msw = dc_msw.value * (zn + 1.0f);
+	g_frustum_zn = zn;
+	zf = gl_zmax.value;
+
+	ymax = VIEWMODEL_ZNEAR * tan( (fovy * (float)M_PI) / 360.0f );
+	xmax = aspect * ymax;
+
+	DCV_Frustum( -xmax, xmax, -ymax, ymax,
+		VIEWMODEL_ZNEAR, zf, msw, D3DTRANSFORMSTATE_PROJECTION );
+
+	DCV_SetViewportDepthRange( dc_depthmin.value, dc_depthmax.value );
+}
 
 /*
 ==================

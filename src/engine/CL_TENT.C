@@ -2157,7 +2157,6 @@ TEMPENTITY* CL_TempEntAlloc( vec_t* org, model_t* model )
 
 	// Use these to set per-frame and termination conditions / actions
 	pTemp->flags = FTENT_NONE;
-	pTemp->entity.colormap = (byte*)vid.colormap;
 	pTemp->die = cl.time + 0.75;
 	pTemp->entity.model = model;
 	pTemp->entity.rendermode = kRenderNormal;
