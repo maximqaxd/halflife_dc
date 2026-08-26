@@ -263,6 +263,7 @@ extern	cvar_t	skill;
 extern	cvar_t	deathmatch;
 extern	cvar_t	coop;
 extern	cvar_t	pausable;
+extern	cvar_t	sv_lan;
 
 extern	cvar_t	sv_newunit;
 extern	cvar_t	sv_clienttrace;
@@ -309,8 +310,14 @@ extern int num_servers;
 
 extern	qboolean	allow_cheats;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern	server_static_t	svs;				// persistant server info
 extern	server_t		sv;					// local server
+#ifdef __cplusplus
+}
+#endif
 
 extern	client_t*		host_client;
 

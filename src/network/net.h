@@ -8,7 +8,7 @@
 
 #define	PORT_ANY	-1
 
-#define	MIN_RATE		100
+#define	MIN_RATE		500
 #define DEFAULT_RATE	9999 // Default data rate
 #define	MAX_RATE		10000
 
@@ -82,8 +82,6 @@ qboolean	NET_CompareAdr( netadr_t a, netadr_t b );
 qboolean	NET_CompareClassBAdr( netadr_t a, netadr_t b );
 // Address conversion
 char*		NET_AdrToString( netadr_t a );
-char*		NET_BaseAdrToString( netadr_t a );
-qboolean	NET_StringToSockaddr( char* s, struct sockaddr* sadr );
 qboolean	NET_StringToAdr( char* s, netadr_t* a );
 qboolean	NET_IsLocalAddress( netadr_t adr );
 
@@ -175,6 +173,7 @@ void	Netchan_Transmit( netchan_t* chan, int length, byte* data );
 void	Netchan_OutOfBand( netsrc_t sock, netadr_t adr, int length, byte* data );
 void	Netchan_OutOfBandPrint( netsrc_t sock, netadr_t adr, char* format, ... );
 qboolean Netchan_Process( netchan_t* chan );
+void Netchan_UpdateStats( netchan_t* chan, int count, float rate );
 void	Netchan_Setup( netsrc_t socketnumber, netchan_t* chan, netadr_t adr );
 
 qboolean Netchan_CanPacket( netchan_t* chan );

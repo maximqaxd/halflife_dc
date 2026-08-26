@@ -69,39 +69,28 @@ Calculates the amount of bytes per second max that the server can send you data
 */
 void Net_Rate_f( void )
 {
-	int		i;
 	float	fNewRate;
-	client_t* client;
 
 	if (Cmd_Argc() != 2)
 	{
-		Con_Printf("Usage:  rate <num>\nTransmission rate (bytes/sec)\nCurrent:  %.5f\n", 1.0 / net_rate);
+		Con_Printf("Usage:  rate <num>\nTransmission rate (bytes/sec)\nCurrent:  %.5f\n", net_rate);
 		return;
 	}
 
-	fNewRate = atof(Cmd_Argv(1));
-	if (fNewRate == 0.0)
+	fNewRate = (float)atof(Cmd_Argv(1));
+	if (fNewRate == 0.0f)
 	{
 		fNewRate = DEFAULT_RATE;
 	}
 
-	fNewRate = 1.0 / fNewRate;
-	if (fNewRate < 1.0 / MAX_RATE || fNewRate > 1.0 / MIN_RATE)
+	if (fNewRate < MIN_RATE || fNewRate > MAX_RATE)
 	{
-		Con_Printf("Rate:  Maximum %f, Minimum %f\n", (float)MAX_RATE, (float)MIN_RATE);
+		Con_Printf("Rate:  Maximum %f, Minimum %f\n", MAX_RATE, MIN_RATE);
 		return;
 	}
 
 	net_rate = fNewRate;
 	cls.netchan.rate = fNewRate;
-
-	for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
-	{
-		if (client && client->active && client->spawned)
-		{
-			client->netchan.rate = fNewRate;
-		}
-	}
 }
 
 /*
@@ -119,7 +108,7 @@ void Netchan_Init( void )
 
 	Cmd_AddCommand("uprate", Net_Rate_f);
 
-	net_rate = 1.0 / DEFAULT_RATE;
+	net_rate = DEFAULT_RATE;
 }
 
 /*
@@ -181,11 +170,12 @@ void Netchan_Setup( netsrc_t socketnumber, netchan_t* chan, netadr_t adr )
 	chan->remote_address = adr;
 	chan->last_received = realtime;
 	chan->connect_time = realtime;
-	chan->rate = net_rate;
 
 	chan->message.data = chan->message_buf;
 	chan->message.allowoverflow = TRUE;
 	chan->message.maxsize = MAX_MSGLEN;
+
+	chan->rate = net_rate;
 }
 
 
@@ -203,8 +193,17 @@ qboolean Netchan_CanPacket( netchan_t* chan )
 	if (!net_chokeloopback.value && chan->remote_address.type == NA_LOOPBACK)
 		return TRUE;
 
-	if (chan->cleartime < realtime + MAX_BACKUP * chan->rate)
-		return TRUE;
+	if (sv.active && sv_lan.value)
+	{
+		// LAN games don't need to honor the client's configured rate
+		if (chan->cleartime < realtime + MAX_BACKUP / (float)DEFAULT_RATE)
+			return TRUE;
+	}
+	else
+	{
+		if (chan->cleartime < realtime + MAX_BACKUP * (1.0f / chan->rate))
+			return TRUE;
+	}
 
 	return FALSE;
 }
@@ -242,6 +241,7 @@ void Netchan_Transmit( netchan_t* chan, int length, byte* data )
 	qboolean	send_reliable;
 	unsigned	w1, w2;
 	int			i;
+	float		fRate;
 
 // check for message overflow
 	if (chan->message.overflowed)
@@ -306,10 +306,16 @@ void Netchan_Transmit( netchan_t* chan, int length, byte* data )
 
 	NET_SendPacket(chan->sock, send.cursize, send.data, chan->remote_address);
 
-	if (chan->cleartime < realtime)
-		chan->cleartime = realtime + send.cursize * chan->rate;
+	if (sv.active && sv_lan.value)
+		// LAN games don't need to honor the client's configured rate
+		fRate = 1.0f / (float)DEFAULT_RATE;
 	else
-		chan->cleartime += send.cursize * chan->rate;
+		fRate = 1.0f / chan->rate;
+
+	if (chan->cleartime < realtime)
+		chan->cleartime = realtime + send.cursize * fRate;
+	else
+		chan->cleartime += send.cursize * fRate;
 
 	if (showpackets.value)
 		Con_Printf("--> s=%i(%i) a=%i(%i) %i ",
@@ -335,6 +341,7 @@ qboolean Netchan_Process( netchan_t* chan )
 {
 	unsigned		sequence, sequence_ack;
 	unsigned		reliable_ack, reliable_message;
+	float			elapsed;
 
 	if (!NET_CompareAdr(net_from, chan->remote_address))
 		return FALSE;
@@ -409,13 +416,60 @@ qboolean Netchan_Process( netchan_t* chan )
 // the message can now be read from the current message pointer
 // update statistics counters
 //
-	chan->frame_latency = chan->frame_latency * OLD_AVG
-		+ (chan->outgoing_sequence - sequence_ack) * (1.0 - OLD_AVG);
-	chan->frame_rate = chan->frame_rate * OLD_AVG
-		+ (realtime - chan->last_received) * (1.0 - OLD_AVG);
+	elapsed = realtime - chan->last_received;
+
+	if (elapsed < 0.001f)
+		elapsed = 0.001f;
+	if (elapsed > 0.5f)
+		elapsed = 0.5f;
+
+	Netchan_UpdateStats(chan, chan->outgoing_sequence - sequence_ack, 1.0f / elapsed);
+
 	chan->good_count += 1;
 
 	chan->last_received = realtime;
 
 	return TRUE;
+}
+
+/*
+=================
+Netchan_UpdateStats
+
+Keeps a rolling window of the last MAX_FLOWS packets and averages them into
+frame_latency / frame_rate, rather than an exponential average, so a single
+bad sample can't dominate the reading.
+=================
+*/
+void Netchan_UpdateStats( netchan_t* chan, int count, float rate )
+{
+	flowstat_t* pflow;
+
+	pflow = &chan->flow[chan->good_count & (MAX_FLOWS - 1)];
+	if (pflow)
+	{
+		pflow->size = count;
+		pflow->time = rate;
+
+		if (chan->good_count < MAX_FLOWS)
+		{
+			chan->frame_latency = 0;
+			chan->frame_rate = 0;
+		}
+		else
+		{
+			int		i;
+			float	sumCount = 0;
+			float	sumRate = 0;
+
+			for (i = 0; i < MAX_FLOWS; i++)
+			{
+				sumRate += chan->flow[i].time;
+				sumCount += (float)chan->flow[i].size;
+			}
+
+			chan->frame_latency = sumCount / MAX_FLOWS;
+			chan->frame_rate = sumRate / MAX_FLOWS;
+		}
+	}
 }

@@ -58,6 +58,11 @@ long time( long* t );
 float fmodf( float x, float y );
 #define fmod( x, y )	fmodf( (x), (y) )
 
+// Same for fabs: the single-precision form is one instruction, while the double
+// one costs a conversion either side of it.
+float fabsf( float x );
+#define fabs( x )		fabsf( (x) )
+
 #ifdef __cplusplus
 }
 #endif
