@@ -65,6 +65,9 @@ void glTexSubImage2D( int target, int level, int xoffset, int yoffset,
 #define BMODEL_DEPTH_SLOTS	64
 #define BMODEL_DEPTH_STEP	0.005f
 
+// Decals sit just in front of the surface they are stuck to.
+#define DECAL_DEPTH_NUDGE	0.00025f
+
 extern int r_depthslot;
 
 extern float g_frustum_zn;
@@ -787,20 +790,17 @@ texture_t* R_TextureAnimation( msurface_t* s )
 		}
 	}
 
-	if (currententity->frame)
-	{
-		if (base->alternate_anims)
-			base = base->alternate_anims;
-	}
+	if (currententity->frame && base->alternate_anims)
+		base = base->alternate_anims;
 
 	if (!base->anim_total)
 		return base;
 
 	if (base->name[0] == '-')
 	{
-		tu = (int)((s->texturemins[0] + (base->width << 16)) / base->width) % 20;
-		tv = (int)((s->texturemins[1] + (base->height << 16)) / base->height) % 20;
-		reletive = rtable[tu][tv] % base->anim_total;
+		tu = (int)((s->texturemins[0] + (base->width << 16)) / base->width);
+		tv = (int)((s->texturemins[1] + (base->height << 16)) / base->height);
+		reletive = rtable[tu % 20][tv % 20] % base->anim_total;
 	}
 	else
 	{
@@ -1051,10 +1051,7 @@ DrawGLSolidPoly
 */
 void DrawGLSolidPoly( glpoly_t* p )
 {
-	DWORD diffuse = DCV_SurfColorFromEntity(currententity);
-	for (; p; p = p->next)
-		if (p->numverts >= 3)
-			DCV_AccumGLPoly(p->verts, p->numverts, diffuse, 0.0f);
+	Sys_Error("Use DCV_AccumGLPoly");
 }
 
 
@@ -2119,6 +2116,7 @@ void R_DecalInit( void )
 void R_DecalUnlink( decal_t* pdecal )
 {
 	decal_t* tmp;
+	decal_t* next;
 
 	if (pdecal->psurface)
 	{
@@ -2130,25 +2128,26 @@ void R_DecalUnlink( decal_t* pdecal )
 		{
 			tmp = pdecal->psurface->pdecals;
 			if (!tmp)
-			{
 				Sys_Error("Bad decal list");
-				return;
-			}
 
-			while (tmp->pnext)
+			for (next = tmp->pnext; next; next = next->pnext)
 			{
-				if (tmp->pnext == pdecal)
+				if (next == pdecal)
 				{
 					tmp->pnext = pdecal->pnext;
-					break;
+					pdecal->psurface = NULL;
+					pdecal->pnext = NULL;
+					return;
 				}
-
-				tmp = tmp->pnext;
+				tmp = next;
 			}
-		}
-	}
 
-	pdecal->psurface = NULL;
+			Sys_Error("Bad decal list B");
+		}
+
+		pdecal->psurface = NULL;
+		pdecal->pnext = NULL;
+	}
 }
 
 
@@ -2878,7 +2877,7 @@ void R_DrawDecals( void )
 		return;
 
 	DCV_TexState_Blend();
-	R_ApplySceneProjection();
+	R_ApplyViewModelProjection(g_frustum_zn - DECAL_DEPTH_NUDGE);
 
 	for (i = 0; i < gDecalSurfCount; i++)
 	{
@@ -2938,16 +2937,13 @@ void R_DrawDecals( void )
 
 				vlist = vert[0];
 				for (k = 0; k < outCount; k++, vlist += VERTEXSIZE)
-				{
-					DCV_AddVertex(vlist[0], vlist[1], vlist[2],
-					              vlist[4], vlist[5]);
-				}
+					DCV_AddVertexLit(vlist[4], vlist[5], vlist);
 			}
 		}
 	}
 
 	gDecalSurfCount = 0;
-	R_ApplySceneProjection();
+	R_ApplyViewModelProjection(g_frustum_zn + DECAL_DEPTH_NUDGE);
 	DCV_SetPackedColor(0xFFFFFFFF);
 }
 
