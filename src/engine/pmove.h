@@ -56,6 +56,7 @@ typedef struct
 {
 	int			player_index;	// So we don't try to run the PM_CheckStuck nudging too quickly.
 	qboolean	server;			// For debugging, are we running physics code on server side?
+	int			field_08;		// binary-confirmed 4-byte gap before origin; identity not yet known.
 
 	vec3_t		origin;			// Movement origin.
 	vec3_t		angles;			// Movement view angles.
@@ -65,6 +66,7 @@ typedef struct
 
 	// For ducking/dead
 	vec3_t		view_ofs;		// Our eye position.
+	int			field_54[2];	// binary-confirmed 8-byte gap before flags; identity not yet known.
 
 	int			flags;			// FL_ONGROUND, FL_DUCKING, etc.
 	int			usehull;		// 0 = regular player hull, 1 = ducked player hull, 2 = point hull
@@ -145,10 +147,17 @@ qboolean PM_CheckWater( void );
 qboolean PM_AddToTouched( pmtrace_t tr, vec_t* impactvelocity );
 
 int PM_PointContents( vec_t* p );
+int PM_PointContentsForPlayer( vec_t* p );
 int PM_WaterEntity( vec_t* p );
 int PM_TruePointContents( vec_t* p );
 int PM_TestPlayerPosition( float* pos );
 pmtrace_t PM_PlayerMove( vec_t* start, vec_t* end, int traceFlags );
 pmtrace_t PM_PlayerMove2( vec_t* start, vec_t* end );
+
+hull_t* PM_HullOffsetForBsp( physent_t* pe, vec_t* offset );
+int PM_PointContentsWorld( hull_t* hull, vec_t* p );
+physent_t* PM_FindLadder( void );
+pmtrace_t PM_TraceModel( physent_t* pe, vec_t* start, vec_t* end );
+void PM_LadderMove( physent_t* ladder );
 
 #endif // PMOVE_H

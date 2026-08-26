@@ -1956,7 +1956,7 @@ void R_DecalNode( mnode_t* node )
 
 				tex = surf->texinfo;
 
-				scale = Length(tex->vecs[0]);
+				scale = VectorLength(tex->vecs[0]);
 				if (scale == 0)
 					continue;
 
@@ -2004,7 +2004,7 @@ int DecalListAdd( DECALLIST* pList, int count )
 			pdecal->entityIndex == pList[i].entityIndex)
 		{
 			VectorSubtract(pdecal->position, pList[i].position, tmp);	// Merge
-			if (Length(tmp) < 2)	// UNDONE: Tune this '2' constant
+			if (VectorLength(tmp) < 2)	// UNDONE: Tune this '2' constant
 				return count;
 		}
 	}
@@ -2085,13 +2085,13 @@ int R_DecalUnProject( decal_t* pdecal, vec_t* position )
 	s = (float)pTexinfo->texture->width * pdecal->dx - (float)pdecal->psurface->texturemins[0];
 	t = (float)pTexinfo->texture->height * pdecal->dy - (float)pdecal->psurface->texturemins[1];
 
-	scale = Length(pTexinfo->vecs[0]) * 0.5;
+	scale = VectorLength(pTexinfo->vecs[0]) * 0.5;
 	ptexture = Draw_DecalTexture(pdecal->texture);
 
 	s = (float)ptexture->width * scale + s + (float)pdecal->psurface->texturemins[0] - pTexinfo->vecs[0][3];
 	t = (float)ptexture->height * scale + t + (float)pdecal->psurface->texturemins[1] - pTexinfo->vecs[1][3];
 
-	inverseScale = fabs(Length(pTexinfo->vecs[0]));
+	inverseScale = fabs(VectorLength(pTexinfo->vecs[0]));
 
 	if (inverseScale != 0.0)
 		inverseScale = (1.0 / inverseScale) * (1.0 / inverseScale);

@@ -83,12 +83,22 @@ typedef struct
 // !!! if this is changed, it must be changed in asm_i386.h too !!!
 typedef struct mplane_s
 {
-	vec3_t normal;
 	float dist;
 	byte type;			// for texture axis selection and fast side tests
 	byte signbits;		// signx + signy<<1 + signz<<1
 	byte pad[2];
+	vec3_t normal;
 } mplane_t;
+
+// Compact form of mplane_t for axis-aligned planes: the normal is implicit from
+// `type` (which axis) so there's no need to store it. Used by hull_t's boxplanes
+// fast path instead of the full mplane_t array.
+typedef struct
+{
+	float dist;
+	byte type;
+	byte pad[3];
+} mclipplane_t;
 
 typedef struct texture_s
 {
@@ -236,6 +246,14 @@ typedef struct mleaf_s
 typedef struct hull_s
 {
 	dclipnode_t*	clipnodes;
+	mclipplane_t*	boxplanes;		// Fast path for axis-aligned (box) sub-hulls: a compact plane
+									// array with no stored normal, since axial planes only need
+									// dist+type. NULL selects the normal `planes` (mplane_t) path
+									// below instead. Not populated by any pmove.c/pmovetst.c code --
+									// PM_InitBoxHull explicitly leaves it NULL, so our own box hull
+									// always takes the normal-plane path already implemented here.
+									// Likely populated during BSP model loading for box-shaped brush
+									// submodels (dc_model.c); unconfirmed, out of this session's reach.
 	mplane_t*		planes;
 	int				firstclipnode;
 	int				lastclipnode;

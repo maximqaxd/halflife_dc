@@ -2265,7 +2265,7 @@ void R_StudioDynamicLight( cl_entity_t* ent, alight_t* plight )
 
 		VectorSubtract(ent->origin, dl->origin, dist);
 
-		r = Length(dist);
+		r = VectorLength(dist);
 		add = (dl->radius - r); // squared radius
 		if (add > 0.0)
 		{
@@ -2291,7 +2291,7 @@ void R_StudioDynamicLight( cl_entity_t* ent, alight_t* plight )
 
 	VectorScale(light, total, light);
 
-	plight->shadelight = Length(light);
+	plight->shadelight = VectorLength(light);
 	plight->ambientlight = (floor - plight->shadelight);
 
 	floor = max(max(color[0], color[1]), color[2]);

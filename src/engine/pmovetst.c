@@ -26,6 +26,7 @@ void PM_InitBoxHull( void )
 	int		side;
 
 	box_hull.clipnodes = &box_clipnodes[0];
+	box_hull.boxplanes = NULL;
 	box_hull.planes = &box_planes[0];
 	box_hull.firstclipnode = 0;
 	box_hull.lastclipnode = 5;
@@ -107,6 +108,44 @@ int PM_HullPointContents( hull_t* hull, int num, vec_t* p )
 
 /*
 ==================
+PM_BoxPlaneContents
+
+Same walk as PM_HullPointContents, but for a hull using the compact
+axis-aligned boxplanes array instead of the full mplane_t planes.
+==================
+*/
+int PM_BoxPlaneContents( hull_t* hull, int num, vec_t* p )
+{
+	float		d;
+	dclipnode_t* node;
+	mclipplane_t* plane;
+
+	if (hull->firstclipnode >= hull->lastclipnode)
+		return CONTENTS_EMPTY;
+
+	while (num >= 0)
+	{
+		if (num < hull->firstclipnode || num > hull->lastclipnode)
+			Sys_Error("PM_BoxPlaneContents: bad node number");
+
+		node = hull->clipnodes + num;
+		plane = hull->boxplanes + node->planenum;
+
+		if (plane->type < 3)
+			d = p[plane->type] - plane->dist;
+		else
+			d = 0 - plane->dist;
+		if (d < 0)
+			num = node->children[1];
+		else
+			num = node->children[0];
+	}
+
+	return num;
+}
+
+/*
+==================
 PM_SimulateLinkContents
 
 ==================
@@ -169,7 +208,37 @@ int PM_PointContents( vec_t* p )
 	if (cont != CONTENTS_EMPTY)
 		return cont;
 
-	return entityContents;	
+	return entityContents;
+}
+
+/*
+==================
+PM_PointContentsForPlayer
+
+==================
+*/
+int PM_PointContentsForPlayer( vec_t* p )
+{
+	hull_t* hull;
+	int cont, simulated;
+
+	hull = pmove.physents[0].model->hulls;
+
+	if (hull->boxplanes)
+		cont = PM_BoxPlaneContents(hull, hull->firstclipnode, p);
+	else
+		cont = PM_HullPointContents(hull, hull->firstclipnode, p);
+	if (cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
+		cont = CONTENTS_WATER;
+
+	if (cont != CONTENTS_SOLID)
+	{
+		simulated = PM_SimulateLinkContents(p, NULL);
+		if (simulated != CONTENTS_EMPTY)
+			cont = simulated;
+	}
+
+	return cont;
 }
 
 /*
@@ -181,13 +250,17 @@ PM_WaterEntity
 int PM_WaterEntity( vec_t* p )
 {
 	hull_t* hull;
-	int		num, entityIndex;
+	int		entityIndex;
 	int		cont;
 
 	entityIndex = -1;
 	hull = pmove.physents[0].model->hulls;
-	num = pmove.numphysent;
-	cont = PM_HullPointContents(hull, hull[0].firstclipnode, p);
+
+	if (hull->boxplanes)
+		cont = PM_BoxPlaneContents(hull, hull->firstclipnode, p);
+	else
+		cont = PM_HullPointContents(hull, hull->firstclipnode, p);
+
 	if (cont < CONTENTS_SOLID)
 		entityIndex = 0;
 
@@ -208,10 +281,96 @@ int PM_TruePointContents( vec_t* p )
 	hull_t* hull;
 
 	hull = pmove.physents[0].model->hulls;
-	if (hull != NULL)
-		return PM_HullPointContents(hull, hull[0].firstclipnode, p);
 
-	return CONTENTS_EMPTY;
+	if (hull->boxplanes)
+		return PM_BoxPlaneContents(hull, hull->firstclipnode, p);
+
+	return PM_HullPointContents(hull, hull->firstclipnode, p);
+}
+
+/*
+==================
+PM_HullOffsetForBsp
+
+Selects the BSP hull to test against for the current usehull, and
+computes the offset needed to bring a world-space point into that
+hull's local space.
+==================
+*/
+hull_t* PM_HullOffsetForBsp( physent_t* pe, vec_t* offset )
+{
+	hull_t* hull;
+
+	switch (pmove.usehull)
+	{
+	case 0:
+		// regular
+		hull = &pe->model->hulls[1];
+		break;
+	case 1:
+		// standing
+		hull = &pe->model->hulls[3];
+		break;
+	case 2:
+		// crouching
+		hull = &pe->model->hulls[0];
+		break;
+	default:
+		hull = &pe->model->hulls[1];
+		break;
+	}
+
+	VectorSubtract(hull->clip_mins, player_mins[pmove.usehull], offset);
+	VectorAdd(offset, pe->origin, offset);
+
+	return hull;
+}
+
+/*
+==================
+PM_PointContentsWorld
+
+==================
+*/
+int PM_PointContentsWorld( hull_t* hull, vec_t* p )
+{
+	if (hull->boxplanes)
+		return PM_BoxPlaneContents(hull, hull->firstclipnode, p);
+
+	return PM_HullPointContents(hull, hull->firstclipnode, p);
+}
+
+/*
+==================
+PM_FindLadder
+
+Looks through the physents for a ladder brush close enough to grab.
+==================
+*/
+physent_t* PM_FindLadder( void )
+{
+	int i;
+	physent_t* pe;
+	vec3_t offset;
+	vec3_t test;
+	hull_t* hull;
+
+	for (i = 0; i < pmove.numphysent; i++)
+	{
+		pe = &pmove.physents[i];
+
+		if (pe->model && pe->model->type == mod_brush && pe->skin == CONTENTS_LADDER)
+		{
+			hull = PM_HullOffsetForBsp(pe, offset);
+
+			VectorSubtract(pmove.origin, offset, test);
+
+			if (PM_PointContentsWorld(hull, test) != CONTENTS_EMPTY)
+				return pe;
+		}
+	}
+
+	return NULL;
 }
 
 /*
@@ -223,7 +382,7 @@ LINE TESTING IN HULLS
 */
 
 // 1/32 epsilon to keep floating point happy
-#define	DIST_EPSILON	(0.03125)
+#define	DIST_EPSILON	(0.03125f)
 
 /*
 ==================
@@ -355,7 +514,7 @@ qboolean PM_RecursiveHullCheck( hull_t* hull, int num, float p1f, float p2f, vec
 	while (PM_HullPointContents(hull, hull->firstclipnode, mid)
 		== CONTENTS_SOLID)
 	{ // shouldn't really happen, but does occasionally
-		frac -= 0.05;
+		frac -= 0.05f;
 		if (frac < 0)
 		{
 			trace->fraction = midf;
@@ -375,6 +534,45 @@ qboolean PM_RecursiveHullCheck( hull_t* hull, int num, float p1f, float p2f, vec
 }
 
 /*
+==================
+PM_TraceModel
+
+Traces a line against a single entity's collision model, forcing the
+point hull so ladder detection isn't affected by the player's duck state.
+==================
+*/
+pmtrace_t PM_TraceModel( physent_t* pe, vec_t* start, vec_t* end )
+{
+	int oldhull;
+	vec3_t offset;
+	vec3_t start_l, end_l;
+	hull_t* hull;
+	pmtrace_t trace;
+
+	oldhull = pmove.usehull;
+	pmove.usehull = 2;
+	hull = PM_HullOffsetForBsp(pe, offset);
+	pmove.usehull = oldhull;
+
+	VectorSubtract(start, offset, start_l);
+	VectorSubtract(end, offset, end_l);
+
+	memset(&trace, 0, sizeof(trace));
+	trace.fraction = 1;
+	trace.allsolid = TRUE;
+	VectorCopy(end, trace.endpos);
+
+	PM_RecursiveHullCheck(hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
+
+	if (trace.allsolid)
+		trace.startsolid = TRUE;
+	if (trace.startsolid)
+		trace.fraction = 0;
+
+	return trace;
+}
+
+/*
 =================
 PM_HullForStudioModel
 
@@ -384,7 +582,7 @@ hull_t* PM_HullForStudioModel( model_t* pModel, vec_t* offset, float frame, int 
 {
 	vec3_t size;
 	VectorSubtract(player_maxs[pmove.usehull], player_mins[pmove.usehull], size);
-	VectorScale(size, 0.5, size);
+	VectorScale(size, 0.5f, size);
 	VectorCopy(vec3_origin, offset);
 	return R_StudioHull(pModel, frame, sequence, angles, origin, size, pcontroller, pblending, pNumHulls);
 }
@@ -770,7 +968,7 @@ pmtrace_t PM_Worldtrace( vec_t* start, vec_t* end )
 	if (trace.startsolid)
 		trace.fraction = 0;
 
-	if (trace.fraction != 1.0)
+	if (trace.fraction != 1.0f)
 	{
 		// Compute the end position of the trace.
 
@@ -804,7 +1002,7 @@ pmtrace_t PM_PlayerMove2( vec_t* start, vec_t* end )
 
 	total = PM_Worldtrace(start, end);
 
-	if (pm_worldonly.value || total.fraction == 0.0)
+	if (pm_worldonly.value || total.fraction == 0.0f)
 		return total;
 
 	SV_MoveBounds(start, player_mins[pmove.usehull], player_maxs[pmove.usehull], trace.endpos, boxmins, boxmaxs);

@@ -57,7 +57,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 coredll.lib /nologo /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /subsystem:$(CESubsystem) /STACK:65536,4096
-# ADD LINK32 coredll.lib winsock.lib d3dim.lib ddraw.lib wdm.lib mapledev.lib dxguid.lib dinput.lib FloatMath.lib zlib.lib client.lib halflife.lib /force:multiple /nologo /map /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /libpath:"../obj/WCESH4Rel/" /subsystem:$(CESubsystem) /STACK:65536,4096
+# ADD LINK32 coredll.lib winsock.lib d3dim.lib ddraw.lib wdm.lib mapledev.lib dxguid.lib dinput.lib FloatMath.lib shintr.lib zlib.lib client.lib halflife.lib /force:multiple /nologo /map /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /nodefaultlib:"libc.lib" /libpath:"../obj/WCESH4Rel/" /subsystem:$(CESubsystem) /STACK:65536,4096
 # Begin Custom Build
 OutDir=.\../obj/WCESH4Rel
 InputPath=\Dev\Dreamcast\halflife_dc\obj\WCESH4Rel\halflife_dc.exe
@@ -95,7 +95,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 coredll.lib /nologo /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /subsystem:$(CESubsystem) /STACK:65536,4096
-# ADD LINK32 coredll.lib winsock.lib d3dim.lib ddraw.lib wdm.lib mapledev.lib dxguid.lib dinput.lib FloatMath.lib zlib.lib client.lib halflife.lib /force:multiple /nologo /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /libpath:"../obj/WCESH4Dbg/" /subsystem:$(CESubsystem) /STACK:65536,4096
+# ADD LINK32 coredll.lib winsock.lib d3dim.lib ddraw.lib wdm.lib mapledev.lib dxguid.lib dinput.lib FloatMath.lib shintr.lib zlib.lib client.lib halflife.lib /force:multiple /nologo /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /nodefaultlib:"libc.lib" /libpath:"../obj/WCESH4Dbg/" /subsystem:$(CESubsystem) /STACK:65536,4096
 # Begin Custom Build
 OutDir=.\../obj/WCESH4Dbg
 InputPath=\Dev\Dreamcast\halflife_dc\obj\WCESH4Dbg\halflife_dc.exe

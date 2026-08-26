@@ -67,7 +67,7 @@ float GlowBlend( cl_entity_t* pEntity )
 	pmtrace_t trace;
 
 	VectorSubtract(r_entorigin, r_origin, tmp);
-	dist = Length(tmp);
+	dist = VectorLength(tmp);
 
 	pmove.usehull = 2;
 	if (r_traceglow.value)

@@ -1,5 +1,9 @@
 // mathlib.h
 
+#ifdef _SH4_
+#include <shintr.h>
+#endif
+
 typedef float vec_t;
 typedef vec_t vec3_t[3];
 typedef vec_t vec4_t[4];	// x,y,z,w
@@ -26,7 +30,11 @@ extern	int nanmask;
 
 #define	IS_NAN(x) (((*(int *)&x)&nanmask)==nanmask)
 
+#ifdef _SH4_
+#define DotProduct(x, y) _Dot3dVW0((float*)(x), (float*)(y))
+#else
 #define DotProduct(x, y) (x[0] * y[0] + x[1] * y[1] + x[2] * y[2])
+#endif
 
 // Use this definition globally
 #define	EQUAL_EPSILON	0.001
@@ -55,9 +63,22 @@ void _VectorSubtract( vec_t* veca, vec_t* vecb, vec_t* out );
 void _VectorAdd( vec_t* veca, vec_t* vecb, vec_t* out );
 void _VectorCopy( vec_t* in, vec_t* out );
 
-int VectorCompare( const vec_t* v1, const vec_t* v2 );
-float Length( const vec_t* v );
+// Small enough that every caller wants it expanded in place
+__inline int VectorCompare( const vec_t* v1, const vec_t* v2 )
+{
+	int i;
+
+	for (i = 0; i < 3; i++)
+		if (v1[i] != v2[i])
+			return 0;
+
+	return 1;
+}
+
+float VectorLength( const vec_t* v );
+#define Length(v) VectorLength(v)
 void CrossProduct( const vec_t* v1, const vec_t* v2, vec_t* cross );
+void VectorVectors( vec_t* forward, vec_t* right, vec_t* up );
 float VectorNormalize( vec_t* v );		// returns vector length
 void VectorInverse( vec_t* v );
 void VectorScale( const vec_t* in, vec_t scale, vec_t* out );
@@ -95,6 +116,7 @@ void VectorAngles( const vec_t* forward, vec_t* angles );
 
 void BOPS_Error( void );
 int BoxOnPlaneSide( vec_t * emins, vec_t * emaxs, struct mplane_s* p );
+int BoxOnPlaneSide_short( short* emins, short* emaxs, struct mplane_s* p );
 float	anglemod( float a );
 
 #ifdef __cplusplus
