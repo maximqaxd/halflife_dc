@@ -818,7 +818,7 @@ void R_BuildLightMap( msurface_t* psurf )
 		if (psurf->samples)
 			DC_SumBlockLights(psurf, smax, tmax);
 
-		if (psurf->dlightframe == (byte)r_framecount)
+		if (psurf->dlightframe == (char)r_framecount)
 			R_AddDynamicLights(psurf);
 	}
 	else
@@ -1219,7 +1219,7 @@ void R_RenderBrushPoly( msurface_t* fa )
 			goto dynamic;
 	}
 
-	if (fa->dlightframe == (byte)r_framecount || fa->cached_dlight)
+	if (fa->dlightframe == (char)r_framecount || fa->cached_dlight)
 	{
 dynamic:
 		if (r_dynamic.value)
@@ -1268,35 +1268,38 @@ void R_DrawSequentialPoly( msurface_t* chain )
 	msurface_t* next;
 	msurface_t* deferred;
 	texture_t*  t;
-	byte        flagsOr, flagsAnd, special;
+	byte        flagsOr, flagsAnd;
 	void        (*pfnAccum)( const void* poly );
 	int         maps;
 
 	flagsOr = 0;
 	flagsAnd = 0xFF;
+
+	pfnAccum = r_alphatestmode ? DCV_AccumColoredPoly : DCV_AccumSolidPoly;
+
 	for (s = chain; s; s = s->texturechain)
 	{
 		flagsAnd &= s->flags;
 		flagsOr  |= s->flags;
 	}
 
-	pfnAccum = r_alphatestmode ? DCV_AccumColoredPoly : DCV_AccumSolidPoly;
+	flagsOr  &= (SURF_DRAWSKY | SURF_DRAWTURB | SURF_DRAWTILED | SURF_DRAWBACKGROUND);
+	flagsAnd &= (SURF_DRAWSKY | SURF_DRAWTURB | SURF_DRAWTILED | SURF_DRAWBACKGROUND);
 
-	special = flagsOr & (SURF_DRAWSKY | SURF_DRAWTURB | SURF_DRAWTILED | SURF_DRAWBACKGROUND);
-	if (special)
+	if (flagsOr)
 	{
 		if ((flagsAnd & SURF_DRAWSKY) && (flagsOr & SURF_DRAWSKY))
 			return;
 
-		if ((flagsAnd & 0x74) == SURF_DRAWTURB && special == SURF_DRAWTURB)
+		if (flagsAnd == SURF_DRAWTURB && flagsOr == SURF_DRAWTURB)
 		{
 			R_DrawWaterChain(chain, 0);
 			return;
 		}
 
-		if ((flagsAnd & 0x74) != SURF_DRAWTILED || special != SURF_DRAWTILED)
+		if (flagsAnd != SURF_DRAWTILED || flagsOr != SURF_DRAWTILED)
 		{
-			Con_Printf("Slow path of RenderBrushPoly %x %x\n", flagsAnd, special);
+			Con_Printf("Slow path of RenderBrushPoly %x %x\n");
 			for (s = chain; s; s = s->texturechain)
 				R_RenderBrushPoly(s);
 			return;
@@ -1306,7 +1309,7 @@ void R_DrawSequentialPoly( msurface_t* chain )
 		pfnAccum = DCV_AccumScrollPoly;
 	}
 
-	if (currententity && currententity->rendermode == kRenderTransColor)
+	if (currententity->rendermode == kRenderTransColor)
 	{
 		DCV_TexState_VertColor();
 		DCV_SetColor(currententity->rendercolor.r, currententity->rendercolor.g,
@@ -1337,9 +1340,9 @@ void R_DrawSequentialPoly( msurface_t* chain )
 				if (cur->pdecals)
 				{
 					gDecalSurfs[gDecalSurfCount] = cur;
-					gDecalSurfCount++;
-					if (gDecalSurfCount > MAX_DECALSURFS)
+					if (gDecalSurfCount >= MAX_DECALSURFS)
 						Sys_Error("Too many decal surfaces!\n");
+					gDecalSurfCount++;
 				}
 
 				if (r_dynamic.value)
@@ -1350,11 +1353,17 @@ void R_DrawSequentialPoly( msurface_t* chain )
 							goto dynamic;
 					}
 
-					if (cur->dlightframe == (byte)r_framecount || cur->cached_dlight)
+					if (cur->dlightframe == (char)r_framecount || cur->cached_dlight)
 					{
 dynamic:
 						lightmap_modified[cur->lightmaptexturenum] = 1;
 						R_BuildLightMap(cur);
+
+						if (lm_texnum[cur->lightmaptexturenum] != nada_texture)
+							DCV_UpdateTextureSubRect(lm_texnum[cur->lightmaptexturenum],
+								cur->light_s, cur->light_t,
+								(cur->extents[0] >> 4) + 1, (cur->extents[1] >> 4) + 1,
+								(const unsigned short*)lightmaps, BLOCK_WIDTH);
 					}
 				}
 			}

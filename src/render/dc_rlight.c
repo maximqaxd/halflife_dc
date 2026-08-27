@@ -203,9 +203,9 @@ void R_MarkLights( dlight_t* light, int bit, mnode_t* node )
 			continue;
 		}
 
-		if (surf->dlightframe != (byte)r_dlightframecount)
+		if (surf->dlightframe != (char)r_dlightframecount)
 		{
-			surf->dlightframe = (byte)r_dlightframecount;
+			surf->dlightframe = (char)r_dlightframecount;
 			surf->dlightbits = 0;
 		}
 		surf->dlightbits |= bit;

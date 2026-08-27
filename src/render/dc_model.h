@@ -118,7 +118,8 @@ typedef struct texture_s
 {
 	char		name[16];
 	unsigned short width, height;
-	int			gl_texturenum;
+	short		gl_texturenum;
+	short		reserved;
 	struct msurface_s* texturechain;
 	short		anim_total;				// total tenths in sequence ( 0 = no)
 	int			anim_min, anim_max;		// time for this frame min <=time< max
@@ -192,7 +193,7 @@ struct msurface_s
 	byte		light_s;			// lightmap s coordinate 
 	byte		light_t;			// lightmap t coordinate 
 	byte		visframe;			// should be drawn when node is crossed (byte, wraps at 256)
-	byte		dlightframe;		
+	char		dlightframe;		
 
 	byte		styles[MAXLIGHTMAPS]; // index into d_lightstylevalue[] for animated lights 
 									  // no one surface can be effected by more than 4 
