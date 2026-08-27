@@ -14,7 +14,6 @@ char* wadpath;
 
 void Mod_LoadSpriteModel( model_t* mod, void* buffer );
 void Mod_LoadBrushModel( model_t* mod, void* buffer );
-void Mod_LoadAliasModel( model_t* mod, void* buffer );
 void Mod_LoadStudioModel( model_t* mod, void* buffer );
 model_t* Mod_LoadModel( model_t* mod, qboolean crash, qboolean bDefer );
 
@@ -215,7 +214,7 @@ model_t* Mod_LoadModel( model_t* mod, qboolean crash, qboolean bDefer )
 	switch (LittleLong(*(unsigned*)buf))
 	{
 	case IDPOLYHEADER:
-		Mod_LoadAliasModel(mod, buf);
+		Sys_Error("Alias models are so 1995!\n");
 		break;
 
 	case IDSPRITEHEADER:
@@ -242,6 +241,23 @@ Loads in a model for the given name
 ==================
 */
 model_t* Mod_ForName( char* name, qboolean crash )
+{
+	model_t* mod;
+
+	mod = Mod_FindName(name);
+
+	return Mod_LoadModel(mod, crash, FALSE);
+}
+
+/*
+==================
+Mod_ForNameDefer
+
+As Mod_ForName, but a model that can wait is left unloaded until something
+actually draws it.
+==================
+*/
+model_t* Mod_ForNameDefer( char* name, qboolean crash )
 {
 	model_t* mod;
 
@@ -1430,29 +1446,6 @@ ALIAS MODELS
 
 aliashdr_t* pheader;
 
-/*
-=================
-Mod_LoadAliasFrame
-=================
-*/
-void* Mod_LoadAliasFrame( void* pin, maliasframedesc_t* frame )
-{
-	Sys_Error ("Mod_LoadAliasFrame should be obsolete\n");
-    return NULL;
-}
-
-
-/*
-=================
-Mod_LoadAliasGroup
-=================
-*/
-void* Mod_LoadAliasGroup( void* pin, maliasframedesc_t* frame )
-{
-	Sys_Error ("Mod_LoadAliasGroup should be obsolete\n");
-	return NULL;
-}
-
 //=========================================================
 
 /*
@@ -1484,66 +1477,7 @@ typedef struct
 	else if (pos[off] != 255) fdc = pos[off]; \
 }
 
-void Mod_FloodFillSkin( byte* skin, int skinwidth, int skinheight )
-{
-	byte				fillcolor = *skin; // assume this is the pixel to fill
-	floodfill_t			fifo[FLOODFILL_FIFO_SIZE];
-	int					inpt = 0, outpt = 0;
-	int					filledcolor = -1;
-
-	if (filledcolor == -1)
-	{
-		filledcolor = 0;
-	}
-
-	// can't fill to filled color or to transparent color (used as visited marker)
-	if ((fillcolor == filledcolor) || (fillcolor == 255))
-	{
-		//Con_Printf("not filling skin from %d to %d\n", fillcolor, filledcolor);
-		return;
-	}
-
-	fifo[inpt].x = 0, fifo[inpt].y = 0;
-	inpt = (inpt + 1) & FLOODFILL_FIFO_MASK;
-
-	while (outpt != inpt)
-	{
-		int			x = fifo[outpt].x, y = fifo[outpt].y;
-		int			fdc = filledcolor;
-		byte* pos = &skin[x + skinwidth * y];
-
-		outpt = (outpt + 1) & FLOODFILL_FIFO_MASK;
-
-		if (x > 0)				FLOODFILL_STEP(-1, -1, 0);
-		if (x < skinwidth - 1)	FLOODFILL_STEP(1, 1, 0);
-		if (y > 0)				FLOODFILL_STEP(-skinwidth, 0, -1);
-		if (y < skinheight - 1)	FLOODFILL_STEP(skinwidth, 0, 1);
-		skin[x + skinwidth * y] = fdc;
-	}
-}
-
-/*
-===============
-Mod_LoadAllSkins
-===============
-*/
-void* Mod_LoadAllSkins( int numskins, daliasskintype_t* pskintype )
-{
-	Sys_Error ("Mod_LoadAllSkins should be obsolete\n");
-	return NULL;
-}
-
 //=========================================================================
-
-/*
-=================
-Mod_LoadAliasModel
-=================
-*/
-void Mod_LoadAliasModel( model_t* mod, void* buffer )
-{
-	Sys_Error ("Alias models are so 1995!\n");
-}
 
 //=============================================================================
 

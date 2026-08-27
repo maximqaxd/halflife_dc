@@ -1306,7 +1306,7 @@ int PF_precache_model_I( char* s )
 			if (!sv.model_precache[i])
 			{
 				sv.model_precache[i] = s;
-				sv.models[i] = Mod_ForName(s, TRUE);
+				sv.models[i] = Mod_ForNameDefer(s, TRUE);
 				return i;
 			}
 			if (!strcmp(sv.model_precache[i], s))
