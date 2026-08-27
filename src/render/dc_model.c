@@ -89,9 +89,12 @@ void Mod_ClearAll( void )
 	for (i = 0; i < mod_numknown; i++)
 	{
 		mod = mod_known[i];
-		if (mod && mod->type != mod_alias && mod->needload != (NL_NEEDS_LOADED | NL_UNREFERENCED))
+		if (mod->type != mod_alias && mod->needload != NL_CLIENT)
 			mod->needload = NL_NEEDS_LOADED;
 	}
+
+	Mod_InitNormalTable();
+	DC_FreeStaleTextureSlots();
 }
 
 /*
@@ -1301,6 +1304,120 @@ void Mod_LoadSurfedges( lump_t* l )
 Mod_LoadPlanes
 =================
 */
+/*
+==============================================================================
+
+PLANE NORMAL TABLE
+
+A level's planes share very few distinct normals -- every axial plane in the
+map reuses one of six -- so the loader hashes each normal into one table and
+keeps only the index on the plane itself.
+
+==============================================================================
+*/
+
+#define NORMAL_TABLE_SIZE	4096
+#define NORMAL_TABLE_MASK	(NORMAL_TABLE_SIZE - 1)
+#define NORMAL_TABLE_EMPTY	1000.0f		// no real normal has a component this big
+
+planenormal_t*	g_planeNormalTable;
+int				normal_count;
+int				normal_collisions;
+
+/*
+===============
+Mod_AddNormalToTable
+
+Returns the index this normal lives at, adding it if it is not there yet.
+===============
+*/
+int Mod_AddNormalToTable( vec_t* normal, unsigned int hash )
+{
+	planenormal_t*	entry;
+	byte*			pb;
+	unsigned short	index;
+	int				i;
+
+	pb = (byte*)normal;
+	for (i = 0; i < 12; i++)
+	{
+		hash ^= *pb++;
+		if (hash & 1)
+			hash = (hash >> 1) | 0x0800;
+		else
+			hash = hash >> 1;
+	}
+
+	index = hash & NORMAL_TABLE_MASK;
+	entry = g_planeNormalTable + index;
+	i = NORMAL_TABLE_MASK;
+
+	while (1)
+	{
+		if (entry->normal[0] > 2.0f)
+		{
+			entry->normal[0] = normal[0];
+			entry->normal[1] = normal[1];
+			entry->normal[2] = normal[2];
+			entry->unused = 0.0f;
+			normal_count++;
+			return index;
+		}
+
+		if (entry->normal[0] == normal[0] &&
+			entry->normal[1] == normal[1] &&
+			entry->normal[2] == normal[2])
+		{
+			return index;
+		}
+
+		index++;
+		normal_collisions++;
+		entry++;
+
+		if (index == NORMAL_TABLE_SIZE)
+		{
+			index = 0;
+			entry = g_planeNormalTable;
+		}
+
+		if (i-- == 0)
+			return Sys_Error("Normal table full!");
+	}
+}
+
+/*
+===============
+Mod_InitNormalTable
+
+Empties the table and seeds it with the six axial normals.
+===============
+*/
+void Mod_InitNormalTable( void )
+{
+	vec3_t	normal;
+	int		i;
+
+	if (!g_planeNormalTable)
+		g_planeNormalTable = (planenormal_t*)MnemoAlloc(NORMAL_TABLE_SIZE * sizeof(planenormal_t), 0x20, 0, "norm_table");
+
+	for (i = 0; i < NORMAL_TABLE_SIZE * 4; i++)
+		((float*)g_planeNormalTable)[i] = NORMAL_TABLE_EMPTY;
+
+	normal_count = 0;
+	normal_collisions = 0;
+
+	for (i = 0; i < 6; i++)
+	{
+		normal[0] = 0.0f;
+		normal[1] = 0.0f;
+		normal[2] = 0.0f;
+		normal[i >> 1] = (i & 1) ? -1.0f : 1.0f;
+
+		Mod_AddNormalToTable(normal, (i & 1) << (i >> 1));
+	}
+}
+
 void Mod_LoadPlanes( lump_t* l )
 {
 	int			i, j;

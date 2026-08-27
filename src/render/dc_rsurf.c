@@ -53,10 +53,6 @@ static int        lm_texnum[MAX_LIGHTMAPS];
 msurface_t* gDecalSurfs[MAX_DECALSURFS];
 int gDecalSurfCount;
 
-// The hash-deduped table of unique plane normals mplane_t.normalindex refers
-// to. Built at BSP load time (world.c/dc_model.c, not yet reconstructed);
-// left NULL here as a forward reference until that loader code is written.
-planenormal_t* g_planeNormalTable;
 
 // Set by R_SetRenderMode: non-zero while an entity is being drawn with the
 // alpha-tested 2D state (kRenderTransAlpha). Those surfaces carry their own

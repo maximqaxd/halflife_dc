@@ -104,6 +104,9 @@ typedef struct
 
 extern planenormal_t* g_planeNormalTable;
 
+int  Mod_AddNormalToTable( vec_t* normal, unsigned int hash );
+void Mod_InitNormalTable( void );
+
 // Compact form of mplane_t for axis-aligned planes: the normal is implicit from
 // `type` (which axis) so there's no need to store it. Used by hull_t's boxplanes
 // fast path instead of the full mplane_t array.
@@ -415,6 +418,7 @@ typedef enum {
 #define NL_PRESENT		0
 #define NL_NEEDS_LOADED	1
 #define NL_UNREFERENCED	2
+#define NL_CLIENT		3
 
 #if !defined( CACHE_USER ) && !defined( QUAKEDEF_H )
 #define CACHE_USER
