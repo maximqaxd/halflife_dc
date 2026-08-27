@@ -2083,12 +2083,14 @@ static void DC_CreateSurfaceLightmap( msurface_t* surf )
 	smax = (surf->extents[0] >> 4) + 1;
 	tmax = (surf->extents[1] >> 4) + 1;
 
+	if (gl_texsort == 1)
+	{
+		surf->lightmaptexturenum = (byte)AllocBlock(smax, tmax, &ls, &lt);
+		surf->light_s = (byte)ls;
+		surf->light_t = (byte)lt;
 
-	surf->lightmaptexturenum = (byte)AllocBlock(smax, tmax, &ls, &lt);
-	surf->light_s = (byte)ls;
-	surf->light_t = (byte)lt;
-
-	R_BuildLightMap(surf);
+		R_BuildLightMap(surf);
+	}
 }
 
 /*

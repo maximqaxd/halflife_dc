@@ -152,7 +152,7 @@ typedef struct mtexinfo_s
 								// [i][3] is the s/t offset relative to the origin.
 								// s or t = dot(3Dpoint,vecs[i])+vecs[i][3]
 	texture_t*	texture;
-	int			flags;			// sky or slime, no lightmap or 256 subdivision
+	short		flags;			// sky or slime, no lightmap or 256 subdivision
 } mtexinfo_t;
 
 #define	VERTEXSIZE	8
