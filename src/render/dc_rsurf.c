@@ -12,12 +12,25 @@
 #include "input.h"
 #include <floatmathlib.h>
 
-#define MAX_DECALSURFS		500
+#define MAX_DECALSURFS		200
 
 int		lightmap_bytes;		// 1, 2, or 4
 int	lightmap_used;
 #define MAX_BLOCK_LIGHTS	(18 * 18)
 colorVec blocklights[MAX_BLOCK_LIGHTS];
+
+// Horizontal resample weights for one row of a surface's lightmap; the same
+// for every row, so they are only worked out once per light style.
+#define MAX_LIGHTMAP_WIDTH	20
+
+typedef struct
+{
+	int		index;
+	float	w0;
+	float	w1;
+} lmcolumn_t;
+
+static lmcolumn_t lm_column[MAX_LIGHTMAP_WIDTH];
 
 #define	BLOCK_WIDTH		128
 #define	BLOCK_HEIGHT	128
@@ -74,6 +87,7 @@ extern float g_frustum_zn;
 void R_ApplyViewModelProjection( float zn );
 
 extern int numgltextures;
+extern int nada_texture;
 int DC_LoadTexture( char* identifier, int texture_type, int width, int height,
 	void* data, short mipmap, int tex_type, unsigned char* pPal );
 
@@ -403,11 +417,11 @@ DC_FullbrightBlockLights
 Fill blocklights with full bright (255).
 ===============
 */
-static void DC_FullbrightBlockLights( int smax, int tmax )
+static void DC_FullbrightBlockLights( int size )
 {
-	int i, size = smax * tmax;
+	int i;
 
-	if (smax * tmax > MAX_BLOCK_LIGHTS)
+	if (size > MAX_BLOCK_LIGHTS)
 		Sys_Error("Oversized surface in DC_FullbrightBlockLights");
 
 	for (i = 0; i < size; i++)
@@ -425,11 +439,11 @@ DC_ClearBlockLights
 Zero blocklights. 
 ===============
 */
-static void DC_ClearBlockLights( int smax, int tmax )
+static void DC_ClearBlockLights( int size )
 {
-	int i, size = smax * tmax;
+	int i;
 
-	if (smax * tmax > MAX_BLOCK_LIGHTS)
+	if (size > MAX_BLOCK_LIGHTS)
 		Sys_Error("Oversized surface in DC_ClearBlockLights");
 		
 	for (i = 0; i < size; i++)
@@ -499,22 +513,32 @@ static void DC_SumBlockLights( msurface_t* psurf, int smax, int tmax )
 			{
 				unsigned short v = *p++;
 
-				if (!(v & LT2D_DELTA_FLAG))
+				if (v & LT2D_DELTA_FLAG)
+				{
+					int d;
+
+					if (v & LT2D_R_SIGN)
+						r -= (v & LT2D_R_MAG_MASK) >> 10;
+					else
+						r += (v & LT2D_R_MAG_MASK) >> 10;
+
+					d = v & LT2D_GB_SIGN;
+
+					if (d)
+						g -= (v & LT2D_G_MAG_MASK) >> 5;
+					else
+						g += (v & LT2D_G_MAG_MASK) >> 5;
+
+					if (d)
+						b -= v & LT2D_B_MAG_MASK;
+					else
+						b += v & LT2D_B_MAG_MASK;
+				}
+				else
 				{
 					r = (v & LT2D_R_MASK_ABS) >> 7;
 					g = (v & LT2D_G_MASK_ABS) >> 2;
 					b = (v & LT2D_B_MASK_ABS) << 3;
-				}
-				else
-				{
-					int d;
-
-					d = (v & LT2D_R_MAG_MASK) >> 10;
-					r += (v & LT2D_R_SIGN) ? -d : d;
-					d = (v & LT2D_G_MAG_MASK) >> 5;
-					g += (v & LT2D_GB_SIGN) ? -d : d;
-					d = (v & LT2D_B_MAG_MASK);
-					b += (v & LT2D_GB_SIGN) ? -d : d;
 				}
 
 				blocklights[i].r += r * scale;
@@ -579,31 +603,80 @@ static void DC_SumBlockLights( msurface_t* psurf, int smax, int tmax )
 	}
 	else if (cl.worldmodel->lightmap_mode == 3)
 	{
-		/* LT2 LERP 'a': decode each style's grid, apply lightgamma, accumulate */
-		static color24 lt2_tmp[MAX_BLOCK_LIGHTS];
-		byte* lt2ptr = (byte*)lightmap;
+		/* LT2 grid: each style stores a small ncols x nrows grid of RGB
+		 * triples that gets resampled up to the surface's smax x tmax
+		 * lightmap. The horizontal weights are the same for every row, so
+		 * they are worked out once per style up front. */
+		const byte* lt2ptr = (const byte*)lightmap;
+		float sRecip = 1.0f / (float)(smax - 1);
+		float tRecip = 1.0f / (float)(tmax - 1);
+		int   s, t, idx;
 
 		for (maps = 0; maps < MAXLIGHTMAPS && psurf->styles[maps] != 255; maps++)
 		{
-			int consumed;
+			int   hdr, ncols, nrows;
+			float sStep, tStep, spos, tpos;
 
 			scale = d_lightstylevalue[psurf->styles[maps]];
 			psurf->cached_light[maps] = (short)scale;
 
-			consumed = DCV_LT2Decode(lt2ptr,
-				(int)((cl.worldmodel->lightpayload + cl.worldmodel->lightBytes) - lt2ptr),
-				lt2_tmp, smax, tmax);
+			hdr = *lt2ptr++;
+			ncols = (hdr >> 4) + 2;
+			nrows = (hdr & 15) + 2;
 
-			if (consumed == 0)
-				break;
+			tpos = 0.0f;
+			tStep = (float)(nrows - 1) * tRecip;
 
-			for (i = 0; i < size; i++)
+			spos = 0.0f;
+			sStep = (float)(ncols - 1) * sRecip;
+
+			for (s = 0; s < smax; s++)
 			{
-				blocklights[i].r += LT2_LIGHTGAMMA(lt2_tmp[i].r) * scale;
-				blocklights[i].g += LT2_LIGHTGAMMA(lt2_tmp[i].g) * scale;
-				blocklights[i].b += LT2_LIGHTGAMMA(lt2_tmp[i].b) * scale;
+				int fi = (int)floor(spos);
+
+				lm_column[s].index = fi;
+				lm_column[s].w1 = spos - (float)fi;
+				spos += sStep;
+				lm_column[s].w0 = 1.0f - lm_column[s].w1;
 			}
-			lt2ptr += consumed;
+
+			idx = 0;
+
+			for (t = 0; t < tmax; t++)
+			{
+				int   ti = (int)floor(tpos);
+				float tw1 = tpos - (float)ti;
+				float tw0 = 1.0f - tw1;
+				int   row0 = ti * ncols;
+				int   row1 = (ti + 1) * ncols;
+
+				for (s = 0; s < smax; s++, idx++)
+				{
+					int   si = lm_column[s].index;
+					float w1 = lm_column[s].w1;
+					float w0 = lm_column[s].w0;
+					int   i00 = (row0 + si) * 3;
+					int   i01 = (row0 + si + 1) * 3;
+					int   i10 = (row1 + si) * 3;
+					int   i11 = (row1 + si + 1) * 3;
+					short r, g, b;
+
+					r = lt2ptr[i00] * tw0 * w0 + lt2ptr[i10] * tw1 * w0
+						+ lt2ptr[i01] * tw0 * w1 + lt2ptr[i11] * tw1 * w1 + 0.5f;
+					g = lt2ptr[i00 + 1] * tw0 * w0 + lt2ptr[i10 + 1] * tw1 * w0
+						+ lt2ptr[i01 + 1] * tw0 * w1 + lt2ptr[i11 + 1] * tw1 * w1 + 0.5f;
+					b = lt2ptr[i00 + 2] * tw0 * w0 + lt2ptr[i10 + 2] * tw1 * w0
+						+ lt2ptr[i01 + 2] * tw0 * w1 + lt2ptr[i11 + 2] * tw1 * w1 + 0.5f;
+
+					blocklights[idx].r += texgammatable[r] * scale;
+					blocklights[idx].g += texgammatable[g] * scale;
+					blocklights[idx].b += texgammatable[b] * scale;
+				}
+
+				tpos += tStep;
+			}
+
+			lt2ptr += nrows * ncols * 3;
 		}
 	}
 }
@@ -726,7 +799,7 @@ decal tints cached on the surface back to their default.
 */
 void R_BuildLightMap( msurface_t* psurf )
 {
-	int smax, tmax;
+	int smax, tmax, size;
 	decal_t* pdecal;
 
 	psurf->cached_dlight = (byte)(psurf->dlightbits & r_dlightactive);
@@ -734,10 +807,11 @@ void R_BuildLightMap( msurface_t* psurf )
 
 	smax = (psurf->extents[0] >> 4) + 1;
 	tmax = (psurf->extents[1] >> 4) + 1;
+	size = smax * tmax;
 
 	if (!r_fullbright.value && cl.worldmodel->lightdata)
 	{
-		DC_ClearBlockLights(smax, tmax);
+		DC_ClearBlockLights(size);
 
 		if (psurf->samples)
 			DC_SumBlockLights(psurf, smax, tmax);
@@ -747,17 +821,23 @@ void R_BuildLightMap( msurface_t* psurf )
 	}
 	else
 	{
-		DC_FullbrightBlockLights(smax, tmax);
+		DC_FullbrightBlockLights(size);
 	}
 
 	DC_PackBlockLights(psurf);
 	DC_SurfacePolyApplyBlockLights(psurf);
 
-	pdecal = psurf->pdecals;
-	while (pdecal && pdecal->psurface == psurf)
+	if (psurf && psurf->pdecals)
 	{
-		pdecal->color = 0xFAAA;
-		pdecal = pdecal->pnext;
+		pdecal = psurf->pdecals;
+
+		while (pdecal->psurface == psurf)
+		{
+			pdecal->color = 0xFAAA;
+			pdecal = pdecal->pnext;
+			if (!pdecal)
+				return;
+		}
 	}
 }
 
@@ -793,28 +873,38 @@ texture_t* R_TextureAnimation( msurface_t* s )
 	if (currententity->frame && base->alternate_anims)
 		base = base->alternate_anims;
 
-	if (!base->anim_total)
-		return base;
+	if (base->anim_total)
+	{
+		if (base->name[0] == '-' && base->anim_total)
+		{
+			tu = (int)((s->texturemins[0] + (base->width << 16)) / base->width);
+			tv = (int)((s->texturemins[1] + (base->height << 16)) / base->height);
+			reletive = rtable[tu % 20][tv % 20] % base->anim_total;
 
-	if (base->name[0] == '-')
-	{
-		tu = (int)((s->texturemins[0] + (base->width << 16)) / base->width);
-		tv = (int)((s->texturemins[1] + (base->height << 16)) / base->height);
-		reletive = rtable[tu % 20][tv % 20] % base->anim_total;
-	}
-	else
-	{
-		reletive = (int)(cl.time * 10.0f) % base->anim_total;
-	}
+			count = 0;
+			while (base->anim_min > reletive || base->anim_max <= reletive)
+			{
+				base = base->anim_next;
+				if (!base)
+					Sys_Error("R_TextureAnimation: broken cycle");
+				if (++count > 100)
+					Sys_Error("R_TextureAnimation: infinite cycle");
+			}
+		}
+		else
+		{
+			reletive = (int)(cl.time * 10.0f) % base->anim_total;
 
-	count = 0;
-	while (base->anim_min > reletive || base->anim_max <= reletive)
-	{
-		base = base->anim_next;
-		if (!base)
-			Sys_Error("R_TextureAnimation: broken cycle");
-		if (++count > 100)
-			Sys_Error("R_TextureAnimation: infinite cycle");
+			count = 0;
+			while (base->anim_min > reletive || base->anim_max <= reletive)
+			{
+				base = base->anim_next;
+				if (!base)
+					Sys_Error("R_TextureAnimation: broken cycle");
+				if (++count > 100)
+					Sys_Error("R_TextureAnimation: infinite cycle");
+			}
+		}
 	}
 
 	return base;
@@ -1006,16 +1096,19 @@ float ScrollOffset( msurface_t* psurface, cl_entity_t* pEntity )
 	float speed;
 	float sOffset;
 
-	sOffset = (float)(pEntity->rendercolor.b + (pEntity->rendercolor.g << 8)) / 16.0f;
+	sOffset = (float)(pEntity->rendercolor.g * 256 + pEntity->rendercolor.b) * (1.0f / 16.0f);
 	if (!pEntity->rendercolor.r)
 		sOffset = -sOffset;
 
-	speed = (1.0f / psurface->texinfo->texture->width) * sOffset * cl.time;
+	speed = cl.time * sOffset * (1.0f / psurface->texinfo->texture->width);
+	g_flScrollOffset = speed;
 
-	if (speed < 0.0f)
-		return fmod(speed, -1);
+	if (speed >= 0.0f)
+		g_flScrollOffset = fmod(speed, 1.0f);
 	else
-		return fmod(speed, 1);
+		g_flScrollOffset = fmod(speed, -1.0f);
+
+	return g_flScrollOffset;
 }
 
 /*
@@ -1071,7 +1164,7 @@ void R_RenderBrushPoly( msurface_t* fa )
 		return;
 
 	t = R_TextureAnimation(fa);
-	DCV_BindTexture(t->gl_texturenum);
+	GL_Bind(t->gl_texturenum, 0);
 
 	if (fa->flags & SURF_DRAWTURB)
 	{
@@ -1079,34 +1172,42 @@ void R_RenderBrushPoly( msurface_t* fa )
 		return;
 	}
 
-	if (fa->flags & SURF_UNDERWATER)
-		DrawGLWaterPoly(fa->polys);
-	else if (currententity && currententity->rendermode == kRenderTransColor)
+	if (fa->flags & SURF_DRAWBACKGROUND)
 	{
-		GL_Bind(-1, 1);
-		DrawGLSolidPoly(fa->polys);
+		DrawGLWaterPoly(fa->polys);
+	}
+	else if (currententity->rendermode == kRenderTransColor)
+	{
+		DCV_TexState_VertColor();
+		DCV_SetColor(currententity->rendercolor.r, currententity->rendercolor.g,
+			currententity->rendercolor.b, (int)(r_blend * 255.0f));
+		DCV_AccumSolidPoly(fa->polys);
 	}
 	else if (fa->flags & SURF_DRAWTILED)
 	{
-		DrawGLPolyScroll(fa, currententity);
+		ScrollOffset(fa, currententity);
+		DCV_AccumScrollPoly(fa->polys);
 	}
 	else
 	{
-		DrawGLPoly(fa->polys);
+		if (r_alphatestmode)
+			DCV_AccumColoredPoly(fa->polys);
+		else
+			DCV_AccumSolidPoly(fa->polys);
+	}
+
+	if (gl_texsort)
+	{
+		fa->polys->chain = lightmap_polys[fa->lightmaptexturenum];
+		lightmap_polys[fa->lightmaptexturenum] = fa->polys;
 	}
 
 	if (fa->pdecals)
 	{
 		gDecalSurfs[gDecalSurfCount] = fa;
+		if (gDecalSurfCount >= MAX_DECALSURFS)
+			return;
 		gDecalSurfCount++;
-		if (gDecalSurfCount > MAX_DECALSURFS)
-			Sys_Error("Too many decal surfaces!\n");
-	}
-
-	if (fa->polys && !(fa->flags & (SURF_DRAWTURB | SURF_DRAWSKY | SURF_DRAWTILED)))
-	{
-		fa->polys->chain = lightmap_polys[fa->lightmaptexturenum];
-		lightmap_polys[fa->lightmaptexturenum] = fa->polys;
 	}
 
 	// check for lightmap modification
@@ -1121,8 +1222,14 @@ void R_RenderBrushPoly( msurface_t* fa )
 dynamic:
 		if (r_dynamic.value)
 		{
-			R_BuildLightMap(fa);
 			lightmap_modified[fa->lightmaptexturenum] = 1;
+			R_BuildLightMap(fa);
+
+			if (lm_texnum[fa->lightmaptexturenum] != nada_texture)
+				DCV_UpdateTextureSubRect(lm_texnum[fa->lightmaptexturenum],
+					fa->light_s, fa->light_t,
+					(fa->extents[0] >> 4) + 1, (fa->extents[1] >> 4) + 1,
+					(const unsigned short*)lightmaps, BLOCK_WIDTH);
 		}
 	}
 }
@@ -1138,77 +1245,6 @@ void R_MirrorChain( msurface_t* s )
 		return;
 	mirror = TRUE;
 	mirror_plane = s->plane;
-}
-
-/*
-================
-R_DrawWaterChain
-================
-*/
-void R_DrawWaterChain( msurface_t* pChain, int direction )
-{
-	msurface_t* s;
-	glpoly_t*   p;
-	texture_t*  t;
-	float*      v;
-	int         i, base;
-	float       scale;
-	float       os, ot, s_out, t_out, warp;
-	vec3_t      tempVert;
-
-	D_SetFadeColor(pChain->texinfo->texture->fade_r, pChain->texinfo->texture->fade_g,
-		pChain->texinfo->texture->fade_b, pChain->texinfo->texture->fade_fog);
-
-	t = R_TextureAnimation(pChain);
-	DCV_BindTexture(t->gl_texturenum);
-
-	DCV_FlushApplyRenderState(D3DRENDERSTATE_SWCULLMODE, D3DCULL_NONE);
-	DCV_FlushApplyRenderState(D3DRENDERSTATE_HWCULLMODE, D3DCULL_NONE);
-
-	for (s = pChain; s; s = s->texturechain)
-	{
-		if (s->polys->verts[0][2] >= r_refdef.vieworg[2])
-			scale = -currententity->scale;
-		else
-			scale = currententity->scale;
-
-		DCV_FlushIfLarge();
-
-		for (p = s->polys; p; p = p->next)
-		{
-			base = DCV_GetVertCount();
-			DCV_AddIndicesFan(base, p->numverts);
-
-			if (direction)
-				v = p->verts[p->numverts - 1];
-			else
-				v = p->verts[0];
-
-			for (i = 0; i < p->numverts; i++)
-			{
-				os = v[4];
-				ot = v[5];
-
-				VectorCopy(v, tempVert);
-				warp = turbsin[(int)(cl.time * 160.0f + v[0] + v[1]) & 255] + 8.0f;
-				warp += (turbsin[(int)(cl.time * 171.0f + v[0] * 5.0f - v[1]) & 255] + 8.0f) * 0.8f;
-				tempVert[2] += warp * scale;
-
-				s_out = (turbsin[(int)((ot * 0.125f + cl.time) * TURBSCALE) & 255] + os) * (1.0f / 64);
-				t_out = (turbsin[(int)((os * 0.125f + cl.time) * TURBSCALE) & 255] + ot) * (1.0f / 64);
-
-				DCV_AddVertexLit(s_out, t_out, tempVert);
-
-				if (direction)
-					v -= VERTEXSIZE;
-				else
-					v += VERTEXSIZE;
-			}
-		}
-	}
-
-	DCV_FlushApplyRenderState(D3DRENDERSTATE_SWCULLMODE, D3DCULL_CCW);
-	DCV_FlushApplyRenderState(D3DRENDERSTATE_HWCULLMODE, D3DCULL_CCW);
 }
 
 /*
@@ -2083,9 +2119,34 @@ void DC_BuildLightmaps( void )
 //-----------------------------------------------------------------------------
 
 // UNDONE: Compress this???  256K here?
+#define MAX_DECALCLIPVERT		32
+#define MAX_DECAL_CHAINS		50
+
 static decal_t			gDecalPool[MAX_DECALS];
+// Scratch the polygon clipper ping-pongs between while trimming a decal to its
+// surface.
+static float gDecalClipA[MAX_DECALCLIPVERT][VERTEXSIZE];
+static float gDecalClipB[MAX_DECALCLIPVERT][VERTEXSIZE];
+
+// A decal that came out of the clipper as a whole, unclipped quad keeps its
+// four vertices here so they only have to be built once.
+#define DECAL_CACHE_ENTRIES		256
+
+typedef struct
+{
+	int		decalIndex;
+	float	verts[4][VERTEXSIZE];
+} decalcache_t;
+
+static decalcache_t gDecalCache[DECAL_CACHE_ENTRIES];
+
+static void R_DecalSetupLightmapCoords( float (*pverts)[VERTEXSIZE], msurface_t* psurf, int count );
 static int				gDecalCount;					// Pool index
 static vec3_t			gDecalPos;
+
+// Where the decal would have come to rest had it kept going through the
+// surface. Set up alongside every decal that gets stamped.
+static vec3_t			gDecalOrigin;
 
 static model_t*			gDecalModel = NULL;
 static texture_t*		gDecalTexture = NULL;
@@ -2117,6 +2178,11 @@ void R_DecalUnlink( decal_t* pdecal )
 {
 	decal_t* tmp;
 	decal_t* next;
+	int      index;
+
+	index = pdecal - gDecalPool;
+	if (gDecalCache[index & (DECAL_CACHE_ENTRIES - 1)].decalIndex == index)
+		gDecalCache[index & (DECAL_CACHE_ENTRIES - 1)].decalIndex = -1;
 
 	if (pdecal->psurface)
 	{
@@ -2156,6 +2222,16 @@ void R_DecalUnlink( decal_t* pdecal )
 // it's own.
 decal_t* R_DecalAlloc( decal_t* pdecal )
 {
+	int limit;
+
+	limit = MAX_DECALS;
+	if (r_decals.value < (float)MAX_DECALS)
+		limit = (int)r_decals.value;
+
+	// Decals are switched off
+	if (!limit)
+		return NULL;
+
 	if (!pdecal)
 	{
 		int count;
@@ -2164,11 +2240,11 @@ decal_t* R_DecalAlloc( decal_t* pdecal )
 		do
 		{
 			gDecalCount++;
-			if (gDecalCount >= MAX_DECALS)
+			if (gDecalCount >= limit)
 				gDecalCount = 0;
 			pdecal = gDecalPool + gDecalCount;	// reuse next decal
 			count++;
-		} while ((pdecal->flags & FDECAL_PERMANENT) && count < MAX_DECALS);
+		} while ((pdecal->flags & FDECAL_PERMANENT) && count < limit);
 	}
 
 	// If decal is already linked to a surface, unlink it.
@@ -2233,7 +2309,8 @@ void R_DecalNode( mnode_t* node )
 		if (dist < DECAL_DISTANCE && dist > -DECAL_DISTANCE)
 		{
 			int			w, h;
-			float		s, t, scale;
+			float		s, t, scale, d;
+			vec3_t		normal, tmp;
 			msurface_t* surf;
 			int			i;
 			mtexinfo_t* tex;
@@ -2270,8 +2347,49 @@ void R_DecalNode( mnode_t* node )
 				}
 
 				scale = 1.0f / scale;
-				s = (surf->texturemins[0] + s) / (float)tex->texture->width;
-				t = (surf->texturemins[1] + t) / (float)tex->texture->height;
+				s = (s + surf->texturemins[0]) / (float)tex->texture->width;
+				t = (t + surf->texturemins[1]) / (float)tex->texture->height;
+
+				// the surface's outward normal
+				if (surf->flags & SURF_PLANEBACK)
+				{
+					normal[0] = g_planeNormalTable[surf->plane->normalindex].normal[0] * -1.0f;
+					normal[1] = g_planeNormalTable[surf->plane->normalindex].normal[1] * -1.0f;
+					normal[2] = g_planeNormalTable[surf->plane->normalindex].normal[2] * -1.0f;
+				}
+				else
+				{
+					normal[0] = g_planeNormalTable[surf->plane->normalindex].normal[0];
+					normal[1] = g_planeNormalTable[surf->plane->normalindex].normal[1];
+					normal[2] = g_planeNormalTable[surf->plane->normalindex].normal[2];
+				}
+
+				gDecalOrigin[0] = normal[0] * -2048.0f;
+				gDecalOrigin[1] = normal[1] * -2048.0f;
+				gDecalOrigin[2] = normal[2] * -2048.0f;
+				VectorAdd(gDecalOrigin, gDecalPos, gDecalOrigin);
+
+				// A logo has to read the right way round no matter which way
+				// the surface's texture axes happen to run.
+				if (gDecalFlags & FDECAL_CUSTOM)
+				{
+					CrossProduct(surf->texinfo->vecs[0], normal, tmp);
+					if (DotProduct(tmp, surf->texinfo->vecs[1]) < 0.0f)
+						gDecalFlags |= FDECAL_HFLIP;
+					else
+						gDecalFlags &= ~FDECAL_HFLIP;
+
+					CrossProduct(surf->texinfo->vecs[1], normal, tmp);
+					d = DotProduct(tmp, surf->texinfo->vecs[0]);
+
+					if (gDecalFlags & FDECAL_HFLIP)
+						d = -d;
+
+					if (d > 0.0f)
+						gDecalFlags |= FDECAL_VFLIP;
+					else
+						gDecalFlags &= ~FDECAL_VFLIP;
+				}
 
 				// stamp it
 				R_DecalCreate(surf, gDecalIndex, scale, s, t);
@@ -2323,34 +2441,37 @@ int DecalListCreate( DECALLIST* pList )
 	int total = 0;
 	int i, depth;
 
-	for (i = 0; i < MAX_DECALS; i++)
+	if (cl.worldmodel)
 	{
-		decal_t* decal = &gDecalPool[i];
-		decal_t* pdecals;
-		texture_t* ptexture;
-
-		// Decal is in use and is not a custom decal
-		if (!decal->psurface || (decal->flags & FDECAL_CUSTOM))
-			continue;
-
-		// compute depth
-		pdecals = decal->psurface->pdecals;
-		depth = 0;
-		while (pdecals && pdecals != decal)
+		for (i = 0; i < MAX_DECALS; i++)
 		{
-			depth++;
-			pdecals = pdecals->pnext;
+			decal_t* decal = &gDecalPool[i];
+			decal_t* pdecals;
+			texture_t* ptexture;
+
+			// Decal is in use and is not a custom decal
+			if (decal->psurface && !(decal->flags & FDECAL_CUSTOM))
+			{
+				// compute depth
+				pdecals = decal->psurface->pdecals;
+				depth = 0;
+				while (pdecals && pdecals != decal)
+				{
+					depth++;
+					pdecals = pdecals->pnext;
+				}
+				pList[total].depth = depth;
+				pList[total].flags = decal->flags;
+
+				pList[total].entityIndex = R_DecalUnProject(decal, pList[total].position);
+
+				ptexture = Draw_DecalTexture(decal->texture);
+				pList[total].name = ptexture->name;
+
+				// Check to see if the decal should be added
+				total = DecalListAdd(pList, total);
+			}
 		}
-		pList[total].depth = depth;
-		pList[total].flags = decal->flags;
-
-		pList[total].entityIndex = R_DecalUnProject(decal, pList[total].position);
-
-		ptexture = Draw_DecalTexture(decal->texture);
-		pList[total].name = ptexture->name;
-
-		// Check to see if the decal should be addedo
-		total = DecalListAdd(pList, total);
 	}
 
 	// Sort the decals lowest depth first, so they can be re-applied in order
@@ -2611,13 +2732,18 @@ void R_DecalCreate( msurface_t* psurface, int textureIndex, float scale, float x
 		pold = NULL;
 
 	pdecal = R_DecalAlloc(pold);
-	pdecal->texture = textureIndex;
 	pdecal->flags = gDecalFlags;
 	pdecal->dx = x;
 	pdecal->dy = y;
+	pdecal->texture = textureIndex;
+	pdecal->color = 0xFAAA;
 	pdecal->pnext = NULL;
 
-	if (psurface->pdecals)
+	if (!psurface->pdecals)
+	{
+		psurface->pdecals = pdecal;
+	}
+	else
 	{
 		pold = psurface->pdecals;
 
@@ -2626,20 +2752,13 @@ void R_DecalCreate( msurface_t* psurface, int textureIndex, float scale, float x
 
 		pold->pnext = pdecal;
 	}
-	else
-	{
-		psurface->pdecals = pdecal;
-	}
 
 	// Tag surface
 	pdecal->psurface = psurface;
 
 	// Set scaling
-	pdecal->scale = scale;
-	pdecal->entityIndex = gDecalEntity;	
-	pdecal->color = 0xFFFF;
-
-	R_InvalidateSurface(psurface);
+	pdecal->scale = FloatToShort(scale);
+	pdecal->entityIndex = gDecalEntity;
 }
 
 // clip edges
@@ -2768,8 +2887,7 @@ int SHClip( float* vert, int vertCount, float* out, int edge )
 	return outCount;
 }
 
-#define MAX_DECALCLIPVERT		32
-#define MAX_DECAL_CHAINS		50
+
 
 extern void R_ApplySceneProjection( void );
 
@@ -2781,57 +2899,95 @@ Compute decal vertices from surface polygon, project UV, SH-clip to [0,1].
 Returns vertex count after clipping. Output in vert[].
 ==================
 */
-static int R_DecalComputeVertices(
+static float (*R_DecalComputeVertices(
+	float (*pout)[VERTEXSIZE],
 	decal_t* plist,
 	msurface_t* psurf,
 	texture_t* ptexture,
-	float vert[MAX_DECALCLIPVERT][VERTEXSIZE],
-	float outvert[MAX_DECALCLIPVERT][VERTEXSIZE] )
+	int* pOutCount ))[VERTEXSIZE]
 {
 	float  scalex, scaley;
 	float* v;
 	int    j, outCount;
 
-	scalex = (psurf->texinfo->texture->width * plist->scale) / (float)ptexture->width;
-	scaley = (psurf->texinfo->texture->height * plist->scale) / (float)ptexture->height;
+	scalex = (ShortToFloat(plist->scale) * (float)psurf->texinfo->texture->width)
+		/ (float)ptexture->width;
+	scaley = (ShortToFloat(plist->scale) * (float)psurf->texinfo->texture->height)
+		/ (float)ptexture->height;
+
+	if (!pout)
+		pout = gDecalClipA;
 
 	v = psurf->polys->verts[0];
 	for (j = 0; j < psurf->polys->numverts; j++, v += VERTEXSIZE)
 	{
-		VectorCopy(v, vert[j]);
-		vert[j][4] = (v[4] - plist->dx) * scalex;
-		vert[j][5] = (v[5] - plist->dy) * scaley;
+		VectorCopy(v, gDecalClipA[j]);
+		gDecalClipA[j][4] = (v[4] - plist->dx) * scalex;
+		gDecalClipA[j][5] = (v[5] - plist->dy) * scaley;
 
 		if (plist->flags & FDECAL_HFLIP)
-			vert[j][4] = 1.0f - vert[j][4];
+			gDecalClipA[j][4] = 1.0f - gDecalClipA[j][4];
 
 		if (plist->flags & FDECAL_VFLIP)
-			vert[j][5] = 1.0f - vert[j][5];
+			gDecalClipA[j][5] = 1.0f - gDecalClipA[j][5];
 	}
 
-	outCount = SHClip(vert[0], psurf->polys->numverts, outvert[0], LEFT_EDGE);
-	outCount = SHClip(outvert[0], outCount, vert[0], RIGHT_EDGE);
-	outCount = SHClip(vert[0], outCount, outvert[0], TOP_EDGE);
-	outCount = SHClip(outvert[0], outCount, vert[0], BOTTOM_EDGE);
+	outCount = SHClip(gDecalClipA[0], psurf->polys->numverts, gDecalClipB[0], LEFT_EDGE);
+	outCount = SHClip(gDecalClipB[0], outCount, gDecalClipA[0], RIGHT_EDGE);
+	outCount = SHClip(gDecalClipA[0], outCount, gDecalClipB[0], TOP_EDGE);
+	outCount = SHClip(gDecalClipB[0], outCount, pout[0], BOTTOM_EDGE);
 
-	/* Check if decal can be flagged FDECAL_NOCLIP (full quad, skip future clipping) */
-	if (outCount && (plist->flags & FDECAL_CLIPTEST) && outCount == 4)
+	// A decal that survived the clipper whole can be cached and never clipped
+	// again.
+	if (outCount && (plist->flags & FDECAL_CLIPTEST))
 	{
-		int kk;
-		qboolean isFullQuad = 1;
 		plist->flags &= ~FDECAL_CLIPTEST;
-		for (kk = 0; kk < 4 && isFullQuad; kk++)
+
+		if (outCount == 4)
 		{
-			float u = vert[kk][4];
-			float vv = vert[kk][5];
-			if ((u != 0.0f && u != 1.0f) || (vv != 0.0f && vv != 1.0f))
-				isFullQuad = 0;
+			qboolean clipped = FALSE;
+
+			for (j = 0; j < 4 && !clipped; j++)
+			{
+				float u = gDecalClipA[j][4];
+				float w = gDecalClipA[j][5];
+
+				if ((u != 0.0f && u != 1.0f) || (w != 0.0f && w != 1.0f))
+					clipped = TRUE;
+			}
+
+			if (!clipped)
+				plist->flags |= FDECAL_NOCLIP;
 		}
-		if (isFullQuad)
-			plist->flags |= FDECAL_NOCLIP;
 	}
 
-	return outCount;
+	*pOutCount = outCount;
+	return pout;
+}
+
+/*
+================
+R_DecalSetupLightmapCoords
+
+Give each decal vertex the lightmap coordinate of the surface underneath it, so
+the decal picks up the same lighting as the wall it is stuck to.
+================
+*/
+static void R_DecalSetupLightmapCoords( float (*pverts)[VERTEXSIZE], msurface_t* psurf, int count )
+{
+	int i;
+	float s, t;
+
+	for (i = 0; i < count; i++, pverts++)
+	{
+		s = ((DotProduct((*pverts), psurf->texinfo->vecs[0]) + psurf->texinfo->vecs[0][3])
+			- psurf->texturemins[0] + (psurf->light_s << 4) + 8.0f) * (1.0f / 2048.0f);
+		t = ((DotProduct((*pverts), psurf->texinfo->vecs[1]) + psurf->texinfo->vecs[1][3])
+			- psurf->texturemins[1] + (psurf->light_t << 4) + 8.0f) * (1.0f / 2048.0f);
+
+		(*pverts)[6] = s;
+		(*pverts)[7] = t;
+	}
 }
 
 /*
@@ -2863,12 +3019,10 @@ R_DrawDecals
 */
 void R_DrawDecals( void )
 {
-	float vert[MAX_DECALCLIPVERT][VERTEXSIZE];
-	float outvert[MAX_DECALCLIPVERT][VERTEXSIZE];
-
 	decal_t* chains[MAX_DECAL_CHAINS];
 	int      numChains = 0;
 	decal_t* plist;
+	float  (*pverts)[VERTEXSIZE];
 	int      i, j, k, outCount;
 	texture_t* ptexture;
 	msurface_t* psurf;
@@ -2920,22 +3074,43 @@ void R_DrawDecals( void )
 
 		for (; plist; plist = plist->chain_next)
 		{
-			outCount = R_DecalComputeVertices(
-				plist, plist->psurface, ptexture,
-				vert, outvert);
+			if (!(plist->flags & FDECAL_NOCLIP))
+			{
+				pverts = R_DecalComputeVertices(NULL, plist, plist->psurface,
+					ptexture, &outCount);
+				R_DecalSetupLightmapCoords(pverts, plist->psurface, outCount);
+			}
+
+			if (plist->flags & FDECAL_NOCLIP)
+			{
+				int index = plist - gDecalPool;
+				decalcache_t* pcache = &gDecalCache[index & (DECAL_CACHE_ENTRIES - 1)];
+
+				if (pcache->decalIndex == index)
+				{
+					pverts = pcache->verts;
+				}
+				else
+				{
+					pcache->decalIndex = index;
+					pverts = R_DecalComputeVertices(pcache->verts, plist,
+						plist->psurface, ptexture, &outCount);
+				}
+
+				outCount = 4;
+			}
 
 			if (outCount)
 			{
 				int   base;
 				float* vlist;
-				DWORD  color32 = R_DecalColor4444to32(plist->color);
 
-				DCV_SetPackedColor(color32);
+				DCV_SetPackedColor(R_DecalColor4444to32(plist->color));
 
 				base = DCV_GetVertCount();
 				DCV_AddIndicesFan(base, outCount);
 
-				vlist = vert[0];
+				vlist = pverts[0];
 				for (k = 0; k < outCount; k++, vlist += VERTEXSIZE)
 					DCV_AddVertexLit(vlist[4], vlist[5], vlist);
 			}

@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-#define MAX_DECALS				4096		// MAX decals in world
+#define MAX_DECALS				1024		// MAX decals in world
 
 #if defined ( GLQUAKE )
 #define MIP_EXTRASIZE		28

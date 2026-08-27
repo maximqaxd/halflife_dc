@@ -150,7 +150,6 @@ typedef struct mtexinfo_s
 	float		vecs[2][4];		// [s/t] unit vectors in world space. 
 								// [i][3] is the s/t offset relative to the origin.
 								// s or t = dot(3Dpoint,vecs[i])+vecs[i][3]
-	float		mipadjust;		// ?? mipmap limits for very small surfaces
 	texture_t*	texture;
 	int			flags;			// sky or slime, no lightmap or 256 subdivision
 } mtexinfo_t;
@@ -171,20 +170,15 @@ struct decal_s
 {
 	short		texture;		 // Decal texture
 	short		flags;			 // Decal flags
-	short		reserved;		
+	short		entityIndex;	 // Entity this is attached to
 	unsigned short color;		 // ARGB4444 tint 
-	float		scale;			 // scale
+	unsigned short scale;		 // scale, packed by FloatToShort
+	unsigned short reserved;
 	float		dx;				 // Offsets into surface texture (texture coordinates)
 	float		dy;				
 	struct decal_s*	pnext;		 // linked list for each surface
 	struct msurface_s* psurface; // Surface id for persistence / unlinking
-	union {
-		struct {
-			short		entityIndex;	// Entity this is attached to 
-			short		_pad1;			// padding to 32 bytes
-		};
-		struct decal_s*	chain_next;		
-	};
+	struct decal_s*	chain_next;	 // texture-sorted chain, rebuilt every frame
 };
 
 struct msurface_s
