@@ -2456,21 +2456,25 @@ int DecalDepthCompare( const DECALLIST* elem1, const DECALLIST* elem2 )
 int DecalListCreate( DECALLIST* pList )
 {
 	int total = 0;
-	int i, depth;
+	int i;
+	decal_t* decal;
 
 	if (cl.worldmodel)
 	{
-		for (i = 0; i < MAX_DECALS; i++)
+		decal = gDecalPool;
+
+		for (i = 0; i < MAX_DECALS; i++, decal++)
 		{
-			decal_t* decal = &gDecalPool[i];
+			msurface_t* psurf = decal->psurface;
 			decal_t* pdecals;
 			texture_t* ptexture;
+			int depth;
 
 			// Decal is in use and is not a custom decal
-			if (decal->psurface && !(decal->flags & FDECAL_CUSTOM))
+			if (psurf && !(decal->flags & FDECAL_CUSTOM))
 			{
 				// compute depth
-				pdecals = decal->psurface->pdecals;
+				pdecals = psurf->pdecals;
 				depth = 0;
 				while (pdecals && pdecals != decal)
 				{
