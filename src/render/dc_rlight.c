@@ -342,12 +342,12 @@ colorVec RecursiveLightPoint( mnode_t* node, vec_t* start, vec_t* end )
 
 		if (cl.worldmodel->lightmap_mode >= 2)
 		{
-			/* LT2 mode: surf->samples points into lightpayload; decode style 0 only for speed. */
+			/* LT2 mode: surf->samples points into the packed payload; decode style 0 only for speed. */
 			int smax = (surf->extents[0] >> 4) + 1;
 			int tmax = (surf->extents[1] >> 4) + 1;
 			static color24 lt2_tmp[MAX_LM_SAMPLE];
 			int consumed = DCV_LT2Decode((byte*)surf->samples,
-				(int)((cl.worldmodel->lightpayload + cl.worldmodel->lightBytes) - (byte*)surf->samples),
+				(int)(((byte*)cl.worldmodel->lightdata + cl.worldmodel->lightBytes) - (byte*)surf->samples),
 				lt2_tmp, smax, tmax);
 			if (consumed > 0 && surf->styles[0] != 255)
 			{
@@ -393,7 +393,7 @@ colorVec R_LightVec( vec_t* start, vec_t* end )
 {
 	colorVec	c;
 
-	if (!cl.worldmodel->lightdata && !cl.worldmodel->lightpayload)
+	if (!cl.worldmodel->lightdata)
 	{
 		c.r = c.g = c.b = 255;
 		c.a = 0;

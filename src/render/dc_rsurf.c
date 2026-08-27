@@ -817,7 +817,11 @@ void R_BuildLightMap( msurface_t* psurf )
 	tmax = (psurf->extents[1] >> 4) + 1;
 	size = smax * tmax;
 
-	if (!r_fullbright.value && cl.worldmodel->lightdata)
+	if (r_fullbright.value || !cl.worldmodel->lightdata)
+	{
+		DC_FullbrightBlockLights(size);
+	}
+	else
 	{
 		DC_ClearBlockLights(size);
 
@@ -826,10 +830,6 @@ void R_BuildLightMap( msurface_t* psurf )
 
 		if (psurf->dlightframe == (char)r_framecount)
 			R_AddDynamicLights(psurf);
-	}
-	else
-	{
-		DC_FullbrightBlockLights(size);
 	}
 
 	DC_PackBlockLights(psurf);
@@ -1449,31 +1449,34 @@ void R_SetRenderMode( cl_entity_t* pEntity )
 
 	rendermode = pEntity->rendermode;
 
-	if (rendermode == kRenderNormal)
+	if (rendermode != kRenderNormal)
 	{
-		DCV_SetColor(255, 255, 255, 255);
-		DCV_TexState_Opaque();
-	}
-	else if (rendermode == kRenderTransColor)
-	{
-		DCV_TexState_Blend();
-	}
-	else if (rendermode == kRenderTransAdd)
-	{
-		DCV_TexState_Additive();
-		DCV_SetColor((int)(r_blend * 255.0f), (int)(r_blend * 255.0f),
-			(int)(r_blend * 255.0f), 255);
-	}
-	else if (rendermode == kRenderTransAlpha)
-	{
-		r_alphatestmode = 1;
-		DCV_SetColor(255, 255, 255, 255);
-		DCV_2D_SetupStates();
+		if (rendermode == kRenderTransColor)
+		{
+			DCV_TexState_Blend();
+		}
+		else if (rendermode == kRenderTransAdd)
+		{
+			DCV_TexState_Additive();
+			DCV_SetColor((int)(r_blend * 255.0f), (int)(r_blend * 255.0f),
+				(int)(r_blend * 255.0f), 255);
+		}
+		else if (rendermode == kRenderTransAlpha)
+		{
+			r_alphatestmode = 1;
+			DCV_SetColor(255, 255, 255, 255);
+			DCV_2D_SetupStates();
+		}
+		else
+		{
+			DCV_TexState_Blend();
+			DCV_SetColor(255, 255, 255, (int)(r_blend * 255.0f));
+		}
 	}
 	else
 	{
-		DCV_TexState_Blend();
-		DCV_SetColor(255, 255, 255, (int)(r_blend * 255.0f));
+		DCV_SetColor(255, 255, 255, 255);
+		DCV_TexState_Opaque();
 	}
 }
 

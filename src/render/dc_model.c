@@ -626,13 +626,13 @@ static qboolean Mod_TryLoadLt2Lighting( void )
 		return FALSE;
 	}
 
-	loadmodel->lightpayload = (byte*)MnemoAlloc(lightBytes, 0x20, 0, "LightSurfs");
-	if (!loadmodel->lightpayload)
+	loadmodel->lightdata = (byte*)MnemoAlloc(lightBytes, 0x20, 0, "LightSurfs");
+	if (!loadmodel->lightdata)
 	{
 		COM_FreeFile(lt2Data);
 		return FALSE;
 	}
-	memcpy(loadmodel->lightpayload, cursor, lightBytes);
+	memcpy(loadmodel->lightdata, cursor, lightBytes);
 
 	/* Allocate lightsurfs table */
 	loadmodel->lightsurfs = (int*)MnemoAlloc(surfCount * 4, 0x20, 0, "LightSurfs");
@@ -650,9 +650,6 @@ static qboolean Mod_TryLoadLt2Lighting( void )
 
 	loadmodel->lightmap_mode = (lt2Mode == 'a') ? 3 : 2;
 	loadmodel->lightBytes = lightBytes;
-	loadmodel->lightSurfCount = surfCount;
-	loadmodel->lightdata = NULL;
-
 	COM_FreeFile(lt2Data);
 
 	if (lt2Mode == 'a')
@@ -670,9 +667,8 @@ void Mod_LoadLighting( lump_t* l )
 		loadmodel->lightdata = NULL;
 		loadmodel->lightmap_mode = 0;
 		loadmodel->lightBytes = 0;
-		loadmodel->lightSurfCount = 0;
 		loadmodel->lightsurfs = NULL;
-		loadmodel->lightpayload = NULL;
+		loadmodel->lightdata = NULL;
 		return;
 	}
 
@@ -681,9 +677,8 @@ void Mod_LoadLighting( lump_t* l )
 
 	loadmodel->lightmap_mode = 0;
 	loadmodel->lightBytes = 0;
-	loadmodel->lightSurfCount = 0;
 	loadmodel->lightsurfs = NULL;
-	loadmodel->lightpayload = NULL;
+	loadmodel->lightdata = NULL;
 	loadmodel->lightdata = (color24*)MnemoAlloc(l->filelen, MNEMO_FLAG_MALLOC, 0, loadname);
 	if (!loadmodel->lightdata)
 		Sys_Error("Mod_LoadLighting: failed to allocate %d bytes for %s", l->filelen, loadmodel->name);
@@ -847,7 +842,6 @@ void Mod_LoadTexinfo( lump_t* l )
 	mtexinfo_t* out;
 	int 	i, j, count;
 	int		miptex;
-	float	len1, len2;
 
 	in = (texinfo_t*)(mod_base + l->fileofs);
 	if (l->filelen % sizeof(*in))
@@ -862,24 +856,6 @@ void Mod_LoadTexinfo( lump_t* l )
 	{
 		for (j = 0; j < 8; j++)
 			out->vecs[0][j] = LittleFloat(in->vecs[0][j]);
-		len1 = VectorLength(out->vecs[0]);
-		len2 = VectorLength(out->vecs[1]);
-		len1 = (len1 + len2) / 2;
-		if (len1 < 0.32)
-			out->mipadjust = 4;
-		else if (len1 < 0.49)
-			out->mipadjust = 3;
-		else if (len1 < 0.99)
-			out->mipadjust = 2;
-		else
-			out->mipadjust = 1;
-#if 0
-		if (len1 + len2 < 0.001)
-			out->mipadjust = 1;		// don't crash
-		else
-			out->mipadjust = 1 / floor((len1 + len2) / 2 + 0.1);
-#endif
-
 		miptex = LittleLong(in->miptex);
 		out->flags = LittleLong(in->flags);
 
@@ -999,21 +975,15 @@ void Mod_LoadFaces( lump_t* l )
 
 		for (i = 0; i < MAXLIGHTMAPS; i++)
 			out->styles[i] = in->styles[i];
-		if (loadmodel->lightmap_mode == 2 || loadmodel->lightmap_mode == 3)
-		{
-			if (surfnum < loadmodel->lightSurfCount && loadmodel->lightpayload && loadmodel->lightsurfs)
-				out->samples = (color24*)(loadmodel->lightpayload + loadmodel->lightsurfs[surfnum]);
-			else
-				out->samples = NULL;
-		}
+		if ((loadmodel->lightmap_mode == 2 || loadmodel->lightmap_mode == 3) && loadmodel->lightsurfs)
+			i = loadmodel->lightsurfs[surfnum];
 		else
-		{
 			i = LittleLong(in->lightofs);
-			if (i == -1)
-				out->samples = NULL;
-			else
-				out->samples = (color24*)((byte*)loadmodel->lightdata + i);
-		}
+
+		if (i == -1)
+			out->samples = NULL;
+		else
+			out->samples = (color24*)((byte*)loadmodel->lightdata + i);
 		
 	// set the drawing flags flag
 		
