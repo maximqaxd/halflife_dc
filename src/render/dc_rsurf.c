@@ -490,7 +490,7 @@ extern double ceil( double x );
 
 static void DC_SumBlockLights( msurface_t* psurf, int smax, int tmax )
 {
-	int i, maps, size = smax * tmax;
+	int i, maps, s, t;
 	color24* lightmap;
 	unsigned scale;
 
@@ -511,41 +511,46 @@ static void DC_SumBlockLights( msurface_t* psurf, int smax, int tmax )
 			scale = d_lightstylevalue[psurf->styles[maps]];
 			psurf->cached_light[maps] = (short)scale;
 
-			for (i = 0; i < size; i++)
+			i = 0;
+			for (t = 0; t < tmax; t++)
 			{
-				unsigned short v = *p++;
-
-				if (v & LT2D_DELTA_FLAG)
+				for (s = 0; s < smax; s++)
 				{
-					int d;
+					unsigned short v = *p++;
 
-					if (v & LT2D_R_SIGN)
-						r -= (v & LT2D_R_MAG_MASK) >> 10;
+					if (v & LT2D_DELTA_FLAG)
+					{
+						int d;
+
+						if (v & LT2D_R_SIGN)
+							r -= (v & LT2D_R_MAG_MASK) >> 10;
+						else
+							r += (v & LT2D_R_MAG_MASK) >> 10;
+
+						d = v & LT2D_GB_SIGN;
+
+						if (d)
+							g -= (v & LT2D_G_MAG_MASK) >> 5;
+						else
+							g += (v & LT2D_G_MAG_MASK) >> 5;
+
+						if (d)
+							b -= v & LT2D_B_MAG_MASK;
+						else
+							b += v & LT2D_B_MAG_MASK;
+					}
 					else
-						r += (v & LT2D_R_MAG_MASK) >> 10;
+					{
+						r = (v & LT2D_R_MASK_ABS) >> 7;
+						g = (v & LT2D_G_MASK_ABS) >> 2;
+						b = (v & LT2D_B_MASK_ABS) << 3;
+					}
 
-					d = v & LT2D_GB_SIGN;
-
-					if (d)
-						g -= (v & LT2D_G_MAG_MASK) >> 5;
-					else
-						g += (v & LT2D_G_MAG_MASK) >> 5;
-
-					if (d)
-						b -= v & LT2D_B_MAG_MASK;
-					else
-						b += v & LT2D_B_MAG_MASK;
+					blocklights[i].r += r * scale;
+					blocklights[i].g += g * scale;
+					blocklights[i].b += b * scale;
+					i++;
 				}
-				else
-				{
-					r = (v & LT2D_R_MASK_ABS) >> 7;
-					g = (v & LT2D_G_MASK_ABS) >> 2;
-					b = (v & LT2D_B_MASK_ABS) << 3;
-				}
-
-				blocklights[i].r += r * scale;
-				blocklights[i].g += g * scale;
-				blocklights[i].b += b * scale;
 			}
 		}
 	}
@@ -562,11 +567,11 @@ static void DC_SumBlockLights( msurface_t* psurf, int smax, int tmax )
 
 		for (maps = 0; maps < MAXLIGHTMAPS && psurf->styles[maps] != 255; maps++)
 		{
-			int t, s;
 
 			scale = d_lightstylevalue[psurf->styles[maps]];
 			psurf->cached_light[maps] = (short)scale;
 
+			i = 0;
 			for (t = 0; t < tmax; t++)
 			{
 				int n;
@@ -594,9 +599,10 @@ static void DC_SumBlockLights( msurface_t* psurf, int smax, int tmax )
 					bf = row[fi3+2]; bc = row[ci3+2];
 					b = texgammatable[(int)((float)bf * (1.0f - frac) + (float)bc * frac + 0.5f)];
 
-					blocklights[t * smax + s].r += r * scale;
-					blocklights[t * smax + s].g += g * scale;
-					blocklights[t * smax + s].b += b * scale;
+					blocklights[i].r += r * scale;
+					blocklights[i].g += g * scale;
+					blocklights[i].b += b * scale;
+					i++;
 				}
 
 				lt2ptr += 1 + n * 3;
@@ -612,7 +618,6 @@ static void DC_SumBlockLights( msurface_t* psurf, int smax, int tmax )
 		const byte* lt2ptr = (const byte*)lightmap;
 		float sRecip = 1.0f / (float)(smax - 1);
 		float tRecip = 1.0f / (float)(tmax - 1);
-		int   s, t, idx;
 
 		for (maps = 0; maps < MAXLIGHTMAPS && psurf->styles[maps] != 255; maps++)
 		{
@@ -642,7 +647,7 @@ static void DC_SumBlockLights( msurface_t* psurf, int smax, int tmax )
 				lm_column[s].w0 = 1.0f - lm_column[s].w1;
 			}
 
-			idx = 0;
+			i = 0;
 
 			for (t = 0; t < tmax; t++)
 			{
@@ -652,7 +657,7 @@ static void DC_SumBlockLights( msurface_t* psurf, int smax, int tmax )
 				int   row0 = ti * ncols;
 				int   row1 = (ti + 1) * ncols;
 
-				for (s = 0; s < smax; s++, idx++)
+				for (s = 0; s < smax; s++)
 				{
 					int   si = lm_column[s].index;
 					float w1 = lm_column[s].w1;
@@ -670,9 +675,10 @@ static void DC_SumBlockLights( msurface_t* psurf, int smax, int tmax )
 					b = lt2ptr[i00 + 2] * tw0 * w0 + lt2ptr[i10 + 2] * tw1 * w0
 						+ lt2ptr[i01 + 2] * tw0 * w1 + lt2ptr[i11 + 2] * tw1 * w1 + 0.5f;
 
-					blocklights[idx].r += texgammatable[r] * scale;
-					blocklights[idx].g += texgammatable[g] * scale;
-					blocklights[idx].b += texgammatable[b] * scale;
+					blocklights[i].r += texgammatable[r] * scale;
+					blocklights[i].g += texgammatable[g] * scale;
+					blocklights[i].b += texgammatable[b] * scale;
+					i++;
 				}
 
 				tpos += tStep;
@@ -1105,10 +1111,10 @@ float ScrollOffset( msurface_t* psurface, cl_entity_t* pEntity )
 	speed = cl.time * sOffset * (1.0f / psurface->texinfo->texture->width);
 	g_flScrollOffset = speed;
 
-	if (speed >= 0.0f)
-		g_flScrollOffset = fmod(speed, 1.0f);
-	else
+	if (speed < 0.0f)
 		g_flScrollOffset = fmod(speed, -1.0f);
+	else
+		g_flScrollOffset = fmod(speed, 1.0f);
 
 	return g_flScrollOffset;
 }
