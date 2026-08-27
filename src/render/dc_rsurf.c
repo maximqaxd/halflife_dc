@@ -94,11 +94,9 @@ int DC_LoadTexture( char* identifier, int texture_type, int width, int height,
 	void* data, short mipmap, int tex_type, unsigned char* pPal );
 
 void R_RenderDynamicLightmaps( msurface_t* fa );
-void DrawGLPolyScroll( msurface_t* psurface, cl_entity_t* pEntity );
 void DrawGLSolidPoly( glpoly_t* p );
 void DrawLightmapWaterPoly( glpoly_t* p );
 void DrawGLWaterPoly( glpoly_t* p );
-void DrawGLPoly( glpoly_t* p );
 
 float ScrollOffset( msurface_t* psurface, cl_entity_t* pEntity );
 
@@ -111,149 +109,6 @@ float ScrollOffset( msurface_t* psurface, cl_entity_t* pEntity );
 
 #define SURF_MAX_VERTS       2048
 #define SURF_MAX_INDICES     8192
-
-static float DCV_SurfNearClipDistance( const float *pfVert )
-{
-	vec3_t vecToVert;
-
-	VectorSubtract(pfVert, r_origin, vecToVert);
-	return DotProduct(vecToVert, vpn) - SURF_NEAR_CLIP_DIST;
-}
-
-static void DCV_LerpClippedPolyVertex( const float *pfStart, const float *pfEnd, float flFrac, float *pfOut )
-{
-	int i;
-	DWORD cs, ce, co;
-	unsigned rs, gs, bs, re, ge, be, ro, go, bo;
-	for (i = 0; i < VERTEXSIZE; ++i)
-	{
-		if (i == 3)
-		{
-			/* Slot [3] is a packed 0xAARRGGBB colour; interpolating the raw bits as a float
-			 * produces garbage.  Interpolate each channel in [0..255] separately. */
-			memcpy(&cs, &pfStart[3], sizeof(DWORD));
-			memcpy(&ce, &pfEnd[3],   sizeof(DWORD));
-			rs = (cs >> 16) & 0xFF;
-			re = (ce >> 16) & 0xFF;
-			gs = (cs >> 8) & 0xFF;
-			ge = (ce >> 8) & 0xFF;
-			bs = cs & 0xFF;
-			be = ce & 0xFF;
-			ro = (unsigned)((float)rs + ((float)re - (float)rs) * flFrac);
-			go = (unsigned)((float)gs + ((float)ge - (float)gs) * flFrac);
-			bo = (unsigned)((float)bs + ((float)be - (float)bs) * flFrac);
-			co = 0xFF000000u | (ro << 16) | (go << 8) | bo;
-			memcpy(&pfOut[3], &co, sizeof(DWORD));
-		}
-		else
-		{
-			pfOut[i] = pfStart[i] + (pfEnd[i] - pfStart[i]) * flFrac;
-		}
-	}
-}
-
-static int DCV_ClipPolyToNearPlane( const float pfInVerts[][VERTEXSIZE], int nInVerts, float pfOutVerts[][VERTEXSIZE] )
-{
-	const float *pfPrev;
-	float flPrevDist;
-	int nOutVerts;
-	int i;
-
-	if (nInVerts < 3)
-		return 0;
-
-	pfPrev = pfInVerts[nInVerts - 1];
-	flPrevDist = DCV_SurfNearClipDistance(pfPrev);
-	nOutVerts = 0;
-
-	for (i = 0; i < nInVerts; ++i)
-	{
-		const float *pfCur;
-		float flCurDist;
-		qboolean bPrevInside;
-		qboolean bCurInside;
-
-		pfCur = pfInVerts[i];
-		flCurDist = DCV_SurfNearClipDistance(pfCur);
-		bPrevInside = (flPrevDist >= 0.0f) ? TRUE : FALSE;
-		bCurInside = (flCurDist >= 0.0f) ? TRUE : FALSE;
-
-		if (bPrevInside != bCurInside)
-		{
-			float flFrac;
-
-			if (nOutVerts >= SURF_CLIPPED_POLY_MAX_VERTS)
-				return 0;
-
-			flFrac = flPrevDist / (flPrevDist - flCurDist);
-			DCV_LerpClippedPolyVertex(pfPrev, pfCur, flFrac, pfOutVerts[nOutVerts]);
-			++nOutVerts;
-		}
-
-		if (bCurInside)
-		{
-			if (nOutVerts >= SURF_CLIPPED_POLY_MAX_VERTS)
-				return 0;
-
-			memcpy(pfOutVerts[nOutVerts], pfCur, sizeof(pfOutVerts[nOutVerts]));
-			++nOutVerts;
-		}
-
-		pfPrev = pfCur;
-		flPrevDist = flCurDist;
-	}
-
-	return nOutVerts;
-}
-
-/*
- * DCV_AccumGLPoly - Copy verts to AccumVerts, indices from quad table to AccumIndex
- * - Increment AccumVertCount, AccumIndexCount
- * - If AccumVertCount > SURF_MAX_VERTS, flush
- */
-void DCV_AccumGLPoly( float verts[][VERTEXSIZE], int numverts, DWORD diffuse, float s_offset )
-{
-	float clipped[SURF_CLIPPED_POLY_MAX_VERTS][VERTEXSIZE];
-	int clip_n;
-	int i, base, needed_indices;
-
-	if (numverts < 3)
-		return;
-
-	clip_n = DCV_ClipPolyToNearPlane((const float (*)[VERTEXSIZE])verts, numverts, clipped);
-	if (clip_n < 3)
-		return;
-
-	needed_indices = (clip_n - 2) * 3;
-	if (clip_n > SURF_MAX_VERTS || needed_indices > SURF_MAX_INDICES)
-		return;
-
-	if (!DCV_EnsureSpace(clip_n, needed_indices))
-		return;
-
-	base = DCV_GetVertCount();
-	for (i = 0; i < clip_n; i++)
-	{
-		/* Binary DrawGLPoly uses g_dwAccumCurrentDiffuse per draw, not per-vertex [3];
-		 * world lighting is applied in R_BlendLightmaps. */
-		DCV_SetPackedColor(diffuse);
-		DCV_AddVertex(
-			clipped[i][0],
-			clipped[i][1],
-			clipped[i][2],
-			clipped[i][4] + s_offset,
-			clipped[i][5]);
-	}
-	DCV_AddPolyIndices(base, clip_n);
-	DCV_FlushIfLarge();
-}
-
-
-
-void DCV_BindTexture( int texnum )
-{
-	GL_Bind(texnum, 0);
-}
 
 static DWORD DCV_SurfColorFromEntity( const cl_entity_t* ent )
 {
@@ -978,53 +833,6 @@ void DrawLightmapWaterPoly( glpoly_t* p )
 
 /*
 ================
-DrawGLPoly
-================
-*/
-void DrawGLPoly( glpoly_t* p )
-{
-	DWORD diffuse = DCV_GetCurrentDiffuse();
-	for (; p; p = p->next)
-		if (p->numverts >= 3)
-			DCV_AccumGLPoly(p->verts, p->numverts, diffuse, 0.0f);
-}
-
-/*
-================
-DCV_AccumLightmapPoly
-================
-*/
-static void DCV_AccumLightmapPoly( glpoly_t* p )
-{
-	float clipped[SURF_CLIPPED_POLY_MAX_VERTS][VERTEXSIZE];
-	int   clip_n, base, i, needed_indices;
-
-	if (p->numverts < 3)
-		return;
-
-	clip_n = DCV_ClipPolyToNearPlane(
-	            (const float (*)[VERTEXSIZE])p->verts, p->numverts, clipped);
-	if (clip_n < 3)
-		return;
-
-	needed_indices = (clip_n - 2) * 3;
-	if (!DCV_EnsureSpace(clip_n, needed_indices))
-		return;
-
-	base = DCV_GetVertCount();
-	for (i = 0; i < clip_n; i++)
-	{
-		DCV_SetPackedColor(0xFFFFFFFFu);
-		/* Use lightmap UVs ([6],[7]) not base texture UVs ([4],[5]). */
-		DCV_AddVertex(clipped[i][0], clipped[i][1], clipped[i][2],
-		              clipped[i][6], clipped[i][7]);
-	}
-	DCV_AddPolyIndices(base, clip_n);
-	DCV_FlushIfLarge();
-}
-
-/*
-================
 R_BlendLightmaps
 
 ================
@@ -1117,32 +925,6 @@ float ScrollOffset( msurface_t* psurface, cl_entity_t* pEntity )
 		g_flScrollOffset = fmod(speed, 1.0f);
 
 	return g_flScrollOffset;
-}
-
-/*
-================
-DrawGLPolyScroll
-================
-*/
-void DrawGLPolyScroll( msurface_t* psurface, cl_entity_t* pEntity )
-{
-	float sOffset;
-	glpoly_t* p;
-
-	sOffset = ScrollOffset(psurface, pEntity);
-	{
-		DWORD diffuse = DCV_GetCurrentDiffuse();
-
-		if (psurface->texinfo && psurface->texinfo->texture &&
-			psurface->texinfo->texture->anim_total == 1)
-		{
-			DCV_TexState_VertColor();
-		}
-
-		for (p = psurface->polys; p; p = p->next)
-			if (p->numverts >= 3)
-				DCV_AccumGLPoly(p->verts, p->numverts, diffuse, sOffset);
-	}
 }
 
 /*
@@ -1244,19 +1026,6 @@ dynamic:
 
 /*
 ================
-R_MirrorChain
-================
-*/
-void R_MirrorChain( msurface_t* s )
-{
-	if (mirror)
-		return;
-	mirror = TRUE;
-	mirror_plane = s->plane;
-}
-
-/*
-================
 R_DrawSequentialPoly
 
 Batch-draws one texture's whole surface chain. A chain that is uniformly
@@ -1325,7 +1094,7 @@ void R_DrawSequentialPoly( msurface_t* chain )
 	for (s = chain; s; )
 	{
 		t = R_TextureAnimation(s);
-		DCV_BindTexture(t->gl_texturenum);
+		GL_Bind(t->gl_texturenum, 0);
 
 		deferred = NULL;
 		for (cur = s; cur; cur = next)
@@ -2178,7 +1947,6 @@ static int				gDecalFlags, gDecalEntity;
 int R_DecalUnProject( decal_t* pdecal, vec_t* position );
 void R_DecalCreate( msurface_t* psurface, int textureIndex, float scale, float x, float y );
 void R_DecalShoot( int textureIndex, int entity, int modelIndex, vec_t* position, int flags );
-void R_InvalidateSurface( msurface_t* surface );
 
 #define DECAL_DISTANCE			4
 
@@ -2190,8 +1958,14 @@ void R_InvalidateSurface( msurface_t* surface );
 // Init the decal pool
 void R_DecalInit( void )
 {
+	int i;
+
 	memset(gDecalPool, 0, sizeof(gDecalPool));
 	gDecalCount = 0;
+
+	// Nothing in the vertex cache belongs to a decal any more
+	for (i = 0; i < DECAL_CACHE_ENTRIES; i++)
+		gDecalCache[i].decalIndex = -1;
 }
 
 
@@ -3154,6 +2928,3 @@ void R_DrawDecals( void )
 
 
 
-void R_InvalidateSurface( msurface_t* surface )
-{
-}

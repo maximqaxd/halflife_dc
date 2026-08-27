@@ -2733,12 +2733,12 @@ void R_StudioDrawPoints( void )
 		{
 			mspriteframe_t* pFrame = R_GetSpriteFrame((msprite_t*)cl_sprite_white->cache.data, 0);
 			if (pFrame)
-				DCV_BindTexture(pFrame->gl_texturenum);
+				GL_Bind(pFrame->gl_texturenum, 0);
 			else
-				DCV_BindTexture(ptexture[pskinref[pmesh->skinref]].index);
+				GL_Bind(ptexture[pskinref[pmesh->skinref]].index, 0);
 		}
 		else
-			DCV_BindTexture(ptexture[pskinref[pmesh->skinref]].index);
+			GL_Bind(ptexture[pskinref[pmesh->skinref]].index, 0);
 
 		if (flags & STUDIO_NF_CHROME)
 		{
