@@ -2272,9 +2272,13 @@ void R_StudioDynamicLight( cl_entity_t* ent, alight_t* plight )
 			floor += add;
 
 			if (r > 1.0)
+			{
 				VectorScale(dist, add / r, dist);
+			}
 			else
+			{
 				VectorScale(dist, add, dist);
+			}
 
 			VectorAdd(light, dist, light);
 

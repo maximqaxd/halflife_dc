@@ -45,18 +45,12 @@ extern	int nanmask;
 #define VectorAdd(a,b,c) {(c)[0]=(a)[0]+(b)[0];(c)[1]=(a)[1]+(b)[1];(c)[2]=(a)[2]+(b)[2];}
 #define VectorCopy(a,b) {(b)[0]=(a)[0];(b)[1]=(a)[1];(b)[2]=(a)[2];}
 #define VectorClear(a) {(a)[0]=0.0;(a)[1]=0.0;(a)[2]=0.0;}
+#define VectorScale(in,scale,out) {(out)[0]=(in)[0]*(scale);(out)[1]=(in)[1]*(scale);(out)[2]=(in)[2]*(scale);}
+#define VectorMA(a,scale,b,c) {(c)[0]=(a)[0]+(b)[0]*(scale);(c)[1]=(a)[1]+(b)[1]*(scale);(c)[2]=(a)[2]+(b)[2]*(scale);}
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-// Small enough that every caller wants it expanded in place
-__inline void VectorMA( const vec_t* veca, float scale, const vec_t* vecb, vec_t* vecc )
-{
-	vecc[0] = veca[0] + scale * vecb[0];
-	vecc[1] = veca[1] + scale * vecb[1];
-	vecc[2] = veca[2] + scale * vecb[2];
-}
 
 vec_t _DotProduct( vec_t* v1, vec_t* v2 );
 void _VectorSubtract( vec_t* veca, vec_t* vecb, vec_t* out );
@@ -80,8 +74,10 @@ float VectorLength( const vec_t* v );
 void CrossProduct( const vec_t* v1, const vec_t* v2, vec_t* cross );
 void VectorVectors( vec_t* forward, vec_t* right, vec_t* up );
 float VectorNormalize( vec_t* v );		// returns vector length
+
+unsigned short FloatToShort( float value );
+float ShortToFloat( unsigned short value );
 void VectorInverse( vec_t* v );
-void VectorScale( const vec_t* in, vec_t scale, vec_t* out );
 int Q_log2( int val );
 
 void R_ConcatRotations( float in1[3][3], float in2[3][3], float out[3][3] );

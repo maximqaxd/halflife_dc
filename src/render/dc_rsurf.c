@@ -12,6 +12,8 @@
 #include "input.h"
 #include <floatmathlib.h>
 
+#pragma intrinsic(fabsf)
+
 #define MAX_DECALSURFS		200
 
 int		lightmap_bytes;		// 1, 2, or 4
@@ -2488,35 +2490,39 @@ int R_DecalUnProject( decal_t* pdecal, vec_t* position )
 	float inverseScale;
 	mtexinfo_t* pTexinfo;
 	texture_t* ptexture;
-	int entityIndex = 0;
+	int entityIndex;
 
 	if (!pdecal || !pdecal->psurface)
 		return -1;
 
 	pTexinfo = pdecal->psurface->texinfo;
 
-	s = (float)pTexinfo->texture->width * pdecal->dx - (float)pdecal->psurface->texturemins[0];
-	t = (float)pTexinfo->texture->height * pdecal->dy - (float)pdecal->psurface->texturemins[1];
+	s = pdecal->dx * pTexinfo->texture->width - pdecal->psurface->texturemins[0];
+	t = pdecal->dy * pTexinfo->texture->height - pdecal->psurface->texturemins[1];
 
 	scale = VectorLength(pTexinfo->vecs[0]) * 0.5f;
 	ptexture = Draw_DecalTexture(pdecal->texture);
 
-	s = (float)ptexture->width * scale + s + (float)pdecal->psurface->texturemins[0] - pTexinfo->vecs[0][3];
-	t = (float)ptexture->height * scale + t + (float)pdecal->psurface->texturemins[1] - pTexinfo->vecs[1][3];
+	s = s + ptexture->width * scale + pdecal->psurface->texturemins[0] - pTexinfo->vecs[0][3];
+	t = t + ptexture->height * scale + pdecal->psurface->texturemins[1] - pTexinfo->vecs[1][3];
 
-	inverseScale = fabs(VectorLength(pTexinfo->vecs[0]));
+	scale = fabsf(VectorLength(pTexinfo->vecs[0]));
 
-	if (inverseScale != 0.0f)
-		inverseScale = (1.0f / inverseScale) * (1.0f / inverseScale);
+	if (scale != 0.0f)
+	{
+		inverseScale = 1.0f / scale;
+		inverseScale = inverseScale * inverseScale;
+	}
 
 	VectorScale(pTexinfo->vecs[0], s * inverseScale, position);
 
 	VectorMA(position, t * inverseScale, pTexinfo->vecs[1], position);
-	VectorMA(position, pdecal->psurface->plane->dist, pdecal->psurface->plane->normal, position);
+	VectorMA(position, pdecal->psurface->plane->dist,
+		g_planeNormalTable[pdecal->psurface->plane->normalindex].normal, position);
 
 	entityIndex = pdecal->entityIndex;
 
-	if (pdecal->entityIndex)
+	if (entityIndex)
 	{
 		hull_t* phull;
 		vec3_t temp;
@@ -2545,8 +2551,8 @@ int R_DecalUnProject( decal_t* pdecal, vec_t* position )
 		if (pModel->firstmodelsurface)
 		{
 			phull = &pModel->hulls[0]; // always use #0 hull
-			VectorAdd(pEdict->v.origin, phull->clip_mins, temp);
-			VectorAdd(temp, position, position);
+			VectorAdd(position, phull->clip_mins, position);
+			VectorAdd(position, pEdict->v.origin, position);
 		}
 	}
 

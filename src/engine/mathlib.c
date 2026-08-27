@@ -452,14 +452,6 @@ void VectorInverse( vec_t* v )
 	v[2] = -v[2];
 }
 
-void VectorScale( const vec_t* in, vec_t scale, vec_t* out )
-{
-	out[0] = in[0] * scale;
-	out[1] = in[1] * scale;
-	out[2] = in[2] * scale;
-}
-
-
 int Q_log2( int val )
 {
 	int answer = 0;
@@ -703,6 +695,33 @@ fixed16_t Invert24To16( fixed16_t val )
 }
 
 #endif
+
+
+/*
+====================
+FloatToShort
+
+Halve the storage of a float by keeping only its sign, exponent and the top of
+its mantissa. Accurate enough for the values that get packed into a decal.
+====================
+*/
+unsigned short FloatToShort( float value )
+{
+	return ((unsigned short *)&value)[1];
+}
+
+/*
+====================
+ShortToFloat
+====================
+*/
+float ShortToFloat( unsigned short value )
+{
+	float result;
+
+	*(unsigned int *)&result = (unsigned int)value << 16;
+	return result;
+}
 
 
 // To change the frequency of the coprocessor
