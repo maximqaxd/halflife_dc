@@ -2820,6 +2820,35 @@ int COM_OpenFile( char* filename, int* handle )
 
 /*
 ===========
+COM_LoadFileChunk
+
+Reads one slice of a file straight into memory the caller already owns, so a
+level can be brought in a lump at a time instead of all at once.
+===========
+*/
+void COM_LoadFileChunk( char* path, byte* dest, int offset, int length )
+{
+	int		hnd[3];
+	int		len;
+
+	if (!dest || !length)
+		return;
+
+	len = COM_FindFileSearch(NULL, NULL, path, hnd, NULL);
+	if (hnd[2] == -1)
+		return;
+
+	if (len < offset + length)
+		length = len - offset;
+
+	Sys_FileSeek(hnd[2], hnd[0] + offset);
+	Sys_FileRead(hnd[2], dest, length);
+
+	COM_CloseFile(hnd[0], hnd[1], hnd[2]);
+}
+
+/*
+===========
 COM_OpenFileByName
 
 Like COM_OpenFile, but restricts the search to a single gamedir.

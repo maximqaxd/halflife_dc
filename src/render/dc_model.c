@@ -1469,6 +1469,245 @@ float RadiusFromBounds( vec_t* mins, vec_t* maxs )
 	return VectorLength(corner);
 }
 
+qboolean Mod_LoadTexturesFile( char* path );
+
+/*
+==============================================================================
+
+PIECEWISE WORLD LOADING
+
+A whole BSP does not fit in memory at once, so the world is brought in a lump
+at a time: each chunk is read straight off the disc into its own buffer, handed
+to the ordinary lump loader, and released again before the next one starts.
+
+==============================================================================
+*/
+
+/*
+=================
+Mod_LoadEntitiesChunk
+=================
+*/
+qboolean Mod_LoadEntitiesChunk( char* path, dheader_t* header )
+{
+	lump_t*	l;
+	byte*	buf;
+	char*	pszInputStream;
+
+	l = &header->lumps[LUMP_ENTITIES];
+
+	buf = (byte*)Hunk_AllocName(l->filelen + 0x21, loadname);
+	if (!buf)
+		return FALSE;
+
+	COM_LoadFileChunk(path, buf, l->fileofs, (l->filelen + 31) & ~31);
+	mod_base = buf - l->fileofs;
+
+	if (!l->filelen)
+	{
+		loadmodel->entities = NULL;
+		return FALSE;
+	}
+
+	loadmodel->entities = (char*)buf;
+
+	pszInputStream = COM_Parse(loadmodel->entities);
+	if (*pszInputStream && com_token[0] != '}')
+	{
+		while (strcmp(com_token, "wad"))
+		{
+			pszInputStream = COM_Parse(pszInputStream);
+			if (!*pszInputStream || com_token[0] == '}')
+				return TRUE;
+		}
+
+		COM_Parse(pszInputStream);
+
+		if (wadpath)
+			free(wadpath);
+		wadpath = _strdup(com_token);
+	}
+
+	return TRUE;
+}
+
+/*
+=================
+Mod_LoadVisibilityChunk
+=================
+*/
+qboolean Mod_LoadVisibilityChunk( char* path, dheader_t* header )
+{
+	lump_t*	l;
+	byte*	buf;
+
+	l = &header->lumps[LUMP_VISIBILITY];
+
+	buf = (byte*)Hunk_AllocName(l->filelen + 0x21, loadname);
+	if (!buf)
+		return FALSE;
+
+	COM_LoadFileChunk(path, buf, l->fileofs, (l->filelen + 31) & ~31);
+	mod_base = buf - l->fileofs;
+
+	if (!l->filelen)
+	{
+		loadmodel->visdata = NULL;
+		return FALSE;
+	}
+
+	loadmodel->visdata = buf;
+	return TRUE;
+}
+
+/*
+=================
+Mod_LoadLightingChunk
+=================
+*/
+qboolean Mod_LoadLightingChunk( char* path, dheader_t* header )
+{
+	lump_t*	l;
+	byte*	buf;
+
+	if (Mod_TryLoadLt2Lighting())
+		return TRUE;
+
+	l = &header->lumps[LUMP_LIGHTING];
+
+	buf = (byte*)Hunk_AllocName(l->filelen + 0x21, loadname);
+	if (!buf)
+		return FALSE;
+
+	COM_LoadFileChunk(path, buf, l->fileofs, (l->filelen + 31) & ~31);
+	mod_base = buf - l->fileofs;
+
+	if (!l->filelen)
+	{
+		loadmodel->lightdata = NULL;
+		return FALSE;
+	}
+
+	loadmodel->lightBytes = l->filelen;
+	loadmodel->lightdata = (color24*)buf;
+	loadmodel->lightmap_mode = 0;
+
+	return TRUE;
+}
+
+/*
+=================
+Mod_LoadWorldChunk
+
+Reads one lump off the disc and runs the loader that owns it.
+=================
+*/
+qboolean Mod_LoadWorldChunk( char* path, int lumpnum, dheader_t* header )
+{
+	lump_t*	l;
+	byte*	buf;
+
+	l = &header->lumps[lumpnum];
+
+	buf = (byte*)Hunk_AllocName(l->filelen + 0x21, loadname);
+	if (!buf)
+		return FALSE;
+
+	COM_LoadFileChunk(path, buf, l->fileofs, (l->filelen + 31) & ~31);
+	mod_base = buf - l->fileofs;
+
+	switch (lumpnum)
+	{
+	case LUMP_ENTITIES:
+		Mod_LoadEntities(l);
+		break;
+
+	case LUMP_PLANES:
+		Mod_LoadPlanes(l);
+		break;
+
+	case LUMP_TEXTURES:
+		if (!Mod_LoadTexturesFile(path))
+		{
+			Sys_SetTaskName("Looked for compact texture info, loading from BSP");
+			Mod_LoadTextures(l);
+		}
+		break;
+
+	case LUMP_VERTEXES:
+		Mod_LoadVertexes(l);
+		break;
+
+	case LUMP_VISIBILITY:
+		if (!l->filelen)
+		{
+			loadmodel->visdata = NULL;
+		}
+		else
+		{
+			loadmodel->visdata = (byte*)Hunk_AllocName(l->filelen, loadname);
+			memcpy(loadmodel->visdata, mod_base + l->fileofs, l->filelen);
+		}
+		break;
+
+	case LUMP_NODES:
+		Mod_LoadNodes(l);
+		break;
+
+	case LUMP_TEXINFO:
+		Mod_LoadTexinfo(l);
+		break;
+
+	case LUMP_FACES:
+		Mod_LoadFaces(l);
+		break;
+
+	case LUMP_LIGHTING:
+		if (!Mod_TryLoadLt2Lighting())
+		{
+			if (!l->filelen)
+			{
+				loadmodel->lightdata = NULL;
+			}
+			else
+			{
+				loadmodel->lightBytes = l->filelen;
+				loadmodel->lightdata = (color24*)Hunk_AllocName(l->filelen, loadname);
+				memcpy(loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
+				loadmodel->lightmap_mode = 0;
+			}
+		}
+		break;
+
+	case LUMP_CLIPNODES:
+		Mod_LoadClipnodes(l);
+		break;
+
+	case LUMP_LEAFS:
+		Mod_LoadLeafs(l);
+		break;
+
+	case LUMP_MARKSURFACES:
+		Mod_LoadMarksurfaces(l);
+		break;
+
+	case LUMP_EDGES:
+		Mod_LoadEdges(l);
+		break;
+
+	case LUMP_SURFEDGES:
+		Mod_LoadSurfedges(l);
+		break;
+
+	case LUMP_MODELS:
+		Mod_LoadSubmodels(l);
+		break;
+	}
+
+	COM_FreeFile(buf);
+	return TRUE;
+}
+
 /*
 =================
 Mod_LoadBrushModel
