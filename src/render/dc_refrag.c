@@ -71,7 +71,7 @@ R_SplitEntityOnNode
 void R_SplitEntityOnNode( mnode_t* node )
 {
 	efrag_t* ef;
-	mplane_t* splitplane;
+	mclipplane_t* splitplane;
 	mleaf_t* leaf;
 	int			sides;
 
@@ -116,7 +116,7 @@ void R_SplitEntityOnNode( mnode_t* node )
 // NODE_MIXED
 
 	splitplane = node->plane;
-	sides = BOX_ON_PLANE_SIDE(r_emins, r_emaxs, splitplane);
+	sides = BOX_ON_CLIPPLANE_SIDE(r_emins, r_emaxs, splitplane);
 
 	if (sides == 3)
 	{

@@ -28,6 +28,7 @@ extern "C" {
 
 int _strnicmp( const char *s1, const char *s2, unsigned int n );
 int _stricmp( const char *s1, const char *s2 );
+int Q_stricmp( char* s1, char* s2 );
 
 // The Dreamcast heap allocators tag each block with its call site and route
 // through the Mnemo arena. Declaring them here replaces the C runtime's

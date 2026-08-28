@@ -1296,6 +1296,64 @@ void* MnemoReallocDbg( void* oldPtr, int sizeBytes, const char* srcFile, int src
 	return newPtr;
 }
 
+/*
+=================
+MnemoRealloc
+
+Arena equivalent of realloc.  Unlike the debug wrapper, this keeps the
+allocation's tag, flags, and allocation class so a texture scratch buffer stays
+in the same Mnemo allocation domain when it grows.
+=================
+*/
+void* MnemoRealloc( void* oldPtr, int sizeBytes )
+{
+	mnemo_pez_pool_t*	pool;
+	mnemo_header_t*	hdr;
+	int				oldSize;
+	unsigned int		flags;
+	int				allocClass;
+	char				tag[sizeof(((mnemo_header_t*)0)->tag)];
+	void*				newPtr;
+
+	if (sizeBytes <= 0)
+	{
+		if (oldPtr)
+			MnemoFree(oldPtr);
+		return NULL;
+	}
+
+	if (!oldPtr)
+		return MnemoAlloc(sizeBytes, MNEMO_FLAG_MALLOC, 0, "realloc");
+
+	pool = Mnemo_FindPezPool(oldPtr);
+	if (pool)
+	{
+		oldSize = pool->size;
+		flags = MNEMO_FLAG_MALLOC;
+		allocClass = 0;
+		strcpy(tag, "pez realloc");
+	}
+	else
+	{
+		hdr = (mnemo_header_t*)oldPtr - 1;
+		oldSize = hdr->payload_size;
+		flags = hdr->flags;
+		allocClass = hdr->alloc_class;
+		strcpy(tag, hdr->tag);
+	}
+
+	if (oldSize >= sizeBytes)
+		return oldPtr;
+
+	newPtr = MnemoAlloc(sizeBytes, flags, allocClass, tag);
+	if (!newPtr)
+		return NULL;
+
+	memcpy(newPtr, oldPtr, oldSize);
+	MnemoFree(oldPtr);
+	return newPtr;
+}
+
 void MnemoFreeDbg( void* ptr )
 {
 	MnemoFree(ptr);

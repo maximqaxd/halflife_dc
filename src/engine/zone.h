@@ -89,10 +89,13 @@ void* MnemoAlloc( int size, unsigned int flags, int allocClass, const char* tag 
 void* MnemoAllocDbg( int size, const char* srcFile, int srcLine );
 char* Bmakename( char* path, unsigned int type );
 int Mnemo_LastChanceActive( void );
+void* MnemoRealloc( void* oldPtr, int sizeBytes );
 void* MnemoReallocDbg( void* oldPtr, int sizeBytes, const char* srcFile, int srcLine );
 void MnemoFreeDbg( void* ptr );
 void MnemoFree( void* ptr );
+void _FreeBlock( void );
 void MnemoShrink( void* ptr, int newsize );
+void Mnemo_BlockSetName( void* payload, const char* name );
 typedef int (*mnemo_purge_callback_t)( int aggressive );
 void Mnemo_SetPurgeCallback( mnemo_purge_callback_t callback );
 

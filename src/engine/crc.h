@@ -26,6 +26,8 @@ int MD5_Hash_CachedFile( unsigned char digest[16], unsigned char* pCache, int nF
 
 int CRC_MapFile( CRC32_t* crcvalue, char* pszFileName );
 
+CRC32_t LoadUnalignedLong( const void* p );
+
 int Zip_GetUncompressedSize( void* pHeader );
 int Zip_CompressFile( char* pszFileName, int level );
 int Zip_DecompressFile( char* pszFileName, char* pszOutName );

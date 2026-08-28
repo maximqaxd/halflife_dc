@@ -5,8 +5,6 @@
 #include "quakedef.h"
 #include "dc_accum.h"
 
-extern void DCV_SetupFog( void );
-
 #define QUAD_TABLE_ROWS     0x32
 #define ROW_STRIDE_SHORTS   6
 
@@ -455,11 +453,12 @@ void DCV_AccumLightmapBatch( const void *poly )
 /* The U scroll offset is not a parameter -- the binary reads it from a
    global (a pooled float load, not the FR5 register a second param would
    use), set by a not-yet-reconstructed caller. Real identity unconfirmed. */
-static float s_dcScrollOffset;
+// Set by ScrollOffset() for the surface currently being accumulated.
+float g_flScrollOffset;
 
 void DCV_AccumScrollPoly( const void *poly )
 {
-	float s_offset = s_dcScrollOffset;
+	float s_offset = g_flScrollOffset;
 	int numverts = DC_POLY_NUMVERTS(poly);
 	const float *pVert = DC_POLY_VERTS(poly);
 	const short *pSrc = g_pQuadTable[numverts];

@@ -2,6 +2,7 @@
 #define _STUDIO_H_
 
 #define IDSTUDIOHEADER	(('T'<<24)+('S'<<16)+('D'<<8)+'I') // little-endian "IDST"
+#define IDSTUDIONEOHEADER	(('t'<<24)+('s'<<16)+('d'<<8)+'i') // little-endian "idst"
 
 /*
 ==============================================================================

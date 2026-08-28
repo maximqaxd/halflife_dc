@@ -19,9 +19,6 @@ short		m_bDrawInitialized;
 short		custom_decal;
 char		custom_decal_name[16];
 
-extern int DC_LoadTexture( char *identifier, int texture_type, int width, int height, void *data, short mipmap, int tex_type, unsigned char *pPal );
-extern int DC_FreeTextureByName( char *name );
-
 void Draw_FreeWad( cachewad_t* pWad );
 void Draw_CacheWadInitFromFile( int *h, int len, char *name, int cacheMax, cachewad_t *wad );
 

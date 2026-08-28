@@ -97,14 +97,6 @@ void CRC32_ProcessByte( CRC32_t* pulCRC, unsigned char ch )
 
 
 #if 1
-/* SH-4: load CRC32_t from a possibly unaligned pointer */
-static CRC32_t CRC32_LoadUnaligned( const void* p )
-{
-	CRC32_t w;
-	memcpy(&w, p, sizeof(CRC32_t));
-	return w;
-}
-
 void CRC32_ProcessBuffer( CRC32_t* pulCRC, void* pBuffer, int nBuffer )
 {
 	CRC32_t ulCrc = *pulCRC;
@@ -126,7 +118,7 @@ JustAfew:
 		ulCrc = pulCRCTable[*pb++ ^ (unsigned char)ulCrc] ^ (ulCrc >> 8);
 
 	case 4:
-		ulCrc ^= CRC32_LoadUnaligned(pb); // Warning, this only works on little-endian.
+		ulCrc ^= LoadUnalignedLong(pb); // Warning, this only works on little-endian.
 		ulCrc = pulCRCTable[(unsigned char)ulCrc] ^ (ulCrc >> 8);
 		ulCrc = pulCRCTable[(unsigned char)ulCrc] ^ (ulCrc >> 8);
 		ulCrc = pulCRCTable[(unsigned char)ulCrc] ^ (ulCrc >> 8);
@@ -215,7 +207,7 @@ void CRC32_ProcessBuffer( CRC32_t* pulCRC, void* p, int len )
 	//
 	while (InLength--)
 	{
-		ulCrc ^= CRC32_LoadUnaligned(pb);
+		ulCrc ^= LoadUnalignedLong(pb);
 		ulCrc = pulCRCTable[(unsigned char)ulCrc] ^ (ulCrc >> 8);
 		ulCrc = pulCRCTable[(unsigned char)ulCrc] ^ (ulCrc >> 8);
 		ulCrc = pulCRCTable[(unsigned char)ulCrc] ^ (ulCrc >> 8);
@@ -650,6 +642,27 @@ char* MD5_Print( unsigned char* hash )
 
 // Read the stored uncompressed size from the head of a zipped block. The
 // header may be unaligned, so copy the field out a byte at a time.
+/*
+====================
+LoadUnalignedLong
+
+A long load traps unless the address is aligned, and file data lands wherever
+the pack put it, so pull the four bytes across by hand.
+====================
+*/
+CRC32_t LoadUnalignedLong( const void* p )
+{
+	const byte*	src = (const byte*)p;
+	byte		w[4];
+
+	w[0] = *src++;
+	w[1] = *src++;
+	w[2] = *src++;
+	w[3] = *src;
+
+	return *(CRC32_t*)w;
+}
+
 int Zip_GetUncompressedSize( void* pHeader )
 {
 	int size;

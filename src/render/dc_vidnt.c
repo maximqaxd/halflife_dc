@@ -55,7 +55,8 @@ extern int GlideReadPixels( int x, int y, int width, int height, word* pixels );
 
 
 
-//int		texture_mode = GL_NEAREST;
+/* GL_LINEAR (0x2601); this unit intentionally does not include GL/gl.h. */
+int		texture_mode = 0x2601;
 //int		texture_mode = GL_NEAREST_MIPMAP_NEAREST;
 //int		texture_mode = GL_NEAREST_MIPMAP_LINEAR;
 //int		texture_mode = GL_LINEAR; TODO!

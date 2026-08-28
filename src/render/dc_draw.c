@@ -28,7 +28,6 @@ qpic_t* draw_backtile;
 
 int			translate_texture;
 int			char_texture;
-int			nada_texture;
 
 /* Draw_Init runs again on every level change; only register commands and load
    the one-time pics the first time through. */
@@ -51,11 +50,12 @@ extern "C" {
 extern cachewad_t	custom_wad;
 extern cachewad_t	*menu_wad;
 extern short		m_bDrawInitialized;
+
+int			numgltextures;
+int			nada_texture;
 #ifdef __cplusplus
 }
 #endif
-
-int			numgltextures;
 
 
 #define DC_MAXTEXTURES   1140
@@ -122,7 +122,6 @@ static int			s_stageTexnum[2];	/* last texnum bound per D3D texture stage */
 #ifdef __cplusplus
 extern "C" {
 #endif
-int DC_FreeTextureByName( char *name );
 void Draw_Shutdown( void );
 void DCV_GammaRefresh_f( void );
 qpic_t* LoadTransPic( char* pszName, qpic_t* ppic );
@@ -137,7 +136,6 @@ int DC_FreeStaleTextureSlots( void );
 int GL_PaletteTag( byte* pPal );
 int GL_UnloadTextures( void );
 void GL_BindStage( int texnum, int stage );
-int DC_LoadTexture( char *identifier, int texture_type, int width, int height, void *data, short mipmap, int tex_type, unsigned char *pPal );
 void DC_InitTextureList( void );
 int DCV_UpdateTextureSubRect( int texnum, int x, int y, int w, int h, const unsigned short* src, int src_pitch );
 void DC_TouchTexture( int texnum );

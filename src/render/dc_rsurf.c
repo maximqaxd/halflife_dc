@@ -86,8 +86,6 @@ void R_ApplyViewModelProjection( float zn );
 
 extern int numgltextures;
 extern int nada_texture;
-int DC_LoadTexture( char* identifier, int texture_type, int width, int height,
-	void* data, short mipmap, int tex_type, unsigned char* pPal );
 
 void R_RenderDynamicLightmaps( msurface_t* fa );
 void DrawGLSolidPoly( glpoly_t* p );
@@ -147,7 +145,7 @@ void R_AddDynamicLights( msurface_t* surf )
 		VectorSubtract(cl_dlights[lnum].origin, currententity->origin, impact);
 
 		rad = cl_dlights[lnum].radius;
-		dist = DotProduct(impact, surf->plane->normal)
+		dist = DotProduct(impact, g_planeNormalTable[surf->plane->normalindex].normal)
 			- surf->plane->dist;
 		rad -= fabs(dist);
 		minlight = cl_dlights[lnum].minlight;
@@ -1257,7 +1255,7 @@ void R_DrawBrushModel( cl_entity_t* e )
 	vec3_t		mins, maxs;
 	msurface_t* psurf;
 	float		dot;
-	mplane_t*	pplane;
+	mclipplane_t*	pplane;
 	model_t*	clmodel;
 	qboolean	rotated;
 
@@ -1428,7 +1426,7 @@ R_RecursiveWorldNode
 void R_RecursiveWorldNode( mnode_t* node )
 {
 	int			c, side;
-	mplane_t* plane;
+	mclipplane_t* plane;
 	msurface_t* surf, ** mark;
 	mleaf_t* pleaf;
 	float		dot;
@@ -2067,7 +2065,7 @@ void R_DecalRemoveAll( int textureIndex )
 // iterate over all surfaces on a node, looking for surfaces to decal
 void R_DecalNode( mnode_t* node )
 {
-	mplane_t* splitplane;
+	mclipplane_t* splitplane;
 	float		dist;
 
 	if (!node)
@@ -2688,8 +2686,6 @@ int SHClip( float* vert, int vertCount, float* out, int edge )
 }
 
 
-
-extern void R_ApplySceneProjection( void );
 
 /*
 ==================

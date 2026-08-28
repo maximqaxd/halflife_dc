@@ -110,7 +110,7 @@ void VectorTransform( const vec_t* in1, float(*in2)[4], vec_t* out );
 void VectorMatrix( vec_t* forward, vec_t* right, vec_t* up );
 void VectorAngles( const vec_t* forward, vec_t* angles );
 
-void BOPS_Error( void );
+int BOPS_Error( vec_t* emins, vec_t* emaxs, struct mclipplane_s* p );
 int BoxOnPlaneSide( vec_t * emins, vec_t * emaxs, struct mplane_s* p );
 int BoxOnPlaneSide_short( short* emins, short* emaxs, struct mplane_s* p );
 float	anglemod( float a );
@@ -136,3 +136,19 @@ float	anglemod( float a );
 	)										\
 	:										\
 		BoxOnPlaneSide( (emins), (emaxs), (p)))
+
+#define BOX_ON_CLIPPLANE_SIDE(emins, emaxs, p)	\
+	(((p)->type < 3)?						\
+	(										\
+		((p)->dist <= (emins)[(p)->type])?	\
+			1								\
+		:									\
+		(									\
+			((p)->dist >= (emaxs)[(p)->type])?\
+				2							\
+			:								\
+				3							\
+		)									\
+	)										\
+	:										\
+		BOPS_Error( (emins), (emaxs), (p)))

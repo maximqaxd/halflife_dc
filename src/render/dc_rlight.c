@@ -2,8 +2,6 @@
 
 #include "quakedef.h"
 
-extern int DCV_LT2Decode( const byte* in, int in_size, color24* out, int w, int h );
-
 /* Maximum lightmap grid dimensions: extents capped at 2040 world units → (2040>>4)+1 = 128+1 */
 #define MAX_LM_AXIS 129
 #define MAX_LM_SAMPLE (MAX_LM_AXIS * MAX_LM_AXIS)
@@ -150,7 +148,7 @@ R_MarkLights
 */
 void R_MarkLights( dlight_t* light, int bit, mnode_t* node )
 {
-	mplane_t*	splitplane;
+	mclipplane_t*	splitplane;
 	float		dist;
 	msurface_t* surf;
 	int			i;
@@ -159,7 +157,7 @@ void R_MarkLights( dlight_t* light, int bit, mnode_t* node )
 		return;
 
 	splitplane = node->plane;
-	dist = DotProduct(light->origin, splitplane->normal) - splitplane->dist;
+	dist = DotProduct(light->origin, g_planeNormalTable[splitplane->normalindex].normal) - splitplane->dist;
 
 	if (dist > light->radius)
 	{
@@ -249,7 +247,7 @@ LIGHT SAMPLING
 =============================================================================
 */
 
-mplane_t* lightplane;
+mclipplane_t* lightplane;
 vec3_t			lightspot;
 
 colorVec RecursiveLightPoint( mnode_t* node, vec_t* start, vec_t* end )
@@ -257,7 +255,7 @@ colorVec RecursiveLightPoint( mnode_t* node, vec_t* start, vec_t* end )
 	colorVec	c;
 	float		front, back, frac;
 	int			side;
-	mplane_t* plane;
+	mclipplane_t* plane;
 	vec3_t		mid;
 	msurface_t* surf;
 	int			s, t, ds, dt;
@@ -278,8 +276,8 @@ colorVec RecursiveLightPoint( mnode_t* node, vec_t* start, vec_t* end )
 
 // FIXME: optimize for axial
 	plane = node->plane;
-	front = DotProduct(start, plane->normal) - plane->dist;
-	back = DotProduct(end, plane->normal) - plane->dist;
+	front = DotProduct(start, g_planeNormalTable[plane->normalindex].normal) - plane->dist;
+	back = DotProduct(end, g_planeNormalTable[plane->normalindex].normal) - plane->dist;
 	side = front < 0;
 
 	if ((back < 0) == side)

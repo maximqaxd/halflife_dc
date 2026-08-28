@@ -30,12 +30,64 @@ float anglemod( float a )
 ==================
 BOPS_Error
 
-Split out like this for ASM to call.
+General-side test for compact BSP planes.
 ==================
 */
-void BOPS_Error( void )
+int BOPS_Error( vec_t* emins, vec_t* emaxs, mclipplane_t* p )
 {
-	Sys_Error("BoxOnPlaneSide:  Bad signbits");
+	vec_t* normal;
+	float dist1, dist2;
+	int sides;
+
+	normal = g_planeNormalTable[p->normalindex].normal;
+
+	switch (p->signbits)
+	{
+		case 0:
+			dist1 = normal[0] * emaxs[0] + normal[1] * emaxs[1] + normal[2] * emaxs[2];
+			dist2 = normal[0] * emins[0] + normal[1] * emins[1] + normal[2] * emins[2];
+			break;
+		case 1:
+			dist1 = normal[0] * emins[0] + normal[1] * emaxs[1] + normal[2] * emaxs[2];
+			dist2 = normal[0] * emaxs[0] + normal[1] * emins[1] + normal[2] * emins[2];
+			break;
+		case 2:
+			dist1 = normal[0] * emaxs[0] + normal[1] * emins[1] + normal[2] * emaxs[2];
+			dist2 = normal[0] * emins[0] + normal[1] * emaxs[1] + normal[2] * emins[2];
+			break;
+		case 3:
+			dist1 = normal[0] * emins[0] + normal[1] * emins[1] + normal[2] * emaxs[2];
+			dist2 = normal[0] * emaxs[0] + normal[1] * emaxs[1] + normal[2] * emins[2];
+			break;
+		case 4:
+			dist1 = normal[0] * emaxs[0] + normal[1] * emaxs[1] + normal[2] * emins[2];
+			dist2 = normal[0] * emins[0] + normal[1] * emins[1] + normal[2] * emaxs[2];
+			break;
+		case 5:
+			dist1 = normal[0] * emins[0] + normal[1] * emaxs[1] + normal[2] * emins[2];
+			dist2 = normal[0] * emaxs[0] + normal[1] * emins[1] + normal[2] * emaxs[2];
+			break;
+		case 6:
+			dist1 = normal[0] * emaxs[0] + normal[1] * emins[1] + normal[2] * emins[2];
+			dist2 = normal[0] * emins[0] + normal[1] * emaxs[1] + normal[2] * emaxs[2];
+			break;
+		case 7:
+			dist1 = normal[0] * emins[0] + normal[1] * emins[1] + normal[2] * emins[2];
+			dist2 = normal[0] * emaxs[0] + normal[1] * emaxs[1] + normal[2] * emaxs[2];
+			break;
+		default:
+			dist1 = dist2 = 0;
+			Sys_Error("BoxOnPlaneSide:  Bad signbits");
+			break;
+	}
+
+	sides = 0;
+	if (dist1 >= p->dist)
+		sides = 1;
+	if (dist2 < p->dist)
+		sides |= 2;
+
+	return sides;
 }
 
 
@@ -103,7 +155,7 @@ int BoxOnPlaneSide( vec_t* emins, vec_t* emaxs, mplane_t* p )
 			break;
 		default:
 			dist1 = dist2 = 0;		// shut up compiler
-			BOPS_Error();
+			Sys_Error("BoxOnPlaneSide:  Bad signbits");
 			break;
 	}
 
@@ -198,7 +250,7 @@ int BoxOnPlaneSide_short( short* emins, short* emaxs, mplane_t* p )
 			break;
 		default:
 			dist1 = dist2 = 0;		// shut up compiler
-			BOPS_Error();
+			Sys_Error("BoxOnPlaneSide:  Bad signbits");
 			break;
 	}
 

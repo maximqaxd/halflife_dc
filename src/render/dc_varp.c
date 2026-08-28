@@ -272,6 +272,79 @@ void EmitWaterPolys( msurface_t* fa, int direction )
 	DCV_FlushApplyRenderState(D3DRENDERSTATE_HWCULLMODE, D3DCULL_CCW);
 }
 
+/*
+================
+R_DrawWaterChain
+================
+*/
+void R_DrawWaterChain( msurface_t* pChain, int direction )
+{
+	msurface_t* s;
+	glpoly_t*   p;
+	texture_t*  t;
+	float*      v;
+	int         i, base;
+	float       scale;
+	float       os, ot, s_out, t_out;
+	vec3_t      tempVert;
+
+	D_SetFadeColor(pChain->texinfo->texture->fade_r, pChain->texinfo->texture->fade_g,
+		pChain->texinfo->texture->fade_b, pChain->texinfo->texture->fade_fog);
+
+	t = R_TextureAnimation(pChain);
+	GL_Bind(t->gl_texturenum, 0);
+
+	DCV_FlushApplyRenderState(D3DRENDERSTATE_SWCULLMODE, D3DCULL_NONE);
+	DCV_FlushApplyRenderState(D3DRENDERSTATE_HWCULLMODE, D3DCULL_NONE);
+
+	for (s = pChain; s; s = s->texturechain)
+	{
+		if (s->polys->verts[0][2] >= r_refdef.vieworg[2])
+			scale = -currententity->scale;
+		else
+			scale = currententity->scale;
+
+		DCV_FlushIfLarge();
+
+		for (p = s->polys; p; p = p->next)
+		{
+			base = DCV_GetVertCount();
+			DCV_AddIndicesFan(base, p->numverts);
+
+			if (direction)
+				v = p->verts[p->numverts - 1];
+			else
+				v = p->verts[0];
+
+			for (i = 0; i < p->numverts; i++)
+			{
+				os = v[4];
+				ot = v[5];
+
+				tempVert[0] = v[0];
+				tempVert[1] = v[1];
+				tempVert[2] = v[2]
+					+ (turbsin[(int)(cl.time * 160.0f + v[0] + v[1]) & 255] + 8.0f
+						+ (turbsin[(int)(cl.time * 171.0f + v[0] * 5.0f - v[1]) & 255] + 8.0f) * 0.8f)
+					* scale;
+
+				s_out = (turbsin[(int)((ot * 0.125f + cl.time) * TURBSCALE) & 255] + os) * (1.0f / 64);
+				t_out = (turbsin[(int)((os * 0.125f + cl.time) * TURBSCALE) & 255] + ot) * (1.0f / 64);
+
+				DCV_AddVertexLit(s_out, t_out, tempVert);
+
+				if (direction)
+					v -= VERTEXSIZE * 2;
+
+				v += VERTEXSIZE;
+			}
+		}
+	}
+
+	DCV_FlushApplyRenderState(D3DRENDERSTATE_SWCULLMODE, D3DCULL_CCW);
+	DCV_FlushApplyRenderState(D3DRENDERSTATE_HWCULLMODE, D3DCULL_CCW);
+}
+
 #if 0
 /*
 ===============

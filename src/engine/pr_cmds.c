@@ -525,7 +525,7 @@ msurface_t* SurfaceAtPoint( model_t* pModel, mnode_t* node, vec_t* start, vec_t*
 {
 	float		front, back, frac;
 	int			side;
-	mplane_t* plane;
+	mclipplane_t* plane;
 	vec3_t		mid;
 	msurface_t* surf;
 	int			s, t, ds, dt;
@@ -536,8 +536,8 @@ msurface_t* SurfaceAtPoint( model_t* pModel, mnode_t* node, vec_t* start, vec_t*
 		return NULL;
 
 	plane = node->plane;
-	front = DotProduct(start, plane->normal) - plane->dist;
-	back = DotProduct(end, plane->normal) - plane->dist;
+	front = DotProduct(start, g_planeNormalTable[plane->normalindex].normal) - plane->dist;
+	back = DotProduct(end, g_planeNormalTable[plane->normalindex].normal) - plane->dist;
 
 	// test the front side first
 	side = front < 0;
@@ -835,7 +835,7 @@ Check the box in PVS and get node
 */
 mnode_t* PVSNode( mnode_t* node, vec_t* emins, vec_t* emaxs )
 {
-	mplane_t* splitplane;
+	mclipplane_t* splitplane;
 	int sides;
 	mnode_t* splitNode;
 
@@ -847,7 +847,7 @@ mnode_t* PVSNode( mnode_t* node, vec_t* emins, vec_t* emaxs )
 
 	splitplane = node->plane;
 
-	sides = BOX_ON_PLANE_SIDE(emins, emaxs, splitplane);
+	sides = BOX_ON_CLIPPLANE_SIDE(emins, emaxs, splitplane);
 
 	if (sides & 1)
 	{

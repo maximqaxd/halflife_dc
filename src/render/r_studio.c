@@ -11,8 +11,6 @@
 #include "dc_draw.h"
 #include "dc_accum.h"
 
-extern void R_SetRenderMode( cl_entity_t* pEntity );
-
 // Hulls & planes
 #define STUDIO_NUM_HULLS	128
 #define STUDIO_NUM_PLANES	(STUDIO_NUM_HULLS * 6)

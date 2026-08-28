@@ -86,16 +86,21 @@ typedef struct mplane_s
 	float dist;
 	byte type;			// for texture axis selection and fast side tests
 	byte signbits;		// signx + signy<<1 + signz<<1
-	// Index into g_planeNormalTable, the hash-deduped table of unique plane
-	// normals built at load time (many planes -- especially axial ones --
-	// share the same normal, so the loader stores one shared copy instead of
-	// a redundant 12 bytes per plane). Some hot paths (e.g. player movement's
-	// PM_HullPointContents) still read `normal` below directly instead.
-	unsigned short normalindex;
+	unsigned short pad;
 	vec3_t normal;
 } mplane_t;
 
-// One slot of the plane-normal dedup table; see mplane_t.normalindex above.
+// Compact planes used by BSP nodes and surfaces.  The normal vector is shared
+// through the model's normal table.
+typedef struct mclipplane_s
+{
+	float dist;
+	byte type;
+	byte signbits;
+	unsigned short normalindex;
+} mclipplane_t;
+
+// One slot of the plane-normal dedup table; see mclipplane_t.normalindex above.
 typedef struct
 {
 	vec3_t	normal;
@@ -104,18 +109,8 @@ typedef struct
 
 extern planenormal_t* g_planeNormalTable;
 
-int  Mod_AddNormalToTable( vec_t* normal, unsigned int hash );
+unsigned short Mod_AddNormalToTable( vec_t* normal, unsigned int hash );
 void Mod_InitNormalTable( void );
-
-// Compact form of mplane_t for axis-aligned planes: the normal is implicit from
-// `type` (which axis) so there's no need to store it. Used by hull_t's boxplanes
-// fast path instead of the full mplane_t array.
-typedef struct
-{
-	float dist;
-	byte type;
-	byte pad[3];
-} mclipplane_t;
 
 typedef struct texture_s
 {
@@ -130,7 +125,6 @@ typedef struct texture_s
 	struct texture_s*	alternate_anims;	// bmodels in frame 1 use these
 	unsigned int offsets[MIPLEVELS];		// four mip maps stored
 	byte		fade_r, fade_g, fade_b, fade_fog;	// water fade color/fog, from the WAD palette's tail
-	byte*		pPal;
 } texture_t;
 
 #define SURF_PLANEBACK			2
@@ -212,7 +206,7 @@ struct msurface_s
 	int			dlightbits;			
 
 
-	mplane_t*	plane;				// pointer to shared plane
+	mclipplane_t*	plane;			// pointer to shared plane
 	glpoly_t*	polys;				// multiple if warped
 	msurface_t*	texturechain;		
 	mtexinfo_t*	texinfo;			
@@ -235,7 +229,7 @@ typedef struct mnode_s
 	short		minmaxs[6];		// 0x06  for bounding box culling
 	struct mnode_s*	parent;		// 0x14
 // node specific
-	mplane_t*	plane;			// 0x18
+	mclipplane_t*	plane;		// 0x18
 	struct mnode_s*	children[2];	// 0x1c, 0x20
 } mnode_t;
 
@@ -259,14 +253,7 @@ typedef struct mleaf_s
 typedef struct hull_s
 {
 	dclipnode_t*	clipnodes;
-	mclipplane_t*	boxplanes;		// Fast path for axis-aligned (box) sub-hulls: a compact plane
-									// array with no stored normal, since axial planes only need
-									// dist+type. NULL selects the normal `planes` (mplane_t) path
-									// below instead. Not populated by any pmove.c/pmovetst.c code --
-									// PM_InitBoxHull explicitly leaves it NULL, so our own box hull
-									// always takes the normal-plane path already implemented here.
-									// Likely populated during BSP model loading for box-shaped brush
-									// submodels (dc_model.c); unconfirmed, out of this session's reach.
+	mclipplane_t*	boxplanes;		// compact BSP planes
 	mplane_t*		planes;
 	int				firstclipnode;
 	int				lastclipnode;
@@ -431,7 +418,8 @@ typedef struct cache_user_s
 typedef struct model_s
 {
 	char		name[48];		// DC uses a compact model-name buffer (needload@0x30)
-	qboolean	needload;		// bmodels and sprites don't cache normally
+	short		needload;		// bmodels and sprites don't cache normally
+	short		reserved;
 
 	modtype_t	type;
 	int			numframes;
@@ -454,7 +442,7 @@ typedef struct model_s
 	dmodel_t*	submodels;
 
 	int			numplanes;
-	mplane_t*	planes;
+	mclipplane_t*	planes;
 
 	int			numleafs;		// number of visible leafs, not counting 0
 	mleaf_t*	leafs;

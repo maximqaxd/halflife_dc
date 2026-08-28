@@ -411,7 +411,7 @@ SV_FindTouchedLeafs
 */
 void SV_FindTouchedLeafs( edict_t* ent, mnode_t* node, int* topnode )
 {
-	mplane_t* splitplane;
+	mclipplane_t* splitplane;
 	mleaf_t* leaf;
 	int			sides;
 	int			leafnum;
@@ -443,7 +443,7 @@ void SV_FindTouchedLeafs( edict_t* ent, mnode_t* node, int* topnode )
 // NODE_MIXED
 
 	splitplane = node->plane;
-	sides = BOX_ON_PLANE_SIDE(ent->v.absmin, ent->v.absmax, splitplane);
+	sides = BOX_ON_CLIPPLANE_SIDE(ent->v.absmin, ent->v.absmax, splitplane);
 
 	if ((sides & 3) && *topnode == -1)
 		*topnode = node - sv.worldmodel->nodes;
@@ -558,6 +558,7 @@ int SV_HullPointContents( hull_t* hull, int num, const vec_t* p )
 {
 	float		d;
 	dclipnode_t* node;
+	mclipplane_t* boxplane;
 	mplane_t* plane;
 
 	while (num >= 0)
@@ -566,12 +567,22 @@ int SV_HullPointContents( hull_t* hull, int num, const vec_t* p )
 			Sys_Error("SV_HullPointContents: bad node number");
 
 		node = hull->clipnodes + num;
-		plane = hull->planes + node->planenum;
-
-		if (plane->type < 3)
-			d = p[plane->type] - plane->dist;
+		if (!hull->planes)
+		{
+			boxplane = hull->boxplanes + node->planenum;
+			if (boxplane->type < 3)
+				d = p[boxplane->type] - boxplane->dist;
+			else
+				d = DotProduct(g_planeNormalTable[boxplane->normalindex].normal, p) - boxplane->dist;
+		}
 		else
-			d = DotProduct(plane->normal, p) - plane->dist;
+		{
+			plane = hull->planes + node->planenum;
+			if (plane->type < 3)
+				d = p[plane->type] - plane->dist;
+			else
+				d = DotProduct(plane->normal, p) - plane->dist;
+		}
 		if (d < 0)
 			num = node->children[1];
 		else
@@ -718,7 +729,11 @@ SV_RecursiveHullCheck
 qboolean SV_RecursiveHullCheck( hull_t* hull, int num, float p1f, float p2f, vec_t* p1, vec_t* p2, trace_t* trace )
 {
 	dclipnode_t	*node;
+	mclipplane_t	*boxplane;
 	mplane_t	*plane;
+	const vec_t	*normal;
+	float		dist;
+	byte		type;
 	float		t1, t2;
 	float		frac;
 	int			i;
@@ -743,24 +758,37 @@ qboolean SV_RecursiveHullCheck( hull_t* hull, int num, float p1f, float p2f, vec
 		return TRUE;		// empty
 	}
 
-	if (num < hull->firstclipnode || num > hull->lastclipnode || !hull->planes)
+	if (num < hull->firstclipnode || num > hull->lastclipnode || (!hull->boxplanes && !hull->planes))
 		Sys_Error("SV_RecursiveHullCheck: bad node number");
 
 //
 // find the point distances
 //
 	node = hull->clipnodes + num;
-	plane = hull->planes + hull->clipnodes[num].planenum;
-
-	if (plane->type < 3)
+	if (!hull->planes)
 	{
-		t1 = p1[plane->type] - plane->dist;
-		t2 = p2[plane->type] - plane->dist;
+		boxplane = hull->boxplanes + node->planenum;
+		normal = g_planeNormalTable[boxplane->normalindex].normal;
+		dist = boxplane->dist;
+		type = boxplane->type;
 	}
 	else
 	{
-		t1 = DotProduct(plane->normal, p1) - plane->dist;
-		t2 = DotProduct(plane->normal, p2) - plane->dist;
+		plane = hull->planes + node->planenum;
+		normal = plane->normal;
+		dist = plane->dist;
+		type = plane->type;
+	}
+
+	if (type < 3)
+	{
+		t1 = p1[type] - dist;
+		t2 = p2[type] - dist;
+	}
+	else
+	{
+		t1 = DotProduct(normal, p1) - dist;
+		t2 = DotProduct(normal, p2) - dist;
 	}
 
 #if 1
@@ -819,13 +847,13 @@ qboolean SV_RecursiveHullCheck( hull_t* hull, int num, float p1f, float p2f, vec
 //==================
 	if (!side)
 	{
-		VectorCopy(plane->normal, trace->plane.normal);
-		trace->plane.dist = plane->dist;
+		VectorCopy(normal, trace->plane.normal);
+		trace->plane.dist = dist;
 	}
 	else
 	{
-		VectorSubtract(vec3_origin, plane->normal, trace->plane.normal);
-		trace->plane.dist = -plane->dist;
+		VectorSubtract(vec3_origin, normal, trace->plane.normal);
+		trace->plane.dist = -dist;
 	}
 
 	while (SV_HullPointContents(hull, hull->firstclipnode, mid)

@@ -7,6 +7,7 @@
 
 void GL_SubdivideSurface( msurface_t* fa );
 void EmitWaterPolys( msurface_t* fa, int direction );
+void R_DrawWaterChain( msurface_t* pChain, int direction );
 void R_DrawSkyChain( msurface_t* s );
 void D_SetFadeColor( int r, int g, int b, int fog );
 

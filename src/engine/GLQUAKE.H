@@ -59,6 +59,10 @@ int GL_LoadPicTexture( qpic_t* pic, char* pszName );
 int GL_UnloadTextures( void );
 void GL_SelectTexture( unsigned int target );
 
+// dc_draw.c -- Dreamcast texture-cache backend
+int DC_LoadTexture( char* identifier, int texture_type, int width, int height, void* data, short mipmap, int tex_type, unsigned char* pPal );
+int DC_FreeTextureByName( char* name );
+
 void GL_PaletteClearSky( void );
 short GL_PaletteAdd( unsigned char* pPal, qboolean isSky );
 
@@ -165,7 +169,7 @@ extern cl_entity_t	r_worldentity;
 extern	qboolean	r_cache_thrash;		// compatability
 extern	vec3_t		modelorg, r_entorigin;
 extern cl_entity_t* currententity;
-extern	int			r_visframecount;
+extern	signed char	r_visframecount;
 extern	int			r_framecount;
 extern	mplane_t	frustum[4];
 extern	int		c_brush_polys, c_alias_polys;
@@ -355,6 +359,7 @@ qboolean	DCV_DDError( HRESULT hr, TCHAR* op );
 void		DCV_SetHudDepth( float layer );
 void		DCV_Flip( void );
 void		DCV_InvalidateTextureCache( void );
+void		DCV_SetupFog( void );
 int			DCV_LT2Decode( const byte* in, int in_size, color24* out, int w, int h );
 
 //
@@ -362,6 +367,8 @@ int			DCV_LT2Decode( const byte* in, int in_size, color24* out, int w, int h );
 //
 extern D3DMATRIX	gViewMatrix;
 extern colorVec		gWaterColor;
+void			R_ApplySceneProjection( void );
+void			R_SetRenderMode( cl_entity_t* pEntity );
 
 //
 // text_draw.cpp / dc_draw.c -- console character sheet (the Font_* text API is

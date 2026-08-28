@@ -14,7 +14,7 @@ qboolean	r_cache_thrash;		// compatability
 vec3_t		modelorg, r_entorigin;
 cl_entity_t* currententity;
 
-int			r_visframecount;
+signed char	r_visframecount;
 int			r_framecount;
 
 mplane_t	frustum[4];

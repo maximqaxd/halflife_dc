@@ -46,6 +46,7 @@ void          DCV_AccumLightmapBatch( const void *poly );
 void          DCV_AccumScrollPoly( const void *poly );
 void          DCV_SetTextureClamp( void );
 void          DCV_SetTextureWrap( void );
+extern float  g_flScrollOffset;
 void          DCV_SetClipRequired( void );
 void          DCV_SetNoClip( void );
 void          DCV_SetTexStateFromRenderMode( int rendermode );

@@ -6,7 +6,7 @@
 #endif
 
 qboolean	TEX_InitFromWad( char* path );
-qboolean	TEX_BuildPerMapWadPath( const char* mapPath, char* outPath, int outPathSize );
+qboolean	TEX_BuildPerMapWadPath( const char* mapPath, char* outPath );
 void		TEX_CleanupWadInfo( void );
 int			TEX_LoadLump( char* name, byte* dest );
 void		TEX_AddAnimatingTextures( void );

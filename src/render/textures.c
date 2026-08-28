@@ -82,7 +82,7 @@ void ForwardSlashes( char* pname )
 TEX_BuildPerMapWadPath
 =================
 */
-qboolean TEX_BuildPerMapWadPath( const char* mapPath, char* outPath, int outPathSize )
+qboolean TEX_BuildPerMapWadPath( const char* mapPath, char* outPath )
 {
 	int i, h[3], wadLen, outLen;
 	int foundSmallWad = 0;
@@ -91,7 +91,7 @@ qboolean TEX_BuildPerMapWadPath( const char* mapPath, char* outPath, int outPath
 	char wadProbe[MAX_PATH];
 	char wadToken[MAX_PATH];
 
-	if (!outPath || outPathSize <= 0)
+	if (!outPath)
 		return FALSE;
 
 	outPath[0] = '\0';
@@ -118,7 +118,7 @@ qboolean TEX_BuildPerMapWadPath( const char* mapPath, char* outPath, int outPath
 		sprintf(wadToken, "%d_%s.wad", i, mapName);
 
 		outLen = strlen(outPath);
-		if (outLen + (int)strlen(wadToken) + 2 >= outPathSize)
+		if (outLen + (int)strlen(wadToken) + 2 >= MAX_OSPATH)
 			break;
 		if (outLen > 0)
 			strcat(outPath, ";");
@@ -137,8 +137,8 @@ qboolean TEX_BuildPerMapWadPath( const char* mapPath, char* outPath, int outPath
 	if (h[2] != -1)
 	{
 		COM_CloseFile(h[0], h[1], h[2]);
-		strncpy(outPath, wadProbe, outPathSize - 1);
-		outPath[outPathSize - 1] = '\0';
+		strncpy(outPath, wadProbe, MAX_OSPATH - 1);
+		outPath[MAX_OSPATH - 1] = '\0';
 		return TRUE;
 	}
 
@@ -149,8 +149,8 @@ qboolean TEX_BuildPerMapWadPath( const char* mapPath, char* outPath, int outPath
 	if (h[2] != -1)
 	{
 		COM_CloseFile(h[0], h[1], h[2]);
-		strncpy(outPath, wadProbe, outPathSize - 1);
-		outPath[outPathSize - 1] = '\0';
+		strncpy(outPath, wadProbe, MAX_OSPATH - 1);
+		outPath[MAX_OSPATH - 1] = '\0';
 		return TRUE;
 	}
 

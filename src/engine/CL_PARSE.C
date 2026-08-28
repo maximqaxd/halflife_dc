@@ -583,11 +583,26 @@ void CL_RegisterResources( void )
 
 void CL_MoveToOnHandList( resource_t* pResource )
 {
+	char* name;
+
 	if (!pResource)
 	{
 		Con_DPrintf("Null resource passed to CL_MoveToOnHandList\n");
 		return;
 	}
+
+	// Resource-list names in the target are canonicalized before lookup.
+	// Dreamcast media paths are lowercase and relative to the game directory.
+	name = pResource->szFileName;
+	if (*name == '/' || *name == '\\')
+	{
+		do
+		{
+			*name = name[1];
+			name++;
+		} while (*name);
+	}
+	COM_StringToLower(pResource->szFileName);
 
 	switch (pResource->type)
 	{
@@ -605,13 +620,14 @@ void CL_MoveToOnHandList( resource_t* pResource )
 			{
 				Con_Printf("Cannot continue without sound %s, disconnecting\n", pResource->szFileName);
 				CL_Disconnect();
+				return;
 			}
 		}
 		break;
 	case t_skin:
 		break;
 	case t_model:
-		cl.model_precache[pResource->nIndex] = Mod_ForName(pResource->szFileName, FALSE);
+		cl.model_precache[pResource->nIndex] = Mod_ForNameDefer(pResource->szFileName, FALSE);
 		if (!cl.model_precache[pResource->nIndex])
 		{
 			Con_Printf("Model %s not found\n", pResource->szFileName);
@@ -619,6 +635,7 @@ void CL_MoveToOnHandList( resource_t* pResource )
 			{
 				Con_Printf("Cannot continue without model, disconnecting\n");
 				CL_Disconnect();
+				return;
 			}
 		}
 		break;
