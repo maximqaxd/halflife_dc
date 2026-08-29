@@ -6,6 +6,10 @@
 #include "shake.h"
 #include "dc_draw.h"
 #include "dc_accum.h"
+#include <floatmathlib.h>
+#include <shintr.h>
+
+#pragma intrinsic(fabsf)
 
 cl_entity_t	r_worldentity;
 
@@ -51,10 +55,11 @@ float	gWorldToScreen[16];
 /* Current D3D view matrix */
 D3DMATRIX gViewMatrix;
 
-static float g_frustum_xmax, g_frustum_ymax;
+/* Projection scale offset used for coplanar passes; this is not a Z-near
+   distance.  The base world projection keeps it at zero. */
 float g_frustum_zn;
 
-// Rotating near-plane slot handed out to brush models by R_DrawBrushModel.
+// Rotating projection-scale slot handed out to brush models by R_DrawBrushModel.
 int r_depthslot;
 
 //
@@ -73,9 +78,16 @@ void R_MarkLeaves( void );
 
 extern cshift_t	cshift_water;
 
+/* Effect sprites whose projection is biased toward the camera on Dreamcast. */
+extern short g_sModelIndexLaserDot;
+extern short g_sModelIndexFireball;
+extern short g_sModelIndexSmoke;
+extern short g_sModelIndexWExplosion;
+extern short g_sModelIndexEgonFlare;
+
 /*-----------------------------------------------------------------*/
 
-#define DEG2RAD( a ) ( a * M_PI ) / 180.0F
+#define DEG2RAD( a ) (((a) * (float)M_PI) / 180.0f)
 
 /*
 ================
@@ -182,10 +194,10 @@ void PerpendicularVector( vec_t* dst, const vec_t* src )
 	*/
 	for (pos = 0, i = 0; i < 3; i++)
 	{
-		if (fabs(src[i]) < minelem)
+		if (fabsf(src[i]) < minelem)
 		{
 			pos = i;
-			minelem = fabs(src[i]);
+			minelem = fabsf(src[i]);
 		}
 	}
 	tempvec[0] = tempvec[1] = tempvec[2] = 0.0F;
@@ -203,7 +215,7 @@ void PerpendicularVector( vec_t* dst, const vec_t* src )
 }
 
 
-void RotatePointAroundVector( vec_t* dst, const vec_t* dir, const vec_t* point, float degrees )
+void RotatePointAroundAxisByDegrees( vec_t* dst, const vec_t* dir, const vec_t* point, float degrees )
 {
 	float	m[3][3];
 	float	im[3][3];
@@ -279,7 +291,7 @@ qboolean R_CullBox( vec_t* mins, vec_t* maxs )
 
 // Same test as R_CullBox, but works directly off a node's short-packed
 // bounding box (mnode_t.minmaxs) instead of paying for a float conversion first.
-qboolean R_CullBoxShort( short* mins, short* maxs )
+qboolean R_TestPackedBoundsAgainstFrustum( short* mins, short* maxs )
 {
 	int		i;
 
@@ -296,17 +308,19 @@ void R_RotateForEntity( cl_entity_t* e )
 	int		i;
 	vec3_t	angles;
 	vec3_t	modelpos;
-	LPDIRECT3DDEVICE3 dev;
 
 	VectorCopy(e->origin, modelpos);
 	VectorCopy(e->angles, angles);
 
 	if (e->movetype != MOVETYPE_NONE)
 	{
-		float f = 0.0;
+		float f = 0.0f;
 		float d;
-		if (e->animtime + 0.2 > cl.time && e->animtime != e->prevanimtime)
-			f = (cl.time - e->animtime) / (e->animtime - e->prevanimtime);
+		if (cl.time > e->animtime + 0.2f)
+		{
+			if (e->animtime != e->prevanimtime)
+				f = (cl.time - e->animtime) / (e->animtime - e->prevanimtime);
+		}
 
 		for (i = 0; i < 3; i++)
 		{
@@ -314,43 +328,27 @@ void R_RotateForEntity( cl_entity_t* e )
 			modelpos[i] -= d * f;
 		}
 
-		if (f > 0.0 && f < 1.5)
+		if (f > 0.0f && f < 1.5f)
 		{
-			f = 1.0 - f;
+			f = 1.0f - f;
 
 			for (i = 0; i < 3; i++)
 			{
 				d = e->prevangles[i] - e->angles[i];
-				if (d > 180.0)
-					d -= 360.0;
-				else if (d < -180.0)
-					d += 360.0;
+				if (d > 180.0f)
+					d -= 360.0f;
+				else if (d < -180.0f)
+					d += 360.0f;
 
 				angles[i] += d * f;
 			}
 		}
 	}
 
-	dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-
-	if (dev)
-	{
-		D3DMATRIX world;
-		vec3_t forward, right, up;
-			
-		DCV_FlushInline();
-
-		AngleVectors(angles, forward, right, up);
-
-		memset(&world, 0, sizeof(world));
-		world._11 = forward[0];  world._12 = forward[1];  world._13 = forward[2];
-		world._21 = -right[0];   world._22 = -right[1];   world._23 = -right[2];
-		world._31 = up[0];       world._32 = up[1];       world._33 = up[2];
-		world._41 = modelpos[0]; world._42 = modelpos[1]; world._43 = modelpos[2];
-		world._44 = 1.0f;
-
-		dev->lpVtbl->SetTransform(dev, D3DTRANSFORMSTATE_WORLD, &world);
-	}
+	DCV_Translate(D3DTRANSFORMSTATE_WORLD, modelpos[0], modelpos[1], modelpos[2]);
+	DCV_Rotate(D3DTRANSFORMSTATE_WORLD, angles[1], 0.0f, 0.0f, 1.0f);
+	DCV_Rotate(D3DTRANSFORMSTATE_WORLD, -angles[0], 0.0f, 1.0f, 0.0f);
+	DCV_Rotate(D3DTRANSFORMSTATE_WORLD, angles[2], 1.0f, 0.0f, 0.0f);
 }
 
 /*
@@ -368,9 +366,9 @@ void R_RotateForEntity( cl_entity_t* e )
 ==================
 R_ApplyViewModelProjection
 
-Rebuild the projection around a new near plane. Used for anything that has to
-be depth-sorted against the scene it is drawn over -- the view model, decals,
-and the lightmap pass.
+Rebuild the fixed 2-unit-near projection with a small scale offset.  The
+offset separates coplanar passes (brush entities, decals, lightmaps) without
+changing their clip planes.
 ==================
 */
 #define VIEWMODEL_ZNEAR		2.0f
@@ -378,49 +376,28 @@ and the lightmap pass.
 void R_ApplyViewModelProjection( float zn )
 {
 	extern	int	glwidth, glheight;
-	float	aspect, fov, fovy, xmax, ymax, msw, zf;
+	float	aspect, fov, fovy, xmax, ymax, msw, zf, znear;
 
 	DCV_SetTransform( D3DTRANSFORMSTATE_PROJECTION, &g_identityMatrix );
 
 	aspect = (float)glwidth / (float)glheight;
 
 	fov = scr_fov_value;
-	if (fov < 1.0f || fov > 179.0f)
-		fov = 90.0f;
-
-	fovy = atan( (float)glheight / ((float)glwidth / tan( (fov / 360.0f) * (float)M_PI )) );
-	fovy = (fovy * 360.0f) / (float)M_PI;
+	fovy = CalcFov(fov, (float)glwidth, (float)glheight);
 
 	msw = dc_msw.value * (zn + 1.0f);
 	g_frustum_zn = zn;
 	zf = gl_zmax.value;
 
-	ymax = VIEWMODEL_ZNEAR * tan( (fovy * (float)M_PI) / 360.0f );
+	znear = VIEWMODEL_ZNEAR;
+	ymax = znear * tan( (fovy * (float)M_PI) / 360.0f );
 	xmax = aspect * ymax;
 
-	DCV_Frustum( -xmax, xmax, -ymax, ymax,
-		VIEWMODEL_ZNEAR, zf, msw, D3DTRANSFORMSTATE_PROJECTION );
+	DCV_Frustum( D3DTRANSFORMSTATE_PROJECTION, -xmax, xmax, -ymax, ymax,
+		znear, zf, msw );
 
 	DCV_SetViewportDepthRange( dc_depthmin.value, dc_depthmax.value );
 }
-
-/*
-==================
-R_ApplySceneProjection
-==================
-*/
-void R_ApplySceneProjection( void )
-{
-	DCV_BuildProjectionAndSetTransform(
-		g_frustum_xmax, -g_frustum_xmax,
-		g_frustum_ymax, -g_frustum_ymax,
-		g_frustum_zn, gl_zmax.value,
-		dc_msw.value * 0.75f,
-		D3DTRANSFORMSTATE_PROJECTION );
-
-	DCV_SetViewportDepthRange( dc_depthmin.value, dc_depthmax.value );
-}
-
 
 /*
 =================
@@ -432,114 +409,185 @@ void R_DrawSpriteModel( cl_entity_t* e )
 {
 	vec3_t	point, forward, right, up;
 	mspriteframe_t* frame;
-	float			scale;
+	register float	scale;
+	int			depthHack;
+	int			projectionChanged;
 	msprite_t* psprite;
 	colorVec		color;
-	int             alpha;
-	int             base;
+	int			i0, i1, i2, i3;
 
-	psprite = (msprite_t*)e->model->cache.data;
+	depthHack = FALSE;
+	projectionChanged = FALSE;
+	psprite = (msprite_t*)(((unsigned)e->model->cache.data & 1) ? NULL : e->model->cache.data);
 
 	frame = R_GetSpriteFrame( psprite, e->frame );
 
-	scale = ( e->scale > 0.0f ) ? e->scale : 1.0f;
+	if (e->scale > 0.0f)
+		scale = e->scale;
+	else
+		scale = 1.0f;
 
 	if ( e->rendermode == kRenderNormal )
 		r_blend = 1.0f;
 
-	alpha = (int)( (float)e->renderamt * scale );
-	if ( alpha < 0 )   alpha = 0;
-	if ( alpha > 255 ) alpha = 255;
+	if (e->model == cl.model_precache[g_sModelIndexLaserDot])
+		depthHack = TRUE;
+	else if (e->model == cl.model_precache[g_sModelIndexFireball])
+		depthHack = TRUE;
+	else if (e->model == cl.model_precache[g_sModelIndexSmoke])
+		depthHack = TRUE;
+	else if (e->model == cl.model_precache[g_sModelIndexWExplosion])
+		depthHack = TRUE;
+	else if (e->model == cl.model_precache[g_sModelIndexEgonFlare])
+		depthHack = TRUE;
 
 	R_SpriteColor( &color, e, (int)( r_blend * 255.0f ) );
 
-	switch ( e->rendermode )
+	if (gl_spriteblend.value || e->rendermode != kRenderNormal)
 	{
-	case kRenderNormal:
-		DCV_SetColor( 255, 255, 255, 255 );
+		if (e->rendermode == kRenderTransColor)
+		{
+			DCV_TexState_Blend();
+			DCV_SetColor( color.r, color.g, color.b, (int)(r_blend * 255.0f) );
+		}
+		else if (e->rendermode == kRenderTransAdd)
+		{
+			DCV_TexState_Additive();
+			DCV_SetColor( color.r, color.g, color.b, 255 );
+			if (depthHack)
+			{
+				extern int glwidth, glheight;
+				float aspect, fov, fovy, xmax, ymax, msw, zf, znear;
+
+				DCV_SetTransform(D3DTRANSFORMSTATE_PROJECTION, &g_identityMatrix);
+				aspect = (float)glwidth / (float)glheight;
+				fov = scr_fov_value;
+				fovy = CalcFov(fov, (float)glwidth, (float)glheight);
+				msw = dc_msw.value * 0.75f;
+				g_frustum_zn = -0.25f;
+				zf = gl_zmax.value;
+				znear = VIEWMODEL_ZNEAR;
+				ymax = znear * tan((fovy * (float)M_PI) / 360.0f);
+				xmax = aspect * ymax;
+				DCV_Frustum(D3DTRANSFORMSTATE_PROJECTION, -xmax, xmax, -ymax, ymax,
+					znear, zf, msw);
+				DCV_SetViewportDepthRange(dc_depthmin.value, dc_depthmax.value);
+				projectionChanged = TRUE;
+			}
+		}
+		else if (e->rendermode == kRenderGlow)
+		{
+			DCV_TexState_Additive();
+			DCV_SetColor( color.r, color.g, color.b, 255 );
+			DCV_FlushApplyRenderState( D3DRENDERSTATE_ZENABLE, FALSE );
+			DCV_FlushApplyRenderState( D3DRENDERSTATE_ZWRITEENABLE, FALSE );
+			if (depthHack)
+			{
+				extern int glwidth, glheight;
+				float aspect, fov, fovy, xmax, ymax, msw, zf, znear;
+
+				DCV_SetTransform(D3DTRANSFORMSTATE_PROJECTION, &g_identityMatrix);
+				aspect = (float)glwidth / (float)glheight;
+				fov = scr_fov_value;
+				fovy = CalcFov(fov, (float)glwidth, (float)glheight);
+				g_frustum_zn = -0.5f;
+				msw = dc_msw.value * 0.5f;
+				zf = gl_zmax.value;
+				znear = VIEWMODEL_ZNEAR;
+				ymax = znear * tan((fovy * (float)M_PI) / 360.0f);
+				xmax = aspect * ymax;
+				DCV_Frustum(D3DTRANSFORMSTATE_PROJECTION, -xmax, xmax, -ymax, ymax,
+					znear, zf, msw);
+				DCV_SetViewportDepthRange(dc_depthmin.value, dc_depthmax.value);
+				projectionChanged = TRUE;
+			}
+		}
+		else if (e->rendermode == kRenderTransAlpha)
+		{
+			DCV_TexState_Blend();
+			DCV_SetColor( color.r, color.g, color.b, (int)(r_blend * 255.0f) );
+			if (depthHack)
+			{
+				extern int glwidth, glheight;
+				float aspect, fov, fovy, xmax, ymax, msw, zf, znear;
+
+				DCV_SetTransform(D3DTRANSFORMSTATE_PROJECTION, &g_identityMatrix);
+				aspect = (float)glwidth / (float)glheight;
+				fov = scr_fov_value;
+				fovy = CalcFov(fov, (float)glwidth, (float)glheight);
+				zf = gl_zmax.value;
+				msw = dc_msw.value * 0.75f;
+				g_frustum_zn = -0.25f;
+				znear = VIEWMODEL_ZNEAR;
+				ymax = znear * tan((fovy * (float)M_PI) / 360.0f);
+				xmax = aspect * ymax;
+				DCV_Frustum(D3DTRANSFORMSTATE_PROJECTION, -xmax, xmax, -ymax, ymax,
+					znear, zf, msw);
+				DCV_SetViewportDepthRange(dc_depthmin.value, dc_depthmax.value);
+				projectionChanged = TRUE;
+			}
+		}
+		else
+		{
+			DCV_TexState_Blend();
+			DCV_SetColor( color.r, color.g, color.b, (int)(r_blend * 255.0f) );
+		}
+	}
+	else
+	{
+		DCV_SetColor( color.r, color.g, color.b, 255 );
 		DCV_TexState_Opaque();
-		break;
-
-	case kRenderTransColor:
-	case kRenderTransTexture:
-		DCV_TexState_Blend();
-		DCV_SetColor( color.r, color.g, color.b, alpha );
-		R_ApplySceneProjection();
-		break;
-
-	case kRenderGlow:
-		DCV_TexState_Additive();
-		DCV_SetColor( color.r, color.g, color.b, 255 );
-		R_ApplySceneProjection();
-		break;
-
-	case kRenderTransAdd:
-		DCV_TexState_Additive();
-		DCV_SetColor( color.r, color.g, color.b, 255 );
-		DCV_FlushApplyRenderState( D3DRENDERSTATE_ZENABLE,       FALSE );
-		DCV_FlushApplyRenderState( D3DRENDERSTATE_ZWRITEENABLE,   FALSE );
-		R_ApplySceneProjection();
-		break;
-
-	case kRenderTransAlpha:
-		DCV_TexState_Blend();
-		DCV_SetColor( color.r, color.g, color.b, alpha );
-		break;
-
-	default:
-		DCV_TexState_Blend();
-		DCV_SetColor( color.r, color.g, color.b, alpha );
-		break;
 	}
 
 	R_GetSpriteAxes( e, psprite->type, forward, right, up );
-	DCV_FlushInline();
+	GL_DisableMultitexture();
 	GL_Bind(frame->gl_texturenum, 0);
 
-	if ( !DCV_EnsureSpace( 4, 6 ) )
-		return;
-
-	base = DCV_GetVertCount();
+	DCV_FlushIfLarge();
 
 	/* v0: bottom-left */
 	VectorMA( r_entorigin, frame->down * scale, up,    point );
 	VectorMA( point,       frame->left * scale, right, point );
-	DCV_AddVertex( point[0], point[1], point[2], 0.0f, 1.0f );
+	i0 = DCV_AddVertex( point[0], point[1], point[2], 0.0f, 1.0f );
 
 	/* v1: top-left */
 	VectorMA( r_entorigin, frame->up   * scale, up,    point );
 	VectorMA( point,       frame->left * scale, right, point );
-	DCV_AddVertex( point[0], point[1], point[2], 0.0f, 0.0f );
+	i1 = DCV_AddVertex( point[0], point[1], point[2], 0.0f, 0.0f );
 
 	/* v2: top-right */
 	VectorMA( r_entorigin, frame->up    * scale, up,    point );
 	VectorMA( point,       frame->right * scale, right, point );
-	DCV_AddVertex( point[0], point[1], point[2], 1.0f, 0.0f );
+	i2 = DCV_AddVertex( point[0], point[1], point[2], 1.0f, 0.0f );
 
 	/* v3: bottom-right */
 	VectorMA( r_entorigin, frame->down  * scale, up,    point );
 	VectorMA( point,       frame->right * scale, right, point );
-	DCV_AddVertex( point[0], point[1], point[2], 1.0f, 1.0f );
+	i3 = DCV_AddVertex( point[0], point[1], point[2], 1.0f, 1.0f );
 
-	DCV_AddIndicesQuad( base, base + 1, base + 2, base + 3 );
-	DCV_FlushIfLarge();
+	DCV_AddIndicesQuad( i0, i1, i2, i3 );
 
 	DCV_FlushApplyRenderState( D3DRENDERSTATE_ZENABLE,      D3DZB_TRUE );
 	DCV_FlushApplyRenderState( D3DRENDERSTATE_ZWRITEENABLE,  TRUE );
 
-	if ( e->rendermode == kRenderGlow ||
-	     e->rendermode == kRenderTransAdd ||
-	     e->rendermode == kRenderTransColor ||
-	     e->rendermode == kRenderTransTexture )
+	if (projectionChanged)
 	{
-		DCV_BuildProjectionAndSetTransform(
-			g_frustum_xmax, -g_frustum_xmax,
-			g_frustum_ymax, -g_frustum_ymax,
-			g_frustum_zn, gl_zmax.value,
-			dc_msw.value,
-			D3DTRANSFORMSTATE_PROJECTION );
-		DCV_SetViewportDepthRange( dc_depthmin.value, dc_depthmax.value );
-		DCV_FlushInline();
+		extern int glwidth, glheight;
+		float aspect, fov, fovy, xmax, ymax, msw, zf, znear;
+
+		DCV_SetTransform(D3DTRANSFORMSTATE_PROJECTION, &g_identityMatrix);
+		aspect = (float)glwidth / (float)glheight;
+		fov = scr_fov_value;
+		fovy = CalcFov(fov, (float)glwidth, (float)glheight);
+		g_frustum_zn = 0.0f;
+		msw = dc_msw.value;
+		zf = gl_zmax.value;
+		znear = VIEWMODEL_ZNEAR;
+		ymax = znear * tan((fovy * (float)M_PI) / 360.0f);
+		xmax = aspect * ymax;
+		DCV_Frustum(D3DTRANSFORMSTATE_PROJECTION, -xmax, xmax, -ymax, ymax,
+			znear, zf, msw);
+		DCV_SetViewportDepthRange(dc_depthmin.value, dc_depthmax.value);
 	}
 }
 
@@ -628,7 +676,7 @@ R_DrawEntitiesOnList
 */
 void R_DrawEntitiesOnList( void )
 {
-	int		i;
+	int		i, j;
 
 	if (!r_drawentities.value)
 		return;
@@ -651,7 +699,8 @@ void R_DrawEntitiesOnList( void )
 			break;
 
 		case mod_alias:
-			R_DrawAliasModel(currententity);
+			Sys_Error("R_DrawAliasModel should be obsolete\n");
+			Sys_Error("We have alias models???");
 			break;
 
 		case mod_studio:
@@ -662,7 +711,33 @@ void R_DrawEntitiesOnList( void )
 			}
 			else
 			{
-				R_StudioDrawModel(STUDIO_RENDER | STUDIO_EVENTS);
+				if (currententity->movetype == MOVETYPE_FOLLOW)
+				{
+					for (j = 0; j < cl_numvisedicts; j++)
+					{
+						if (cl_visedicts[j].index != currententity->aiment)
+							continue;
+
+						currententity = &cl_visedicts[j];
+						if (currententity->index > 0 && currententity->index <= cl.maxclients)
+						{
+							R_StudioDrawPlayer(0,
+								&cl.frames[cl.parsecount & UPDATE_MASK].playerstate[currententity->index - 1]);
+						}
+						else
+						{
+							R_StudioDrawModel(0, TRUE);
+						}
+
+						currententity = &cl_visedicts[i];
+						R_StudioDrawModel(STUDIO_RENDER | STUDIO_EVENTS, TRUE);
+						break;
+					}
+				}
+				else
+				{
+					R_StudioDrawModel(STUDIO_RENDER | STUDIO_EVENTS, TRUE);
+				}
 			}
 			break;
 
@@ -671,7 +746,7 @@ void R_DrawEntitiesOnList( void )
 		}
 	}
 
-	r_blend = 1.0;
+	r_blend = 1.0f;
 
 	for (i = 0; i < cl_numvisedicts; i++)
 	{
@@ -711,12 +786,14 @@ R_DrawViewModel
 */
 void R_DrawViewModel( void )
 {
+	extern int	glwidth, glheight;
 	float		lightvec[3];
 	colorVec	c;
 	int			j;
 	int			lnum;
 	vec3_t		dist;
 	float		add, oldShadows;
+	float		screenaspect, yfov, ymax, znear;
 	dlight_t* dl;
 
 	lightvec[0] = -1;
@@ -725,38 +802,25 @@ void R_DrawViewModel( void )
 
 	currententity = &cl.viewent;
 
-	if (!r_drawviewmodel.value)
+	if (!r_drawviewmodel.value || cam_thirdperson || chase_active.value || envmap ||
+		!r_drawentities.value || cl.stats[STAT_HEALTH] <= 0 ||
+		!currententity->model || cl.viewentity > cl.maxclients || cl.spectator)
 	{
 		c = R_LightPoint(currententity->origin);
 		cl.light_level = (c.r + c.g + c.b) / 3;
 		return;
 	}
 
-	// Don't draw if we are in a third person mode
-	if (cam_thirdperson || chase_active.value || envmap || !r_drawentities.value)
-	{
-		c = R_LightPoint(currententity->origin);
-		cl.light_level = (c.r + c.g + c.b) / 3;
-		return;
-	}
-
-	if (cl.stats[STAT_HEALTH] <= 0 || !currententity->model || cl.viewentity > cl.maxclients || cl.spectator)
-	{
-		c = R_LightPoint(currententity->origin);
-		cl.light_level = (c.r + c.g + c.b) / 3;
-		return;
-	}
-
-
-		DCV_BuildProjectionAndSetTransform(
-			g_frustum_xmax, -g_frustum_xmax,
-			g_frustum_ymax, -g_frustum_ymax,
-			g_frustum_zn, gl_zmax.value,
-			dc_msv.value,
-			D3DTRANSFORMSTATE_PROJECTION );
-
-		DCV_SetViewportDepthRange( dc_depthmin.value, dc_depthmax.value );
-		DCV_FlushInline();
+		DCV_SetTransform(D3DTRANSFORMSTATE_PROJECTION, &g_identityMatrix);
+		screenaspect = (float)glwidth / (float)glheight;
+		yfov = CalcFov(scr_fov_value, (float)glwidth, (float)glheight);
+		znear = VIEWMODEL_ZNEAR;
+		ymax = znear * (float)tan((yfov * (float)M_PI) / 360.0f);
+		DCV_Frustum(D3DTRANSFORMSTATE_PROJECTION,
+			-screenaspect * ymax, screenaspect * ymax, -ymax, ymax,
+			znear, gl_zmax.value, dc_msv.value);
+		DCV_SetViewportDepthRange(dc_depthmin.value, dc_depthmax.value);
+		DCV_SetTextureWrap();
 
 		switch (currententity->model->type)
 		{
@@ -765,67 +829,104 @@ void R_DrawViewModel( void )
 			break;
 
 		case mod_alias:
+			c = R_LightPoint(currententity->origin);
+
+			j = (c.r + c.g + c.b) / 3;
+			if (j < 24)
+				j = 24;
+			r_viewlighting.ambientlight = j;
+			r_viewlighting.shadelight = j;
+
+			for (lnum = 0; lnum < MAX_DLIGHTS; lnum++)
+			{
+				dl = &cl_dlights[lnum];
+				if (!dl->radius)
+					continue;
+				if (!dl->radius)
+					continue;
+			if (dl->die < cl.time)
+					continue;
+
+				VectorSubtract(currententity->origin, dl->origin, dist);
+				add = dl->radius - VectorLength(dist);
+				if (add > 0.0f)
+					r_viewlighting.ambientlight += add;
+			}
+
+			if (r_viewlighting.ambientlight > 128)
+				r_viewlighting.ambientlight = 128;
+			if (r_viewlighting.ambientlight + r_viewlighting.shadelight > 192)
+				r_viewlighting.shadelight = 192 - r_viewlighting.ambientlight;
+
+			r_viewlighting.plightvec = lightvec;
 			R_DrawAliasModel(currententity);
 			break;
 
 		case mod_studio:
-			if (cl.weaponstarttime == 0.0)
+			if (cl.weaponstarttime == 0.0f)
 				cl.weaponstarttime = cl.time;
 			
 			currententity->sequence = cl.weaponsequence;
-			currententity->frame = 0.0;
-			currententity->framerate = 1.0;
+			currententity->frame = 0.0f;
+			currententity->framerate = FloatToShort(1.0f);
 			currententity->animtime = cl.weaponstarttime;
+			currententity->colormap = cl.players[cl.playernum].translations[0xf0];
+			currententity->colormap |= cl.players[cl.playernum].translations[0xf4] << 8;
 
 			cl.light_level = 128;
 
 			oldShadows = r_shadows.value;
-			r_shadows.value = 0.0;
-			R_StudioDrawModel(STUDIO_RENDER);
+			r_shadows.value = 0.0f;
+			R_StudioDrawModel(STUDIO_RENDER, FALSE);
 			r_shadows.value = oldShadows;
 			break;
 		}
 
-		DCV_FlushInline();
-
-		DCV_BuildProjectionAndSetTransform(
-			g_frustum_xmax, -g_frustum_xmax,
-			g_frustum_ymax, -g_frustum_ymax,
-			g_frustum_zn, gl_zmax.value,
-			dc_msw.value,
-			D3DTRANSFORMSTATE_PROJECTION );
-
-		DCV_SetViewportDepthRange( dc_depthmin.value, dc_depthmax.value );
-		DCV_FlushInline();
+		DCV_SetTransform(D3DTRANSFORMSTATE_PROJECTION, &g_identityMatrix);
+		screenaspect = (float)glwidth / (float)glheight;
+		yfov = CalcFov(scr_fov_value, (float)glwidth, (float)glheight);
+		r_depthslot = 0;
+		znear = VIEWMODEL_ZNEAR;
+		ymax = znear * (float)tan((yfov * (float)M_PI) / 360.0f);
+		DCV_Frustum(D3DTRANSFORMSTATE_PROJECTION,
+			-screenaspect * ymax, screenaspect * ymax, -ymax, ymax,
+			znear, gl_zmax.value, dc_msw.value);
+		DCV_SetViewportDepthRange(dc_depthmin.value, dc_depthmax.value);
+		DCV_SetTextureClamp();
 }
 
-void R_PreDrawViewModel( void )
+void R_DispatchViewModelEvents( void )
 {
-	currententity = &cl.viewent;
+	cl_entity_t* viewent;
 
-	// Don't draw if it's disabled
+	viewent = &cl.viewent;
+	currententity = viewent;
+
+	// Don't draw if it's disabled.
 	if (!r_drawviewmodel.value)
 		return;
 
-	// Don't draw if we are in a third person mode
+	// Don't draw if we are in a third person mode.
 	if (cam_thirdperson || chase_active.value || envmap || !r_drawentities.value)
 		return;
 
-	if (cl.stats[STAT_HEALTH] <= 0 || !currententity->model || cl.viewentity > cl.maxclients || cl.spectator)
+	if (cl.stats[STAT_HEALTH] <= 0 || !viewent->model || cl.viewentity > cl.maxclients || cl.spectator)
 		return;
 
-	if (cl.viewent.model->type != mod_studio)
+	if (viewent->model->type == mod_brush ||
+		viewent->model->type == mod_alias ||
+		viewent->model->type != mod_studio)
 		return;
 
-	if (cl.weaponstarttime == 0.0)
+	if (cl.weaponstarttime == 0.0f)
 		cl.weaponstarttime = cl.time;
 
-	cl.viewent.frame = 0.0;
-	cl.viewent.framerate = 1.0;
-	cl.viewent.sequence = cl.weaponsequence;
-	cl.viewent.animtime = cl.weaponstarttime;
+	viewent->sequence = cl.weaponsequence;
+	viewent->frame = 0.0f;
+	viewent->framerate = FloatToShort(1.0f);
+	viewent->animtime = cl.weaponstarttime;
 
-	R_StudioDrawModel(STUDIO_EVENTS);
+	R_StudioDrawModel(STUDIO_EVENTS, FALSE);
 }
 
 /*
@@ -841,48 +942,26 @@ void R_PolyBlend( void )
 	alpha = V_FadeAlpha();
 	if (!alpha)
 		return;
-#if 0
-	GL_DisableMultitexture();
-	qglDisable(GL_ALPHA_TEST);
-	qglEnable(GL_BLEND);
-	qglDisable(GL_DEPTH_TEST);
-	qglDisable(GL_TEXTURE_2D);
+
 	if (cl.sf.fadeFlags & FFADE_MODULATE)
 	{
-		qglBlendFunc(GL_ZERO, GL_SRC_COLOR);
-		color[0] = (alpha * (cl.sf.fader - 255) - 511) >> 8;
-		color[1] = (alpha * (cl.sf.fadeg - 255) - 511) >> 8;
-		color[2] = (alpha * (cl.sf.fadeb - 255) - 511) >> 8;
+		int remainder = 255 * (255 - alpha);
+
+		color[0] = (alpha * cl.sf.fader + remainder) >> 8;
+		color[1] = (alpha * cl.sf.fadeg + remainder) >> 8;
+		color[2] = (alpha * cl.sf.fadeb + remainder) >> 8;
 		color[3] = 255;
 	}
 	else
 	{
-		qglBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		color[0] = cl.sf.fader;
 		color[1] = cl.sf.fadeg;
 		color[2] = cl.sf.fadeb;
 		color[3] = alpha;
 	}
 
-	qglLoadIdentity();
-
-	qglRotatef(-90, 1, 0, 0);	    // put Z going up
-	qglRotatef(90, 0, 0, 1);	    // put Z going up
-
-	qglColor4ubv(color);
-
-	qglBegin(GL_QUADS);
-
-	qglVertex3f(10, 10, 10);
-	qglVertex3f(10, -10, 10);
-	qglVertex3f(10, -10, -10);
-	qglVertex3f(10, 10, -10);
-	qglEnd();
-
-	qglDisable(GL_BLEND);
-	qglEnable(GL_TEXTURE_2D);
-	qglEnable(GL_ALPHA_TEST);
-#endif
+	DCV_ScreenFade(color[0], color[1], color[2], color[3], 0,
+		(cl.sf.fadeFlags & FFADE_MODULATE) != 0);
 }
 
 
@@ -904,28 +983,21 @@ int SignbitsForPlane( mplane_t* out )
 void R_SetFrustum( void )
 {
 	int		i;
-	float	viewWidth;
-	float	viewHeight;
 	float	fovx, fovy;
 
 	fovx = scr_fov_value;
-	viewWidth = (float)r_refdef.vrect.width;
-	viewHeight = (float)r_refdef.vrect.height;
-	if (viewWidth <= 0.0f)
-		viewWidth = (float)glwidth;
-	if (viewHeight <= 0.0f)
-		viewHeight = (float)glheight;
-
-	fovy = CalcFov(fovx, viewWidth, viewHeight);
+	fovy = CalcFov(fovx, (float)glwidth, (float)glheight);
+	fovx *= 0.5f;
+	fovy *= 0.5f;
 
 	// rotate VPN right by FOV_X/2 degrees
-	RotatePointAroundVector(frustum[0].normal, vup, vpn, -(90 - fovx / 2));
+	RotatePointAroundAxisByDegrees(frustum[0].normal, vup, vpn, -(90.0f - fovx));
 	// rotate VPN left by FOV_X/2 degrees
-	RotatePointAroundVector(frustum[1].normal, vup, vpn, 90 - fovx / 2);
+	RotatePointAroundAxisByDegrees(frustum[1].normal, vup, vpn, 90.0f - fovx);
 	// rotate VPN up by FOV_X/2 degrees
-	RotatePointAroundVector(frustum[2].normal, vright, vpn, 90 - fovy / 2);
+	RotatePointAroundAxisByDegrees(frustum[2].normal, vright, vpn, 90.0f - fovy);
 	// rotate VPN down by FOV_X/2 degrees
-	RotatePointAroundVector(frustum[3].normal, vright, vpn, -(90 - fovy / 2));
+	RotatePointAroundAxisByDegrees(frustum[3].normal, vright, vpn, -(90.0f - fovy));
 
 	for (i = 0; i < 4; i++)
 	{
@@ -944,6 +1016,11 @@ R_SetupFrame
 */
 void R_SetupFrame( void )
 {
+	extern cvar_t forcefog;
+	int fogEnabled;
+
+	DCV_UpdateTextureFiltering();
+
 // don't allow cheats in multiplayer
 	if (cl.maxclients > 1)
 		Cvar_Set("r_fullbright", "0");
@@ -960,24 +1037,18 @@ void R_SetupFrame( void )
 // current viewleaf
 	r_oldviewleaf = r_viewleaf;
 	r_viewleaf = Mod_PointInLeaf(r_origin, cl.worldmodel);
-#if 0
 	if (cl.waterlevel > 2)
 	{
-		float fogColor[4];
-
-		// Calculate fog color
-		fogColor[0] = cshift_water.destcolor[0] / 255.0;
-		fogColor[1] = cshift_water.destcolor[1] / 255.0;
-		fogColor[2] = cshift_water.destcolor[2] / 255.0;
-		fogColor[3] = 1.0;
-
-		qglFogi(GL_FOG_MODE, GL_LINEAR);
-		qglFogfv(GL_FOG_COLOR, fogColor);
-		qglFogf(GL_FOG_START, GL_ZERO);
-		qglFogf(GL_FOG_END, 1536 - 4 * cshift_water.percent);
-		qglEnable(GL_FOG);
+		DCV_SetFog(TRUE, cshift_water.destcolor[0], cshift_water.destcolor[1],
+			cshift_water.destcolor[2], cshift_water.percent);
 	}
-#endif
+	else
+	{
+		fogEnabled = TRUE;
+		if (forcefog.value <= 0.0f)
+			fogEnabled = FALSE;
+		DCV_SetFog(fogEnabled, 64, 64, 64, 128);
+	}
 
 	V_CalcBlend();
 
@@ -1013,14 +1084,14 @@ float CalcFov( float fov_x, float width, float height )
 	float	a;
 	float	x;
 
-	if (fov_x < 1 || fov_x > 179)
-		fov_x = 90;	// error, set to 90
+	if (fov_x < 1.0f || fov_x > 179.0f)
+		fov_x = 90.0f;	// error, set to 90
 
-	x = width / tan(fov_x / 360 * M_PI);
+	x = width / tan((fov_x / 360.0f) * (float)M_PI);
 
 	a = atan(height / x);
 
-	a = a * 360 / M_PI;
+	a = (a * 360.0f) / (float)M_PI;
 
 	return a;
 }
@@ -1034,43 +1105,15 @@ void R_SetupGL( void )
 {
 	extern	int glwidth, glheight;
 	int		x, x2, y2, y, w, h;
+	D3DMATRIX view;
+	D3DMATRIX worldView;
+	D3DMATRIX world;
 
-	LPDIRECT3DDEVICE3 dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-	LPDIRECT3DVIEWPORT3 vp3 = (LPDIRECT3DVIEWPORT3)Sys_GetD3DViewport();
-	D3DVIEWPORT2 vp;
-	D3DMATRIX proj, view, world, mtx;
+	float	screenaspect;
+	float	yfov;
+	float	ymax;
 
-	float	msw;
-	float	msv;
-	float	zn;
-	float	zf;
-	float	fovx;
-	float	fovy_deg;
-	float	fovy_rad;
-	float	aspect;
-	float	ymax, ymin, xmin, xmax;
-
-	if (!dev)
-		return;
-
-	msw = dc_msw.value;
-	if (msw < 0.03125f)
-		msw = 0.03125f;
-	else if (msw > 64.0f)
-		msw = 64.0f;
-
-	msv = dc_msv.value;
-	if (msv < 0.05f)
-		msv = 0.05f;
-	else if (msv > 2.0f)
-		msv = 2.0f;
-
-	zn = 2.0f;
-	zf = gl_zmax.value;
-	if (zf < zn + 1.0f)
-		zf = zn + 1.0f;
-
-	fovx = scr_fov_value;
+	DCV_Flush();
 
 	x = r_refdef.vrect.x;
 	x2 = r_refdef.vrect.x + r_refdef.vrect.width;
@@ -1084,78 +1127,57 @@ void R_SetupGL( void )
 
 	w = x2 - x;
 	h = y - y2;
-
-	memset(&vp, 0, sizeof(vp));
-	vp.dwSize = sizeof(vp);
-	vp.dwX = (DWORD)(glx + x);
-	vp.dwY = (DWORD)(gly + y2);
-	vp.dwWidth = (DWORD)w;
-	vp.dwHeight = (DWORD)h;
-	vp.dvClipX      = -1.0f;
-	vp.dvClipY      =  1.0f;
-	vp.dvClipWidth  =  2.0f;
-	vp.dvClipHeight =  2.0f;
-	vp.dvMinZ = dc_depthmin.value;
-	vp.dvMaxZ = dc_depthmax.value;
-
-	if (vp3 && vp3->lpVtbl)
+	if (envmap)
 	{
-		vp3->lpVtbl->SetViewport2(vp3, &vp);
-		dev->lpVtbl->SetCurrentViewport(dev, vp3);
+		x = y2 = 0;
+		glwidth = glheight = w = h = gl_envmapsize.value;
 	}
 
+	DCV_SetViewport( glx + x, gly + y2, w, h );
+
+	g_frustum_zn = 0.0f;
+	DCV_SetTransform( D3DTRANSFORMSTATE_PROJECTION, &g_identityMatrix );
+
+	screenaspect = (float)glwidth / (float)glheight;
+	yfov = CalcFov(scr_fov_value, (float)glwidth, (float)glheight);
+	r_depthslot = 0;
+	ymax = VIEWMODEL_ZNEAR * (float)tan((yfov * (float)M_PI) / 360.0f);
+
+	DCV_Frustum( D3DTRANSFORMSTATE_PROJECTION,
+		-screenaspect * ymax, screenaspect * ymax, -ymax, ymax,
+		VIEWMODEL_ZNEAR, gl_zmax.value, dc_msw.value );
 	DCV_SetViewportDepthRange( dc_depthmin.value, dc_depthmax.value );
 
-	aspect = (glheight > 0) ? ((float)glwidth / (float)glheight) : 1.0f;
-	fovy_deg = CalcFov(fovx, (float)glwidth, (float)glheight);
-	fovy_rad = (fovy_deg * (float)M_PI) / 180.0f;
-	fovy_rad *= (0.3f / msv);
+	if (gl_cull.value)
+	{
+		DCV_FlushApplyRenderState( D3DRENDERSTATE_SWCULLMODE, D3DCULL_CCW );
+		DCV_FlushApplyRenderState( D3DRENDERSTATE_HWCULLMODE, D3DCULL_CCW );
+	}
+	else
+	{
+		DCV_FlushApplyRenderState( D3DRENDERSTATE_SWCULLMODE, D3DCULL_NONE );
+		DCV_FlushApplyRenderState( D3DRENDERSTATE_HWCULLMODE, D3DCULL_NONE );
+	}
 
-	ymax = zn * (float)tan(fovy_rad * 0.5f);
-	ymin = -ymax;
-	xmin = ymin * aspect;
-	xmax = ymax * aspect;
+	DCV_GetTransform( D3DTRANSFORMSTATE_PROJECTION, (D3DMATRIX *)gProjectionMatrix );
+	DCV_SetTransform( D3DTRANSFORMSTATE_WORLD, &g_identityMatrix );
+	DCV_SetTransform( D3DTRANSFORMSTATE_VIEW, &g_identityMatrix );
 
-	DCV_BuildProjectionAndSetTransform(
-		xmax, xmin,
-		ymax, ymin,
-		zn, zf,
-		msw,
-		D3DTRANSFORMSTATE_PROJECTION );
-
-	g_frustum_xmax = xmax;
-	g_frustum_ymax = ymax;
-	g_frustum_zn   = zn;
-
-	memset(&world, 0, sizeof(world));
-	world._11 = world._22 = world._33 = world._44 = 1.0f;
-	dev->lpVtbl->SetTransform(dev, D3DTRANSFORMSTATE_WORLD, &world);
-
-	memset(&view, 0, sizeof(view));
-	view._11 = view._22 = view._33 = view._44 = 1.0f;
-	dev->lpVtbl->SetTransform(dev, D3DTRANSFORMSTATE_VIEW, &view);
-
-	DCV_Rotate(-90.0f, 1.0f, 0.0f, 0.0f, D3DTRANSFORMSTATE_VIEW);
-	DCV_Rotate(90.0f, 0.0f, 0.0f, 1.0f, D3DTRANSFORMSTATE_VIEW);
-	DCV_Rotate(-r_refdef.viewangles[2], 1.0f, 0.0f, 0.0f, D3DTRANSFORMSTATE_VIEW);
-	DCV_Rotate(-r_refdef.viewangles[0], 0.0f, 1.0f, 0.0f, D3DTRANSFORMSTATE_VIEW);
-	DCV_Rotate(-r_refdef.viewangles[1], 0.0f, 0.0f, 1.0f, D3DTRANSFORMSTATE_VIEW);
-	memset(&mtx, 0, sizeof(mtx));
-	mtx._11 = 1.0f; mtx._22 = 1.0f; mtx._33 = 1.0f; mtx._44 = 1.0f;
-	mtx._41 = -r_refdef.vieworg[0];
-	mtx._42 = -r_refdef.vieworg[1];
-	mtx._43 = -r_refdef.vieworg[2];
-	dev->lpVtbl->MultiplyTransform(dev, D3DTRANSFORMSTATE_VIEW, &mtx);
-
-	dev->lpVtbl->GetTransform(dev, D3DTRANSFORMSTATE_VIEW, &view);
-	gViewMatrix = view;
-
-	DCV_SetRenderState(D3DRENDERSTATE_ZENABLE,     D3DZB_TRUE);
-	DCV_SetRenderState(D3DRENDERSTATE_ZWRITEENABLE, TRUE);
-
-	memcpy(r_world_matrix, &view, sizeof(view));
+	DCV_Rotate(D3DTRANSFORMSTATE_VIEW, -90.0f, 1.0f, 0.0f, 0.0f);
+	DCV_Rotate(D3DTRANSFORMSTATE_VIEW, 90.0f, 0.0f, 0.0f, 1.0f);
+	DCV_Rotate(D3DTRANSFORMSTATE_VIEW, -r_refdef.viewangles[2], 1.0f, 0.0f, 0.0f);
+	DCV_Rotate(D3DTRANSFORMSTATE_VIEW, -r_refdef.viewangles[0], 0.0f, 1.0f, 0.0f);
+	DCV_Rotate(D3DTRANSFORMSTATE_VIEW, -r_refdef.viewangles[1], 0.0f, 0.0f, 1.0f);
+	DCV_Translate(D3DTRANSFORMSTATE_VIEW, -r_refdef.vieworg[0], -r_refdef.vieworg[1],
+		-r_refdef.vieworg[2]);
 
 	DCV_TexState_Opaque();
+	DCV_SetTextureClamp();
+
+	DCV_GetTransform( D3DTRANSFORMSTATE_VIEW, &view );
+	DCV_GetTransform( D3DTRANSFORMSTATE_WORLD, &world );
+	_Multiply4dM( (float *)&worldView, (float *)&world, (float *)&view );
+	_Multiply4dM( gWorldToScreen, (float *)&worldView, gProjectionMatrix );
 }
 
 /*
@@ -1167,6 +1189,24 @@ r_refdef must be set before the first call
 */
 void R_RenderScene( void )
 {
+	float aspect;
+	float fov;
+	float fovy;
+	float xmax;
+	float ymax;
+	float zfar;
+	float msw;
+	float znear;
+
+	key_count++;
+
+	DCV_AddMeterValue(0xff808080, 0.0f);
+	DCV_AddMeterValue(0xff808080, 0.016666667f);
+	DCV_AddMeterValue(0xff808080, 0.033333333f);
+	DCV_AddMeterValue(0xff808080, 0.05f);
+	DCV_AddMeterValue(0xff808080, 0.066666667f);
+	DCV_AddMeterValue(0xff808080, 0.083333333f);
+
 	R_SetupFrame();
 
 	R_SetFrustum();
@@ -1174,79 +1214,72 @@ void R_RenderScene( void )
 	R_SetupGL();
 
 	R_MarkLeaves();	// done here so we know if we're in water
+	DCV_AddMeterTimed(0xffff0000);
+
+	DCV_SetTransform(D3DTRANSFORMSTATE_PROJECTION, &g_identityMatrix);
+
+	aspect = (float)glwidth / (float)glheight;
+	fov = scr_fov_value;
+	fovy = CalcFov(fov, (float)glwidth, (float)glheight);
+	msw = dc_msw.value;
+	msw *= 1.0005f;
+	g_frustum_zn = 0.0005f;
+	zfar = gl_zmax.value;
+	znear = VIEWMODEL_ZNEAR;
+	ymax = znear * tan((fovy * (float)M_PI) / 360.0f);
+	xmax = aspect * ymax;
+
+	DCV_Frustum(D3DTRANSFORMSTATE_PROJECTION, -xmax, xmax, -ymax, ymax,
+		znear, zfar, msw);
+	DCV_SetViewportDepthRange(dc_depthmin.value, dc_depthmax.value);
 
 	R_DrawWorld();		// adds static entities to the list
 
+	DCV_SetTransform(D3DTRANSFORMSTATE_PROJECTION, &g_identityMatrix);
+
+	aspect = (float)glwidth / (float)glheight;
+	fov = scr_fov_value;
+	fovy = CalcFov(fov, (float)glwidth, (float)glheight);
+	msw = dc_msw.value;
+	g_frustum_zn = 0.0f;
+	zfar = gl_zmax.value;
+	znear = VIEWMODEL_ZNEAR;
+	ymax = znear * tan((fovy * (float)M_PI) / 360.0f);
+	xmax = aspect * ymax;
+
+	DCV_Frustum(D3DTRANSFORMSTATE_PROJECTION, -xmax, xmax, -ymax, ymax,
+		znear, zfar, msw);
+	DCV_SetViewportDepthRange(dc_depthmin.value, dc_depthmax.value);
+
+	DCV_AddMeterTimed(0xffffff00);
+
 	S_ExtraUpdate();	// don't let sound get messed up if going slow
+	IN_Accumulate();
 
 	R_DrawEntitiesOnList();
 
-	DCV_SetRenderState(D3DRENDERSTATE_FOGENABLE, FALSE);
+	DCV_FlushApplyRenderState(D3DRENDERSTATE_FOGENABLE, FALSE);
+	DCV_FlushApplyRenderState(D3DRENDERSTATE_RANGEFOGENABLE, FALSE);
 	
 	R_DrawTEntitiesOnList();
+	DCV_AddMeterTimed(0xff00ff00);
 
 	S_ExtraUpdate();
+	IN_Accumulate();
 
 	R_RenderDlights();
 
 	GL_DisableMultitexture();
 
 	R_DrawParticles();
+	DCV_AddMeterTimed(0xff0000ff);
 }
 
-
-/*
-=============
-R_Clear
-=============
-*/
-void R_Clear( void )
-{
-	LPDIRECT3DVIEWPORT3 vp3 = (LPDIRECT3DVIEWPORT3)Sys_GetD3DViewport();
-	LPDIRECT3DDEVICE3 dev = (LPDIRECT3DDEVICE3)Sys_GetD3DDevice3();
-	DWORD clear_flags;
-	D3DCOLOR clear_color = 0xFF000000; /* black */
-	D3DVALUE clear_z = 1.0f;
-
-	if (!vp3 || !vp3->lpVtbl)
-		return;
-
-
-	clear_flags = (D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER);
-
-	if (r_mirroralpha.value != 1.0f)
-	{
-		gldepthmin = 0.0f;
-		gldepthmax = 0.5f;
-	}
-	else
-	{
-		gldepthmin = 0.0f;
-		gldepthmax = 1.0f;
-	}
-
-	if (dev && dev->lpVtbl)
-		dev->lpVtbl->SetRenderState(dev, D3DRENDERSTATE_ZFUNC, D3DCMP_LESSEQUAL);
-
-	if (clear_flags)
-		vp3->lpVtbl->Clear2(vp3, 0, NULL, clear_flags, clear_color, clear_z, 0);
-}
 
 void R_SetStackBase( void )
 {
 	// get stack position so we can guess if we are going to overflow
 	//r_stack_start = (byte*)&dummy;
-}
-
-/*
-================
-R_UpdateAdaptive
-
-Adjust the adaptive detail level based on recent frame timings
-================
-*/
-void R_UpdateAdaptive( void )
-{
 }
 
 /*
@@ -1258,13 +1291,13 @@ r_refdef must be set before the first call
 */
 void R_RenderView( void )
 {
-	double	time1 = 0, time2;
+	float	time1, time2;
 
 	if (r_norefresh.value)
 		return;
 
 	if (!r_worldentity.model || !cl.worldmodel)
-		Sys_Error("	 NULL worldmodel");
+		Sys_Error("R_RenderView: NULL worldmodel");
 
 	if (r_speeds.value)
 	{
@@ -1274,10 +1307,10 @@ void R_RenderView( void )
 	}
 
 	mirror = FALSE;
+	gldepthmin = dc_depthmin.value;
+	gldepthmax = dc_depthmax.value;
 
-	R_Clear();
-
-	R_PreDrawViewModel();
+	R_DispatchViewModelEvents();
 
 	R_RenderScene();
 
@@ -1286,17 +1319,16 @@ void R_RenderView( void )
 	R_PolyBlend();
 
 	S_ExtraUpdate();
+	IN_Accumulate();
 
 	if (r_speeds.value)
 	{
-		static double oldrealtime = 0;
-		float framerate = Sys_FloatTime() - oldrealtime;
-		oldrealtime = Sys_FloatTime();
+		float framerate = cl.time - cl.oldtime;
 
-		if (framerate > 0.0)
-			framerate = 1.0 / framerate;
+		if (framerate > 0.0f)
+			framerate = 1.0f / framerate;
 
 		time2 = Sys_FloatTime();
-		Con_Printf("%3ifps %3i ms  %4i wpoly %4i epoly\n", (int)(framerate + 0.5), (int)((time2 - time1) * 1000.0), c_brush_polys, c_alias_polys);
+		Con_Printf("%3ifps %3i ms  %4i wpoly %4i epoly\n", (int)(framerate + 0.5f), (int)((time2 - time1) * 1000.0f), c_brush_polys, c_alias_polys);
 	}
 }

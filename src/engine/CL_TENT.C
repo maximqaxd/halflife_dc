@@ -650,7 +650,7 @@ TEMPENTITY* R_TempSprite( float* pos, float* dir, float scale, int modelIndex, i
 		return NULL;
 	
 	pTemp->frameMax = frameCount;
-	pTemp->entity.framerate = 10;
+	pTemp->entity.framerate = FloatToShort(10.0f);
 	pTemp->entity.rendermode = rendermode;
 	pTemp->entity.renderfx = renderfx;
 	pTemp->entity.scale = scale;
@@ -799,7 +799,7 @@ void R_FunnelSprite( float* org, int modelIndex, int reverse )
 				vel = pTemp->entity.origin[2] / 8;// velocity based on how far particle starts from org
 			}
 
-			pTemp->entity.framerate = 10;
+			pTemp->entity.framerate = FloatToShort(10.0f);
 			pTemp->entity.rendermode = kRenderGlow;
 			pTemp->entity.renderfx = kRenderFxNoDissipation;
 			pTemp->entity.renderamt = 200;
@@ -948,7 +948,7 @@ void R_BloodSprite( vec_t* org, int colorindex, int modelIndex, int modelIndex2,
 				pTemp->entity.baseline.angles[1] = RandomFloat(-256, -255);
 				pTemp->entity.baseline.angles[2] = RandomFloat(-256, -255);
 
-				pTemp->entity.framerate = 0;
+				pTemp->entity.framerate = FloatToShort(0.0f);
 				pTemp->die = cl.time + RandomFloat(1, 2);
 
 				pTemp->entity.frame = RandomLong(1, frameCount2 - 1);
@@ -979,8 +979,8 @@ void R_BloodSprite( vec_t* org, int colorindex, int modelIndex, int modelIndex2,
 
 			VectorClear(pTemp->entity.baseline.origin);
 
-			pTemp->entity.framerate = frameCount * 4; // Finish in 0.250 seconds
-			pTemp->die = cl.time + (frameCount / pTemp->entity.framerate); // Play the whole thing Once
+			pTemp->entity.framerate = FloatToShort((float)frameCount * 4.0f); // Finish in 0.250 seconds
+			pTemp->die = cl.time + (frameCount / ShortToFloat(pTemp->entity.framerate)); // Play the whole thing Once
 
 			pTemp->entity.frame = 0;
 			pTemp->frameMax = frameCount;
@@ -1028,7 +1028,7 @@ TEMPENTITY* R_DefaultSprite( float* pos, int spriteIndex, float framerate )
 
 	VectorCopy(pos, pTemp->entity.origin);
 
-	pTemp->entity.framerate = framerate;
+	pTemp->entity.framerate = FloatToShort(framerate);
 	pTemp->entity.frame = 0;
 	pTemp->die = cl.time + (float)frameCount / framerate;
 	
@@ -2460,7 +2460,7 @@ void CL_TempEntUpdate( void )
 
 			if (pTemp->flags & FTENT_SPRANIMATE)
 			{
-				pTemp->entity.frame += frametime * pTemp->entity.framerate;
+				pTemp->entity.frame += frametime * ShortToFloat(pTemp->entity.framerate);
 				if (pTemp->entity.frame >= pTemp->frameMax)
 				{
 					pTemp->entity.frame = pTemp->entity.frame - (int)(pTemp->entity.frame);

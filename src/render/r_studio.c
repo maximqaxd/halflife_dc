@@ -794,7 +794,7 @@ float CL_StudioEstimateFrame( mstudioseqdesc_t* pseqdesc )
 
 	if (r_dointerp)
 	{
-		dfdt = (cl.time - currententity->animtime) * currententity->framerate * pseqdesc->fps;
+		dfdt = (cl.time - currententity->animtime) * ShortToFloat(currententity->framerate) * pseqdesc->fps;
 	}
 	else
 	{
@@ -1998,7 +1998,7 @@ R_StudioDrawModel
 
 ====================
 */
-int R_StudioDrawModel( int flags )
+int R_StudioDrawModel( int flags, int checkBBox )
 {
 	alight_t lighting;
 	vec3_t dir;
@@ -2013,7 +2013,7 @@ int R_StudioDrawModel( int flags )
 	if (flags & STUDIO_RENDER)
 	{
 		// see if the bounding box lets us trivially reject, also sets
-		if (!R_StudioCheckBBox())
+		if (checkBBox && !R_StudioCheckBBox())
 			return 0;
 
 		r_amodels_drawn++;
@@ -2232,10 +2232,7 @@ void R_StudioDynamicLight( cl_entity_t* ent, alight_t* plight )
 	}
 
 	// Set floor light
-	currententity->cvFloorColor.r = down.r;
-	currententity->cvFloorColor.g = down.g;
-	currententity->cvFloorColor.b = down.b;
-	currententity->cvFloorColor.a = down.a;
+	currententity->cvFloorColor = PutRGB(&down);
 
 	color[0] = down.r;
 	color[1] = down.g;
@@ -2475,7 +2472,7 @@ void R_StudioClientEvents( void )
 		pevent = (mstudioevent_t*)((byte*)pstudiohdr + pseqdesc->eventindex);
 
 		flEnd = CL_StudioEstimateFrame(pseqdesc);
-		flStart = flEnd - (flCurTime - flLastTime) * pseqdesc->fps * currententity->framerate;
+		flStart = flEnd - (flCurTime - flLastTime) * pseqdesc->fps * ShortToFloat(currententity->framerate);
 
 		if (currententity->sequencetime == currententity->animtime)
 		{

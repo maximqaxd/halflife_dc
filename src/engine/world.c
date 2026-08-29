@@ -1,6 +1,7 @@
 // world.c -- world query functions
 
 #include "quakedef.h"
+#include "pr_edict.h"
 #include "sv_proto.h"
 #include "r_studio.h"
 
@@ -423,20 +424,14 @@ void SV_FindTouchedLeafs( edict_t* ent, mnode_t* node, int* topnode )
 
 	if (node->contents < 0)
 	{
-		if (ent->num_leafs > (MAX_ENT_LEAFS - 1))
-		{
-			// continue counting leafs,
-			// so we know how many will overrun
-			ent->num_leafs = (MAX_ENT_LEAFS + 1);
-		}
-		else
-		{
-			leaf = (mleaf_t*)node;
-			leafnum = leaf - sv.worldmodel->leafs - 1;
+		if (ent->num_leafs >= ent->leaf_capacity)
+			AllocEntLeafData(ent, ent->num_leafs + 1);
 
-			ent->leafnums[ent->num_leafs] = leafnum;
-			ent->num_leafs++;
-		}
+		leaf = (mleaf_t*)node;
+		leafnum = leaf - sv.worldmodel->leafs - 1;
+
+		ent->leafnums[ent->num_leafs] = leafnum;
+		ent->num_leafs++;
 		return;
 	}
 
@@ -481,23 +476,23 @@ void SV_LinkEdict( edict_t* ent, qboolean touch_triggers )
 
 	if (ent->v.movetype == MOVETYPE_FOLLOW && ent->v.aiment)
 	{
-		ent->num_leafs = ent->v.aiment->num_leafs;
-		memcpy(ent->leafnums, ent->v.aiment->leafnums, sizeof(ent->leafnums));
+		FreeEntLeafData(ent);
+		if (ent->v.aiment->leafnums)
+		{
+			AllocEntLeafData(ent, ent->v.aiment->num_leafs);
+			ent->num_leafs = ent->v.aiment->num_leafs;
+			memcpy(ent->leafnums, ent->v.aiment->leafnums,
+				ent->num_leafs * sizeof(short));
+		}
 	}
 	else
 	{
+		FreeEntLeafData(ent);
 		topnode = -1;
 
 		// link to PVS leafs
-		ent->num_leafs = 0;
 		if (ent->v.modelindex)
 			SV_FindTouchedLeafs(ent, sv.worldmodel->nodes, &topnode);
-
-		if (ent->num_leafs > MAX_ENT_LEAFS)
-		{
-			ent->num_leafs = -1; // so we use headnode instead
-			ent->leafnums[0] = topnode;
-		}
 	}
 
 	// ignore non-solid bodies

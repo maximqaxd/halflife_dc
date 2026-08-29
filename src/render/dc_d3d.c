@@ -140,6 +140,29 @@ void DCV_SetFog( int enable, int r, int g, int b, int amount )
 	g_bFogChanged = TRUE;
 }
 
+void DCV_UpdateTextureFiltering( void )
+{
+	if (r_testlight.value == 0.0f)
+	{
+		DCV_SetTextureStageState(0, D3DTSS_MAGFILTER, D3DTFG_LINEAR);
+		DCV_SetTextureStageState(0, D3DTSS_MINFILTER, D3DTFN_LINEAR);
+		DCV_SetTextureStageState(0, D3DTSS_MIPFILTER, D3DTFP_LINEAR);
+		DCV_SetTextureStageState(1, D3DTSS_MAGFILTER, D3DTFG_LINEAR);
+		DCV_SetTextureStageState(1, D3DTSS_MINFILTER, D3DTFN_LINEAR);
+		DCV_SetTextureStageState(1, D3DTSS_MIPFILTER, D3DTFP_LINEAR);
+		DCV_SetRenderState(D3DRENDERSTATE_MIPMAPLODBIAS, (DWORD)mipbias.value);
+	}
+	else
+	{
+		DCV_SetTextureStageState(0, D3DTSS_MAGFILTER, D3DTFG_POINT);
+		DCV_SetTextureStageState(0, D3DTSS_MINFILTER, D3DTFN_POINT);
+		DCV_SetTextureStageState(0, D3DTSS_MIPFILTER, D3DTFP_LINEAR);
+		DCV_SetTextureStageState(1, D3DTSS_MAGFILTER, D3DTFG_POINT);
+		DCV_SetTextureStageState(1, D3DTSS_MINFILTER, D3DTFN_POINT);
+		DCV_SetTextureStageState(1, D3DTSS_MIPFILTER, D3DTFP_LINEAR);
+	}
+}
+
 /*
 ================
 DCV_SetWorldLight
@@ -428,7 +451,7 @@ Draw a full-screen colored quad over the frame at one of the HUD depth
 sublayers; texturing off, ordinary alpha blend, no fog.
 ================
 */
-__forceinline void DCV_ScreenFade( int r, int g, int b, int a, int layer )
+__forceinline void DCV_ScreenFade( int r, int g, int b, int a, int layer, qboolean modulate )
 {
 	DCV_SetHudDepth((float)layer);
 
@@ -440,8 +463,10 @@ __forceinline void DCV_ScreenFade( int r, int g, int b, int a, int layer )
 	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
 	DCV_SetRenderState(D3DRENDERSTATE_ALPHABLENDENABLE, TRUE);
 	DCV_SetRenderState(D3DRENDERSTATE_ALPHATESTENABLE,  FALSE);
-	DCV_SetRenderState(D3DRENDERSTATE_SRCBLEND,  D3DBLEND_SRCALPHA);
-	DCV_SetRenderState(D3DRENDERSTATE_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	DCV_SetRenderState(D3DRENDERSTATE_SRCBLEND,
+		modulate ? D3DBLEND_ZERO : D3DBLEND_SRCALPHA);
+	DCV_SetRenderState(D3DRENDERSTATE_DESTBLEND,
+		modulate ? D3DBLEND_SRCCOLOR : D3DBLEND_INVSRCALPHA);
 	DCV_SetRenderState(D3DRENDERSTATE_FOGENABLE, FALSE);
 
 	DCV_SetColor(r, g, b, a);
@@ -458,7 +483,7 @@ __forceinline void DCV_DrawScreenSaver( void )
 	if (Sys_FloatTime() - g_flScreenSaverTime > 300.0f)
 		g_bScreenSaverActive = TRUE;
 	if (g_bScreenSaverActive)
-		DCV_ScreenFade(0, 0, 0, 192, 5);
+		DCV_ScreenFade(0, 0, 0, 192, 5, FALSE);
 }
 
 /*

@@ -2071,6 +2071,9 @@ void SV_WriteDelta( entity_state_t* from, entity_state_t* to, sizebuf_t* msg, qb
 	if (to->framerate != from->framerate)
 		bits |= U_FRAMERATE;
 
+	if (to->aiment != from->aiment)
+		bits |= U_AIMENT;
+
 	if (to->body != from->body)
 		bits |= U_BODY;
 
@@ -2233,6 +2236,9 @@ void SV_WriteDelta( entity_state_t* from, entity_state_t* to, sizebuf_t* msg, qb
 		MSG_WriteCoord(msg, to->maxs[1]);
 	if (bboxbits & U_BBOXMAXS3)
 		MSG_WriteCoord(msg, to->maxs[2]);
+
+	if (bits & U_AIMENT)
+		MSG_WriteShort(msg, to->aiment);
 }
 
 /*
@@ -2645,6 +2651,10 @@ void SV_AddToFullPack( full_packet_entities_t* pack, int e, unsigned char* pSet 
 	state->sequence = ent->v.sequence;
 	state->framerate = ent->v.framerate;
 	state->body = ent->v.body;
+	if (ent->v.aiment)
+		state->aiment = NUM_FOR_EDICT(ent->v.aiment);
+	else
+		state->aiment = 0;
 
 	for (i = 0; i < 4; i++)
 	{

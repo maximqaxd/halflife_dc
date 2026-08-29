@@ -3,6 +3,10 @@
 
 #include "progdefs.h"
 
+#ifndef HLDC_OFFSETOF
+#define HLDC_OFFSETOF(type, member) ((unsigned int)&(((type *)0)->member))
+#endif
+
 #ifndef EIFACE_H
 // Forward declare this type to avoid problems
 typedef struct saverestore_s SAVERESTOREDATA;
@@ -12,53 +16,63 @@ typedef struct saverestore_s SAVERESTOREDATA;
 //  entities that is sent to a client.
 typedef struct
 {
-	int     entityType;  // Normal or Custom to know how to parse the entity.
-	int     number;      // Index into cl_entities array for this entity.
-	int     flags;       // The delta compression bit header.
+	byte	controller[4];
+	byte	blending[2];
+	byte	reserved[2];
+
+	short	entityType;  // Normal or Custom to know how to parse the entity.
+	short	skin;
+	short	solid;
+	short	renderfx;
+	short	rendermode;
+	short	renderamt;
+	short	number;      // Index into cl_entities array for this entity.
+	short	effects;
+	short	colormap;
+
+	int		flags;       // The delta compression bit header.
+	int		modelindex;
+	int		sequence;
+	int		movetype;
+	int		body;
+	int		aiment;
+
+	float	frame;
+	float	scale;
+	float	animtime;
+	float	framerate;
 
 	vec3_t	origin;
 	vec3_t	angles;
-
-	int		modelindex;
-	int		sequence;
-	float	frame;
-	int		colormap;
-	short	skin;
-	short	solid;
-	int		effects;
-	float	scale;
-
-	// render information
-	int		rendermode;
-	int		renderamt;
-	color24	rendercolor;
-	int		renderfx;
-
-	// Added for entity delta compression
-	//vec3_t  msg_origins[2];
-	//vec3_t  msg_angles[2];
-
-	int     movetype;
-	float   animtime;
-	float   framerate;
-	int     body;
-	byte    controller[4];
-	byte    blending[4];
 	vec3_t	velocity;
+	vec3_t	mins;    // Send bbox down to client for use during prediction.
+	vec3_t	maxs;
 
-	vec3_t  mins;    // Send bbox down to client for use during prediction.
-	vec3_t  maxs;
+	color24	rendercolor;
 } entity_state_t;
+
+typedef char entity_state_t_must_match_retail_size[
+	(sizeof(entity_state_t) == 0x84) ? 1 : -1];
+typedef char entity_state_t_flags_must_be_at_1c[
+	(HLDC_OFFSETOF(entity_state_t, flags) == 0x1C) ? 1 : -1];
+typedef char entity_state_t_modelindex_must_be_at_20[
+	(HLDC_OFFSETOF(entity_state_t, modelindex) == 0x20) ? 1 : -1];
+typedef char entity_state_t_aiment_must_be_at_30[
+	(HLDC_OFFSETOF(entity_state_t, aiment) == 0x30) ? 1 : -1];
+typedef char entity_state_t_origin_must_be_at_44[
+	(HLDC_OFFSETOF(entity_state_t, origin) == 0x44) ? 1 : -1];
+typedef char entity_state_t_rendercolor_must_be_at_80[
+	(HLDC_OFFSETOF(entity_state_t, rendercolor) == 0x80) ? 1 : -1];
 
 #define	MAX_ENT_LEAFS	24
 typedef struct edict_s
 {
 	qboolean	free;
+	short		num_leafs;
+	short		leaf_capacity;
+	short		*leafnums;
 	int			serialnumber;
 	link_t		area;				// linked to a division node or leaf
-	
-	int			num_leafs;
-	short		leafnums[MAX_ENT_LEAFS];
 
 	entity_state_t	baseline;
 	
@@ -69,6 +83,23 @@ typedef struct edict_s
 	entvars_t	v;					// C exported fields from progs
 // other fields from progs come immediately after
 } edict_t;
+
+typedef char edict_t_num_leafs_must_be_at_02[
+	(HLDC_OFFSETOF(edict_t, num_leafs) == 0x02) ? 1 : -1];
+typedef char edict_t_leaf_capacity_must_be_at_04[
+	(HLDC_OFFSETOF(edict_t, leaf_capacity) == 0x04) ? 1 : -1];
+typedef char edict_t_leafnums_must_be_at_08[
+	(HLDC_OFFSETOF(edict_t, leafnums) == 0x08) ? 1 : -1];
+typedef char edict_t_serialnumber_must_be_at_0c[
+	(HLDC_OFFSETOF(edict_t, serialnumber) == 0x0C) ? 1 : -1];
+typedef char edict_t_area_must_be_at_10[
+	(HLDC_OFFSETOF(edict_t, area) == 0x10) ? 1 : -1];
+typedef char edict_t_baseline_must_be_at_18[
+	(HLDC_OFFSETOF(edict_t, baseline) == 0x18) ? 1 : -1];
+typedef char edict_t_private_data_must_be_at_a0[
+	(HLDC_OFFSETOF(edict_t, pvPrivateData) == 0xA0) ? 1 : -1];
+typedef char edict_t_entvars_must_be_at_a4[
+	(HLDC_OFFSETOF(edict_t, v) == 0xA4) ? 1 : -1];
 #define	EDICT_FROM_AREA(l) STRUCT_FROM_LINK(l,edict_t,area)
 
 //============================================================================

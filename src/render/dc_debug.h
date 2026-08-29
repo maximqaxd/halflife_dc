@@ -28,6 +28,8 @@ void DCV_FB_TextOnSurface( LPDIRECTDRAWSURFACE4 pddsSurface, int x, int y, const
 void DCV_FB_BackgroundRect( unsigned short wColor );   /* implemented in dc_d3d.c */
 void DCV_FB_Text( const char* text );
 void DCV_MeterText( unsigned int color, int x, int y, const char* text );
+void DCV_AddMeterTimed( unsigned int color );
+void DCV_AddMeterValue( unsigned int color, float value );
 void DCV_DrawMeters( void );
 int  DCV_FB_LoadImage( byte* rgb, int cache );
 

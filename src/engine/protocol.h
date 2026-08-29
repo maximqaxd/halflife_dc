@@ -260,6 +260,7 @@ extern char gpszVersionString[32];
 #define U_EFFECTS		(1<<14)
 #define U_LONGENTITY	(1<<15)
 #define U_FRAMERATE		(1<<16)
+#define U_AIMENT		(1<<17)
 
 #define U_COLORMAP		(1<<18)
 #define U_CONTENTS		(1<<19)

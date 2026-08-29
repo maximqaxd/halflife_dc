@@ -2028,6 +2028,12 @@ void R_DrawAdaptive( void )
 	// TODO: draw per-frame timing bars from the recent frame history
 }
 
+/* Updated once per host frame; the Dreamcast implementation maintains the
+   adaptive network-stat history consumed by R_DrawAdaptive. */
+void R_UpdateAdaptive( void )
+{
+}
+
 char* CL_HashedClientID( unsigned char* hash, int size )
 {
 	static char szReturn[128];

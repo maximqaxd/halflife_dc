@@ -93,6 +93,10 @@ def normalize(mnem, ops):
     """Format-agnostic canonical form for a dumpbin OR Ghidra instruction, so the
     obj (dumpbin) and binary (Ghidra, pool-free) sides compare on structure."""
     mnem = mnem.lstrip("_").lower()          # drop Ghidra delay-slot prefix
+    # dumpbin spells every single-precision memory move `fmov.s`; Ghidra uses
+    # both `fmov.s` and the ISA's shorter `fmov` alias for the same opcodes.
+    if mnem == "fmov.s":
+        mnem = "fmov"
     if mnem in CALL:
         return "call"
     if mnem in JUMP:
@@ -304,7 +308,10 @@ def _trim_pool_once(insns):
     n = len(insns)
     while i < n:
         out.append(insns[i])
-        if insns[i][1].lower() in ("bra", "jmp", "rts"):
+        # An indirect jmp is commonly the dispatch for a switch table.  Treating
+        # it like a pool-skipping bra discards every case body because those
+        # destinations are not encoded as direct branch targets in the stream.
+        if insns[i][1].lower() in ("bra", "rts"):
             if i + 1 < n:
                 out.append(insns[i + 1])   # delay slot
             i += 2
@@ -315,7 +322,7 @@ def _trim_pool_once(insns):
     return out
 
 
-def obj_functions(dumpbin, obj):
+def obj_functions(dumpbin, obj, expected_lengths=None):
     """Map Ghidra function name -> list-of-insns, from the obj disassembly."""
     funcs = {}
     cur = None
@@ -328,7 +335,20 @@ def obj_functions(dumpbin, obj):
         m = LINE.match(ln)
         if m and cur is not None:
             funcs[cur].append((int(m.group(1), 16), m.group(2), m.group(3).strip()))
-    return {k: trim_pool(v) for k, v in funcs.items()}
+    out = {}
+    for name, raw in funcs.items():
+        trimmed = trim_pool(raw)
+        if expected_lengths and name in expected_lengths:
+            # Pool words can decode as plausible branches.  In large functions
+            # with several embedded pools (notably switch-heavy renderer code),
+            # the fixed-point trimmer can then delete real case bodies.  The
+            # Ghidra instruction count gives us an independent extent check;
+            # retain whichever candidate is closest to that known count.
+            expected = expected_lengths[name]
+            out[name] = min((raw, trimmed), key=lambda v: abs(len(v) - expected))
+        else:
+            out[name] = trimmed
+    return out
 
 
 def slice_exe(exe_dis, start, size):
@@ -450,7 +470,12 @@ def main():
     print("[objdiff] %d binary symbols; %d binary functions (Ghidra listing)"
           % (len(syms), len(bininsns)))
 
-    ofuncs = obj_functions(args.dumpbin, args.obj)
+    expected_lengths = {}
+    for name, (start, _) in syms.items():
+        listing = bininsns.get(format(start, "x"))
+        if listing is not None:
+            expected_lengths[name] = len(listing)
+    ofuncs = obj_functions(args.dumpbin, args.obj, expected_lengths)
     print("[objdiff] obj functions: %d" % len(ofuncs))
 
     exe_dis = exe_ext = exe_data = None

@@ -18,7 +18,6 @@ typedef struct
 {
 	byte					mouthopen;		// 0 = mouth closed, 255 = mouth agape
 	byte					sndcount;		// counter for running average
-	int						sndavg;			// running average
 } mouth_t;
 
 #define ENTITY_NORMAL		0
@@ -31,7 +30,7 @@ typedef struct cl_entity_s
 	byte			prevseqblending[2];
 	byte			prevcontroller[4];
 	byte			prevblending[2];
-	byte			reserved1[2];
+	mouth_t			mouth;			// compact Dreamcast mouth state
 
 	short			rendermode;
 	short			renderamt;
@@ -40,15 +39,16 @@ typedef struct cl_entity_s
 	short			body;
 	short			sequence;
 	short			prevsequence;
-	short			reserved2;
+	unsigned short	framerate;		// high 16 bits of the animation-rate float
 
 	int				index;      // Index into cl_entities
-	int				reserved3;
 	int				effects;
+	int				colormap;		// packed player top/bottom palette colors
 	int				skin;
 
-	byte			reserved4[12];
-	float			framerate;
+	int				visframe;
+	byte			reserved1[8];
+	int				aiment;			// entity index followed by MOVETYPE_FOLLOW studio models
 	int				trivial_accept;
 
 	struct model_s* model;			// cl.model_precache[ baseline.modelindex ];  all visible entities have a model
@@ -60,11 +60,11 @@ typedef struct cl_entity_s
 	float			animtime;
 	float			scale;
 
-	byte			reserved5[4];
+	float			lastmove;
 	float			prevanimtime;
 	float			prevframe;
 	float			sequencetime;
-	float			lastmove;
+	byte			reserved5[4];
 
 	// Actual render position and angles
 	vec3_t			origin;
@@ -72,22 +72,33 @@ typedef struct cl_entity_s
 	vec3_t			prevorigin;
 	vec3_t			prevangles;
 
-	colorVec		cvFloorColor;
-	int				visframe;
-
-	mouth_t			mouth;			// For synchronizing mouth movements.
-	byte			reserved6[20];
-
-	color24			rendercolor;
-	byte			reserved7[13];
-
 	// Attachment points
 	vec3_t			attachment[4];
 
-	entity_state_t	baseline;		// to fill in defaults in updates
+	color24			rendercolor;
+	byte			reserved7;
+	unsigned short	cvFloorColor;	// packed ARGB4444 floor lighting
+	byte			reserved8[2];
 
-	qboolean		resetlatched;
+	entity_state_t	baseline;		// to fill in defaults in updates
 } cl_entity_t;
+
+typedef char cl_entity_t_must_match_retail_size[
+	(sizeof(cl_entity_t) == 0x160) ? 1 : -1];
+typedef char cl_entity_t_model_must_be_at_44[
+	(HLDC_OFFSETOF(cl_entity_t, model) == 0x44) ? 1 : -1];
+typedef char cl_entity_t_mouth_must_be_at_0e[
+	(HLDC_OFFSETOF(cl_entity_t, mouth) == 0x0E) ? 1 : -1];
+typedef char cl_entity_t_animtime_must_be_at_58[
+	(HLDC_OFFSETOF(cl_entity_t, animtime) == 0x58) ? 1 : -1];
+typedef char cl_entity_t_lastmove_must_be_at_60[
+	(HLDC_OFFSETOF(cl_entity_t, lastmove) == 0x60) ? 1 : -1];
+typedef char cl_entity_t_origin_must_be_at_74[
+	(HLDC_OFFSETOF(cl_entity_t, origin) == 0x74) ? 1 : -1];
+typedef char cl_entity_t_attachment_must_be_at_a4[
+	(HLDC_OFFSETOF(cl_entity_t, attachment) == 0xA4) ? 1 : -1];
+typedef char cl_entity_t_baseline_must_be_at_dc[
+	(HLDC_OFFSETOF(cl_entity_t, baseline) == 0xDC) ? 1 : -1];
 
 typedef struct tempent_s
 {

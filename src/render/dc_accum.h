@@ -61,10 +61,10 @@ void          DCV_SetProjectionDepthRange( float znear, float zfar );
 void          DCV_SetViewportDepthRange( float minz, float maxz );
 void          DCV_SetTransform( int state, const D3DMATRIX* matrix );
 void          DCV_GetTransform( int state, D3DMATRIX* matrix );
-void          DCV_Frustum( float lf, float rt, float bt, float tp, float zn, float zf, float scale, int state );
-void          DCV_Ortho( float lf, float rt, float bt, float tp, float zn, float zf, float scale, int state );
-void          DCV_Translate( float x, float y, float z, int state );
-void          DCV_Rotate( float angle, float x, float y, float z, int state );
+void          DCV_Frustum( int state, float lf, float rt, float bt, float tp, float zn, float zf, float scale );
+void          DCV_Ortho( int state, float lf, float rt, float bt, float tp, float zn, float zf, float scale );
+void          DCV_Translate( int state, float x, float y, float z );
+void          DCV_Rotate( int state, float angle, float x, float y, float z );
 
 extern D3DMATRIX g_matWorld;
 extern D3DMATRIX g_matView;
@@ -143,6 +143,9 @@ void DCV_2D_SetupStates( void );
 
 void DCV_TexState_Additive( void );
 void DCV_SetHudDepth( float depth );
+void DCV_ScreenFade( int r, int g, int b, int a, int layer, qboolean modulate );
+void DCV_SetFog( int enable, int r, int g, int b, int amount );
+void DCV_UpdateTextureFiltering( void );
 void DCV_DisableMultitexture( void );
 
 #ifdef __cplusplus

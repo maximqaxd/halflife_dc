@@ -67,12 +67,12 @@ int r_alphatestmode;
 void glTexSubImage2D( int target, int level, int xoffset, int yoffset,
 	int width, int height, int format, int type, const void* pixels );
 
-// How far the near plane is pulled in for the lightmap pass so it lands on top
-// of the base pass instead of z-fighting with it.
+// Projection-scale offsets that put lightmaps and decals just in front of the
+// base pass without changing the shared clip planes.
 #define LIGHTMAP_DEPTH_NUDGE	0.0005f
 
-// Brush models cycle through this many near-plane steps as they are drawn, so
-// that co-planar ones do not fight each other for depth.
+// Brush models cycle through this many projection-scale steps so that
+// co-planar ones do not fight each other for depth.
 #define BMODEL_DEPTH_SLOTS	64
 #define BMODEL_DEPTH_STEP	0.005f
 
@@ -604,43 +604,30 @@ poly->verts[i][3] (packed ARGB DWORD).
 static void DC_SurfacePolyApplyBlockLights( msurface_t* surf )
 {
 	glpoly_t* p;
-	int       i, smax, tmax, light_s16, light_t16;
-	float*    v;
+	int       i;
 	unsigned r, g, b;
 
-	if (!surf || !surf->polys)
+	if (!surf || !(p = surf->polys) || p->numverts <= 0)
 		return;
 
-	if (!surf->samples)
+	for (i = 0; i < p->numverts; i++)
 	{
-		for (p = surf->polys; p; p = p->next)
-			for (i = 0, v = p->verts[0]; i < p->numverts; i++, v += VERTEXSIZE)
-				*(DWORD*)&v[3] = 0xFFFFFFFFu;
-		return;
-	}
-
-	smax = (surf->extents[0] >> 4) + 1;
-	tmax = (surf->extents[1] >> 4) + 1;
-	light_s16 = (int)surf->light_s << 4;
-	light_t16 = (int)surf->light_t << 4;
-
-	for (p = surf->polys; p; p = p->next)
-	{
-		for (i = 0, v = p->verts[0]; i < p->numverts; i++, v += VERTEXSIZE)
+		if (!surf->samples)
 		{
-			int si = ((int)(v[6] * (BLOCK_WIDTH  * 16.0f) - (float)light_s16)) >> 4;
-			int ti = ((int)(v[7] * (BLOCK_HEIGHT * 16.0f) - (float)light_t16)) >> 4;
+			*(DWORD*)&p->verts[i][3] = 0xFFFFFFFFu;
+		}
+		else
+		{
+			colorVec* c = &blocklights[
+				(((int)(p->verts[i][7] * (BLOCK_HEIGHT * 16.0f) - 8.0f)
+					- ((int)surf->light_t << 4)) >> 4) * ((surf->extents[0] >> 4) + 1)
+				+ (((int)(p->verts[i][6] * (BLOCK_WIDTH * 16.0f) - 8.0f)
+					- ((int)surf->light_s << 4)) >> 4)];
 
-			if (si < 0) si = 0; else if (si >= smax) si = smax - 1;
-			if (ti < 0) ti = 0; else if (ti >= tmax) ti = tmax - 1;
-
-			{
-				colorVec* c = &blocklights[ti * smax + si];
-				r = c->r >> 8; if (r > 255) r = 255;
-				g = c->g >> 8; if (g > 255) g = 255;
-				b = c->b >> 8; if (b > 255) b = 255;
-				*(DWORD*)&v[3] = 0xFF000000u | (r << 16) | (g << 8) | b;
-			}
+			r = c->r >> 8; if (r > 255) r = 255;
+			g = c->g >> 8; if (g > 255) g = 255;
+			b = c->b >> 8; if (b > 255) b = 255;
+			*(DWORD*)&p->verts[i][3] = 0xFF000000u | (r << 16) | (g << 8) | b;
 		}
 	}
 }
@@ -840,7 +827,7 @@ void R_BlendLightmaps( void )
 	if (!gl_texsort || r_fullbright.value)
 		return;
 
-	// Nudge the near plane towards the eye so the lightmap pass lands exactly
+	// Apply the binary's small projection-scale bias so this pass lands exactly
 	// on top of the base pass instead of z-fighting with it.
 	R_ApplyViewModelProjection(g_frustum_zn - LIGHTMAP_DEPTH_NUDGE);
 
@@ -1189,7 +1176,7 @@ void DrawTextureChains( void )
 
 		if (iSounds-- == 0)
 		{
-			S_UpdateAmbient();
+			S_ExtraUpdate();
 			IN_Accumulate();
 			iSounds = 100;
 		}
@@ -1354,7 +1341,7 @@ void R_DrawBrushModel( cl_entity_t* e )
 			{
 				bPass = FALSE;
 				if ((pplane->type == PLANE_Z || gl_watersides.value) &&
-					(mins[2] + 1.0f < pplane->dist))
+					(modelorg[2] + 1.0f < pplane->dist))
 					bPass = TRUE;
 			}
 			else
@@ -1437,7 +1424,7 @@ void R_RecursiveWorldNode( mnode_t* node )
 	if (node->visframe != (byte)r_visframecount)
 		return;
 
-	if (R_CullBoxShort(node->minmaxs, node->minmaxs + 3))
+	if (R_TestPackedBoundsAgainstFrustum(node->minmaxs, node->minmaxs + 3))
 		return;
 
 	// if a leaf node, draw stuff
@@ -1565,7 +1552,7 @@ void R_DrawWorld( void )
 
 	DCV_SetTextureClamp();
 
-	S_UpdateAmbient();
+	S_ExtraUpdate();
 	IN_Accumulate();
 
 	R_DrawDecals();
@@ -1612,7 +1599,7 @@ void R_MarkLeaves( void )
 			{
 				if (node->visframe == r_visframecount)
 					break;
-				*(volatile int *)&node->visframe = r_visframecount;
+				*(volatile byte *)&node->visframe = (byte)r_visframecount;
 				node = node->parent;
 			} while (node);
 		}

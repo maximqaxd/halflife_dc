@@ -23,6 +23,7 @@
 #include	"nodes.h"
 #include	"animation.h"
 #include	"doors.h"
+#include	"model_indices.h"
 
 #define	HULL_STEP_SIZE 16// how far the test hull moves on each step
 #define	NODE_HEIGHT	8	// how high to lift nodes off the ground after we drop them all (make stair/ramp mapping easier)
@@ -3627,7 +3628,6 @@ void CNodeViewer :: DrawThink( void )
 			return;
 		}
 
-		extern short g_sModelIndexLaser;
 		MESSAGE_BEGIN( MSG_BROADCAST, SVC_TEMPENTITY );
 			WRITE_BYTE( TE_BEAMPOINTS );
 			WRITE_COORD( WorldGraph.m_pNodes[ m_aFrom[m_iDraw] ].m_vecOrigin.x );

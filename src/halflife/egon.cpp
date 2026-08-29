@@ -28,6 +28,8 @@
 #define	EGON_PRIMARY_VOLUME		450
 #define EGON_BEAM_SPRITE		"sprites/xbeam1.spr"
 #define EGON_FLARE_SPRITE		"sprites/XSpark1.spr"
+
+extern "C" short g_sModelIndexEgonFlare = 0;
 #define EGON_SOUND_OFF			"weapons/egon_off1.wav"
 #define EGON_SOUND_RUN			"weapons/egon_run3.wav"
 #define EGON_SOUND_STARTUP		"weapons/egon_windup2.wav"
@@ -160,7 +162,7 @@ void CEgon::Precache( void )
 	PRECACHE_SOUND( EGON_SOUND_STARTUP );
 
 	PRECACHE_MODEL( EGON_BEAM_SPRITE );
-	PRECACHE_MODEL( EGON_FLARE_SPRITE );
+	g_sModelIndexEgonFlare = PRECACHE_MODEL( EGON_FLARE_SPRITE );
 
 	PRECACHE_SOUND ("weapons/357_cock1.wav");
 }

@@ -44,6 +44,60 @@ qpic_t* conback = (qpic_t*)&conback_buffer;
 
 int		texels;
 
+/* Expand a four-bit color component to the full byte range.  The retail
+   Dreamcast PutRGB/GetRGB pair uses this table for packed ARGB4444 colors. */
+static const unsigned int s_color4To8[16] =
+{
+	0x00, 0x11, 0x22, 0x33,
+	0x44, 0x55, 0x66, 0x77,
+	0x88, 0x99, 0xAA, 0xBB,
+	0xCC, 0xDD, 0xEE, 0xFF
+};
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+unsigned short PutRGB( colorVec* pcv )
+{
+	byte* color = (byte*)pcv;
+	unsigned int alpha = color[12];
+	unsigned int red = color[0];
+	unsigned int green = color[4];
+	unsigned int blue = color[8];
+
+	alpha >>= 4;
+	red >>= 4;
+	green >>= 4;
+	blue >>= 4;
+
+	return (unsigned short)((alpha << 12) | (red << 8) |
+		(green << 4) | blue);
+}
+
+void GetRGB( unsigned short color, colorVec* pcv )
+{
+	unsigned int alpha;
+	unsigned int red;
+	unsigned int green;
+	unsigned int blue;
+	const unsigned int* color4To8 = s_color4To8;
+
+	alpha = color4To8[(color & 0xF000) >> 12];
+	red = color4To8[(color & 0x0F00) >> 8];
+	green = color4To8[(color & 0x00F0) >> 4];
+	blue = color4To8[color & 0x000F];
+
+	pcv->a = alpha;
+	pcv->r = red;
+	pcv->g = green;
+	pcv->b = blue;
+}
+
+#ifdef __cplusplus
+}
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -2634,8 +2688,8 @@ void DCV_SetHudDepth( float layer )
 
 	g_flHudDepth = layer;
 
-	DCV_Ortho(0.0f, (float)glwidth, (float)glheight, 0.0f, 10.0f, -10.0f,
-		dc_msh.value + (dc_msh2.value - dc_msh.value) * layer, 3);
+	DCV_Ortho(3, 0.0f, (float)glwidth, (float)glheight, 0.0f, 10.0f, -10.0f,
+		dc_msh.value + (dc_msh2.value - dc_msh.value) * layer);
 
 	DCV_SetTransform(2, &g_identityMatrix);
 	DCV_SetTransform(1, &g_identityMatrix);

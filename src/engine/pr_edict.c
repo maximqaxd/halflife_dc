@@ -15,6 +15,7 @@ void ED_ClearEdict( edict_t* e )
 {
 	memset(&e->v, 0, sizeof(e->v));
 	e->free = FALSE;
+	FreeEntLeafData(e);
 	ReleaseEntityDLLFields(e);
 	InitEntityDLLFields(e);
 }
@@ -482,6 +483,50 @@ void ReleaseEntityDLLFields( edict_t* pEdict )
 void InitEntityDLLFields( edict_t* pEdict )
 {
 	pEdict->v.pContainingEntity = pEdict;
+}
+
+//============================================================================
+
+void AllocEntLeafData( edict_t* pEdict, int leafCount )
+{
+	short* newLeafNums;
+	int capacity;
+
+	capacity = (leafCount + 15) & ~15;
+	if (capacity < 16)
+		capacity = 16;
+
+	if (!pEdict->leafnums)
+	{
+		pEdict->leafnums = (short*)calloc(capacity, sizeof(short));
+		if (!pEdict->leafnums)
+			Sys_Error("AllocEntLeafData: out of memory");
+
+		pEdict->leaf_capacity = (short)capacity;
+		pEdict->num_leafs = 0;
+	}
+	else if (pEdict->leaf_capacity < leafCount)
+	{
+		newLeafNums = (short*)calloc(capacity, sizeof(short));
+		if (!newLeafNums)
+			Sys_Error("AllocEntLeafData: out of memory");
+
+		pEdict->leaf_capacity = (short)capacity;
+		memcpy(newLeafNums, pEdict->leafnums,
+			pEdict->num_leafs * sizeof(short));
+		free(pEdict->leafnums);
+		pEdict->leafnums = newLeafNums;
+	}
+}
+
+void FreeEntLeafData( edict_t* pEdict )
+{
+	if (pEdict->leafnums)
+		free(pEdict->leafnums);
+
+	pEdict->leafnums = NULL;
+	pEdict->num_leafs = 0;
+	pEdict->leaf_capacity = 0;
 }
 
 //============================================================================

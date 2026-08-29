@@ -271,7 +271,7 @@ void R_DrawTEntitiesOnList( void )
 			break;
 
 		case mod_studio:
-			R_StudioDrawModel(STUDIO_RENDER | STUDIO_EVENTS);
+			R_StudioDrawModel(STUDIO_RENDER | STUDIO_EVENTS, TRUE);
 			break;
 		}
 	}

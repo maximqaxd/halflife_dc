@@ -285,6 +285,67 @@ void DCV_ClearMeters( int flag )
  */
 fbmeter_t g_FBMeters[32];
 
+#define METER_TIMED 400
+#define METER_VALUE 420
+
+extern DWORD g_dwFlipTick;
+
+static fbmeter_t *DCV_AllocMeter( void )
+{
+	int i;
+
+	for (i = 0; i < 32; i++)
+	{
+		if (g_FBMeters[i].type == 0)
+			return &g_FBMeters[i];
+	}
+
+	return NULL;
+}
+
+void DCV_AddMeterTimed( unsigned int color )
+{
+	fbmeter_t *meter;
+	float elapsed;
+	int value;
+
+	if (profilescale.value < 1.0f)
+		return;
+
+	elapsed = (float)(GetTickCount() - g_dwFlipTick) * 0.001f;
+	if (elapsed < 0.0f || elapsed > 0.2f)
+		value = 0;
+	else
+		value = (int)(profilescale.value * elapsed + 20.0f);
+
+	if (value <= 0)
+		return;
+
+	meter = DCV_AllocMeter();
+	if (meter)
+	{
+		meter->type = METER_TIMED;
+		meter->color = color;
+		meter->value = (short)value;
+	}
+}
+
+void DCV_AddMeterValue( unsigned int color, float value )
+{
+	fbmeter_t *meter;
+
+	if (profilescale.value < 1.0f)
+		return;
+
+	meter = DCV_AllocMeter();
+	if (meter)
+	{
+		meter->type = METER_VALUE;
+		meter->color = color;
+		meter->value = (short)(profilescale.value * value + 20.0f);
+	}
+}
+
 void DCV_DrawMeters( void )
 {
 }

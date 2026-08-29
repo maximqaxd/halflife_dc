@@ -192,7 +192,7 @@ Build a GL-style perspective frustum into the world or projection shadow
 matrix, scale it, and set it on the device.
 ================
 */
-void DCV_Frustum( float lf, float rt, float bt, float tp, float zn, float zf, float scale, int state )
+void DCV_Frustum( int state, float lf, float rt, float bt, float tp, float zn, float zf, float scale )
 {
 	float *m;
 
@@ -237,7 +237,7 @@ void DCV_Frustum( float lf, float rt, float bt, float tp, float zn, float zf, fl
 DCV_Ortho
 ================
 */
-void DCV_Ortho( float lf, float rt, float bt, float tp, float zn, float zf, float scale, int state )
+void DCV_Ortho( int state, float lf, float rt, float bt, float tp, float zn, float zf, float scale )
 {
 	float *m;
 
@@ -285,7 +285,7 @@ Multiply a translation into the current transform and read the result back
 into the shadow matrix.
 ================
 */
-void DCV_Translate( float x, float y, float z, int state )
+void DCV_Translate( int state, float x, float y, float z )
 {
 	float *m;
 
@@ -293,6 +293,8 @@ void DCV_Translate( float x, float y, float z, int state )
 		DCV_FlushInline();
 
 	if (state == D3DTRANSFORMSTATE_PROJECTION)
+		m = (float *)&g_matProjection;
+	else if (state == D3DTRANSFORMSTATE_VIEW)
 		m = (float *)&g_matView;
 	else
 		m = (float *)&g_matWorld;
@@ -326,7 +328,7 @@ Multiply an axis rotation into the current transform; only the three
 cardinal axes are supported.
 ================
 */
-void DCV_Rotate( float angle, float x, float y, float z, int state )
+void DCV_Rotate( int state, float angle, float x, float y, float z )
 {
 	D3DMATRIX rot;
 	float     *m = (float *)&rot;
@@ -389,7 +391,9 @@ void DCV_Rotate( float angle, float x, float y, float z, int state )
 
 	g_pD3DDevice->lpVtbl->MultiplyTransform(g_pD3DDevice, state, &rot);
 	if (state == D3DTRANSFORMSTATE_PROJECTION)
-		g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, D3DTRANSFORMSTATE_PROJECTION, (LPD3DMATRIX)&g_matView);
+		g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, state, (LPD3DMATRIX)&g_matProjection);
+	else if (state == D3DTRANSFORMSTATE_VIEW)
+		g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, state, (LPD3DMATRIX)&g_matView);
 	else
 		g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, state, (LPD3DMATRIX)&g_matWorld);
 }

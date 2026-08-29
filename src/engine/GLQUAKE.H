@@ -304,7 +304,7 @@ void GL_EnableMultitexture( void );
 // gl_rmain.c
 //
 qboolean R_CullBox( vec_t* mins, vec_t* maxs );
-qboolean R_CullBoxShort( short* mins, short* maxs );
+qboolean R_TestPackedBoundsAgainstFrustum( short* mins, short* maxs );
 void R_RotateForEntity( cl_entity_t* e );
 float CalcFov( float fov_x, float width, float height );
 
@@ -367,7 +367,6 @@ int			DCV_LT2Decode( const byte* in, int in_size, color24* out, int w, int h );
 //
 extern D3DMATRIX	gViewMatrix;
 extern colorVec		gWaterColor;
-void			R_ApplySceneProjection( void );
 void			R_SetRenderMode( cl_entity_t* pEntity );
 
 //
@@ -404,6 +403,8 @@ void	Mod_TouchStudioTextures( void* buf );
 //
 void	DCV_ClearMeters( int flag );
 void	DCV_MeterText( unsigned int color, int x, int y, const char* text );
+void	DCV_AddMeterTimed( unsigned int color );
+void	DCV_AddMeterValue( unsigned int color, float value );
 extern cvar_t	profilemeter;
 
 #ifdef __cplusplus

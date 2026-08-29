@@ -47,7 +47,13 @@ extern word blue_64klut[65536];
 
 extern short hlRGB( word* p, int i );
 extern short PackedRGB( byte* p, int i );
-extern short PutRGB( colorVec* pcv );
-extern void GetRGB( short s, colorVec* pcv );
+#ifdef __cplusplus
+extern "C" {
+#endif
+unsigned short PutRGB( colorVec* pcv );
+void GetRGB( unsigned short color, colorVec* pcv );
+#ifdef __cplusplus
+}
+#endif
 
 #endif	// COLOR_H

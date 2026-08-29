@@ -47,7 +47,7 @@ void GLBeginHud( void )
 
 		fh = 480.0f;
 	dev->lpVtbl->SetTransform(dev, D3DTRANSFORMSTATE_PROJECTION, &identity);
-	DCV_Ortho(0.0f, fw, fh, 0.0f, -99999.0f, 99999.0f, 1.0f, D3DTRANSFORMSTATE_PROJECTION);
+	DCV_Ortho(D3DTRANSFORMSTATE_PROJECTION, 0.0f, fw, fh, 0.0f, -99999.0f, 99999.0f, 1.0f);
 	DCV_SetNoClip();
 
 	DCV_SetColor(255, 255, 255, 255);
@@ -90,4 +90,3 @@ void GLFinishHud( void )
 	DCV_SetColor(255, 255, 255, 255);
 	DCV_SetClipRequired();
 }
-

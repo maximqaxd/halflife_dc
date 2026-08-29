@@ -304,6 +304,9 @@ void CL_ParseDelta( entity_state_t* from, entity_state_t* to, int bits, int bbox
 
 	if (bboxbits & U_BBOXMAXS3)
 		to->maxs[2] = MSG_ReadCoord();
+
+	if (bits & U_AIMENT)
+		to->aiment = MSG_ReadShort();
 }
 
 /*
@@ -584,7 +587,8 @@ void CL_PrintEntity( cl_entity_t* ent )
 		Con_DPrintf(":?\n");
 
 	Con_DPrintf("AT %4.2f ST %4.2f S %i F %4.1f\n", ent->animtime, ent->sequencetime, ent->sequence, ent->frame);
-	Con_DPrintf("PA %4.2f PS %i FR %.1f\n", ent->prevanimtime, ent->prevsequence, ent->framerate);
+	Con_DPrintf("PA %4.2f PS %i FR %.1f\n", ent->prevanimtime, ent->prevsequence,
+		ShortToFloat(ent->framerate));
 	Con_DPrintf("C0 %i:%i BL %i:%i\n", ent->controller[0], ent->prevcontroller[0], ent->blending[0], ent->prevblending[0]);
 	Con_DPrintf("O : %.0f %.0f %.0f\n", ent->origin[0], ent->origin[1], ent->origin[2]);
 	Con_DPrintf("PO: %.0f %.0f %.0f\n", ent->prevorigin[0], ent->prevorigin[1], ent->prevorigin[2]);
@@ -607,9 +611,6 @@ void CL_PrintEntity( cl_entity_t* ent )
 		Con_DPrintf("Dim ");
 	if (ent->effects & EF_INVLIGHT)
 		Con_DPrintf("Inv ");
-
-	if (ent->resetlatched)
-		Con_DPrintf("F ");
 
 	Con_DPrintf("\n");
 }
@@ -634,18 +635,22 @@ void CL_ProcessEntityUpdate( cl_entity_t* ent, entity_state_t* state, qboolean s
 			ent->syncbase = 0.0;
 	}
 
-	ent->effects = state->effects;
+	ent->colormap = state->colormap;
+	ent->trivial_accept = 0;
+	// The low word is network state; the upper word is retained client state.
+	ent->effects &= 0xFFFF0000;
+	ent->effects |= state->effects;
 	ent->skin = state->skin;
 
 	ent->frame = state->frame;
-	ent->framerate = state->framerate;
+	ent->framerate = FloatToShort(state->framerate);
 
-	ent->rendermode = state->rendermode;
-	ent->renderamt = state->renderamt;
+	ent->rendermode = (byte)state->rendermode;
+	ent->renderamt = (byte)state->renderamt;
 	ent->rendercolor.r = state->rendercolor.r;
 	ent->rendercolor.g = state->rendercolor.g;
 	ent->rendercolor.b = state->rendercolor.b;
-	ent->renderfx = state->renderfx;
+	ent->renderfx = (byte)state->renderfx;
 
 	memcpy(ent->controller, state->controller, 4);
 	memcpy(ent->blending, state->blending, 2);
@@ -658,6 +663,7 @@ void CL_ProcessEntityUpdate( cl_entity_t* ent, entity_state_t* state, qboolean s
 	ent->animtime = state->animtime;
 	ent->movetype = state->movetype;
 	ent->body = state->body;
+	ent->aiment = state->aiment;
 }
 
 /*
@@ -898,6 +904,9 @@ void CL_LinkPacketEntities( void )
 			ent->movetype = MOVETYPE_NONE;
 		}
 
+		if (ent->aiment)
+			ent->movetype = MOVETYPE_FOLLOW;
+
 		if (flags)
 		{
 			if (ent->effects & EF_NOINTERP)
@@ -911,7 +920,7 @@ void CL_LinkPacketEntities( void )
 		}
 		else
 		{
-			ent->resetlatched = TRUE;
+			ent->effects |= EF_NOINTERP;
 			ent->prevsequence = ent->sequence;
 			ent->animtime = cl.time;
 			ent->prevanimtime = cl.time;
@@ -1244,7 +1253,7 @@ void CL_ParsePlayerinfo( void )
 	ent->rendercolor = state->rendercolor;
 	ent->renderfx = state->renderfx;
 
-	ent->framerate = state->framerate;
+	ent->framerate = FloatToShort(state->framerate);
 
 	memcpy(ent->controller, state->controller, 4);
 	memcpy(ent->blending, state->blending, 2);

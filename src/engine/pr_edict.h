@@ -6,6 +6,8 @@ void SuckOutClassname( char* szInputStream, edict_t* pEdict );
 
 void ReleaseEntityDLLFields( edict_t* pEdict );
 void InitEntityDLLFields( edict_t* pEdict );
+void AllocEntLeafData( edict_t* pEdict, int leafCount );
+void FreeEntLeafData( edict_t* pEdict );
 void* PvAllocEntPrivateData( edict_t* pEdict, long cb );
 void* PvEntPrivateData( edict_t* pEdict );
 void FreeEntPrivateData( edict_t* pEdict );

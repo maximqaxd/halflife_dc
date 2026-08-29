@@ -178,7 +178,6 @@ void S_UnblockSound( void );
 DLL_EXPORT void S_ClearBuffer( void );
 void S_Update( vec_t* origin, vec_t* forward, vec_t* right, vec_t* up );
 void S_ExtraUpdate( void );
-void S_UpdateAmbient( void );
 
 sfx_t* S_PrecacheSound( char* name );
 void S_BeginPrecaching( void );
