@@ -316,7 +316,7 @@ void R_RotateForEntity( cl_entity_t* e )
 	{
 		float f = 0.0f;
 		float d;
-		if (cl.time > e->animtime + 0.2f)
+		if (cl.time < e->animtime + 0.2f)
 		{
 			if (e->animtime != e->prevanimtime)
 				f = (cl.time - e->animtime) / (e->animtime - e->prevanimtime);
