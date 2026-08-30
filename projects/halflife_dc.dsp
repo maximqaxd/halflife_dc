@@ -6996,6 +6996,10 @@ NODEP_CPP_R_STU=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\render\r_studio_neo.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\render\r_trans.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"

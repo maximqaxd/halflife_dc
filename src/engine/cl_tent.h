@@ -18,7 +18,7 @@ TEMPENTITY* CL_TempEntAlloc( vec_t* org, model_t* model );
 
 void R_RicochetSprite( float* pos, model_t* pmodel, float duration, float scale );
 void R_RocketFlare( float* pos );
-void R_MuzzleFlash( float* pos1, float (*light)[4], int type );
+void R_MuzzleFlash( float* pos, int type );
 void R_SparkEffect( float* pos, int count, int velocityMin, int velocityMax );
 
 TEMPENTITY* R_TempModel( float* pos, float* dir, float* angles, float life, int modelIndex, int soundtype );

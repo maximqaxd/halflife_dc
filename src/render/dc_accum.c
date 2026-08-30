@@ -11,7 +11,7 @@
 #define ACCUM_VERTS_SIZE    65536
 #define ACCUM_INDEX_SIZE    16384
 #define MULTI_MTX_0_SIZE    5120
-#define MULTI_MTX_1_SIZE    2048
+#define MULTI_MTX_1_SIZE    1280
 
 static short    *g_pQuadTable[QUAD_TABLE_ROWS + 1];
 static short     g_QuadIndexData[7500 / sizeof(short)];
@@ -27,6 +27,7 @@ int              g_nAccumMaxIndicesSeen;
 
 static void     *g_pMultiMtx0;
 static void     *g_pMultiMtx1;
+static D3DCOLOR  g_studioLightTable[128];
 DWORD            g_dwAccumCurrentDiffuse = 0xFFFFFFFFu;
 
 static int DCV_GetMaxVertCount( void )
@@ -104,13 +105,15 @@ void DCV_Flush( void )
 	}
 }
 
-/* Flush without updating the max-seen high-water marks. */
-void DCV_FlushBatchCopy( void )
+/* Draw the accumulated studio batch. Studio meshes carry a vertex normal and
+   are lit by the device, so they go out with the normal-vertex format rather
+   than the pre-lit one the world uses, and skip the high-water bookkeeping. */
+void DCV_SubmitBatchCopy( void )
 {
 	if (g_nAccumVertCount != 0)
 	{
 		g_pD3DDevice->lpVtbl->DrawIndexedPrimitive(g_pD3DDevice,
-			D3DPT_TRIANGLELIST, D3DFVF_LVERTEX,
+			D3DPT_TRIANGLELIST, D3DFVF_VERTEX,
 			g_pAccumVerts, g_nAccumVertCount,
 			g_pAccumIndex, g_nAccumIndexCount,
 			g_dwAccumFlushFlags);
@@ -119,30 +122,116 @@ void DCV_FlushBatchCopy( void )
 	}
 }
 
-/* Flush a single synthesized guard vertex/index pair, ignoring the rest of
-   the batch. Payload source globals not yet identified. */
-static DWORD s_dcGuardVertLo[2];
-static void *s_pDcGuardVertHi;
-
-void DCV_FlushBatchGuarded( void )
+/* Draw the accumulated studio batch through the hardware's multi-matrix path.
+   Each vertex names its bone in the low byte of its normal, and the device
+   skins it against the bone matrices, light directions and shade table that
+   DCV_SetupStudioLighting built for this model. */
+void DCV_SubmitBatchGuarded( void )
 {
 	if (g_nAccumVertCount != 0 && g_nAccumIndexCount != 0)
 	{
-		DWORD guardVert[4];
+		D3DMULTIMATRIX mm;
 
-		guardVert[1] = s_dcGuardVertLo[0];
-		guardVert[2] = s_dcGuardVertLo[1];
-		guardVert[3] = (DWORD)(size_t)s_pDcGuardVertHi;
-		guardVert[0] = g_dwAccumCurrentDiffuse;
-
+		mm.lpd3dMatrices = (LPD3DMATRIX)g_pMultiMtx0;
+		mm.lpvLightDirs = g_pMultiMtx1;
+		mm.lpLightTable = g_studioLightTable;
+		mm.lpvVertices = g_pAccumVerts;
 		g_pD3DDevice->lpVtbl->DrawIndexedPrimitive(g_pD3DDevice,
-			D3DPT_TRIANGLELIST, D3DFVF_LVERTEX,
-			guardVert, g_nAccumVertCount,
+			D3DPT_TRIANGLELIST, D3DFVF_VERTEX,
+			&mm, g_nAccumVertCount,
 			g_pAccumIndex, g_nAccumIndexCount,
-			D3DDP_DONOTCLIP);
+			D3DDP_MULTIMATRIX);
 		g_nAccumVertCount = 0;
 		g_nAccumIndexCount = 0;
 	}
+}
+
+/* Multiply two row-major D3D matrices with the SH-4 matrix/vector unit. */
+static __inline void DCV_MultiplyMatrixSH4( D3DMATRIX *out, const D3DMATRIX *left, const D3DMATRIX *right )
+{
+	__asm(
+		"frchg\n"
+		"fmov.s @r5+, fr0\n"  "fmov.s @r5+, fr4\n"
+		"fmov.s @r5+, fr8\n"  "fmov.s @r5+, fr12\n"
+		"fmov.s @r5+, fr1\n"  "fmov.s @r5+, fr5\n"
+		"fmov.s @r5+, fr9\n"  "fmov.s @r5+, fr13\n"
+		"fmov.s @r5+, fr2\n"  "fmov.s @r5+, fr6\n"
+		"fmov.s @r5+, fr10\n" "fmov.s @r5+, fr14\n"
+		"fmov.s @r5+, fr3\n"  "fmov.s @r5+, fr7\n"
+		"fmov.s @r5+, fr11\n" "fmov.s @r5, fr15\n"
+		"frchg\n"
+
+		"fmov.s @r6, fr0\n" "add #16, r6\n"
+		"fmov.s @r6, fr1\n" "add #16, r6\n"
+		"fmov.s @r6, fr2\n" "add #16, r6\n"
+		"fmov.s @r6, fr3\n" "ftrv xmtrx, fv0\n"
+		"fmov.s fr0, @r4\n" "add #16, r4\n"
+		"fmov.s fr1, @r4\n" "add #16, r4\n"
+		"fmov.s fr2, @r4\n" "add #16, r4\n"
+		"fmov.s fr3, @r4\n"
+
+		"add #-44, r6\n" "fmov.s @r6, fr0\n" "add #16, r6\n"
+		"fmov.s @r6, fr1\n" "add #16, r6\n"
+		"fmov.s @r6, fr2\n" "add #16, r6\n"
+		"fmov.s @r6, fr3\n" "ftrv xmtrx, fv0\n"
+		"add #-44, r4\n" "fmov.s fr0, @r4\n" "add #16, r4\n"
+		"fmov.s fr1, @r4\n" "add #16, r4\n"
+		"fmov.s fr2, @r4\n" "add #16, r4\n"
+		"fmov.s fr3, @r4\n"
+
+		"add #-44, r6\n" "fmov.s @r6, fr0\n" "add #16, r6\n"
+		"fmov.s @r6, fr1\n" "add #16, r6\n"
+		"fmov.s @r6, fr2\n" "add #16, r6\n"
+		"fmov.s @r6, fr3\n" "ftrv xmtrx, fv0\n"
+		"add #-44, r4\n" "fmov.s fr0, @r4\n" "add #16, r4\n"
+		"fmov.s fr1, @r4\n" "add #16, r4\n"
+		"fmov.s fr2, @r4\n" "add #16, r4\n"
+		"fmov.s fr3, @r4\n"
+
+		"add #-44, r6\n" "fmov.s @r6, fr0\n" "add #16, r6\n"
+		"fmov.s @r6, fr1\n" "add #16, r6\n"
+		"fmov.s @r6, fr2\n" "add #16, r6\n"
+		"fmov.s @r6, fr3\n" "ftrv xmtrx, fv0\n"
+		"add #-44, r4\n" "fmov.s fr0, @r4\n" "add #16, r4\n"
+		"fmov.s fr1, @r4\n" "add #16, r4\n"
+		"fmov.s fr2, @r4\n" "add #16, r4\n"
+		"fmov.s fr3, @r4\n",
+		out, left, right);
+}
+
+void DCV_SetupStudioLighting( const float (*boneMatrices)[4][4], int count )
+{
+	D3DMATRIX projection, view, world;
+	D3DMATRIX worldView, worldViewProjection;
+	D3DMATRIX *matrices = (D3DMATRIX *)g_pMultiMtx0;
+	float *lightDirs = (float *)g_pMultiMtx1;
+	int i;
+
+	g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, D3DTRANSFORMSTATE_PROJECTION, &projection);
+	g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, D3DTRANSFORMSTATE_VIEW, &view);
+	g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, D3DTRANSFORMSTATE_WORLD, &world);
+	DCV_MultiplyMatrixSH4(&worldView, &world, &view);
+	DCV_MultiplyMatrixSH4(&worldViewProjection, &worldView, &projection);
+
+	if (count > 80)
+		count = 80;
+	for (i = 0; i < count; i++)
+	{
+		DCV_MultiplyMatrixSH4(&matrices[i], (const D3DMATRIX *)&boneMatrices[i], &worldViewProjection);
+		lightDirs[i * 4 + 0] = 0.0f;
+		lightDirs[i * 4 + 1] = g_lightData[0].dvDirection.x * 251.0f;
+		lightDirs[i * 4 + 2] = g_lightData[0].dvDirection.y * 251.0f;
+		lightDirs[i * 4 + 3] = g_lightData[0].dvDirection.z * 251.0f;
+	}
+
+	for (i = 0; i < 64; i++)
+	{
+		int level = i * 4;
+		g_studioLightTable[i] = (level << 16) | (level << 8) | level;
+	}
+	for (; i < 128; i++)
+		g_studioLightTable[i] = g_studioLightTable[0];
+
 }
 
 void DCV_SetColor( int r, int g, int b, int a )
@@ -558,8 +647,9 @@ void DCV_AddVertexIndexed( float x, float y, float z, float tu, float tv )
 /* Texture-coordinate scale for the studio mesh writers below (1/width,
    1/height of the currently bound skin texture; set by a not-yet-
    reconstructed caller before a mesh batch). */
-static float s_studioTexScaleS = 1.0f;
-static float s_studioTexScaleT = 1.0f;
+float g_flStudioTexScaleS = 1.0f;
+float g_flStudioTexScaleT = 1.0f;
+extern float chrome[][2];
 
 /* Studio mesh vertices share the same 32-byte accumulator slot as the lit
    D3DLVERTEX path above, but carry a vertex normal (floats at offset 3-5)
@@ -588,8 +678,8 @@ void DCV_AddStudioMesh( int count, const short *pCmds, const byte *pVertices, co
 		{
 			int s = pCmds[2];
 			int t = pCmds[3];
-			pOut[6] = (float)s * s_studioTexScaleS;
-			pOut[7] = (float)t * s_studioTexScaleT;
+			pOut[6] = (float)s * g_flStudioTexScaleS;
+			pOut[7] = (float)t * g_flStudioTexScaleT;
 		}
 		pCmds += 4;
 		pOut += 8;
@@ -598,7 +688,7 @@ void DCV_AddStudioMesh( int count, const short *pCmds, const byte *pVertices, co
 
 /* Chrome (environment-mapped) variant: the texture coordinate comes from a
    per-normal-index reflection table instead of the mesh's own s/t. */
-void DCV_AddStudioMeshChrome( int count, const short *pCmds, const byte *pVertices, const byte *pNormals, const float *pChromeUV )
+void DCV_AddStudioMeshChrome( int count, const short *pCmds, const byte *pVertices, const byte *pNormals )
 {
 	float *pOut = (float *)&g_pAccumVerts[g_nAccumVertCount];
 
@@ -615,8 +705,8 @@ void DCV_AddStudioMeshChrome( int count, const short *pCmds, const byte *pVertic
 		pOut[3] = pN[0];
 		pOut[4] = pN[1];
 		pOut[5] = pN[2];
-		pOut[6] = pChromeUV[pCmds[1] * 2] * s_studioTexScaleS;
-		pOut[7] = pChromeUV[pCmds[1] * 2 + 1] * s_studioTexScaleT;
+		pOut[6] = chrome[pCmds[1]][0] * g_flStudioTexScaleS;
+		pOut[7] = chrome[pCmds[1]][1] * g_flStudioTexScaleT;
 		pCmds += 4;
 		pOut += 8;
 	}
@@ -644,8 +734,8 @@ void DCV_AddStudioMeshTagged( int count, const short *pCmds, const byte *pVertic
 		{
 			int s = pCmds[2];
 			int t = pCmds[3];
-			pOut[6] = (float)s * s_studioTexScaleS;
-			pOut[7] = (float)t * s_studioTexScaleT;
+			pOut[6] = (float)s * g_flStudioTexScaleS;
+			pOut[7] = (float)t * g_flStudioTexScaleT;
 		}
 		*(byte *)&pOut[3] = pVertTag[pCmds[0]];
 		pCmds += 4;
@@ -654,7 +744,7 @@ void DCV_AddStudioMeshTagged( int count, const short *pCmds, const byte *pVertic
 }
 
 /* Chrome + tagged: chrome UV table lookup, plus the per-vertex tag byte. */
-void DCV_AddStudioMeshChromeTagged( int count, const short *pCmds, const byte *pVertices, const byte *pNormals, const float *pChromeUV, const byte *pVertTag )
+void DCV_AddStudioMeshChromeTagged( int count, const short *pCmds, const byte *pVertices, const byte *pNormals, const byte *pVertTag )
 {
 	float *pOut = (float *)&g_pAccumVerts[g_nAccumVertCount];
 
@@ -671,8 +761,8 @@ void DCV_AddStudioMeshChromeTagged( int count, const short *pCmds, const byte *p
 		pOut[3] = pN[0];
 		pOut[4] = pN[1];
 		pOut[5] = pN[2];
-		pOut[6] = pChromeUV[pCmds[1] * 2] * s_studioTexScaleS;
-		pOut[7] = pChromeUV[pCmds[1] * 2 + 1] * s_studioTexScaleT;
+		pOut[6] = chrome[pCmds[1]][0] * g_flStudioTexScaleS;
+		pOut[7] = chrome[pCmds[1]][1] * g_flStudioTexScaleT;
 		*(byte *)&pOut[3] = pVertTag[pCmds[0]];
 		pCmds += 4;
 		pOut += 8;
@@ -801,12 +891,12 @@ void DCV_BuildStudioIndexList( const short *pCmds )
 		else
 		{
 			int tris = count - 2;
-			int pairs = tris - 1;
+			int pairs = count - 1;
 			const short *p = pCmds + 1;
 			int i;
 
 			if (pairs < 0)
-				pairs = tris;
+				pairs = count;
 			pairs >>= 1;
 
 			total += tris;
@@ -841,7 +931,7 @@ void DCV_BuildStudioIndexList( const short *pCmds )
 /* Same quad-strip split as DCV_AddPolyIndices, but each pair of triangles is
    followed by a 0xFFFF strip-restart marker instead of running straight into
    the next pair. */
-void DCV_AddIndicesStripRestart( short base, int count )
+void DCV_AddIndicesFanRestart( short base, int count )
 {
 	WORD *p = &g_pAccumIndex[g_nAccumIndexCount];
 	short next = base + 1;
@@ -876,8 +966,8 @@ void DCV_AddIndicesStripRestart( short base, int count )
 	g_nAccumIndexCount += pairs * 5 + tailTri * 4;
 }
 
-/* Same fan as DCV_AddIndicesFan, followed by a 0xFFFF strip-restart marker. */
-void DCV_AddIndicesFanRestart( short base, int count )
+/* Same strip as DCV_AddIndicesStrip, followed by a 0xFFFF strip-restart marker. */
+void DCV_AddIndicesStripRestart( short base, int count )
 {
 	WORD *p = &g_pAccumIndex[g_nAccumIndexCount];
 	int i;
@@ -887,6 +977,80 @@ void DCV_AddIndicesFanRestart( short base, int count )
 	*p = (short)0xFFFF;
 
 	g_nAccumIndexCount += count + 1;
+}
+
+/* Same as DCV_BuildStudioIndexList, but emits strips and fans the hardware can
+   take back to back: each run ends with a 0xFFFF restart marker instead of
+   being expanded into separate triangles. */
+void DCV_AssembleStudioIndexListRestart( const short *pCmds )
+{
+	WORD *pOut = &g_pAccumIndex[g_nAccumIndexCount];
+	int written = 0;
+	int markers = 0;
+	short command;
+
+	while ((command = *pCmds) != 0)
+	{
+		int count = command;
+
+		if (count < 0)
+		{
+			int tris = -count - 2;
+			int pairs = tris;
+			int tail;
+			short hub;
+
+			if (pairs < 0)
+				pairs = -count - 1;
+			pairs >>= 1;
+
+			tail = tris & 1;
+			if (tris < 0 && tail != 0)
+				tail -= 2;
+
+			hub = pCmds[1];
+			pCmds += 2;
+			count = pairs * 4 + tail * 3;
+			markers += pairs + tail;
+
+			for (; pairs != 0; --pairs)
+			{
+				pOut[0] = pCmds[0];
+				pOut[1] = pCmds[1];
+				pOut[2] = hub;
+				pCmds += 2;
+				pOut[3] = pCmds[0];
+				pOut[4] = (short)0xFFFF;
+				pOut += 5;
+			}
+
+			if (tail != 0)
+			{
+				pOut[0] = pCmds[0];
+				++pCmds;
+				pOut[1] = pCmds[0];
+				pOut[2] = hub;
+				pOut[3] = (short)0xFFFF;
+				pOut += 4;
+			}
+
+			++pCmds;
+		}
+		else
+		{
+			int i;
+
+			markers++;
+			++pCmds;
+			for (i = count; i != 0; --i)
+				*pOut++ = *pCmds++;
+			*pOut++ = (short)0xFFFF;
+		}
+
+		written += count;
+	}
+
+	g_nAccumIndexCount += written + markers;
 }
 
 void DCV_SetTextureClamp( void )

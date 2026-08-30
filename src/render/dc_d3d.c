@@ -41,7 +41,7 @@ static D3DDEVICEDESC        g_d3dHELDeviceDesc;
 static D3DDEVICEDESC        g_d3dDeviceDesc;
 D3DVIEWPORT2               g_viewportDesc;
 static D3DMATERIAL          g_backgroundMaterialData;
-static D3DLIGHT2            g_lightData[4];
+D3DLIGHT2                   g_lightData[4];
 D3DMATRIX                   g_identityMatrix;
 static D3DMATRIX            g_matNegY;
 static D3DMATRIX            g_matNegX;

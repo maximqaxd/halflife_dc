@@ -34,23 +34,27 @@ typedef struct
 #define	MAX_SCOREBOARDNAME		32
 typedef struct player_info_s
 {
-	// User id on server
-	int		userid;
-
-	// Name
-	char	name[MAX_SCOREBOARDNAME];
-	int		ping;
-
-	// skin information
-	int		color;
-
-	int		spectator;
-	byte	translations[VID_GRADES * 256];
-
-	float	maxspeed;
-
-	customization_t customdata;
+	int		userid;                 // 0x000
+	char	userinfo[196];          // 0x004
+	char	name[MAX_SCOREBOARDNAME];// 0x0C8
+	int		ping;                   // 0x0E8
+	int		spectator;              // 0x0EC
+	char	model[48];               // 0x0F0
+	int		color;                  // 0x120, player top color
+	int		bottomcolor;            // 0x124
+	byte	translations[512];       // 0x128
+	int		packetloss;             // 0x328
+	int		renderframe;            // 0x32C
+	float	maxspeed;               // 0x330
+	customization_t customdata;   // 0x334; pNext is 0x38C
+	int		gaitsequence;           // 0x390
+	float	gaitframe;              // 0x394
+	float	gaityaw;                // 0x398
+	vec3_t	prevgaitorigin;         // 0x39C
 } player_info_t;
+
+typedef char player_info_t_must_match_retail_size[
+	(sizeof(player_info_t) == 0x3A8) ? 1 : -1];
 
 //
 // client_state_t should hold all pieces of the client state
@@ -193,7 +197,7 @@ typedef struct
 {
 	int			messagenum;		// all player's won't be updated each frame
 
-	double		state_time;		// not the same as the packet time,
+	float		state_time;		// Dreamcast stores player-state time as 32-bit
 								// because player commands come asyncronously
 	float		received_time;	// timestamp when the state was received
 
@@ -221,7 +225,11 @@ typedef struct
 
 	float		waterjumptime;	// Amount of time left in jumping out of water cycle.
 	int			onground;		// -1 = in air, else pmove entity number
-	int			oldbuttons;		// Buttons last usercmd
+	union
+	{
+		int		oldbuttons;		// Buttons last usercmd
+		int		renderframe;		// Reused by the Dreamcast studio player renderer
+	};
 
 	// Render information
 	int			rendermode;
@@ -239,7 +247,8 @@ typedef struct
 
 	int			weaponmodel;
 
-	byte pad4[8];
+	int			gaitsequence;
+	float		gaitframe;
 
 	// If standing on conveyor, e.g.
 	vec3_t		basevelocity;
@@ -423,6 +432,8 @@ extern	cvar_t	cl_predict_players;
 extern	cvar_t	cl_solid_players;
 extern	cvar_t	cl_nodelta;
 extern	cvar_t	cl_printplayers;
+extern	cvar_t	cl_himodels;
+extern	cvar_t	cl_gaitestimation;
 
 extern	cvar_t	m_pitch;
 extern	cvar_t	m_yaw;

@@ -51,6 +51,8 @@ cvar_t	cl_predict_players = { "cl_predict_players", "1" };
 cvar_t	cl_solid_players = { "cl_solid_players", "1" };
 cvar_t	cl_nodelta = { "cl_nodelta", "0" };
 cvar_t	cl_printplayers = { "cl_printplayers", "0" };
+cvar_t	cl_himodels = { "cl_himodels", "0" };
+cvar_t	cl_gaitestimation = { "cl_gaitestimation", "1" };
 
 cvar_t	m_pitch = { "m_pitch", "0.022", TRUE };
 cvar_t	m_yaw = { "m_yaw", "0.022", TRUE };
@@ -2175,6 +2177,8 @@ void CL_Init( void )
 	Cvar_RegisterVariable(&cl_solid_players);
 	Cvar_RegisterVariable(&cl_nodelta);
 	Cvar_RegisterVariable(&cl_printplayers);
+	Cvar_RegisterVariable(&cl_himodels);
+	Cvar_RegisterVariable(&cl_gaitestimation);
 	Cvar_RegisterVariable(&cl_slisttimeout);
 	Cvar_RegisterVariable(&cl_downloadinterval);
 	Cvar_RegisterVariable(&cl_upload_max);

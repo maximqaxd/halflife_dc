@@ -38,7 +38,7 @@ void Mod_LoadStudioModel( model_t* mod, void* buffer )
 		phdr->length = sizeof(*phdr);
 		phdr->texturedataindex = sizeof(*phdr);
 	}
-	phdr->version = 0xC0EDBABE;
+	phdr->version = 0xC0EDBEEF;
 
 	if (phdr->numbones > MAXSTUDIOBONES)
 		Sys_Error("Too damn many bones in %s!\n", mod->name);
@@ -96,6 +96,15 @@ void Mod_LoadStudioModel( model_t* mod, void* buffer )
 	}
 
 	memcpy(mod->cache.data, pin, total);
+}
+
+int Mod_IsStudioNeoModel( const studiohdr_t* phdr )
+{
+	if (phdr->version == 0xC0EDBEEF)
+		return TRUE;
+	if (phdr->version == 0xC0EDBABE)
+		return FALSE;
+	return FALSE;
 }
 
 /*

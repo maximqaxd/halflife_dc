@@ -55,6 +55,7 @@ typedef enum
 } GL_TEXTURETYPE;
 
 int GL_LoadTexture( char* identifier, GL_TEXTURETYPE textureType, int width, int height, unsigned char* data, int mipmap, int iType, unsigned char* pPal );
+void GL_UnloadTexture( char* identifier );
 int GL_LoadPicTexture( qpic_t* pic, char* pszName );
 int GL_UnloadTextures( void );
 void GL_SelectTexture( unsigned int target );

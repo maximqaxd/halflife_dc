@@ -343,6 +343,7 @@ void SV_AllocClientFrames( void );
 // sv_main.c
 //
 void SV_Init( void );
+qboolean SV_Active( void );
 void SV_ReadPackets( void );
 void SV_CheckTimeouts( void );
 void SV_FullClientUpdate( client_t* cl, sizebuf_t* sb );

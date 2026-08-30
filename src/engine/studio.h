@@ -339,4 +339,6 @@ typedef struct
 #define RAD_TO_STUDIO		(32768.0/M_PI)
 #define STUDIO_TO_RAD		(M_PI/32768.0)
 
+int Mod_IsStudioNeoModel( const studiohdr_t* phdr );
+
 #endif

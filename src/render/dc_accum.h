@@ -21,8 +21,9 @@ void          DCV_SetPackedColor( DWORD diffuse );
 DWORD         DCV_GetCurrentDiffuse( void );
 void          DCV_SetColorFloat( float r, float g, float b, float a );
 void          DCV_FlushIfLarge( void );
-void          DCV_FlushBatchCopy( void );
-void          DCV_FlushBatchGuarded( void );
+void          DCV_SubmitBatchCopy( void );
+void          DCV_SubmitBatchGuarded( void );
+void          DCV_SetupStudioLighting( const float (*boneMatrices)[4][4], int count );
 qboolean      DCV_EnsureSpace( int add_verts, int add_indices );
 int           DCV_GetVertCount( void );
 int           DCV_AddVertex( float x, float y, float z, float tu, float tv );
@@ -30,9 +31,9 @@ void          DCV_AddLVertex( const D3DLVERTEX* v );
 void          DCV_AddVertexLit( float tu, float tv, const vec_t *pos );
 void          DCV_AddVertexIndexed( float x, float y, float z, float tu, float tv );
 void          DCV_AddStudioMesh( int count, const short *pCmds, const byte *pVertices, const byte *pNormals );
-void          DCV_AddStudioMeshChrome( int count, const short *pCmds, const byte *pVertices, const byte *pNormals, const float *pChromeUV );
+void          DCV_AddStudioMeshChrome( int count, const short *pCmds, const byte *pVertices, const byte *pNormals );
 void          DCV_AddStudioMeshTagged( int count, const short *pCmds, const byte *pVertices, const byte *pNormals, const byte *pVertTag );
-void          DCV_AddStudioMeshChromeTagged( int count, const short *pCmds, const byte *pVertices, const byte *pNormals, const float *pChromeUV, const byte *pVertTag );
+void          DCV_AddStudioMeshChromeTagged( int count, const short *pCmds, const byte *pVertices, const byte *pNormals, const byte *pVertTag );
 void          DCV_AddPolyIndices( short base, int numverts );
 void          DCV_AddIndicesQuad( int i0, int i1, int i2, int i3 );
 void          DCV_AddIndicesStrip( int base, int count );
@@ -40,6 +41,7 @@ void          DCV_AddIndicesFan( short base, int count );
 void          DCV_BuildStudioIndexList( const short *pCmds );
 void          DCV_AddIndicesStripRestart( short base, int count );
 void          DCV_AddIndicesFanRestart( short base, int count );
+void          DCV_AssembleStudioIndexListRestart( const short *pCmds );
 void          DCV_AccumSolidPoly( const void *poly );
 void          DCV_AccumColoredPoly( const void *poly );
 void          DCV_AccumLightmapBatch( const void *poly );
@@ -47,9 +49,14 @@ void          DCV_AccumScrollPoly( const void *poly );
 void          DCV_SetTextureClamp( void );
 void          DCV_SetTextureWrap( void );
 extern float  g_flScrollOffset;
+extern float  g_flStudioTexScaleS;
+extern float  g_flStudioTexScaleT;
 void          DCV_SetClipRequired( void );
 void          DCV_SetNoClip( void );
 void          DCV_SetTexStateFromRenderMode( int rendermode );
+void          DCV_SetDlight( int index, float *origin, float *color, float radius );
+void          DCV_DisableDlight( int index );
+void          DCV_SetWorldLight( float *dir, float *color, float *ambient );
 
 void          DCV_FlushApplyRenderState( D3DRENDERSTATETYPE state, DWORD value );
 
@@ -69,6 +76,7 @@ void          DCV_Rotate( int state, float angle, float x, float y, float z );
 extern D3DMATRIX g_matWorld;
 extern D3DMATRIX g_matView;
 extern D3DMATRIX g_matProjection;
+extern D3DLIGHT2 g_lightData[4];
 
 /*
  * The PowerVR is a deferred tile renderer: a render-state change also affects the
