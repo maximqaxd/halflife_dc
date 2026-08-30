@@ -933,7 +933,7 @@ void Host_Map( qboolean bIsDemo, char* mapstring, char* mapName, qboolean loadGa
 	// Connect the local client when a "map" command is issued.
 	if (cls.state != ca_dedicated)
 	{
-		Cmd_ExecuteString("connect local", src_command);
+		Cmd_ExecuteString("connect local", src_client);
 	}
 
 	Sys_SetTaskName("local client connected");
