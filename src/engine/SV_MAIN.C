@@ -1712,7 +1712,7 @@ void SV_AddToFatPVS( vec_t* org, mnode_t* node )
 {
 	int		i;
 	byte* pvs;
-	mplane_t* plane;
+	mclipplane_t* plane;
 	float	d;
 
 	while (1)
@@ -1730,7 +1730,7 @@ void SV_AddToFatPVS( vec_t* org, mnode_t* node )
 		}
 
 		plane = node->plane;
-		d = DotProduct(org, plane->normal) - plane->dist;
+		d = DotProduct(org, g_planeNormalTable[plane->normalindex].normal) - plane->dist;
 		if (d > 8)
 			node = node->children[0];
 		else if (d < -8)
