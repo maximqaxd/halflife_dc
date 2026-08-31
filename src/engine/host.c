@@ -7,6 +7,10 @@
 #include "hashpak.h"
 #include "won.h"
 
+#ifdef _WIN32_WCE
+#pragma optimize("", off)
+#endif
+
 /*
 
 A server can allways be started, even if the system started out as a client
@@ -438,7 +442,7 @@ void SV_DropClient( client_t *cl, qboolean crash )
 
 		if (cl->download)
 		{
-			COM_FreeFile(cl->download);
+			COM_FreeFile();
 			cl->download = NULL;
 		}
 
@@ -1819,3 +1823,7 @@ void Host_Shutdown( void )
 		VID_Shutdown();
 	}
 }
+
+#ifdef _WIN32_WCE
+#pragma optimize("", on)
+#endif

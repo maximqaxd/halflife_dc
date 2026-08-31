@@ -9,6 +9,10 @@
 #pragma warning( disable : 4244 4127 4201 4214 4514 4305 4115 4018)
 #endif
 
+#if defined( _WIN32_WCE ) && defined( NDEBUG )
+#pragma optimize( "a", on )
+#endif
+
 #define	GAMENAME	"valve"
 
 #include <math.h>

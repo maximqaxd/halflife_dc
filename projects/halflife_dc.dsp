@@ -45,7 +45,7 @@ CFG=halflife_dc - Win32 (WCE SH4) Debug
 # PROP Target_Dir ""
 CPP=shcl.exe
 # ADD BASE CPP /nologo /MC /W3 /Zi /Ox /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "NDEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /YX /Qsh4r7 /Qs /Qfast /Qgvp /c
-# ADD CPP /nologo /MC /W3 /Zi /O2 /Ob2 /Oa /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/util/zlib" /I "../src/network" /I "../src/audio" /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "NDEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D "GLQUAKE" /D "_CRTIMP=" /YX /Qsh4r7 /Qs /Qfast /Qgvp /c
+# ADD CPP /nologo /MC /W3 /Zi /Oa /O2 /Ob2 /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/util/zlib" /I "../src/network" /I "../src/audio" /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "NDEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D "GLQUAKE" /YX /Qsh4r7 /Qs /Qfast /Qgvp /c
 RSC=rc.exe
 # ADD BASE RSC /l 0x419 /r /d "SHx" /d "SH4" /d "_SH4_" /d UNDER_CE=$(CEVersion) /d _WIN32_WCE=$(CEVersion) /d "$(CEConfigName)" /d "UNICODE" /d "NDEBUG"
 # ADD RSC /l 0x419 /r /d "SHx" /d "SH4" /d "_SH4_" /d UNDER_CE=$(CEVersion) /d _WIN32_WCE=$(CEVersion) /d "$(CEConfigName)" /d "UNICODE" /d "NDEBUG"
@@ -4186,7 +4186,7 @@ NODEP_CPP_DC_SC=\
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\render\dc_varp.c
+SOURCE=..\src\render\dc_warp.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -4755,9 +4755,6 @@ SOURCE=..\src\engine\won.c
 SOURCE=..\src\engine\host.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
-
-# ADD CPP /Od
-# SUBTRACT CPP /O2 /Ob2 /Oa
 
 DEP_CPP_HOST_=\
 	"..\src\common\dll_state.h"\
