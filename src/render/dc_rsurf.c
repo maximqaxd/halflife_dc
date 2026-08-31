@@ -2895,7 +2895,7 @@ void R_DrawDecals( void )
 
 				vlist = pverts[0];
 				for (k = 0; k < outCount; k++, vlist += VERTEXSIZE)
-					DCV_AddVertexLit(vlist[4], vlist[5], vlist);
+					DCV_PushVertexLit(vlist, vlist[4], vlist[5]);
 			}
 		}
 	}

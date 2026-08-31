@@ -1,5 +1,7 @@
 // r_studio.c: routines for setting up to draw 3DStudio models 
 
+#include <shintr.h>
+
 #include "quakedef.h"
 #include "dreamcast_crt.h"
 #include "pr_cmds.h"
@@ -51,22 +53,22 @@ int				nCurrentPlane;
 // Studio cache data
 typedef struct
 {
-	float frame;
-	int sequence;
+	float				frame;
+	int					sequence;
 
-	vec3_t angles;
-	vec3_t origin;
-	vec3_t size;
+	vec3_t				angles;
+	vec3_t				origin;
+	vec3_t				size;
 
-	unsigned char controller[4]; // bone controller
-	unsigned char blending[2];
+	unsigned char		controller[4]; // bone controller
+	unsigned char		blending[2];
 
-	model_t* pModel;	// model instance
+	model_t*			pModel;	// model instance
 
-	int nStartHull;
-	int nStartPlane;
+	int					nStartHull;
+	int					nStartPlane;
 
-	int numhulls;
+	int					numhulls;
 } r_studiocache_t;
 
 
@@ -126,34 +128,34 @@ int r_bottomcolor;
 
 typedef struct studio_player_model_s
 {
-	char name[MAX_OSPATH];
-	char modelName[MAX_OSPATH];
-	model_t* model;
+	char				name[MAX_OSPATH];
+	char				modelName[MAX_OSPATH];
+	model_t*			model;
 } studio_player_model_t;
 
 /* The retail studio renderer preserves the mutable prefix, not the final
  * eight bytes of cl_entity_t, while drawing an attached weapon model. */
 typedef struct studio_entity_snapshot_s
 {
-	byte data[0x158];
+	int					data[0x160 / 4];
 } studio_entity_snapshot_t;
 
 studio_player_model_t g_studioPlayerModels[MAX_CLIENTS];
 
 typedef struct studio_skin_cache_s
 {
-	int playerIndex;
-	int topColor;
-	int bottomColor;
-	model_t* model;
-	char textureName[224];
-	byte skinState[36];
-	int textureIndex;
-	int textureState;
-	int width;
-	int height;
-	cache_user_t pixels;
-	int glTexture;
+	int					playerIndex;
+	int					topColor;
+	int					bottomColor;
+	model_t*			model;
+	char				textureName[224];
+	byte				skinState[36];
+	int					textureIndex;
+	int					textureState;
+	int					width;
+	int					height;
+	cache_user_t		pixels;
+	int					glTexture;
 } studio_skin_cache_t;
 
 static studio_skin_cache_t g_studioSkinCache[64];
@@ -204,9 +206,9 @@ int SignbitsForPlane( mplane_t* out );
 
 void StudioRotateBonesX( float matrix[4][4], float angle )
 {
-	float s, c;
-	float x0, x1, x2, x3;
-	float y0, y1, y2, y3;
+	float				s, c;
+	float				x0, x1, x2, x3;
+	float				y0, y1, y2, y3;
 
 	angle *= 0.017453292f;
 	s = sin(angle);
@@ -233,9 +235,9 @@ void StudioRotateBonesX( float matrix[4][4], float angle )
 
 void StudioRotateBonesY( float matrix[4][4], float angle )
 {
-	float s, c, ns;
-	float y0, y1, y2, y3;
-	float z0, z1, z2, z3;
+	float				s, c, ns;
+	float				y0, y1, y2, y3;
+	float				z0, z1, z2, z3;
 
 	angle *= 0.017453292f;
 	s = sin(angle);
@@ -262,9 +264,9 @@ void StudioRotateBonesY( float matrix[4][4], float angle )
 
 void StudioRotateBonesZ( float matrix[4][4], float angle )
 {
-	float s, c;
-	float z0, z1, z2, z3;
-	float x0, x1, x2, x3;
+	float				s, c;
+	float				z0, z1, z2, z3;
+	float				x0, x1, x2, x3;
 
 	angle *= 0.017453292f;
 	s = sin(angle);
@@ -309,29 +311,13 @@ void StudioIdentityMatrix( float matrix[4][4] )
 	matrix[3][3] = 1.0f;
 }
 
-#define STUDIO_BBOX_DOT( destination, point, axis ) \
-	do \
-	{ \
-		__asm( \
-			"fmov.s @r5+, fr0\n" \
-			"fmov.s @r5+, fr1\n" \
-			"fmov.s @r5+, fr2\n" \
-			"fmov.s @r6+, fr4\n" \
-			"fmov.s @r6+, fr5\n" \
-			"fmov.s @r6+, fr6\n" \
-			"fmov fr3, fr7\n" \
-			"fipr fv0, fv4\n" \
-			"fmov.s fr7, @r4\n", \
-			(destination), (point), (axis) ); \
-	} while (0)
-
 void StudioComputeBBox( vec3_t mins, vec3_t maxs, const vec3_t angles )
 {
-	float matrix[4][4];
-	float axes[3][4];
-	vec3_t points[8];
-	vec3_t transformed[8];
-	int i, j;
+	float				matrix[4][4];
+	float				axes[3][4];
+	vec3_t				points[8];
+	vec3_t				transformed[8];
+	int					i, j;
 
 	points[0][0] = mins[0];
 	points[0][1] = mins[1];
@@ -369,31 +355,30 @@ void StudioComputeBBox( vec3_t mins, vec3_t maxs, const vec3_t angles )
 			axes[i][j] = matrix[i][j];
 	}
 
-	__asm("fldi0 fr3\n");
-	STUDIO_BBOX_DOT(&transformed[0][0], points[0], axes[0]);
-	STUDIO_BBOX_DOT(&transformed[0][1], points[0], axes[1]);
-	STUDIO_BBOX_DOT(&transformed[0][2], points[0], axes[2]);
-	STUDIO_BBOX_DOT(&transformed[1][0], points[1], axes[0]);
-	STUDIO_BBOX_DOT(&transformed[1][1], points[1], axes[1]);
-	STUDIO_BBOX_DOT(&transformed[1][2], points[1], axes[2]);
-	STUDIO_BBOX_DOT(&transformed[2][0], points[2], axes[0]);
-	STUDIO_BBOX_DOT(&transformed[2][1], points[2], axes[1]);
-	STUDIO_BBOX_DOT(&transformed[2][2], points[2], axes[2]);
-	STUDIO_BBOX_DOT(&transformed[3][0], points[3], axes[0]);
-	STUDIO_BBOX_DOT(&transformed[3][1], points[3], axes[1]);
-	STUDIO_BBOX_DOT(&transformed[3][2], points[3], axes[2]);
-	STUDIO_BBOX_DOT(&transformed[4][0], points[4], axes[0]);
-	STUDIO_BBOX_DOT(&transformed[4][1], points[4], axes[1]);
-	STUDIO_BBOX_DOT(&transformed[4][2], points[4], axes[2]);
-	STUDIO_BBOX_DOT(&transformed[5][0], points[5], axes[0]);
-	STUDIO_BBOX_DOT(&transformed[5][1], points[5], axes[1]);
-	STUDIO_BBOX_DOT(&transformed[5][2], points[5], axes[2]);
-	STUDIO_BBOX_DOT(&transformed[6][0], points[6], axes[0]);
-	STUDIO_BBOX_DOT(&transformed[6][1], points[6], axes[1]);
-	STUDIO_BBOX_DOT(&transformed[6][2], points[6], axes[2]);
-	STUDIO_BBOX_DOT(&transformed[7][0], points[7], axes[0]);
-	STUDIO_BBOX_DOT(&transformed[7][1], points[7], axes[1]);
-	STUDIO_BBOX_DOT(&transformed[7][2], points[7], axes[2]);
+	transformed[0][0] = _Dot3dVW0(points[0], axes[0]);
+	transformed[0][1] = _Dot3dVW0(points[0], axes[1]);
+	transformed[0][2] = _Dot3dVW0(points[0], axes[2]);
+	transformed[1][0] = _Dot3dVW0(points[1], axes[0]);
+	transformed[1][1] = _Dot3dVW0(points[1], axes[1]);
+	transformed[1][2] = _Dot3dVW0(points[1], axes[2]);
+	transformed[2][0] = _Dot3dVW0(points[2], axes[0]);
+	transformed[2][1] = _Dot3dVW0(points[2], axes[1]);
+	transformed[2][2] = _Dot3dVW0(points[2], axes[2]);
+	transformed[3][0] = _Dot3dVW0(points[3], axes[0]);
+	transformed[3][1] = _Dot3dVW0(points[3], axes[1]);
+	transformed[3][2] = _Dot3dVW0(points[3], axes[2]);
+	transformed[4][0] = _Dot3dVW0(points[4], axes[0]);
+	transformed[4][1] = _Dot3dVW0(points[4], axes[1]);
+	transformed[4][2] = _Dot3dVW0(points[4], axes[2]);
+	transformed[5][0] = _Dot3dVW0(points[5], axes[0]);
+	transformed[5][1] = _Dot3dVW0(points[5], axes[1]);
+	transformed[5][2] = _Dot3dVW0(points[5], axes[2]);
+	transformed[6][0] = _Dot3dVW0(points[6], axes[0]);
+	transformed[6][1] = _Dot3dVW0(points[6], axes[1]);
+	transformed[6][2] = _Dot3dVW0(points[6], axes[2]);
+	transformed[7][0] = _Dot3dVW0(points[7], axes[0]);
+	transformed[7][1] = _Dot3dVW0(points[7], axes[1]);
+	transformed[7][2] = _Dot3dVW0(points[7], axes[2]);
 
 	for (i = 0; i < 8; i++)
 	{
@@ -407,7 +392,6 @@ void StudioComputeBBox( vec3_t mins, vec3_t maxs, const vec3_t angles )
 	}
 }
 
-#undef STUDIO_BBOX_DOT
 
 /*
 ===========
@@ -418,10 +402,10 @@ Checks if entity's bbox is in the view frustum
 */
 qboolean R_StudioCheckBBox( void )
 {
-	mplane_t	plane;
-	vec3_t		mins, maxs;
-	int			side;
-	mstudioseqdesc_t* pseqdesc;
+	mplane_t			plane;
+	vec3_t				mins, maxs;
+	int					side;
+	mstudioseqdesc_t*	pseqdesc;
 
 	pseqdesc = (mstudioseqdesc_t*)((byte*)pstudiohdr + pstudiohdr->seqindex) + currententity->sequence;
 	VectorCopy(pseqdesc->bbmin, mins);
@@ -461,9 +445,9 @@ qboolean R_StudioCheckBBox( void )
 // Get number of body variations
 int R_StudioBodyVariations( model_t* model )
 {
-	studiohdr_t* pstudiohdr;
-	mstudiobodyparts_t* pbodypart;
-	int		i, count;
+	studiohdr_t*		pstudiohdr;
+	mstudiobodyparts_t*	pbodypart;
+	int					i, count;
 
 	if (model->type != mod_studio)
 		return 0;
@@ -506,9 +490,9 @@ R_StudioSetUpTransform
 */
 void R_StudioSetUpTransform( int trivial_accept )
 {
-	int				i;
-	vec3_t			angles;
-	vec3_t			modelpos;
+	int					i;
+	vec3_t				angles;
+	vec3_t				modelpos;
 
 	// tweek model origin	
 		//for (i = 0; i < 3; i++)
@@ -527,8 +511,8 @@ void R_StudioSetUpTransform( int trivial_accept )
 	//Con_DPrintf("movetype %d %d\n", currententity->movetype, currententity->aiment);
 	if (currententity->movetype != MOVETYPE_NONE)
 	{
-		float			f = 0;
-		float			d;
+		float				f = 0;
+		float				d;
 
 		// don't do it if the goalstarttime hasn't updated in a while.
 
@@ -564,7 +548,7 @@ void R_StudioSetUpTransform( int trivial_accept )
 //			Con_DPrintf("%.0f %.0f\n", currententity->msg_angles[0][YAW], currententity->msg_angles[1][YAW]);
 		for (i = 0; i < 3; i++)
 		{
-			float ang1, ang2;
+			float				ang1, ang2;
 
 			ang1 = currententity->angles[i];
 			ang2 = currententity->prevangles[i];
@@ -605,8 +589,8 @@ void VectorIRotate( vec_t* in1, float(*in2)[4], vec_t* out )
 
 void AngleQuaternion( vec_t* angles, vec_t* quaternion )
 {
-	float		angle;
-	float		sr, sp, sy, cr, cp, cy;
+	float				angle;
+	float				sr, sp, sy, cr, cp, cy;
 
 	// FIXME: rescale the inputs to 1/2 angle
 	angle = angles[2] * 0.5f;
@@ -627,22 +611,22 @@ void AngleQuaternion( vec_t* angles, vec_t* quaternion )
 
 void QuaternionMatrix( vec_t* quaternion, float(*matrix)[4] )
 {
-	float x = quaternion[0];
-	float y = quaternion[1];
-	float z = quaternion[2];
-	float w = quaternion[3];
-	float x2 = x + x;
-	float y2 = y + y;
-	float z2 = z + z;
-	float xx = x * x2;
-	float xy = x * y2;
-	float xz = x * z2;
-	float yy = y * y2;
-	float yz = y * z2;
-	float zz = z * z2;
-	float wx = w * x2;
-	float wy = w * y2;
-	float wz = w * z2;
+	float				x = quaternion[0];
+	float				y = quaternion[1];
+	float				z = quaternion[2];
+	float				w = quaternion[3];
+	float				x2 = x + x;
+	float				y2 = y + y;
+	float				z2 = z + z;
+	float				xx = x * x2;
+	float				xy = x * y2;
+	float				xz = x * z2;
+	float				yy = y * y2;
+	float				yz = y * z2;
+	float				zz = z * z2;
+	float				wx = w * x2;
+	float				wy = w * y2;
+	float				wz = w * z2;
 
 	matrix[0][0] = 1.0f - (yy + zz);
 	matrix[0][1] = xy - wz;
@@ -658,11 +642,11 @@ void QuaternionMatrix( vec_t* quaternion, float(*matrix)[4] )
 float	omega, cosom, sinom, sclp, sclq;
 void QuaternionSlerp( vec_t* p, vec_t* q, float t, vec_t* qt )
 {
-	int i;
+	int					i;
 	
 	// decide if one of the quaternions is backwards
-	float a = 0;
-	float b = 0;
+	float				a = 0;
+	float				b = 0;
 
 	for (i = 0; i < 4; i++)
 	{
@@ -721,9 +705,9 @@ Compute bone adjustments ( bone controllers )
 */
 void R_StudioCalcBoneAdj( float dadt, float* adj, const unsigned char* pcontroller1, const unsigned char* pcontroller2, unsigned char mouthopen )
 {
-	int					i, j;
-	float				value;
-	mstudiobonecontroller_t* pbonecontroller;
+	int							i, j;
+	float						value;
+	mstudiobonecontroller_t*	pbonecontroller;
 
 	pbonecontroller = (mstudiobonecontroller_t*)((byte*)pstudiohdr + pstudiohdr->bonecontrollerindex);
 
@@ -737,7 +721,7 @@ void R_StudioCalcBoneAdj( float dadt, float* adj, const unsigned char* pcontroll
 			{
 				if (abs(pcontroller1[i] - pcontroller2[i]) > 128)
 				{
-					int a, b;
+					int					a, b;
 					a = (pcontroller1[j] + 128) % 256;
 					b = (pcontroller2[j] + 128) % 256;
 					value = ((a * dadt) + (b * (1.0f - dadt)) - 128.0f) * (360.0f / 256.0f) + pbonecontroller[j].start;
@@ -785,7 +769,7 @@ void R_StudioCalcBoneQuaterion( int frame, float s, mstudiobone_t* pbone, mstudi
 	int					j, k;
 	vec4_t				q1, q2;
 	vec3_t				angle1, angle2;
-	mstudioanimvalue_t* panimvalue;
+	mstudioanimvalue_t*	panimvalue;
 
 	for (j = 0; j < 3; j++)
 	{
@@ -863,7 +847,7 @@ void R_StudioCalcBoneQuaterion( int frame, float s, mstudiobone_t* pbone, mstudi
 void R_StudioCalcBonePosition( int frame, float s, mstudiobone_t* pbone, mstudioanim_t* panim, float* adj, float* pos )
 {
 	int					j, k;
-	mstudioanimvalue_t* panimvalue;
+	mstudioanimvalue_t*	panimvalue;
 
 	for (j = 0; j < 3; j++)
 	{
@@ -924,7 +908,7 @@ void R_StudioCalcBonePosition( int frame, float s, mstudiobone_t* pbone, mstudio
 
 float CL_StudioEstimateInterpolant( void )
 {
-	float dadt;
+	float				dadt;
 
 	if (currententity->animtime >= currententity->prevanimtime + 0.01f)
 	{
@@ -951,7 +935,7 @@ void R_StudioCalcRotations( vec3_t* pos, vec4_t* q, mstudioseqdesc_t* pseqdesc, 
 {
 	int					i;
 	int					frame;
-	mstudiobone_t* pbone;
+	mstudiobone_t*		pbone;
 
 	float				s;
 	float				adj[MAXSTUDIOCONTROLLERS];
@@ -1010,9 +994,9 @@ R_GetAnim
 */
 mstudioanim_t* R_GetAnim( model_t* psubmodel, mstudioseqdesc_t* pseqdesc )
 {
-	mstudioseqgroup_t* pseqgroup;
-	cache_user_t* paSequences;
-	unsigned int data;
+	mstudioseqgroup_t*	pseqgroup;
+	cache_user_t*		paSequences;
+	unsigned int		data;
 
 	pseqgroup = (mstudioseqgroup_t*)((byte*)pstudiohdr + pstudiohdr->seqgroupindex) + pseqdesc->seqgroup;
 
@@ -1047,9 +1031,9 @@ R_StudioSlerpBones
 */
 void R_StudioSlerpBones( vec4_t* q1, vec3_t* pos1, vec4_t* q2, vec3_t* pos2, float s )
 {
-	int			i;
-	vec4_t		q3;
-	float		s1;
+	int					i;
+	vec4_t				q3;
+	float				s1;
 
 	if (s < 0) s = 0;
 	else if (s > 1.0f) s = 1.0f;
@@ -1071,8 +1055,8 @@ void R_StudioSlerpBones( vec4_t* q1, vec3_t* pos1, vec4_t* q2, vec3_t* pos2, flo
 
 float StudioEstimateFrame( mstudioseqdesc_t* pseqdesc )
 {
-	float dfdt;
-	float f;
+	float				dfdt;
+	float				f;
 
 	dfdt = (cl.time - currententity->animtime) *
 		ShortToFloat(currententity->framerate) * pseqdesc->fps;
@@ -1115,20 +1099,20 @@ float StudioEstimateFrame( mstudioseqdesc_t* pseqdesc )
 
 void R_StudioSetupBones( void )
 {
-	int i;
-	float frame;
-	mstudiobone_t* bones;
-	mstudioseqdesc_t* sequence;
-	mstudioanim_t* animation;
-	static float position[MAXSTUDIOBONES][3];
-	static vec4_t quaternion[MAXSTUDIOBONES];
-	float boneMatrix[3][4];
-	static float position2[MAXSTUDIOBONES][3];
-	static vec4_t quaternion2[MAXSTUDIOBONES];
-	static float position3[MAXSTUDIOBONES][3];
-	static vec4_t quaternion3[MAXSTUDIOBONES];
-	static float position4[MAXSTUDIOBONES][3];
-	static vec4_t quaternion4[MAXSTUDIOBONES];
+	int					i;
+	float				frame;
+	mstudiobone_t*		bones;
+	mstudioseqdesc_t*	sequence;
+	mstudioanim_t*		animation;
+	static float		position[MAXSTUDIOBONES][3];
+	static vec4_t		quaternion[MAXSTUDIOBONES];
+	float				boneMatrix[3][4];
+	static float		position2[MAXSTUDIOBONES][3];
+	static vec4_t		quaternion2[MAXSTUDIOBONES];
+	static float		position3[MAXSTUDIOBONES][3];
+	static vec4_t		quaternion3[MAXSTUDIOBONES];
+	static float		position4[MAXSTUDIOBONES][3];
+	static vec4_t		quaternion4[MAXSTUDIOBONES];
 
 	if (currententity->sequence >= pstudiohdr->numseq)
 		currententity->sequence = 0;
@@ -1141,8 +1125,8 @@ void R_StudioSetupBones( void )
 
 	if (sequence->numblends > 1)
 	{
-		float s;
-		float dadt;
+		float				s;
+		float				dadt;
 
 		animation += pstudiohdr->numbones;
 		R_StudioCalcRotations(position2, quaternion2, sequence, animation, frame);
@@ -1171,9 +1155,9 @@ void R_StudioSetupBones( void )
 		currententity->sequencetime + 0.2f > cl.time &&
 		(currententity->prevsequence < pstudiohdr->numseq))
 	{
-		static float previousPosition[MAXSTUDIOBONES][3];
-		static vec4_t previousQuaternion[MAXSTUDIOBONES];
-		float s;
+		static float		previousPosition[MAXSTUDIOBONES][3];
+		static vec4_t		previousQuaternion[MAXSTUDIOBONES];
+		float				s;
 
 		sequence = (mstudioseqdesc_t*)((byte*)pstudiohdr + pstudiohdr->seqindex) +
 			currententity->prevsequence;
@@ -1261,8 +1245,8 @@ void MatrixCopy( float(*in)[4], float(*out)[4] )
 
 void R_StudioSaveBones( void )
 {
-	int i;
-	mstudiobone_t* bones;
+	int					i;
+	mstudiobone_t*		bones;
 
 	bones = (mstudiobone_t*)((byte*)pstudiohdr + pstudiohdr->boneindex);
 	cached_numbones = pstudiohdr->numbones;
@@ -1289,9 +1273,9 @@ void R_StudioMergeBones( model_t* model )
 	int					i, j;
 	float				f;
 
-	mstudiobone_t* pbones;
-	mstudioseqdesc_t* pseqdesc;
-	mstudioanim_t* panim;
+	mstudiobone_t*		pbones;
+	mstudioseqdesc_t*	pseqdesc;
+	mstudioanim_t*		panim;
 
 	static float		pos[MAXSTUDIOBONES][3];
 	float				bonematrix[3][4];
@@ -1361,9 +1345,9 @@ void SV_StudioSetupBones( model_t* pModel, float frame, int sequence, const vec_
 	float				f;
 	float				s;
 	float				adj[MAXSTUDIOCONTROLLERS];
-	mstudiobone_t* pbones;
-	mstudioseqdesc_t* pseqdesc;
-	mstudioanim_t* panim;
+	mstudiobone_t*		pbones;
+	mstudioseqdesc_t*	pseqdesc;
+	mstudioanim_t*		panim;
 
 	static float		pos[MAXSTUDIOBONES][3];
 	float				bonematrix[3][4];
@@ -1420,9 +1404,9 @@ void SV_StudioSetupBones( model_t* pModel, float frame, int sequence, const vec_
 
 	if (pseqdesc->numblends > 1)
 	{
-		static vec3_t pos2[MAXSTUDIOBONES];
-		static vec4_t q2[MAXSTUDIOBONES];
-		float b;
+		static vec3_t		pos2[MAXSTUDIOBONES];
+		static vec4_t		q2[MAXSTUDIOBONES];
+		float				b;
 
 		panim = R_GetAnim(pModel, pseqdesc) + pstudiohdr->numbones;
 
@@ -1485,8 +1469,8 @@ Get the attachment origin and angles
 */
 void GetAttachment( const edict_t* pEdict, int iAttachment, float* rgflOrigin, float* rgflAngles )
 {
-	mstudioattachment_t *pattachment;
-	vec3_t angles;
+	mstudioattachment_t	*pattachment;
+	vec3_t				angles;
 
 	pstudiohdr = (studiohdr_t*)Mod_Extradata(sv.models[pEdict->v.modelindex]);
 
@@ -1513,8 +1497,8 @@ Initialize studio clipnodes and hulls
 */
 void SV_InitStudioHull( void )
 {
-	int		i;
-	int		side;
+	int					i;
+	int					side;
 
 	if (studio_hull[0].planes) // already initailized
 		return;
@@ -1569,9 +1553,9 @@ SV_HullForStudioModel
 */
 hull_t* SV_HullForStudioModel( const edict_t* pEdict, const vec_t* mins, const vec_t* maxs, vec_t* offset, int* pNumHulls )
 {
-	qboolean	useComplexHull;
-	vec3_t		size;
-	float		factor;
+	qboolean			useComplexHull;
+	vec3_t				size;
+	float				factor;
 
 	useComplexHull = FALSE;
 	factor = 0.5;
@@ -1607,11 +1591,11 @@ hull_t* SV_HullForStudioModel( const edict_t* pEdict, const vec_t* mins, const v
 
 		if (pEdict->v.flags & FL_CLIENT)
 		{
-			mstudioseqdesc_t* sequence;
-			vec3_t angles;
-			int blend;
-			byte blending[2];
-			byte controller[4];
+			mstudioseqdesc_t*	sequence;
+			vec3_t				angles;
+			int					blend;
+			byte				blending[2];
+			byte				controller[4];
 
 			pstudiohdr = (studiohdr_t*)Mod_Extradata(sv.models[pEdict->v.modelindex]);
 			VectorCopy(pEdict->v.angles, angles);
@@ -1671,8 +1655,8 @@ Check if a specified studio cache does exist
 r_studiocache_t* R_CheckStudioCache( model_t* pModel, float frame, int sequence,
 	const vec_t* angles, const vec_t* origin, const vec_t* size, const unsigned char* controller, const unsigned char* blending )
 {
-	int		i;
-	r_studiocache_t* pCached;
+	int					i;
+	r_studiocache_t*	pCached;
 
 	// Check if the cache exists
 	for (i = 0; i < STUDIO_CACHE_SIZE; i++)
@@ -1720,7 +1704,7 @@ Add studio model data to studio cache
 void R_AddToStudioCache( float frame, int sequence, const vec_t* angles, const vec_t* origin, const vec_t* size,
 	const unsigned char* controller, const unsigned char* pblending, model_t* pModel, hull_t* pHulls, int numhulls )
 {
-	r_studiocache_t* p;
+	r_studiocache_t*	p;
 
 	if (numhulls + nCurrentHull >= MAXSTUDIOBONES)
 	{
@@ -1773,11 +1757,11 @@ R_StudioHull
 hull_t* R_StudioHull( model_t* pModel, float frame, int sequence, const vec_t* angles, const vec_t* origin, const vec_t* size,
 	const byte* pcontroller, const byte* pblending, int* pNumHulls )
 {
-	int		i, j;
-	mstudiobbox_t* pbbox;
-	vec3_t	angles2;
-	r_studiocache_t* pCached;
-	int		numHitBoxes;
+	int					i, j;
+	mstudiobbox_t*		pbbox;
+	vec3_t				angles2;
+	r_studiocache_t*	pCached;
+	int					numHitBoxes;
 
 	SV_InitStudioHull();
 
@@ -1809,7 +1793,7 @@ hull_t* R_StudioHull( model_t* pModel, float frame, int sequence, const vec_t* a
 
 		for (j = 0; j < 3; j++)
 		{
-			mplane_t* p0, * p1;
+			mplane_t*			p0, * p1;
 
 			p0 = &studio_planes[i * 6 + j * 2 + 0];
 			p1 = &studio_planes[i * 6 + j * 2 + 1];
@@ -1859,11 +1843,11 @@ vec_t hullcolor[8][3] =
 
 void R_StudioDrawHulls( void )
 {
-	int			i, j;
-	float		lv;
-	vec3_t		tmp;
-	vec3_t		p[8];
-	mstudiobbox_t* pbbox;
+	int					i, j;
+	float				lv;
+	vec3_t				tmp;
+	vec3_t				p[8];
+	mstudiobbox_t*		pbbox;
 
 	pbbox = (mstudiobbox_t*)((byte*)pstudiohdr + pstudiohdr->hitboxindex);
 
@@ -1905,11 +1889,11 @@ void R_StudioDrawHulls( void )
 
 void R_StudioAbsBB( void )
 {
-	int			j;
-	float		lv;
-	vec3_t		tmp;
-	vec3_t		p[8];
-	mstudioseqdesc_t* pseqdesc;
+	int					j;
+	float				lv;
+	vec3_t				tmp;
+	vec3_t				p[8];
+	mstudioseqdesc_t*	pseqdesc;
 
 	pseqdesc = (mstudioseqdesc_t*)((byte*)pstudiohdr + pstudiohdr->seqindex) + currententity->sequence;
 
@@ -1948,13 +1932,13 @@ void R_StudioAbsBB( void )
 
 void R_StudioDrawBones( void )
 {
-	int			i, j, k;
-	float		lv;
-	vec3_t		tmp;
-	vec3_t		p[8];
-	vec3_t		up, right, forward;
-	vec3_t		a1;
-	mstudiobone_t* pbones;
+	int					i, j, k;
+	float				lv;
+	vec3_t				tmp;
+	vec3_t				p[8];
+	vec3_t				up, right, forward;
+	vec3_t				a1;
+	mstudiobone_t*		pbones;
 
 	pbones = (mstudiobone_t*)((byte*)pstudiohdr + pstudiohdr->boneindex);
 
@@ -2086,15 +2070,15 @@ changes; ftrv then transforms each position through xmtrx.
 */
 void StudioTransformVerts( auxvert_t* out, const char* bones, vec3_t* verts, int count )
 {
-	int lastbone = -1;
+	int					lastbone = -1;
 
 	while (count--)
 	{
-		int bone = *bones;
+		int					bone = *bones;
 
 		if (bone != lastbone)
 		{
-			float* matrix = &bonetransform[bone][0][0];
+			float*				matrix = &bonetransform[bone][0][0];
 
 			lastbone = bone;
 			__asm(
@@ -2148,15 +2132,15 @@ void StudioTransformVerts( auxvert_t* out, const char* bones, vec3_t* verts, int
 
 void R_StudioTransformChromeVerts( vec3_t* out, const char* bones, vec3_t* verts, int count )
 {
-	int lastbone = -1;
+	int					lastbone = -1;
 
 	while (count--)
 	{
-		int bone = *bones++;
+		int					bone = *bones++;
 
 		if (bone != lastbone)
 		{
-			float* matrix = &lighttransform[bone][0][0];
+			float*				matrix = &lighttransform[bone][0][0];
 
 			lastbone = bone;
 			__asm(
@@ -2212,8 +2196,8 @@ R_StudioLighting
 */
 void R_StudioLighting( float* lv, int bone, int flags, vec_t* normal )
 {
-	float illum;
-	float lightcos;
+	float				illum;
+	float				lightcos;
 
 	illum = r_ambientlight;
 
@@ -2223,7 +2207,7 @@ void R_StudioLighting( float* lv, int bone, int flags, vec_t* normal )
 	}
 	else
 	{
-		float r;
+		float				r;
 		if (bone == -1)
 			lightcos = DotProduct(normal, r_plightvec);
 		else
@@ -2268,13 +2252,13 @@ R_LightStrength
 */
 void R_LightStrength( int bone, float* vert, float(*light)[4] )
 {
-	int	i;
+	int					i;
 
 	if (lightage[bone] != r_smodels_total)
 	{
 		for (i = 0; i < numlights; i++)
 		{
-			vec3_t lpos;
+			vec3_t				lpos;
 			lpos[0] = locallight[i]->origin[0] - lighttransform[bone][0][3];
 			lpos[1] = locallight[i]->origin[1] - lighttransform[bone][1][3];
 			lpos[2] = locallight[i]->origin[2] - lighttransform[bone][2][3];
@@ -2305,10 +2289,10 @@ enhancement and is an example of a forgiving lighting model
 // GL Lambert lighting
 void R_LightLambert( float(*light)[4], float* normal, float* src, float* lambert )
 {
-	int		i;
-	float	adjr, adjg, adjb;
-	float	c;
-	int		j;
+	int					i;
+	float				adjr, adjg, adjb;
+	float				c;
+	int					j;
 
 	adjr = 0.0;
 	adjg = 0.0;
@@ -2316,7 +2300,7 @@ void R_LightLambert( float(*light)[4], float* normal, float* src, float* lambert
 
 	for (i = 0; i < numlights; i++)
 	{
-		float r2, r;
+		float				r2, r;
 
 		r = -DotProduct(normal, light[i]);		
 		if (r > 0.0f)
@@ -2377,14 +2361,14 @@ void R_StudioChromeForMesh( int count, int normalIndex, const char* pnormbone, c
 {
 	while (count-- != 0)
 	{
-		int bone = pnormbone[normalIndex];
-		float n;
+		int					bone = pnormbone[normalIndex];
+		float				n;
 
 		if (chromeage[bone] != r_smodels_total)
 		{
-			vec3_t chromeupvec;
-			vec3_t chromerightvec;
-			vec3_t tmp;
+			vec3_t				chromeupvec;
+			vec3_t				chromerightvec;
+			vec3_t				tmp;
 
 			VectorScale(g_ChromeOrigin, -1.0f, tmp);
 			tmp[0] += lighttransform[bone][0][3];
@@ -2425,9 +2409,9 @@ outputs:
 */
 void R_StudioSetupLighting( alight_t* plighting )
 {
-	int i;
-	vec3_t lightColor;
-	vec3_t ambientColor;
+	int					i;
+	vec3_t				lightColor;
+	vec3_t				ambientColor;
 
 	r_ambientlight = plighting->ambientlight;
 	r_shadelight = plighting->shadelight;
@@ -2467,7 +2451,7 @@ Based on the body part, figure out which mesh it should be using
 #pragma auto_inline(off)
 void R_StudioSetupModel( int bodypart )
 {
-	int index;
+	int					index;
 
 	if (bodypart > pstudiohdr->numbodyparts)
 	{
@@ -2491,14 +2475,14 @@ R_StudioDrawModel
 */
 int R_StudioDrawModel( int flags, int checkBBox )
 {
-	alight_t lighting;
-	vec3_t dir;
-	int result;
+	alight_t			lighting;
+	vec3_t				dir;
+	int					result;
 
 	if (currententity->renderfx == kRenderFxDeadPlayer)
 	{
-		player_state_t deadPlayer;
-		int savedInterpolation;
+		player_state_t		deadPlayer;
+		int					savedInterpolation;
 
 		if (currententity->renderamt <= 0 || currententity->renderamt > cl.maxclients)
 			return 0;
@@ -2605,9 +2589,9 @@ static void R_StudioPlayerBlend( mstudioseqdesc_t* sequence, int* blend, float* 
 
 void R_StudioEstimateGait( player_state_t* player )
 {
-	float dt;
-	vec3_t velocity;
-	float yaw;
+	float				dt;
+	vec3_t				velocity;
+	float				yaw;
 
 	dt = cl.time - cl.oldtime;
 	if (dt < 0.0f)
@@ -2668,11 +2652,11 @@ void R_StudioEstimateGait( player_state_t* player )
 
 void R_StudioProcessGait( player_state_t* player )
 {
-	mstudioseqdesc_t* sequence;
-	float dt;
-	float yaw;
-	int blend;
-	byte controller;
+	mstudioseqdesc_t*	sequence;
+	float				dt;
+	float				yaw;
+	int					blend;
+	byte				controller;
 
 	if (currententity->sequence >= pstudiohdr->numseq)
 		currententity->sequence = 0;
@@ -2737,7 +2721,7 @@ void R_StudioProcessGait( player_state_t* player )
 
 void R_StudioResetPlayerModel( void )
 {
-	studio_skin_cache_t* cache;
+	studio_skin_cache_t*	cache;
 
 	cache = R_StudioGetPlayerSkinCache(currententity->index);
 	cache->topColor = -1;
@@ -2754,44 +2738,43 @@ R_StudioDrawPlayer
 */
 int R_StudioDrawPlayer( int flags, player_state_t* pplayer )
 {
-	alight_t lighting;
-	vec3_t dir;
-	studio_player_model_t* playerModel;
-	vec3_t savedAngles;
+	alight_t				lighting;
+	vec3_t					dir;
+	vec3_t					savedAngles;
 
 	r_playerindex = pplayer->number;
 	if (r_playerindex < 0 || r_playerindex >= cl.maxclients)
 		return 0;
 
-	playerModel = &g_studioPlayerModels[r_playerindex];
 	if ((developer.value != 0.0f || !SV_Active()) &&
 		cl.players[r_playerindex].model[0] != 0)
 	{
-		if (strcmp(playerModel->name, cl.players[r_playerindex].model) != 0)
+		if (strcmp(g_studioPlayerModels[r_playerindex].name, cl.players[r_playerindex].model) != 0)
 		{
-			strcpy(playerModel->name, cl.players[r_playerindex].model);
-			strcpy(playerModel->modelName, "models/player/");
-			strcat(playerModel->modelName, cl.players[r_playerindex].model);
-			strcat(playerModel->modelName, "/");
-			strcat(playerModel->modelName, cl.players[r_playerindex].model);
-			strcat(playerModel->modelName, ".mdl");
-			playerModel->model = Mod_ForName(playerModel->modelName, FALSE);
-			if (playerModel->model == NULL)
-				playerModel->model = currententity->model;
+			strcpy(g_studioPlayerModels[r_playerindex].name, cl.players[r_playerindex].model);
+			strcpy(g_studioPlayerModels[r_playerindex].modelName, "models/player/");
+			strcat(g_studioPlayerModels[r_playerindex].modelName, cl.players[r_playerindex].model);
+			strcat(g_studioPlayerModels[r_playerindex].modelName, "/");
+			strcat(g_studioPlayerModels[r_playerindex].modelName, cl.players[r_playerindex].model);
+			strcat(g_studioPlayerModels[r_playerindex].modelName, ".mdl");
+			g_studioPlayerModels[r_playerindex].model =
+				Mod_ForName(g_studioPlayerModels[r_playerindex].modelName, FALSE);
+			if (g_studioPlayerModels[r_playerindex].model == NULL)
+				g_studioPlayerModels[r_playerindex].model = currententity->model;
 			R_StudioResetPlayerModel();
 		}
 	}
 	else
 	{
-		playerModel->name[0] = 0;
-		if (playerModel->model != currententity->model)
+		g_studioPlayerModels[r_playerindex].name[0] = 0;
+		if (g_studioPlayerModels[r_playerindex].model != currententity->model)
 		{
-			playerModel->model = currententity->model;
+			g_studioPlayerModels[r_playerindex].model = currententity->model;
 			R_StudioResetPlayerModel();
 		}
 	}
 
-	r_studio_model = playerModel->model;
+	r_studio_model = g_studioPlayerModels[r_playerindex].model;
 	if (r_studio_model == NULL)
 		return 0;
 	pstudiohdr = (studiohdr_t*)Mod_Extradata(r_studio_model);
@@ -2857,10 +2840,12 @@ int R_StudioDrawPlayer( int flags, player_state_t* pplayer )
 
 	if (flags & STUDIO_RENDER)
 	{
-		if (cl_himodels.value != 0.0f && playerModel->model != currententity->model)
+		if (cl_himodels.value != 0.0f &&
+			g_studioPlayerModels[r_playerindex].model != currententity->model)
 			currententity->body = 255;
-		if (!((developer.value == 0.0f) && SV_Active()) && playerModel->name[0] != 0 &&
-			playerModel->model == currententity->model)
+		if (!((developer.value == 0.0f) && SV_Active()) &&
+			g_studioPlayerModels[r_playerindex].name[0] != 0 &&
+			g_studioPlayerModels[r_playerindex].model == currententity->model)
 			currententity->body = 1;
 
 		lighting.plightvec = dir;
@@ -2889,8 +2874,8 @@ int R_StudioDrawPlayer( int flags, player_state_t* pplayer )
 
 		if (pplayer->weaponmodel)
 		{
-			studio_entity_snapshot_t saveEntity;
-			model_t* pweaponmodel;
+			studio_entity_snapshot_t	saveEntity;
+			model_t*					pweaponmodel;
 
 			saveEntity = *(studio_entity_snapshot_t*)currententity;
 			pweaponmodel = cl.model_precache[pplayer->weaponmodel];
@@ -2922,15 +2907,15 @@ Apply lighting effects to a model
 */
 void R_StudioDynamicLight( cl_entity_t* ent, alight_t* plight )
 {
-	int			lnum;
-	vec3_t		dist; // distance between dlight and entity origin
+	int					lnum;
+	vec3_t				dist; // distance between dlight and entity origin
 	colorVec	down;
-	vec3_t		light;
-	float		total;
-	float		r, add;
-	vec3_t		uporigin, upend;
-	float		floor;
-	vec3_t		color;
+	vec3_t				light;
+	float				total;
+	float				r, add;
+	vec3_t				uporigin, upend;
+	float				floor;
+	vec3_t				color;
 
 	// fullbright mode, set max brightness and go away
 	if (r_fullbright.value == 1.0f)
@@ -2963,8 +2948,8 @@ void R_StudioDynamicLight( cl_entity_t* ent, alight_t* plight )
 	// check sky color values
 	if ((cl_skycolor_r.value + cl_skycolor_g.value + cl_skycolor_b.value) != 0)
 	{
-		vec3_t end;
-		msurface_t* psurf;
+		vec3_t				end;
+		msurface_t*			psurf;
 
 		end[0] = ent->origin[0] - cl_skyvec_x.value * 8192.0f;
 		end[1] = ent->origin[1] - cl_skyvec_y.value * 8192.0f;
@@ -2986,7 +2971,7 @@ void R_StudioDynamicLight( cl_entity_t* ent, alight_t* plight )
 	if ((down.r + down.g + down.b) == 0)
 	{
 		colorVec gcolor;
-		float grad[4];
+		float				grad[4];
 
 		VectorScale(light, 2048.0f, upend);
 		VectorAdd(upend, uporigin, upend);
@@ -3040,7 +3025,7 @@ void R_StudioDynamicLight( cl_entity_t* ent, alight_t* plight )
 
 	for (lnum = 0; lnum < MAX_DLIGHTS; lnum++)
 	{
-		dlight_t* dl;
+		dlight_t*			dl;
 
 		dl = &cl_dlights[lnum];
 
@@ -3111,13 +3096,13 @@ void R_StudioDynamicLight( cl_entity_t* ent, alight_t* plight )
 // Apply entity lighting
 void R_StudioEntityLight( alight_t* plight )
 {
-	int		i, k;
-	dlight_t* el;
-	vec3_t	mid, pos;
-	float	dist2, f;
-	float	radius;
-	float	lstrength[MAXLOCALLIGHTS];
-	float	minstrength;
+	int					i, k;
+	dlight_t*			el;
+	vec3_t				mid, pos;
+	float				dist2, f;
+	float				radius;
+	float				lstrength[MAXLOCALLIGHTS];
+	float				minstrength;
 
 	VectorCopy(currententity->origin, pos);
 
@@ -3139,7 +3124,7 @@ void R_StudioEntityLight( alight_t* plight )
 		// Beam entities
 		if (BEAMENT_ENTITY(el->key) == currententity->index)
 		{
-			int attachment = BEAMENT_ATTACHMENT(el->key);
+			int					attachment = BEAMENT_ATTACHMENT(el->key);
 
 			if (attachment)
 			{
@@ -3163,7 +3148,7 @@ void R_StudioEntityLight( alight_t* plight )
 
 		if (dist2 > 0.004f)
 		{
-			int att;
+			int					att;
 			if (numlights < 3)
 			{
 				att = numlights;
@@ -3201,7 +3186,7 @@ void R_StudioEntityLight( alight_t* plight )
 	{
 		if (i < numlights)
 		{
-			vec3_t color;
+			vec3_t				color;
 
 			color[0] = locallight[i]->color.r * (1.0f / 255.0f);
 			color[1] = locallight[i]->color.g * (1.0f / 255.0f);
@@ -3217,8 +3202,8 @@ void R_StudioEntityLight( alight_t* plight )
 
 void R_StudioCalcAttachments( void )
 {
-	int				i;
-	mstudioattachment_t* pattachment;
+	int						i;
+	mstudioattachment_t*	pattachment;
 
 	if (pstudiohdr->numattachments > 4)
 		Sys_Error("Too many attachments on %s", currententity->model->name);
@@ -3238,13 +3223,13 @@ fired during this frame, handle the event by it's tag ( e.g., muzzleflash, sound
 */
 void R_StudioClientEvents( void )
 {
-	int i;
-	mstudioevent_t* event;
-	mstudioseqdesc_t* sequence;
-	float frameStart;
-	float frameEnd;
-	static float currentTime;
-	static float lastTime;
+	int					i;
+	mstudioevent_t*		event;
+	mstudioseqdesc_t*	sequence;
+	float				frameStart;
+	float				frameEnd;
+	static float		currentTime;
+	static float		lastTime;
 
 	sequence = (mstudioseqdesc_t*)((byte*)pstudiohdr + pstudiohdr->seqindex) +
 		currententity->sequence;
@@ -3260,7 +3245,7 @@ void R_StudioClientEvents( void )
 
 	if (currententity->effects & EF_MUZZLEFLASH)
 	{
-		dlight_t* light;
+		dlight_t*			light;
 
 		light = CL_AllocElight(0);
 		VectorCopy(currententity->attachment[0], light->origin);
@@ -3311,8 +3296,8 @@ void R_StudioClientEvents( void )
 			break;
 		case 5004:
 		{
-			int soundIndex;
-			sfx_t* sound;
+			int					soundIndex;
+			sfx_t*				sound;
 
 			sound = NULL;
 			for (soundIndex = 0; soundIndex < MAX_SOUNDS; soundIndex++)
@@ -3348,10 +3333,10 @@ Finilize studio model rendering
 #pragma auto_inline(off)
 void R_StudioRenderFinal( void )
 {
-	int i;
-	int rendermode;
-	qboolean translucent;
-	void (* volatile setupModel)(int) = R_StudioSetupModel;
+	int					i;
+	int					rendermode;
+	qboolean			translucent;
+	void				(* volatile setupModel)(int) = R_StudioSetupModel;
 
 	GL_DisableMultitexture();
 	DCV_PushMatrix(D3DTRANSFORMSTATE_WORLD);
@@ -3381,7 +3366,7 @@ void R_StudioRenderFinal( void )
 			}
 			else if (rendermode == kRenderTransAdd)
 			{
-				int color = (int)(r_blend * 255.0f);
+				int					color = (int)(r_blend * 255.0f);
 
 				DCV_SetColor(color, color, color, 255);
 				DCV_TexState_Additive();
@@ -3432,20 +3417,20 @@ Dreamcast restart-index path can consume it directly on the next pass.
 */
 void R_StudioBuildTriangleStrips( short* commands )
 {
-	unsigned short* records;
-	short* hashTable;
-	unsigned short* uniqueSlots;
-	unsigned short* indices;
-	unsigned short* indexOut;
-	unsigned short* source;
-	unsigned short* destination;
-	unsigned short* uniqueSlotOut;
-	int originalShorts;
-	int groupCount;
-	int vertexCount;
-	int uniqueCount;
-	int count;
-	int i;
+	unsigned short*		records;
+	short*				hashTable;
+	unsigned short*		uniqueSlots;
+	unsigned short*		indices;
+	unsigned short*		indexOut;
+	unsigned short*		source;
+	unsigned short*		destination;
+	unsigned short*		uniqueSlotOut;
+	int					originalShorts;
+	int					groupCount;
+	int					vertexCount;
+	int					uniqueCount;
+	int					count;
+	int					i;
 
 	originalShorts = 0;
 	groupCount = 0;
@@ -3478,7 +3463,7 @@ void R_StudioBuildTriangleStrips( short* commands )
 	count = commands[0];
 	for (;;)
 	{
-		unsigned short hash;
+		unsigned short		hash;
 
 		if (count == 0)
 			break;
@@ -3490,7 +3475,7 @@ void R_StudioBuildTriangleStrips( short* commands )
 		uniqueSlotOut = uniqueSlots + uniqueCount;
 		for (i = 0; i < count; i++, source += 4)
 		{
-			unsigned short existing;
+			unsigned short		existing;
 
 			hash = (unsigned short)(source[0] ^ source[1] ^ (source[2] & source[3]));
 			for (;;)
@@ -3535,7 +3520,8 @@ void R_StudioBuildTriangleStrips( short* commands )
 
 		for (i = 0; i < uniqueCount; i++)
 		{
-			unsigned short slot = uniqueSlots[i];
+			unsigned short		slot = uniqueSlots[i];
+
 			*destination++ = records[slot * 4 + 0];
 			*destination++ = records[slot * 4 + 1];
 			*destination++ = records[slot * 4 + 2];
@@ -3559,16 +3545,16 @@ void R_StudioBuildTriangleStrips( short* commands )
 
 void R_StudioRenderMeshChrome( void )
 {
-	studiohdr_t* ptexturehdr;
-	mstudiotexture_t* ptexture;
-	mstudiomesh_t* mesh;
-	short* pskinref;
-	byte* pvertbone;
-	byte* pnormbone;
-	byte* pstudioverts;
-	byte* pstudionorms;
-	int i;
-	int normalIndex;
+	studiohdr_t*		ptexturehdr;
+	mstudiotexture_t*	ptexture;
+	mstudiomesh_t*		mesh;
+	short*				pskinref;
+	byte*				pvertbone;
+	byte*				pnormbone;
+	byte*				pstudioverts;
+	byte*				pstudionorms;
+	int					i;
+	int					normalIndex;
 
 	pvertbone = (byte*)pstudiohdr + psubmodel->vertinfoindex;
 	pnormbone = (byte*)pstudiohdr + psubmodel->norminfoindex;
@@ -3587,11 +3573,11 @@ void R_StudioRenderMeshChrome( void )
 	normalIndex = 0;
 	for (i = 0; i < psubmodel->nummesh; i++)
 	{
-		int textureIndex = pskinref[mesh[i].skinref];
-		int textureFlags = ptexture[textureIndex].flags | g_ForcedFaceFlags;
+		int					textureIndex = pskinref[mesh[i].skinref];
+		int					textureFlags = ptexture[textureIndex].flags | g_ForcedFaceFlags;
 
 		if (r_fullbright.value >= 2.0f)
-			textureFlags = 0;
+			textureFlags &= ~(STUDIO_NF_FLATSHADE | STUDIO_NF_CHROME);
 		if (textureFlags & STUDIO_NF_CHROME)
 			R_StudioChromeForMesh(mesh[i].numnorms, normalIndex, (const char*)pnormbone, (const vec3_t*)pstudionorms);
 		normalIndex += mesh[i].numnorms;
@@ -3601,9 +3587,9 @@ void R_StudioRenderMeshChrome( void )
 
 	for (i = 0; i < psubmodel->nummesh; i++)
 	{
-		short* commands;
-		int textureIndex = pskinref[mesh[i].skinref];
-		int textureFlags = ptexture[textureIndex].flags | g_ForcedFaceFlags;
+		short*				commands;
+		int					textureIndex = pskinref[mesh[i].skinref];
+		int					textureFlags = ptexture[textureIndex].flags | g_ForcedFaceFlags;
 
 		g_flStudioTexScaleS = 1.0f / (float)ptexture[textureIndex].width;
 		g_flStudioTexScaleT = 1.0f / (float)ptexture[textureIndex].height;
@@ -3614,7 +3600,7 @@ void R_StudioRenderMeshChrome( void )
 		}
 		else
 		{
-			textureFlags = 0;
+			textureFlags &= ~(STUDIO_NF_FLATSHADE | STUDIO_NF_CHROME);
 			R_BindSpriteFrame(cl_sprite_white, 0);
 		}
 
@@ -3628,7 +3614,8 @@ void R_StudioRenderMeshChrome( void )
 
 			if (*commands < -99)
 			{
-				int count = *commands;
+				int					count = *commands;
+
 				while (count != 0)
 				{
 					commands++;
@@ -3667,7 +3654,8 @@ void R_StudioRenderMeshChrome( void )
 		}
 
 		{
-			int count = commands[1];
+			int					count = commands[1];
+
 			commands += 2;
 			if (textureFlags & STUDIO_NF_CHROME)
 				DCV_AddStudioMeshChromeTagged(count, commands, pstudioverts, pstudionorms,
@@ -3684,11 +3672,11 @@ void R_StudioRenderMeshChrome( void )
 
 studiohdr_t* R_StudioGetTextureHeader( model_t* model )
 {
-	studiohdr_t* header;
-	model_t* textureModel;
-	char textureName[MAX_OSPATH];
-	unsigned int data;
-	int length;
+	studiohdr_t*		header;
+	model_t*			textureModel;
+	char				textureName[MAX_OSPATH];
+	unsigned int		data;
+	int					length;
 
 	header = pstudiohdr;
 	if (header->textureindex != 0)
@@ -3719,11 +3707,11 @@ studiohdr_t* R_StudioGetTextureHeader( model_t* model )
 
 void R_StudioSetupPlayerSkin( studiohdr_t* textureHeader, int textureIndex )
 {
-	mstudiotexture_t* texture;
-	studio_skin_cache_t* cache;
-	byte* pixels;
-	char textureName[MAX_OSPATH];
-	int playerIndex;
+	mstudiotexture_t*		texture;
+	studio_skin_cache_t*	cache;
+	byte*					pixels;
+	char					textureName[MAX_OSPATH];
+	int						playerIndex;
 
 	if (g_ForcedFaceFlags & STUDIO_NF_CHROME)
 		return;
@@ -3779,16 +3767,16 @@ R_StudioDrawPoints
 void R_StudioDrawPoints_Legacy( void )
 {
 	int					i, j;
-	byte* pvertbone;
-	byte* pnormbone;
-	vec3_t* pstudioverts;
-	vec3_t* pstudionorms;
-	mstudiotexture_t* ptexture;
-	auxvert_t* av;
-	float* lv;
+	byte*				pvertbone;
+	byte*				pnormbone;
+	vec3_t*				pstudioverts;
+	vec3_t*				pstudionorms;
+	mstudiotexture_t*	ptexture;
+	auxvert_t*			av;
+	float*				lv;
 	vec3_t				fl;
 	float				lv_tmp;
-	short* pskinref;
+	short*				pskinref;
 	int					flags;
 
 	pvertbone = ((byte*)pstudiohdr + psubmodel->vertinfoindex);
@@ -3819,8 +3807,8 @@ void R_StudioDrawPoints_Legacy( void )
 	lv = (float*)pvlightvalues;
 	for (j = 0; j < psubmodel->nummesh; j++)
 	{
-		int k;
-		int normalIndex = (int)(((vec3_t*)lv) - pvlightvalues);
+		int					k;
+		int					normalIndex = (int)(((vec3_t*)lv) - pvlightvalues);
 		flags = ptexture[pskinref[pmesh[j].skinref]].flags;
 		if (r_fullbright.value >= 2)
 			flags &= ~(STUDIO_NF_FLATSHADE | STUDIO_NF_CHROME);
@@ -3859,8 +3847,8 @@ void R_StudioDrawPoints_Legacy( void )
 	pstudionorms = (vec3_t*)((byte*)pstudiohdr + psubmodel->normindex);
 	for (j = 0; j < psubmodel->nummesh; j++)
 	{
-		float s, t;
-		short* ptricmds;
+		float				s, t;
+		short*				ptricmds;
 
 		pmesh = (mstudiomesh_t*)((byte*)pstudiohdr + psubmodel->meshindex) + j;
 		ptricmds = (short*)((byte*)pstudiohdr + pmesh->triindex);
@@ -3884,7 +3872,7 @@ void R_StudioDrawPoints_Legacy( void )
 		/* DCV: bind texture for D3D batch */
 		if (r_fullbright.value >= 2 && cl_sprite_white && cl_sprite_white->cache.data)
 		{
-			mspriteframe_t* pFrame = R_GetSpriteFrame((msprite_t*)cl_sprite_white->cache.data, 0);
+			mspriteframe_t*		pFrame = R_GetSpriteFrame((msprite_t*)cl_sprite_white->cache.data, 0);
 			if (pFrame)
 				GL_Bind(pFrame->gl_texturenum, 0);
 			else
@@ -3900,15 +3888,16 @@ void R_StudioDrawPoints_Legacy( void )
 
 			/* DCV: chrome meshes → D3D L-vertex batch */
 			{
-				short* pc = ptricmds;
+				short*				pc = ptricmds;
+
 				while ((i = *(pc++)) != 0)
 				{
-					int n = (i < 0) ? -i : i;
-					int is_fan = (i < 0);
-					int numtris = (n >= 3) ? (n - 2) : 0;
-					int base, v;
-					D3DLVERTEX lv_out;
-					DWORD diffuse;
+					int					n = (i < 0) ? -i : i;
+					int					is_fan = (i < 0);
+					int					numtris = (n >= 3) ? (n - 2) : 0;
+					int					base, v;
+					D3DLVERTEX			lv_out;
+					DWORD				diffuse;
 
 					DCV_FlushIfLarge();
 					base = DCV_GetVertCount();
@@ -3947,15 +3936,16 @@ void R_StudioDrawPoints_Legacy( void )
 		{
 			/* DCV: normal meshes → D3D L-vertex batch */
 			{
-				short* pc = ptricmds;
+				short*				pc = ptricmds;
+
 				while ((i = *(pc++)) != 0)
 				{
-					int n = (i < 0) ? -i : i;
-					int is_fan = (i < 0);
-					int numtris = (n >= 3) ? (n - 2) : 0;
-					int base, v;
-					D3DLVERTEX lv_out;
-					DWORD diffuse;
+					int					n = (i < 0) ? -i : i;
+					int					is_fan = (i < 0);
+					int					numtris = (n >= 3) ? (n - 2) : 0;
+					int					base, v;
+					D3DLVERTEX			lv_out;
+					DWORD				diffuse;
 
 					DCV_FlushIfLarge();
 					base = DCV_GetVertCount();
@@ -3996,16 +3986,16 @@ void R_StudioDrawPoints_Legacy( void )
 
 void R_StudioDrawPoints( void )
 {
-	studiohdr_t* textureHeader;
-	mstudiotexture_t* textures;
-	mstudiomesh_t* meshes;
-	short* skinref;
-	byte* vertBones;
-	byte* normBones;
-	vec3_t* studioVerts;
-	vec3_t* studioNorms;
-	int normalIndex;
-	int i;
+	studiohdr_t*		textureHeader;
+	mstudiotexture_t*	textures;
+	mstudiomesh_t*		meshes;
+	short*				skinref;
+	byte*				vertBones;
+	byte*				normBones;
+	vec3_t*				studioVerts;
+	vec3_t*				studioNorms;
+	int					normalIndex;
+	int					i;
 
 	vertBones = (byte*)pstudiohdr + psubmodel->vertinfoindex;
 	normBones = (byte*)pstudiohdr + psubmodel->norminfoindex;
@@ -4024,11 +4014,11 @@ void R_StudioDrawPoints( void )
 	normalIndex = 0;
 	for (i = 0; i < psubmodel->nummesh; i++)
 	{
-		int textureIndex = skinref[meshes[i].skinref];
-		int flags = textures[textureIndex].flags | g_ForcedFaceFlags;
+		int					textureIndex = skinref[meshes[i].skinref];
+		int					flags = textures[textureIndex].flags | g_ForcedFaceFlags;
 
 		if (r_fullbright.value >= 2.0f)
-			flags = 0;
+			flags &= ~(STUDIO_NF_FLATSHADE | STUDIO_NF_CHROME);
 		if (flags & STUDIO_NF_CHROME)
 			R_StudioChromeForMesh(meshes[i].numnorms, normalIndex, (const char*)normBones, studioNorms);
 		normalIndex += meshes[i].numnorms;
@@ -4039,10 +4029,10 @@ void R_StudioDrawPoints( void )
 
 	for (i = 0; i < psubmodel->nummesh; i++)
 	{
-		mstudiomesh_t* mesh = &meshes[i];
-		short* commands = (short*)((byte*)pstudiohdr + mesh->triindex);
-		int textureIndex = skinref[mesh->skinref];
-		int flags = textures[textureIndex].flags | g_ForcedFaceFlags;
+		mstudiomesh_t*		mesh = &meshes[i];
+		short*				commands = (short*)((byte*)pstudiohdr + mesh->triindex);
+		int					textureIndex = skinref[mesh->skinref];
+		int					flags = textures[textureIndex].flags | g_ForcedFaceFlags;
 
 		g_flStudioTexScaleS = 1.0f / (float)textures[textureIndex].width;
 		g_flStudioTexScaleT = 1.0f / (float)textures[textureIndex].height;
@@ -4065,7 +4055,8 @@ void R_StudioDrawPoints( void )
 
 			if (*commands < -99)
 			{
-				int count = *commands;
+				int					count = *commands;
+
 				while (count != 0)
 				{
 					commands++;
@@ -4105,7 +4096,8 @@ void R_StudioDrawPoints( void )
 		}
 
 		{
-			int count = commands[1];
+			int					count = commands[1];
+
 			commands += 2;
 			if (flags & STUDIO_NF_CHROME)
 				DCV_AddStudioMeshChrome(count, commands, (const byte*)pauxverts,
@@ -4123,8 +4115,8 @@ void R_StudioDrawPoints( void )
 
 int R_BindSpriteFrame( model_t* sprite, int frame )
 {
-	mspriteframe_t* spriteFrame;
-	unsigned int data;
+	mspriteframe_t*		spriteFrame;
+	unsigned int		data;
 
 	data = (unsigned int)sprite->cache.data;
 	if (data & 1)
@@ -4138,10 +4130,10 @@ int R_BindSpriteFrame( model_t* sprite, int frame )
 
 void R_StudioRemapPaletteRange( byte* palette, int color, int first, int last )
 {
-	int i;
-	float red, blue, green;
-	float maxColor, minColor;
-	float hue, value, saturation;
+	int					i;
+	float				red, blue, green;
+	float				maxColor, minColor;
+	float				hue, value, saturation;
 
 	hue = (float)color * (360.0f / 255.0f);
 
@@ -4209,8 +4201,8 @@ void R_StudioRemapPaletteRange( byte* palette, int color, int first, int last )
 
 studio_skin_cache_t* R_StudioGetPlayerSkinCache( int playerIndex )
 {
-	studio_skin_cache_t* cache;
-	int cursor;
+	studio_skin_cache_t*	cache;
+	int						cursor;
 
 	cache = g_studioSkinByPlayer[playerIndex];
 	if (cache == NULL || cache->playerIndex != playerIndex)
@@ -4230,12 +4222,12 @@ studio_skin_cache_t* R_StudioGetPlayerSkinCache( int playerIndex )
 
 void R_StudioLoadPlayerSkin( model_t* model, int textureIndex, studio_skin_cache_t* cache )
 {
-	studiohdr_t* header;
-	mstudiotexture_t* texture;
-	byte* fileData;
-	byte* pixels;
-	unsigned int pixelData;
-	int dataSize;
+	studiohdr_t*		header;
+	mstudiotexture_t*	texture;
+	byte*				fileData;
+	byte*				pixels;
+	unsigned int		pixelData;
+	int					dataSize;
 
 	if (Cache_Check(&cache->pixels) != NULL)
 	{
@@ -4257,7 +4249,7 @@ void R_StudioLoadPlayerSkin( model_t* model, int textureIndex, studio_skin_cache
 		pixelData = 0;
 	pixels = (byte*)pixelData;
 	memcpy(pixels, fileData + texture->index, dataSize);
-	COM_FreeFile(fileData);
+	COM_FreeFile();
 }
 
 extern	vec3_t			lightspot;
@@ -4265,16 +4257,16 @@ extern	vec3_t			lightspot;
 void GLR_StudioDrawShadow( void )
 {
 #if 0
-	int			i, k;
-	vec3_t		point;
-	float		height;
-	auxvert_t* av;
+	int					i, k;
+	vec3_t				point;
+	float				height;
+	auxvert_t*			av;
 
 	height = lightspot[2] + 1.0;
 
 	for (i = 0; i < psubmodel->nummesh; i++)
 	{
-		short* ptricmds;
+		short*				ptricmds;
 
 		pmesh = (mstudiomesh_t*)((byte*)pstudiohdr + psubmodel->meshindex) + i;
 		c_alias_polys += pmesh->numtris;

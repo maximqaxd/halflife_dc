@@ -28,18 +28,18 @@ qboolean      DCV_EnsureSpace( int add_verts, int add_indices );
 int           DCV_GetVertCount( void );
 int           DCV_AddVertex( float x, float y, float z, float tu, float tv );
 void          DCV_AddLVertex( const D3DLVERTEX* v );
-void          DCV_AddVertexLit( float tu, float tv, const vec_t *pos );
+void          DCV_PushVertexLit( const vec_t *pos, float tu, float tv );
 void          DCV_AddVertexIndexed( float x, float y, float z, float tu, float tv );
 void          DCV_AddStudioMesh( int count, const short *pCmds, const byte *pVertices, const byte *pNormals );
 void          DCV_AddStudioMeshChrome( int count, const short *pCmds, const byte *pVertices, const byte *pNormals );
 void          DCV_AddStudioMeshTagged( int count, const short *pCmds, const byte *pVertices, const byte *pNormals, const byte *pVertTag );
 void          DCV_AddStudioMeshChromeTagged( int count, const short *pCmds, const byte *pVertices, const byte *pNormals, const byte *pVertTag );
-void          DCV_AddPolyIndices( short base, int numverts );
+void          DCV_AddPolyIndices( int base, int numverts );
 void          DCV_AddIndicesQuad( int i0, int i1, int i2, int i3 );
 void          DCV_AddIndicesStrip( int base, int count );
-void          DCV_AddIndicesFan( short base, int count );
+void          DCV_AddIndicesFan( int base, int count );
 void          DCV_BuildStudioIndexList( const short *pCmds );
-void          DCV_AddIndicesStripRestart( short base, int count );
+void          DCV_AddIndicesStripRestart( int base, int count );
 void          DCV_AddIndicesFanRestart( short base, int count );
 void          DCV_AssembleStudioIndexListRestart( const short *pCmds );
 void          DCV_AccumSolidPoly( const void *poly );
@@ -96,6 +96,7 @@ extern DWORD             g_dwAccumCurrentDiffuse;
 extern LPDIRECT3DDEVICE3   g_pD3DDevice;
 extern LPDIRECT3DVIEWPORT3 g_pViewport;
 extern D3DVIEWPORT2        g_viewportDesc;
+extern D3DMATERIAL         g_backgroundMaterialData;
 
 /* Draw the accumulated vertex batch. DCV_Flush is the shared out-of-line entry
    point for direct callers such as GL_EndRendering; the render-state setters below

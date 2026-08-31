@@ -2,6 +2,8 @@
  * dc_accum.c - AccumVerts / AccumIndex batch core.
  */
 
+#include <shintr.h>
+
 #include "quakedef.h"
 #include "dc_accum.h"
 
@@ -13,8 +15,8 @@
 #define MULTI_MTX_0_SIZE    5120
 #define MULTI_MTX_1_SIZE    1280
 
-static short    *g_pQuadTable[QUAD_TABLE_ROWS + 1];
-static short     g_QuadIndexData[7500 / sizeof(short)];
+static WORD     *g_pQuadTable[QUAD_TABLE_ROWS + 1];
+static WORD      g_QuadIndexData[7500 / sizeof(WORD)];
 
 // shared with the inline render-state helpers in dc_accum.h
 D3DLVERTEX      *g_pAccumVerts;
@@ -50,13 +52,13 @@ void DCV_AccumInit( void )
 {
 	int row;
 	int row_stride;
-	short *row_start;
+	WORD *row_start;
 
 	row_start = g_QuadIndexData;
 	row_stride = 0;
 	for (row = 0; row < QUAD_TABLE_ROWS; ++row)
 	{
-		short *out = row_start;
+		WORD *out = row_start;
 		short base = 0;
 		int high = row;
 		int k;
@@ -74,7 +76,7 @@ void DCV_AccumInit( void )
 			base++;
 		}
 
-		row_start = (short *)((byte *)row_start + row_stride);
+		row_start = (WORD *)((byte *)row_start + row_stride);
 		row_stride += ROW_STRIDE_SHORTS;
 	}
 	g_pQuadTable[QUAD_TABLE_ROWS] = NULL;
@@ -199,39 +201,143 @@ static __inline void DCV_MultiplyMatrixSH4( D3DMATRIX *out, const D3DMATRIX *lef
 		out, left, right);
 }
 
+static __inline void DCV_TransformStudioLightSH4( float *out, const D3DMATRIX *matrix,
+	const D3DVECTOR *light )
+{
+	__asm(
+		"frchg\n"
+		"fmov.s @r5+, fr0\n"  "fmov.s @r5+, fr4\n"
+		"fmov.s @r5+, fr8\n"  "fmov.s @r5+, fr12\n"
+		"fmov.s @r5+, fr1\n"  "fmov.s @r5+, fr5\n"
+		"fmov.s @r5+, fr9\n"  "fmov.s @r5+, fr13\n"
+		"fmov.s @r5+, fr2\n"  "fmov.s @r5+, fr6\n"
+		"fmov.s @r5+, fr10\n" "fmov.s @r5+, fr14\n"
+		"fmov.s @r5+, fr3\n"  "fmov.s @r5+, fr7\n"
+		"fmov.s @r5+, fr11\n" "fmov.s @r5, fr15\n"
+		"frchg\n"
+		"frchg\n"
+		"fldi0 fr12\n"
+		"fldi0 fr13\n"
+		"fldi0 fr14\n"
+		"fldi0 fr15\n"
+		"frchg\n"
+		"fldi0 fr3\n"
+		"fmov.s @r6+, fr0\n"
+		"fmov.s @r6+, fr1\n"
+		"fmov.s @r6, fr2\n"
+		"ftrv xmtrx, fv0\n"
+		"add #12, r4\n"
+		"fmov.s fr2, @-r4\n"
+		"fmov.s fr1, @-r4\n"
+		"fmov.s fr0, @-r4\n",
+		out, matrix, light);
+}
+
 void DCV_SetupStudioLighting( const float (*boneMatrices)[4][4], int count )
 {
-	D3DMATRIX projection, view, world;
-	D3DMATRIX worldView, worldViewProjection;
-	D3DMATRIX *matrices = (D3DMATRIX *)g_pMultiMtx0;
-	float *lightDirs = (float *)g_pMultiMtx1;
+	static D3DMATRIX projection;
+	static D3DMATRIX view;
+	static D3DMATRIX world;
+	static D3DMATRIX clip;
+	static D3DMATRIX worldView;
+	static D3DMATRIX worldViewProjection;
+	static D3DMATRIX studioTransform;
+	static D3DMATRIX boneMatrix;
+	static D3DMATRIX transformedBone;
+	D3DLIGHT2 *light;
+	DWORD xOffset;
 	int i;
 
-	g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, D3DTRANSFORMSTATE_PROJECTION, &projection);
-	g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, D3DTRANSFORMSTATE_VIEW, &view);
-	g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, D3DTRANSFORMSTATE_WORLD, &world);
-	DCV_MultiplyMatrixSH4(&worldView, &world, &view);
-	DCV_MultiplyMatrixSH4(&worldViewProjection, &worldView, &projection);
-
-	if (count > 80)
-		count = 80;
-	for (i = 0; i < count; i++)
+	if (count != 0)
 	{
-		DCV_MultiplyMatrixSH4(&matrices[i], (const D3DMATRIX *)&boneMatrices[i], &worldViewProjection);
-		lightDirs[i * 4 + 0] = 0.0f;
-		lightDirs[i * 4 + 1] = g_lightData[0].dvDirection.x * 251.0f;
-		lightDirs[i * 4 + 2] = g_lightData[0].dvDirection.y * 251.0f;
-		lightDirs[i * 4 + 3] = g_lightData[0].dvDirection.z * 251.0f;
+		g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice,
+			D3DTRANSFORMSTATE_PROJECTION, &projection);
+		g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice,
+			D3DTRANSFORMSTATE_VIEW, &view);
+		g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice,
+			D3DTRANSFORMSTATE_WORLD, &world);
+
+		clip = g_identityMatrix;
+		clip._11 = 0.5f;
+		clip._22 = 0.5f;
+		clip._41 = 0.5f;
+		clip._42 = 0.5f;
+
+		DCV_MultiplyMatrixSH4(&worldView, &world, &view);
+		DCV_MultiplyMatrixSH4(&worldViewProjection, &worldView, &projection);
+		DCV_MultiplyMatrixSH4(&studioTransform, &worldViewProjection, &clip);
+
+		xOffset = 0;
+		for (i = 0; i < count; i++)
+		{
+			DWORD matrixMarker = 0xe0001000;
+			const D3DMATRIX *source = (const D3DMATRIX *)&boneMatrices[i];
+			D3DMATRIX *matrix = &((D3DMATRIX *)g_pMultiMtx0)[i];
+
+			boneMatrix = *source;
+			boneMatrix._11 = source->_11;
+			boneMatrix._12 = source->_21;
+			boneMatrix._13 = source->_31;
+			boneMatrix._14 = source->_41;
+			boneMatrix._21 = source->_12;
+			boneMatrix._22 = source->_22;
+			boneMatrix._23 = source->_32;
+			boneMatrix._24 = source->_42;
+			boneMatrix._31 = source->_13;
+			boneMatrix._32 = source->_23;
+			boneMatrix._33 = source->_33;
+			boneMatrix._34 = source->_43;
+			boneMatrix._41 = source->_14;
+			boneMatrix._42 = source->_24;
+			boneMatrix._43 = source->_34;
+			boneMatrix._44 = 1.0f;
+
+			DCV_MultiplyMatrixSH4(&transformedBone, &boneMatrix, &studioTransform);
+
+			matrix->_11 = *(float *)&xOffset;
+			matrix->_12 = transformedBone._11 * 640.0f + transformedBone._14 * *(float *)&xOffset;
+			matrix->_13 = transformedBone._12 * -480.0f + transformedBone._14 * 480.0f;
+			matrix->_14 = transformedBone._14;
+			matrix->_21 = *(float *)&xOffset;
+			matrix->_22 = transformedBone._21 * 640.0f + transformedBone._24 * *(float *)&xOffset;
+			matrix->_23 = transformedBone._22 * -480.0f + transformedBone._24 * 480.0f;
+			matrix->_24 = transformedBone._24;
+			matrix->_31 = *(float *)&xOffset;
+			matrix->_32 = transformedBone._31 * 640.0f + transformedBone._34 * *(float *)&xOffset;
+			matrix->_33 = transformedBone._32 * -480.0f + transformedBone._34 * 480.0f;
+			matrix->_34 = transformedBone._34;
+			matrix->_41 = *(float *)&matrixMarker;
+			matrix->_42 = transformedBone._41 * 640.0f + transformedBone._44 * *(float *)&xOffset;
+			matrix->_43 = transformedBone._42 * -480.0f + transformedBone._44 * 480.0f;
+			matrix->_44 = transformedBone._44;
+
+			DCV_TransformStudioLightSH4(&((float *)g_pMultiMtx1)[i * 4 + 1], &boneMatrix,
+				&g_lightData[0].dvDirection);
+			((float *)g_pMultiMtx1)[i * 4 + 0] = 0.0f;
+			((float *)g_pMultiMtx1)[i * 4 + 1] *= -251.0f;
+			((float *)g_pMultiMtx1)[i * 4 + 2] *= -251.0f;
+			((float *)g_pMultiMtx1)[i * 4 + 3] *= -251.0f;
+		}
+		light = &g_lightData[0];
+	}
+	else
+	{
+		light = &g_lightData[0];
 	}
 
 	for (i = 0; i < 64; i++)
 	{
-		int level = i * 4;
-		g_studioLightTable[i] = (level << 16) | (level << 8) | level;
+		float level = ((float)i * 255.0f) / 64.0f;
+		g_studioLightTable[i] =
+			(((int)(g_backgroundMaterialData.diffuse.g * level * light->dcvColor.g +
+				g_backgroundMaterialData.emissive.g * 255.0f) |
+			(int)(g_backgroundMaterialData.diffuse.r * level * light->dcvColor.r +
+				g_backgroundMaterialData.emissive.r * 255.0f) << 8) << 8) |
+			(int)(g_backgroundMaterialData.diffuse.b * level * light->dcvColor.b +
+				g_backgroundMaterialData.emissive.b * 255.0f);
 	}
-	for (; i < 128; i++)
+	for (i = 64; i < 128; i++)
 		g_studioLightTable[i] = g_studioLightTable[0];
-
 }
 
 void DCV_SetColor( int r, int g, int b, int a )
@@ -407,18 +513,23 @@ int DCV_GetVertCount( void )
 void DCV_AccumSolidPoly( const void *poly )
 {
 	int numverts = DC_POLY_NUMVERTS(poly);
-	const float *pVert = DC_POLY_VERTS(poly);
-	const short *pSrc = g_pQuadTable[numverts];
 	int needed = (numverts - 2) * 3;
+	const WORD *pSrc = g_pQuadTable[numverts];
 	WORD *pIdx = &g_pAccumIndex[g_nAccumIndexCount];
-	D3DLVERTEX *pOut = &g_pAccumVerts[g_nAccumVertCount];
+	const float *pVert;
+	D3DLVERTEX *pOut;
 	int i;
 
-	for (i = needed; i != 0; --i)
-		*pIdx++ = (short)g_nAccumVertCount + *pSrc++;
+	i = needed;
+	while (i--)
+		*pIdx++ = (WORD)(g_nAccumVertCount + *pSrc++);
 
-	for (i = numverts; i != 0; --i)
+	pVert = DC_POLY_VERTS(poly);
+	pOut = &g_pAccumVerts[g_nAccumVertCount];
+	i = numverts;
+	while (i--)
 	{
+		__prefetch((unsigned long *)(pVert + 8));
 		pOut->x = pVert[0];
 		pOut->y = pVert[1];
 		pOut->z = pVert[2];
@@ -452,18 +563,23 @@ void DCV_AccumSolidPoly( const void *poly )
 void DCV_AccumColoredPoly( const void *poly )
 {
 	int numverts = DC_POLY_NUMVERTS(poly);
-	const float *pVert = DC_POLY_VERTS(poly);
-	const short *pSrc = g_pQuadTable[numverts];
 	int needed = (numverts - 2) * 3;
+	const WORD *pSrc = g_pQuadTable[numverts];
 	WORD *pIdx = &g_pAccumIndex[g_nAccumIndexCount];
-	D3DLVERTEX *pOut = &g_pAccumVerts[g_nAccumVertCount];
+	const float *pVert;
+	D3DLVERTEX *pOut;
 	int i;
 
-	for (i = needed; i != 0; --i)
-		*pIdx++ = (short)g_nAccumVertCount + *pSrc++;
+	i = needed;
+	while (i--)
+		*pIdx++ = (WORD)(g_nAccumVertCount + *pSrc++);
 
-	for (i = numverts; i != 0; --i)
+	pVert = DC_POLY_VERTS(poly);
+	pOut = &g_pAccumVerts[g_nAccumVertCount];
+	i = numverts;
+	while (i--)
 	{
+		__prefetch((unsigned long *)(pVert + 8));
 		pOut->x = pVert[0];
 		pOut->y = pVert[1];
 		pOut->z = pVert[2];
@@ -497,18 +613,23 @@ void DCV_AccumColoredPoly( const void *poly )
 void DCV_AccumLightmapBatch( const void *poly )
 {
 	int numverts = DC_POLY_NUMVERTS(poly);
-	const float *pVert = DC_POLY_VERTS(poly);
-	const short *pSrc = g_pQuadTable[numverts];
 	int needed = (numverts - 2) * 3;
+	const WORD *pSrc = g_pQuadTable[numverts];
 	WORD *pIdx = &g_pAccumIndex[g_nAccumIndexCount];
-	D3DLVERTEX *pOut = &g_pAccumVerts[g_nAccumVertCount];
+	const float *pVert;
+	D3DLVERTEX *pOut;
 	int i;
 
-	for (i = needed; i != 0; --i)
-		*pIdx++ = (short)g_nAccumVertCount + *pSrc++;
+	i = needed;
+	while (i--)
+		*pIdx++ = (WORD)(g_nAccumVertCount + *pSrc++);
 
-	for (i = numverts; i != 0; --i)
+	pVert = DC_POLY_VERTS(poly);
+	pOut = &g_pAccumVerts[g_nAccumVertCount];
+	i = numverts;
+	while (i--)
 	{
+		__prefetch((unsigned long *)(pVert + 8));
 		pOut->x = pVert[0];
 		pOut->y = pVert[1];
 		pOut->z = pVert[2];
@@ -547,25 +668,29 @@ float g_flScrollOffset;
 
 void DCV_AccumScrollPoly( const void *poly )
 {
-	float s_offset = g_flScrollOffset;
 	int numverts = DC_POLY_NUMVERTS(poly);
-	const float *pVert = DC_POLY_VERTS(poly);
-	const short *pSrc = g_pQuadTable[numverts];
 	int needed = (numverts - 2) * 3;
+	const WORD *pSrc = g_pQuadTable[numverts];
 	WORD *pIdx = &g_pAccumIndex[g_nAccumIndexCount];
-	D3DLVERTEX *pOut = &g_pAccumVerts[g_nAccumVertCount];
+	const float *pVert;
+	D3DLVERTEX *pOut;
 	int i;
 
-	for (i = needed; i != 0; --i)
-		*pIdx++ = (short)g_nAccumVertCount + *pSrc++;
+	i = needed;
+	while (i--)
+		*pIdx++ = (WORD)(g_nAccumVertCount + *pSrc++);
 
-	for (i = numverts; i != 0; --i)
+	pVert = DC_POLY_VERTS(poly);
+	pOut = &g_pAccumVerts[g_nAccumVertCount];
+	i = numverts;
+	while (i--)
 	{
+		__prefetch((unsigned long *)(pVert + 8));
 		pOut->x = pVert[0];
 		pOut->y = pVert[1];
 		pOut->z = pVert[2];
 		pOut->color = g_dwAccumCurrentDiffuse;
-		pOut->tu = pVert[4] + s_offset;
+		pOut->tu = pVert[4] + g_flScrollOffset;
 		pOut->tv = pVert[5];
 		pVert += 8;
 		++pOut;
@@ -613,7 +738,7 @@ int DCV_AddVertex( float x, float y, float z, float tu, float tv )
 
 /* Same as DCV_AddVertex, but the position comes from a vec3_t and there's
    no return value -- used by callers that already have a packed vector. */
-void DCV_AddVertexLit( float tu, float tv, const vec_t *pos )
+void DCV_PushVertexLit( const vec_t *pos, float tu, float tv )
 {
 	D3DLVERTEX *pVert = &g_pAccumVerts[g_nAccumVertCount];
 
@@ -664,7 +789,7 @@ void DCV_AddStudioMesh( int count, const short *pCmds, const byte *pVertices, co
 
 	g_nAccumVertCount += count;
 
-	for (; count != 0; --count)
+	while (count--)
 	{
 		const float *pV = (const float *)(pVertices + pCmds[0] * 12);
 		const float *pN = (const float *)(pNormals + pCmds[1] * 12);
@@ -694,7 +819,7 @@ void DCV_AddStudioMeshChrome( int count, const short *pCmds, const byte *pVertic
 
 	g_nAccumVertCount += count;
 
-	for (; count != 0; --count)
+	while (count--)
 	{
 		const float *pV = (const float *)(pVertices + pCmds[0] * 12);
 		const float *pN = (const float *)(pNormals + pCmds[1] * 12);
@@ -720,7 +845,7 @@ void DCV_AddStudioMeshTagged( int count, const short *pCmds, const byte *pVertic
 
 	g_nAccumVertCount += count;
 
-	for (; count != 0; --count)
+	while (count--)
 	{
 		const float *pV = (const float *)(pVertices + pCmds[0] * 12);
 		const float *pN = (const float *)(pNormals + pCmds[1] * 12);
@@ -750,7 +875,7 @@ void DCV_AddStudioMeshChromeTagged( int count, const short *pCmds, const byte *p
 
 	g_nAccumVertCount += count;
 
-	for (; count != 0; --count)
+	while (count--)
 	{
 		const float *pV = (const float *)(pVertices + pCmds[0] * 12);
 		const float *pN = (const float *)(pNormals + pCmds[1] * 12);
@@ -769,16 +894,13 @@ void DCV_AddStudioMeshChromeTagged( int count, const short *pCmds, const byte *p
 	}
 }
 
-void DCV_AddPolyIndices( short base, int numverts )
+void DCV_AddPolyIndices( int base, int numverts )
 {
 	WORD *p = &g_pAccumIndex[g_nAccumIndexCount];
 	int n = numverts - 2;
-	int loops = n + 1;
+	int loops = (n + 1) / 2;
 
-	if (loops < 0)
-		loops = numverts;
-
-	for (loops >>= 1; loops != 0; --loops)
+	while (loops--)
 	{
 		*p++ = base;
 		*p++ = base + 1;
@@ -838,20 +960,21 @@ void DCV_AddIndicesStrip( int base, int count )
 	}
 }
 
-void DCV_AddIndicesFan( short base, int count )
+void DCV_AddIndicesFan( int base, int count )
 {
 	WORD *p = &g_pAccumIndex[g_nAccumIndexCount];
-	short next = base + 1;
+	int next = base + 1;
 	int n = count - 2;
+	int i = n;
 
-	for (; n != 0; --n)
+	while (i--)
 	{
 		*p++ = next;
 		++next;
 		*p++ = next;
 		*p++ = base;
 	}
-	g_nAccumIndexCount += (count - 2) * 3;
+	g_nAccumIndexCount += n * 3;
 }
 
 /* A studio mesh's triangle command list: a run of (count, then count's
@@ -869,58 +992,55 @@ void DCV_BuildStudioIndexList( const short *pCmds )
 	int total = 0;
 	short count;
 
-	while ((count = *pCmds) != 0)
+	while ((count = *pCmds++) != 0)
 	{
 		if (count < 0)
 		{
-			short hub = pCmds[1];
+			short hub = *pCmds++;
 			int tris = -count - 2;
-			const short *p = pCmds + 2;
 			int i;
 
 			total += tris;
-			for (i = tris; i != 0; --i)
+			i = tris;
+			while (i--)
 			{
-				*pOut++ = p[0];
-				*pOut++ = p[1];
+				*pOut++ = *pCmds++;
+				*pOut++ = *pCmds;
 				*pOut++ = hub;
-				++p;
 			}
-			pCmds = p + 1;
+			pCmds++;
 		}
 		else
 		{
 			int tris = count - 2;
-			int pairs = count - 1;
-			const short *p = pCmds + 1;
+			int pairs = (tris + 1) / 2;
 			int i;
-
-			if (pairs < 0)
-				pairs = count;
-			pairs >>= 1;
 
 			total += tris;
 
-			for (i = pairs; i != 0; --i)
+			i = pairs;
+			while (i--)
 			{
-				*pOut++ = p[0];
-				*pOut++ = p[1];
-				*pOut++ = p[2];
-				*pOut++ = p[1];
-				*pOut++ = p[3];
-				*pOut++ = p[2];
-				p += 2;
+				*pOut++ = pCmds[0];
+				*pOut++ = pCmds[1];
+				*pOut++ = pCmds[2];
+				*pOut++ = pCmds[1];
+				*pOut++ = pCmds[3];
+				*pOut++ = pCmds[2];
+				pCmds += 2;
 			}
 
-			if ((tris & 1) == 0)
-				pCmds = p + 2;
-			else
+			if (tris & 1)
 			{
 				/* Odd triangle count: the last paired-quad iteration wrote
 				   one triangle too many from data past the strip's end;
 				   rewind over it so the next block's write overwrites it. */
-				pCmds = p + 1;
+				pCmds += 1;
 				pOut -= 3;
+			}
+			else
+			{
+				pCmds += 2;
 			}
 		}
 	}
@@ -933,24 +1053,25 @@ void DCV_BuildStudioIndexList( const short *pCmds )
    the next pair. */
 void DCV_AddIndicesFanRestart( short base, int count )
 {
-	WORD *p = &g_pAccumIndex[g_nAccumIndexCount];
-	short next = base + 1;
-	int n = count - 2;
-	int pairs = (n < 0) ? (count - 1) : n;
-	int tailTri = n & 1;
+	WORD *p;
+	int next = base + 1;
+	int tailTri;
+	int pairs;
 	int i;
 
-	if (n < 0 && tailTri != 0)
-		tailTri -= 2;
+	count -= 2;
+	pairs = count / 2;
+	tailTri = count % 2;
+	p = &g_pAccumIndex[g_nAccumIndexCount];
 
-	pairs >>= 1;
-
-	for (i = pairs; i != 0; --i)
+	i = pairs;
+	while (i--)
 	{
 		*p++ = next;
-		*p++ = next + 1;
+		++next;
+		*p++ = next;
 		*p++ = base;
-		next += 2;
+		++next;
 		*p++ = next;
 		*p++ = (short)0xFFFF;
 	}
@@ -958,7 +1079,8 @@ void DCV_AddIndicesFanRestart( short base, int count )
 	if (tailTri != 0)
 	{
 		*p++ = next;
-		*p++ = next + 1;
+		++next;
+		*p++ = next;
 		*p++ = base;
 		*p = (short)0xFFFF;
 	}
@@ -967,13 +1089,17 @@ void DCV_AddIndicesFanRestart( short base, int count )
 }
 
 /* Same strip as DCV_AddIndicesStrip, followed by a 0xFFFF strip-restart marker. */
-void DCV_AddIndicesStripRestart( short base, int count )
+void DCV_AddIndicesStripRestart( int base, int count )
 {
 	WORD *p = &g_pAccumIndex[g_nAccumIndexCount];
-	int i;
+	int i = count;
 
-	for (i = count; i != 0; --i)
-		*p++ = base++;
+	while (i--)
+	{
+		*p = base;
+		base++;
+		p++;
+	}
 	*p = (short)0xFFFF;
 
 	g_nAccumIndexCount += count + 1;
@@ -987,51 +1113,38 @@ void DCV_AssembleStudioIndexListRestart( const short *pCmds )
 	WORD *pOut = &g_pAccumIndex[g_nAccumIndexCount];
 	int written = 0;
 	int markers = 0;
-	short command;
+	int command;
 
-	while ((command = *pCmds) != 0)
+	while ((command = *pCmds++) != 0)
 	{
-		int count = command;
-
-		if (count < 0)
+		if (command < 0)
 		{
-			int tris = -count - 2;
-			int pairs = tris;
-			int tail;
-			short hub;
+			int tris = -command - 2;
+			int pairs = tris / 2;
+			int tail = tris % 2;
+			unsigned short hub;
+			int i;
 
-			if (pairs < 0)
-				pairs = -count - 1;
-			pairs >>= 1;
-
-			tail = tris & 1;
-			if (tris < 0 && tail != 0)
-				tail -= 2;
-
-			hub = pCmds[1];
-			pCmds += 2;
-			count = pairs * 4 + tail * 3;
+			hub = *pCmds++;
+			written += pairs * 4 + tail * 3;
 			markers += pairs + tail;
 
-			for (; pairs != 0; --pairs)
+			i = pairs;
+			while (i--)
 			{
-				pOut[0] = pCmds[0];
-				pOut[1] = pCmds[1];
-				pOut[2] = hub;
-				pCmds += 2;
-				pOut[3] = pCmds[0];
-				pOut[4] = (short)0xFFFF;
-				pOut += 5;
+				*pOut++ = *pCmds++;
+				*pOut++ = *pCmds++;
+				*pOut++ = hub;
+				*pOut++ = *pCmds;
+				*pOut++ = (short)0xFFFF;
 			}
 
 			if (tail != 0)
 			{
-				pOut[0] = pCmds[0];
-				++pCmds;
-				pOut[1] = pCmds[0];
-				pOut[2] = hub;
-				pOut[3] = (short)0xFFFF;
-				pOut += 4;
+				*pOut++ = *pCmds++;
+				*pOut++ = *pCmds;
+				*pOut++ = hub;
+				*pOut++ = (short)0xFFFF;
 			}
 
 			++pCmds;
@@ -1040,14 +1153,13 @@ void DCV_AssembleStudioIndexListRestart( const short *pCmds )
 		{
 			int i;
 
+			written += command;
 			markers++;
-			++pCmds;
-			for (i = count; i != 0; --i)
+			i = command;
+			while (i--)
 				*pOut++ = *pCmds++;
 			*pOut++ = (short)0xFFFF;
 		}
-
-		written += count;
 	}
 
 	g_nAccumIndexCount += written + markers;

@@ -100,9 +100,9 @@ void Mod_LoadStudioModel( model_t* mod, void* buffer )
 
 int Mod_IsStudioNeoModel( const studiohdr_t* phdr )
 {
-	if (phdr->version == 0xC0EDBEEF)
-		return TRUE;
 	if (phdr->version == 0xC0EDBABE)
+		return TRUE;
+	if (phdr->version == 0xC0EDBEEF)
 		return FALSE;
 	return FALSE;
 }
