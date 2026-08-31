@@ -201,7 +201,7 @@ void R_InitTextures( void );
 void R_RenderView( void );		// must set r_refdef first
 void R_ViewChanged( vrect_t* pvrect, int lineadj, float aspect );
 								// called whenever r_refdef or vid change
-void R_InitSky( void );	// called at level load
+void R_ForceLoadSkys( void );	// called at level load
 void R_LoadSkys( void );
 void R_DrawSkyChain( struct msurface_s* psurf );
 void R_ClearSkyBox( void );

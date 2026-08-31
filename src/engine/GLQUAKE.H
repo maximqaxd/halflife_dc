@@ -364,7 +364,7 @@ void		DCV_SetupFog( void );
 int			DCV_LT2Decode( const byte* in, int in_size, color24* out, int w, int h );
 
 //
-// dc_rmain.c / dc_varp.c -- world view transform + water shading
+// dc_rmain.c / dc_warp.c -- world view transform + water shading
 //
 extern D3DMATRIX	gViewMatrix;
 extern colorVec		gWaterColor;

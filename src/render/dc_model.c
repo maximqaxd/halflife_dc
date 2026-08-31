@@ -593,7 +593,7 @@ void Mod_LoadTextures( lump_t* l )
 		}
 
 		if (!Q_strncmp(mt->name, "sky", 3))
-			R_InitSky();
+			R_ForceLoadSkys();
 		else
 		{
 			texture_mode = GL_LINEAR_MIPMAP_NEAREST;
