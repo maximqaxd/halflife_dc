@@ -14,6 +14,10 @@ __pycache__/
 .claude/
 /RE/*.disasm.txt
 
+# eVC project editor scratch and local backups
+/projects/zlib.old
+/projects/~VCE*.tmp
+
 # /utils holds deploy tooling (ignored) except the RE toolkit
 /utils/*
 !/utils/re/
