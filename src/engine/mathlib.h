@@ -60,11 +60,12 @@ void _VectorCopy( vec_t* in, vec_t* out );
 // Small enough that every caller wants it expanded in place
 __inline int VectorCompare( const vec_t* v1, const vec_t* v2 )
 {
-	int i;
-
-	for (i = 0; i < 3; i++)
-		if (v1[i] != v2[i])
-			return 0;
+	if (v1[0] != v2[0])
+		return 0;
+	if (v1[1] != v2[1])
+		return 0;
+	if (v1[2] != v2[2])
+		return 0;
 
 	return 1;
 }

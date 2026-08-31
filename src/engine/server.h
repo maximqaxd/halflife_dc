@@ -315,6 +315,8 @@ extern "C" {
 #endif
 extern	server_static_t	svs;				// persistant server info
 extern	server_t		sv;					// local server
+extern	float			sv_physicsTime;
+extern	int				sv_physicsEntities;
 #ifdef __cplusplus
 }
 #endif

@@ -34,7 +34,7 @@ void TraceLine( vec_t* start, vec_t* end, vec_t* impact )
 	trace_t trace;
 
 	memset(&trace, 0, sizeof(trace));
-	SV_RecursiveHullCheck(cl.worldmodel->hulls, 0, 0.0, 1.0, start, end, &trace);
+	SV_RecursiveHullTrace(cl.worldmodel->hulls, 0, 0.0f, 1.0f, start, end, &trace);
 
 	VectorCopy(trace.endpos, impact);
 }
@@ -58,15 +58,15 @@ void Chase_Update( void )
 	chase_dest[ROLL] = r_refdef.vieworg[ROLL] + chase_up.value;
 
 	// find the spot the player is looking at
-	VectorMA(r_refdef.vieworg, 4096, forward, dest);
+	VectorMA(r_refdef.vieworg, 4096.0f, forward, dest);
 	TraceLine(r_refdef.vieworg, dest, stop);
 
 	// calculate pitch to look at the same spot from camera
 	VectorSubtract(stop, r_refdef.vieworg, stop);
 	dist = DotProduct(stop, forward);
-	if (dist < 1)
-		dist = 1;
-	r_refdef.viewangles[PITCH] = -atan(stop[2] / dist) / M_PI * 180;
+	if (dist < 1.0f)
+		dist = 1.0f;
+	r_refdef.viewangles[PITCH] = -(float)atan(stop[2] / dist) / (float)M_PI * 180.0f;
 
 	// move towards destination
 	VectorCopy(chase_dest, r_refdef.vieworg);

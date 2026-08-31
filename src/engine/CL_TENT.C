@@ -2499,7 +2499,7 @@ void CL_TempEntUpdate( void )
 				memset(&trace, 0, sizeof(trace));
 				trace.fraction = 1.0;
 				trace.allsolid = TRUE;
-				SV_RecursiveHullCheck(cl.worldmodel->hulls, cl.worldmodel->hulls[0].firstclipnode, 0.0, 1.0,
+				SV_RecursiveHullTrace(cl.worldmodel->hulls, cl.worldmodel->hulls[0].firstclipnode, 0.0f, 1.0f,
 					pTemp->entity.prevorigin, pTemp->entity.origin, &trace);
 
 				if (trace.fraction != 1)	// Decent collision now, and damping works

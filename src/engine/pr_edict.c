@@ -41,7 +41,7 @@ edict_t* ED_Alloc( void )
 		e = &sv.edicts[i];
 		// the first couple seconds of server time can involve a lot of
 		// freeing and allocating, so relax the replacement policy
-		if (e->free && (e->freetime < 2 || sv.time - e->freetime > 0.5))
+		if (e->free && (e->freetime < 2.0f || sv.time - e->freetime > 0.5f))
 		{
 			ED_ClearEdict(e);
 			return e;
@@ -168,6 +168,13 @@ void ED_Count( void )
 	Con_Printf("view      :%3i\n", models);
 	Con_Printf("touch     :%3i\n", solid);
 	Con_Printf("step      :%3i\n", step);
+}
+
+void PR_Profile_f( void )
+{
+	Con_Printf("%.3f seconds for %d entities: %.6fs/ent\n",
+		sv_physicsTime, sv_physicsEntities,
+		sv_physicsTime / sv_physicsEntities);
 }
 
 //============================================================================

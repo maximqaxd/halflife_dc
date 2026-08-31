@@ -45,6 +45,8 @@ edict_t* SV_TestEntityPosition( edict_t* ent );
 
 hull_t* SV_HullForEntity( edict_t* ent, const vec_t* mins, const vec_t* maxs, vec_t* offset );
 qboolean SV_RecursiveHullCheck( hull_t* hull, int num, float p1f, float p2f, vec_t* p1, vec_t* p2, trace_t* trace );
+qboolean SV_RecursiveHullCheckCompact( hull_t* hull, int num, float p1f, float p2f, vec_t* p1, vec_t* p2, trace_t* trace );
+void SV_RecursiveHullTrace( hull_t* hull, int num, float p1f, float p2f, vec_t* p1, vec_t* p2, trace_t* trace );
 
 void SV_MoveBounds( const vec_t* start, const vec_t* mins, const vec_t* maxs, const vec_t* end, vec_t* boxmins, vec_t* boxmaxs );
 

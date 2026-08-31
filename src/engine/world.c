@@ -57,11 +57,13 @@ void SV_InitBoxHull( void )
 	int		side;
 
 	box_hull.clipnodes = box_clipnodes;
+	box_hull.boxplanes = NULL;
 	box_hull.planes = box_planes;
 	box_hull.firstclipnode = 0;
 	box_hull.lastclipnode = 5;
 
 	beam_hull = box_hull;
+	beam_hull.boxplanes = NULL;
 	beam_hull.planes = beam_planes;
 
 	for (i = 0; i < 6; i++)
@@ -120,26 +122,25 @@ hull_t* SV_HullForBeam( const vec_t* start, const vec_t* end, const vec_t* size 
 	beam_planes[0].dist = DotProduct(end, beam_planes[0].normal);
 	beam_planes[1].dist = DotProduct(start, beam_planes[0].normal);
 
-	if (fabs(beam_planes[0].normal[2]) < 0.9)
+	if (fabs(beam_planes[0].normal[2]) < 0.9f)
 	{
-		tmp[2] = 1.0;
-		tmp[1] = 0.0;
-		tmp[0] = 0.0;
+		tmp[2] = 1.0f;
+		tmp[1] = 0.0f;
+		tmp[0] = 0.0f;
 	}
 	else
 	{
-		tmp[0] = 1.0;
-		tmp[2] = 0.0;
-		tmp[1] = 0.0;
+		tmp[0] = 1.0f;
+		tmp[2] = 0.0f;
+		tmp[1] = 0.0f;
 	}
 
 	CrossProduct(beam_planes[0].normal, tmp, beam_planes[2].normal);
 	VectorNormalize(beam_planes[2].normal);
 	VectorCopy(beam_planes[2].normal, beam_planes[3].normal);
 
-	beam_planes[2].dist = (start[0] + beam_planes[2].normal[0]) * beam_planes[2].normal[0] + 
-		(start[1] + beam_planes[2].normal[1]) * beam_planes[2].normal[1] + 
-		(start[2] + beam_planes[2].normal[2]) * beam_planes[2].normal[2];
+	VectorAdd(start, beam_planes[2].normal, tmp);
+	beam_planes[2].dist = DotProduct(tmp, beam_planes[2].normal);
 
 	VectorSubtract(start, beam_planes[2].normal, tmp);
 
@@ -149,17 +150,17 @@ hull_t* SV_HullForBeam( const vec_t* start, const vec_t* end, const vec_t* size 
 
 	VectorCopy(beam_planes[4].normal, beam_planes[5].normal);
 
-	beam_planes[4].dist = DotProduct(start, beam_planes[4].normal);
-	beam_planes[5].dist = (start[0] - beam_planes[4].normal[0]) * beam_planes[4].normal[0] + 
-		(start[1] - beam_planes[4].normal[1]) * beam_planes[4].normal[1] + 
-		(start[2] - beam_planes[4].normal[2]) * beam_planes[4].normal[2];
+	VectorAdd(start, beam_planes[4].normal, tmp);
+	beam_planes[4].dist = DotProduct(tmp, beam_planes[4].normal);
+	VectorSubtract(start, beam_planes[4].normal, tmp);
+	beam_planes[5].dist = DotProduct(tmp, beam_planes[4].normal);
 
 	beam_planes[0].dist += fabs(beam_planes[0].normal[0] * size[0]) + fabs(beam_planes[0].normal[1] * size[1]) + fabs(beam_planes[0].normal[2] * size[2]);
 	beam_planes[1].dist -= fabs(beam_planes[1].normal[0] * size[0]) + fabs(beam_planes[1].normal[1] * size[1]) + fabs(beam_planes[1].normal[2] * size[2]);
 	beam_planes[2].dist += fabs(beam_planes[2].normal[0] * size[0]) + fabs(beam_planes[2].normal[1] * size[1]) + fabs(beam_planes[2].normal[2] * size[2]);
 	beam_planes[3].dist -= fabs(beam_planes[3].normal[0] * size[0]) + fabs(beam_planes[3].normal[1] * size[1]) + fabs(beam_planes[3].normal[2] * size[2]);
 	beam_planes[4].dist += fabs(beam_planes[4].normal[0] * size[0]) + fabs(beam_planes[4].normal[1] * size[1]) + fabs(beam_planes[4].normal[2] * size[2]);
-	beam_planes[5].dist -= fabs(beam_planes[4].normal[0] * size[0]) + fabs(beam_planes[4].normal[1] * size[1]) + fabs(beam_planes[4].normal[2] * size[2]);
+	beam_planes[5].dist -= fabs(beam_planes[5].normal[0] * size[0]) + fabs(beam_planes[5].normal[1] * size[1]) + fabs(beam_planes[5].normal[2] * size[2]);
 
 	return &beam_hull;
 }
@@ -239,16 +240,17 @@ hull_t* SV_HullForEntity( edict_t* ent, const vec_t* mins, const vec_t* maxs, ve
 		if (ent->v.movetype != MOVETYPE_PUSH)
 			Sys_Error("SOLID_BSP without MOVETYPE_PUSH");
 
-		return SV_HullForBsp(ent, mins, maxs, offset);
+		hull = SV_HullForBsp(ent, mins, maxs, offset);
 	}
+	else
+	{
+		// create a temp hull from bounding box sizes
+		VectorSubtract(ent->v.mins, maxs, hullmins);
+		VectorSubtract(ent->v.maxs, mins, hullmaxs);
+		hull = SV_HullForBox(hullmins, hullmaxs);
 
-	// create a temp hull from bounding box sizes
-
-	VectorSubtract(ent->v.mins, maxs, hullmins);
-	VectorSubtract(ent->v.maxs, mins, hullmaxs);
-	hull = SV_HullForBox(hullmins, hullmaxs);
-
-	VectorCopy(ent->v.origin, offset);
+		VectorCopy(ent->v.origin, offset);
+	}
 
 	return hull;
 }
@@ -295,7 +297,7 @@ areanode_t* SV_CreateAreaNode( int depth, vec_t* mins, vec_t* maxs )
 	else
 		anode->axis = 1;
 
-	anode->dist = 0.5 * (mins[anode->axis] + maxs[anode->axis]);
+	anode->dist = 0.5f * (mins[anode->axis] + maxs[anode->axis]);
 	VectorCopy(mins, mins1);
 	VectorCopy(mins, mins2);
 	VectorCopy(maxs, maxs1);
@@ -390,7 +392,7 @@ void SV_TouchLinks( edict_t* ent, areanode_t* node )
 		}
 
 		gGlobalVariables.time = sv.time;
-		gEntityInterface.pfnTouch(touch, ent);
+		DispatchTouch(touch, ent);
 	}
 
 // recurse down both sides
@@ -472,7 +474,7 @@ void SV_LinkEdict( edict_t* ent, qboolean touch_triggers )
 		return;
 
 // set the abs box
-	gEntityInterface.pfnSetAbsBox(ent);
+	DispatchObjectCollsionBox(ent);
 
 	if (ent->v.movetype == MOVETYPE_FOLLOW && ent->v.aiment)
 	{
@@ -500,10 +502,7 @@ void SV_LinkEdict( edict_t* ent, qboolean touch_triggers )
 		return;
 
 	if (ent->v.solid == SOLID_BSP && !sv.models[ent->v.modelindex] && !strlen(&pr_strings[ent->v.model]))
-	{
-		Con_DPrintf("Inserted %s with no model\n", &pr_strings[ent->v.classname]);
 		return;
-	}
 
 // find the first node that the ent's box crosses
 	node = sv_areanodes;
@@ -562,21 +561,21 @@ int SV_HullPointContents( hull_t* hull, int num, const vec_t* p )
 			Sys_Error("SV_HullPointContents: bad node number");
 
 		node = hull->clipnodes + num;
-		if (!hull->planes)
-		{
-			boxplane = hull->boxplanes + node->planenum;
-			if (boxplane->type < 3)
-				d = p[boxplane->type] - boxplane->dist;
-			else
-				d = DotProduct(g_planeNormalTable[boxplane->normalindex].normal, p) - boxplane->dist;
-		}
-		else
+		if (hull->planes)
 		{
 			plane = hull->planes + node->planenum;
 			if (plane->type < 3)
 				d = p[plane->type] - plane->dist;
 			else
 				d = DotProduct(plane->normal, p) - plane->dist;
+		}
+		else
+		{
+			boxplane = hull->boxplanes + node->planenum;
+			if (boxplane->type < 3)
+				d = p[boxplane->type] - boxplane->dist;
+			else
+				d = DotProduct(g_planeNormalTable[boxplane->normalindex].normal, p) - boxplane->dist;
 		}
 		if (d < 0)
 			num = node->children[1];
@@ -599,7 +598,6 @@ int SV_LinkContents( areanode_t* node, const vec_t* pos )
 {
 	link_t* l, * next;
 	edict_t* touch;
-	int			contents;
 	hull_t* hull;
 	vec3_t		offset, localPosition;
 	model_t* pModel;
@@ -624,10 +622,6 @@ int SV_LinkContents( areanode_t* node, const vec_t* pos )
 			|| touch->v.absmin[2] > pos[2])
 			continue;
 
-		contents = touch->v.skin;
-		if (contents < -100 || contents > 100)
-			Con_DPrintf("Invalid contents on trigger field: %s\n", &pr_strings[touch->v.classname]);
-
 		// force to select bsp-hull
 		hull = SV_HullForBsp(touch, vec3_origin, vec3_origin, offset);
 
@@ -636,7 +630,7 @@ int SV_LinkContents( areanode_t* node, const vec_t* pos )
 
 		// test hull for intersection with this model
 		if (SV_HullPointContents(hull, hull->firstclipnode, localPosition) != CONTENTS_EMPTY)
-			return contents;
+			return touch->v.skin;
 	}
 
 	if (node->axis == -1)
@@ -688,9 +682,9 @@ Returns true if the entity is in solid currently
 edict_t* SV_TestEntityPosition( edict_t* ent )
 {
 	trace_t trace;
-	qboolean monsterClip;
+	int monsterClip;
 
-	monsterClip = (ent->v.flags & FL_MONSTERCLIP) ? TRUE : FALSE;
+	monsterClip = (ent->v.flags & FL_MONSTERCLIP) != 0;
 
 	trace = SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, ent->v.origin, MOVE_NORMAL, ent, monsterClip);
 
@@ -713,7 +707,114 @@ LINE TESTING IN HULLS
 */
 
 // 1/32 epsilon to keep floating point happy
-#define	DIST_EPSILON	(0.03125)
+#define	DIST_EPSILON	(0.03125f)
+
+qboolean SV_RecursiveHullCheckCompact( hull_t* hull, int num, float p1f, float p2f, vec_t* p1, vec_t* p2, trace_t* trace )
+{
+	dclipnode_t* node;
+	mclipplane_t* plane;
+	float t1, t2;
+	float frac;
+	int i;
+	vec3_t mid;
+	int side;
+	float midf;
+
+	if (num < 0)
+	{
+		if (num != CONTENTS_SOLID)
+		{
+			trace->allsolid = FALSE;
+			if (num == CONTENTS_EMPTY)
+				trace->inopen = TRUE;
+			else if (num != CONTENTS_TRANSLUCENT)
+				trace->inwater = TRUE;
+		}
+		else
+		{
+			trace->startsolid = TRUE;
+		}
+
+		return TRUE;
+	}
+
+	if (num < hull->firstclipnode || num > hull->lastclipnode || !hull->boxplanes)
+		Sys_Error("SV_RecursiveHullCheck: bad node number");
+
+	node = hull->clipnodes + num;
+	plane = hull->boxplanes + node->planenum;
+
+	if (plane->type < 3)
+	{
+		t1 = p1[plane->type] - plane->dist;
+		t2 = p2[plane->type] - plane->dist;
+	}
+	else
+	{
+		t1 = DotProduct(g_planeNormalTable[plane->normalindex].normal, p1) - plane->dist;
+		t2 = DotProduct(g_planeNormalTable[plane->normalindex].normal, p2) - plane->dist;
+	}
+
+	if (t1 >= 0.0f && t2 >= 0.0f)
+		return SV_RecursiveHullCheckCompact(hull, node->children[0], p1f, p2f, p1, p2, trace);
+	if (t1 < 0.0f && t2 < 0.0f)
+		return SV_RecursiveHullCheckCompact(hull, node->children[1], p1f, p2f, p1, p2, trace);
+
+	if (t1 < 0.0f)
+		frac = (t1 + DIST_EPSILON) / (t1 - t2);
+	else
+		frac = (t1 - DIST_EPSILON) / (t1 - t2);
+	if (frac < 0.0f)
+		frac = 0.0f;
+	if (frac > 1.0f)
+		frac = 1.0f;
+
+	midf = p1f + (p2f - p1f) * frac;
+	for (i = 0; i < 3; i++)
+		mid[i] = p1[i] + frac * (p2[i] - p1[i]);
+
+	side = (t1 < 0.0f);
+
+	if (!SV_RecursiveHullCheckCompact(hull, node->children[side], p1f, midf, p1, mid, trace))
+		return FALSE;
+
+	if (SV_HullPointContents(hull, node->children[side ^ 1], mid) != CONTENTS_SOLID)
+		return SV_RecursiveHullCheckCompact(hull, node->children[side ^ 1], midf, p2f, mid, p2, trace);
+
+	if (trace->allsolid)
+		return FALSE;
+
+	if (!side)
+	{
+		VectorCopy(g_planeNormalTable[plane->normalindex].normal, trace->plane.normal);
+		trace->plane.dist = plane->dist;
+	}
+	else
+	{
+		VectorSubtract(vec3_origin, g_planeNormalTable[plane->normalindex].normal, trace->plane.normal);
+		trace->plane.dist = -plane->dist;
+	}
+
+	while (SV_HullPointContents(hull, hull->firstclipnode, mid) == CONTENTS_SOLID)
+	{
+		frac -= 0.1f;
+		if (frac < 0.0f)
+		{
+			trace->fraction = midf;
+			VectorCopy(mid, trace->endpos);
+			return FALSE;
+		}
+
+		midf = p1f + (p2f - p1f) * frac;
+		for (i = 0; i < 3; i++)
+			mid[i] = p1[i] + frac * (p2[i] - p1[i]);
+	}
+
+	trace->fraction = midf;
+	VectorCopy(mid, trace->endpos);
+
+	return FALSE;
+}
 
 /*
 ==================
@@ -724,11 +825,7 @@ SV_RecursiveHullCheck
 qboolean SV_RecursiveHullCheck( hull_t* hull, int num, float p1f, float p2f, vec_t* p1, vec_t* p2, trace_t* trace )
 {
 	dclipnode_t	*node;
-	mclipplane_t	*boxplane;
 	mplane_t	*plane;
-	const vec_t	*normal;
-	float		dist;
-	byte		type;
 	float		t1, t2;
 	float		frac;
 	int			i;
@@ -756,34 +853,21 @@ qboolean SV_RecursiveHullCheck( hull_t* hull, int num, float p1f, float p2f, vec
 	if (num < hull->firstclipnode || num > hull->lastclipnode || (!hull->boxplanes && !hull->planes))
 		Sys_Error("SV_RecursiveHullCheck: bad node number");
 
-//
-// find the point distances
-//
+	//
+	// find the point distances
+	//
 	node = hull->clipnodes + num;
-	if (!hull->planes)
-	{
-		boxplane = hull->boxplanes + node->planenum;
-		normal = g_planeNormalTable[boxplane->normalindex].normal;
-		dist = boxplane->dist;
-		type = boxplane->type;
-	}
-	else
-	{
-		plane = hull->planes + node->planenum;
-		normal = plane->normal;
-		dist = plane->dist;
-		type = plane->type;
-	}
+	plane = hull->planes + node->planenum;
 
-	if (type < 3)
+	if (plane->type < 3)
 	{
-		t1 = p1[type] - dist;
-		t2 = p2[type] - dist;
+		t1 = p1[plane->type] - plane->dist;
+		t2 = p2[plane->type] - plane->dist;
 	}
 	else
 	{
-		t1 = DotProduct(normal, p1) - dist;
-		t2 = DotProduct(normal, p2) - dist;
+		t1 = DotProduct(plane->normal, p1) - plane->dist;
+		t2 = DotProduct(plane->normal, p2) - plane->dist;
 	}
 
 #if 1
@@ -842,24 +926,23 @@ qboolean SV_RecursiveHullCheck( hull_t* hull, int num, float p1f, float p2f, vec
 //==================
 	if (!side)
 	{
-		VectorCopy(normal, trace->plane.normal);
-		trace->plane.dist = dist;
+		VectorCopy(plane->normal, trace->plane.normal);
+		trace->plane.dist = plane->dist;
 	}
 	else
 	{
-		VectorSubtract(vec3_origin, normal, trace->plane.normal);
-		trace->plane.dist = -dist;
+		VectorSubtract(vec3_origin, plane->normal, trace->plane.normal);
+		trace->plane.dist = -plane->dist;
 	}
 
 	while (SV_HullPointContents(hull, hull->firstclipnode, mid)
 			== CONTENTS_SOLID)
 	{ // shouldn't really happen, but does occasionally
-		frac -= 0.1;
+		frac -= 0.1f;
 		if (frac < 0)
 		{
 			trace->fraction = midf;
 			VectorCopy(mid, trace->endpos);
-			Con_DPrintf("backup past 0\n");
 			return FALSE;
 		}
 		midf = p1f + (p2f - p1f) * frac;
@@ -871,6 +954,21 @@ qboolean SV_RecursiveHullCheck( hull_t* hull, int num, float p1f, float p2f, vec
 	VectorCopy(mid, trace->endpos);
 
 	return FALSE;
+}
+
+void SV_RecursiveHullTrace( hull_t* hull, int num, float p1f, float p2f, vec_t* p1, vec_t* p2, trace_t* trace )
+{
+	if (!hull->boxplanes)
+	{
+		if (!hull->planes)
+			Sys_Error("No valid planes in hull!");
+
+		SV_RecursiveHullCheck(hull, num, p1f, p2f, p1, p2, trace);
+	}
+	else
+	{
+		SV_RecursiveHullCheckCompact(hull, num, p1f, p2f, p1, p2, trace);
+	}
 }
 
 /*
@@ -912,7 +1010,7 @@ void SV_SingleClipMoveToEntity( edict_t* ent, const vec_t* start, const vec_t* m
 
 // rotate start and end into the models frame of reference
 	if (ent->v.solid == SOLID_BSP &&
-		(ent->v.angles[0] != 0.0 || ent->v.angles[1] != 0.0 || ent->v.angles[2] != 0.0))
+		(ent->v.angles[0] != 0.0f || ent->v.angles[1] != 0.0f || ent->v.angles[2] != 0.0f))
 	{
 		rotated = TRUE;
 	}
@@ -939,10 +1037,10 @@ void SV_SingleClipMoveToEntity( edict_t* ent, const vec_t* start, const vec_t* m
 		end_l[2] = DotProduct(temp, up);
 	}
 
-// trace a line through the apropriate clipping hull
+	// trace a line through the apropriate clipping hull
 	if (numhulls == 1)
 	{
-		SV_RecursiveHullCheck(hull, hull->firstclipnode, 0, 1, start_l, end_l, trace);
+		SV_RecursiveHullTrace(hull, hull->firstclipnode, 0.0f, 1.0f, start_l, end_l, trace);
 	}
 	else
 	{
@@ -956,7 +1054,7 @@ void SV_SingleClipMoveToEntity( edict_t* ent, const vec_t* start, const vec_t* m
 			testtrace.allsolid = TRUE;
 			VectorCopy(end, testtrace.endpos);
 
-			SV_RecursiveHullCheck(&hull[i], hull[i].firstclipnode, 0, 1, start_l, end_l, &testtrace);
+			SV_RecursiveHullTrace(&hull[i], hull[i].firstclipnode, 0.0f, 1.0f, start_l, end_l, &testtrace);
 
 			if (i == 0 || testtrace.allsolid || testtrace.startsolid || testtrace.fraction < trace->fraction)
 			{
@@ -1219,38 +1317,38 @@ trace_t SV_MoveNoEnts( const vec_t *start, vec_t *mins, vec_t *maxs, const vec_t
 
 	memset(&clip, 0, sizeof(clip));
 
-// clip to world
+	// clip to world
 	clip.trace = SV_ClipMoveToEntity(sv.edicts, start, mins, maxs, end);
 
-	if (clip.trace.fraction != 0)
-	{
-		VectorCopy(clip.trace.endpos, worldEndPoint);
-		worldFraction = clip.trace.fraction;
+	if (clip.trace.fraction == 0.0f)
+		return clip.trace;
 
-		clip.trace.fraction = 1;
-		clip.start = start;
-		clip.end = worldEndPoint;
-		clip.mins = mins;
-		clip.maxs = maxs;
-		clip.type = (type & 0xFF);
-		clip.ignoretrans = (type >> 8);
-		clip.passedict = passedict;
-		clip.monsterClipBrush = FALSE;
-		VectorCopy(mins, clip.mins2);
-		VectorCopy(maxs, clip.maxs2);
+	VectorCopy(clip.trace.endpos, worldEndPoint);
+	worldFraction = clip.trace.fraction;
+
+	clip.trace.fraction = 1.0f;
+	clip.start = start;
+	clip.end = worldEndPoint;
+	clip.mins = mins;
+	clip.maxs = maxs;
+	clip.type = (type & 0xFF);
+	clip.ignoretrans = (type >> 8);
+	clip.passedict = passedict;
+	clip.monsterClipBrush = FALSE;
+	VectorCopy(mins, clip.mins2);
+	VectorCopy(maxs, clip.maxs2);
 
 	// create the bounding box of the entire move
-		SV_MoveBounds(start, clip.mins2, clip.maxs2, worldEndPoint, clip.boxmins, clip.boxmaxs);
-		
+	SV_MoveBounds(start, clip.mins2, clip.maxs2, worldEndPoint, clip.boxmins, clip.boxmaxs);
+
 	// clip to entities
-		SV_ClipToWorldbrush(sv_areanodes, &clip);
+	SV_ClipToWorldbrush(sv_areanodes, &clip);
 
-		gGlobalVariables.trace_ent = clip.trace.ent;
-		clip.trace.fraction *= worldFraction;
+	gGlobalVariables.trace_ent = clip.trace.ent;
+	clip.trace.fraction *= worldFraction;
 
-		if (!clip.trace.ent)
-			gGlobalVariables.trace_ent = NULL;
-	}
+	if (!clip.trace.ent)
+		gGlobalVariables.trace_ent = NULL;
 
 	return clip.trace;
 }
@@ -1272,47 +1370,47 @@ trace_t SV_Move( const vec_t *start, const vec_t *mins, const vec_t *maxs, const
 	// clip to world
 	clip.trace = SV_ClipMoveToEntity(sv.edicts, start, mins, maxs, end);
 
-	if (clip.trace.fraction != 0)
+	if (clip.trace.fraction == 0.0f)
+		return clip.trace;
+
+	VectorCopy(clip.trace.endpos, worldEndPoint);
+	worldFraction = clip.trace.fraction;
+
+	clip.trace.fraction = 1.0f;
+	clip.start = start;
+	clip.end = worldEndPoint;
+	clip.mins = mins;
+	clip.maxs = maxs;
+	clip.type = (type & 0xFF);
+	clip.ignoretrans = (type >> 8);
+	clip.passedict = passedict;
+	clip.monsterClipBrush = monsterClipBrush;
+
+	if (type == MOVE_MISSILE)
 	{
-		VectorCopy(clip.trace.endpos, worldEndPoint);
-		worldFraction = clip.trace.fraction;
-
-		clip.trace.fraction = 1;
-		clip.start = start;
-		clip.end = worldEndPoint;
-		clip.mins = mins;
-		clip.maxs = maxs;
-		clip.type = (type & 0xFF);
-		clip.ignoretrans = (type >> 8);
-		clip.passedict = passedict;
-		clip.monsterClipBrush = monsterClipBrush;
-
-		if (type == MOVE_MISSILE)
+		for (i = 0; i < 3; i++)
 		{
-			for (i = 0; i < 3; i++)
-			{
-				clip.mins2[i] = -15;
-				clip.maxs2[i] = 15;
-			}
+			clip.mins2[i] = -15.0f;
+			clip.maxs2[i] = 15.0f;
 		}
-		else
-		{
-			VectorCopy(mins, clip.mins2);
-			VectorCopy(maxs, clip.maxs2);
-		}
+	}
+	else
+	{
+		VectorCopy(mins, clip.mins2);
+		VectorCopy(maxs, clip.maxs2);
+	}
 
 	// create the bounding box of the entire move
-		SV_MoveBounds(start, clip.mins2, clip.maxs2, worldEndPoint, clip.boxmins, clip.boxmaxs);
+	SV_MoveBounds(start, clip.mins2, clip.maxs2, worldEndPoint, clip.boxmins, clip.boxmaxs);
 
 	// clip to entities
-		SV_ClipToLinks(sv_areanodes, &clip);
+	SV_ClipToLinks(sv_areanodes, &clip);
 
-		gGlobalVariables.trace_ent = clip.trace.ent;
-		clip.trace.fraction *= worldFraction;
+	gGlobalVariables.trace_ent = clip.trace.ent;
+	clip.trace.fraction *= worldFraction;
 
-		if (!clip.trace.ent)
-			gGlobalVariables.trace_ent = NULL;
-	}
+	if (!clip.trace.ent)
+		gGlobalVariables.trace_ent = NULL;
 
 	return clip.trace;
 }

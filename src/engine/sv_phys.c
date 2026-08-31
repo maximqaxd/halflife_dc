@@ -42,8 +42,11 @@ cvar_t	sv_skyname = { "sv_skyname", "desert" };
 
 vec3_t	vec_origin = { 0, 0, 0 };
 
+float sv_physicsTime;
+int sv_physicsEntities;
 
-#define	MOVE_EPSILON	0.01
+
+#define	MOVE_EPSILON	0.01f
 
 void SV_Physics_Toss( edict_t* ent );
 
@@ -100,12 +103,10 @@ void SV_CheckVelocity( edict_t* ent )
 		}
 		if (ent->v.velocity[i] > sv_maxvelocity.value)
 		{
-			Con_DPrintf("Got a velocity too high on %s\n", &pr_strings[ent->v.classname]);
 			ent->v.velocity[i] = sv_maxvelocity.value;
 		}
 		else if (ent->v.velocity[i] < -sv_maxvelocity.value)
 		{
-			Con_DPrintf("Got a velocity too low on %s\n", &pr_strings[ent->v.classname]);
 			ent->v.velocity[i] = -sv_maxvelocity.value;
 		}
 	}
@@ -140,7 +141,7 @@ qboolean SV_RunThink( edict_t* ent )
 		ent->v.nextthink = 0;
 		gGlobalVariables.time = thinktime;
 
-		gEntityInterface.pfnThink(ent);
+		DispatchThink(ent);
 	}
 
 	if (ent->v.flags & FL_KILLME)
@@ -160,19 +161,19 @@ void SV_Impact( edict_t* e1, edict_t* e2, trace_t* ptrace )
 {
 	gGlobalVariables.time = sv.time;
 
-	if ((e1->v.flags & FL_KILLME) || (e2->v.flags & FL_KILLME))
+	if ((e1->v.flags | e2->v.flags) & FL_KILLME)
 		return;
 
 	if (e1->v.solid != SOLID_NOT)
 	{
 		SV_SetGlobalTrace(ptrace);
-		gEntityInterface.pfnTouch(e1, e2);
+		DispatchTouch(e1, e2);
 	}
 
 	if (e2->v.solid != SOLID_NOT)
 	{
 		SV_SetGlobalTrace(ptrace);
-		gEntityInterface.pfnTouch(e2, e1);
+		DispatchTouch(e2, e1);
 	}
 }
 
@@ -185,13 +186,13 @@ Slide off of the impacting object
 returns the blocked flags (1 = floor, 2 = step / wall)
 ==================
 */
-#define	STOP_EPSILON	0.1
+#define	STOP_EPSILON	0.1f
 
 int ClipVelocity( vec_t* in, vec_t* normal, vec_t* out, float overbounce )
 {
 	float	backoff;
 	float	change;
-	float	angle = 0.0;
+	float	angle = 0.0f;
 	int		i, blocked;
 
 	blocked = 0;
@@ -240,7 +241,7 @@ int SV_FlyMove( edict_t* ent, float time, trace_t* steptrace )
 	vec3_t		end;
 	float		time_left;
 	int			blocked;
-	qboolean	monsterClip = (ent->v.flags & FL_MONSTERCLIP) ? TRUE : FALSE;
+	int			monsterClip = (ent->v.flags & FL_MONSTERCLIP) != 0;
 
 	numbumps = 4;
 
@@ -281,7 +282,7 @@ int SV_FlyMove( edict_t* ent, float time, trace_t* steptrace )
 		if (!trace.ent)
 			Sys_Error("SV_FlyMove: !trace.ent");
 
-		if (trace.plane.normal[2] > 0.7)
+		if (trace.plane.normal[2] > 0.7f)
 		{
 			blocked |= 1;		// floor
 			if (trace.ent->v.solid == SOLID_BSP ||
@@ -321,17 +322,17 @@ int SV_FlyMove( edict_t* ent, float time, trace_t* steptrace )
 		VectorCopy(trace.plane.normal, planes[numplanes]);
 		numplanes++;
 
-		if (ent->v.movetype == MOVETYPE_WALK && (!(ent->v.flags & FL_ONGROUND) || ent->v.friction != 1.0))
+		if (ent->v.movetype == MOVETYPE_WALK && (!(ent->v.flags & FL_ONGROUND) || ent->v.friction != 1.0f))
 		{
 			for (i = 0; i < numplanes; i++)
 			{
-				if (planes[i][2] <= 0.7)
+				if (planes[i][2] <= 0.7f)
 				{
-					d = (1.0 - ent->v.friction) * sv_bounce.value + 1.0;
+					d = (1.0f - ent->v.friction) * sv_bounce.value + 1.0f;
 				}
 				else
 				{
-					d = 1.0;
+					d = 1.0f;
 				}
 
 				ClipVelocity(original_velocity, planes[i], new_velocity, d);
@@ -407,7 +408,7 @@ void SV_AddGravity( edict_t* ent )
 	if (ent->v.gravity)
 		ent_gravity = ent->v.gravity;
 	else		
-		ent_gravity = 1.0;
+		ent_gravity = 1.0f;
 
 	ent->v.velocity[2] -= (ent_gravity * sv_gravity.value * host_frametime);
 	ent->v.velocity[2] += (ent->v.basevelocity[2] * host_frametime);
@@ -424,11 +425,11 @@ void SV_AddCorrectGravity( edict_t* ent )
 	if (ent->v.gravity)
 		ent_gravity = ent->v.gravity;
 	else	
-		ent_gravity = 1.0;
+		ent_gravity = 1.0f;
 
 	// Add gravity so they'll be in the correct position during movement
 	// yes, this 0.5 looks wrong, but it's not.  
-	ent->v.velocity[2] -= (ent_gravity * sv_gravity.value * host_frametime * 0.5);
+	ent->v.velocity[2] -= (ent_gravity * sv_gravity.value * host_frametime * 0.5f);
 	ent->v.velocity[2] += (ent->v.basevelocity[2] * host_frametime);
 	ent->v.basevelocity[2] = 0;
 
@@ -443,10 +444,10 @@ void SV_FixupGravityVelocity( edict_t* ent )
 	if (ent->v.gravity)
 		ent_gravity = ent->v.gravity;
 	else
-		ent_gravity = 1.0;
+		ent_gravity = 1.0f;
 
 	// Get the correct velocity for the end of the dt 
-	ent->v.velocity[2] -= (ent_gravity * sv_gravity.value * host_frametime * 0.5);
+	ent->v.velocity[2] -= (ent_gravity * sv_gravity.value * host_frametime * 0.5f);
 
 	SV_CheckVelocity(ent);
 }
@@ -475,7 +476,7 @@ trace_t SV_PushEntity( edict_t* ent, vec_t* push )
 
 	VectorAdd(push, ent->v.origin, end);
 
-	monsterClip = (ent->v.flags & FL_MONSTERCLIP) ? TRUE : FALSE;
+	monsterClip = (ent->v.flags & FL_MONSTERCLIP) != 0;
 
 	if (ent->v.movetype == MOVETYPE_FLYMISSILE)
 		moveType = MOVE_MISSILE;
@@ -609,7 +610,7 @@ void SV_PushMove( edict_t* pusher, float movetime )
 
 			// Notify Game DLL that the pushing entity attempted
 			// to move but was blocked by another entity
-			gEntityInterface.pfnBlocked(pusher, check);
+			DispatchBlocked(pusher, check);
 
 			// move back any entities we already moved
 			for (i = 0; i < num_moved; i++)
@@ -712,9 +713,9 @@ int SV_PushRotate( edict_t* pusher, float movetime )
 
 		if (check->v.movetype == MOVETYPE_PUSHSTEP)
 		{
-			org[0] = (check->v.absmin[0] + check->v.absmax[0]) * 0.5;
-			org[1] = (check->v.absmin[1] + check->v.absmax[1]) * 0.5;
-			org[2] = (check->v.absmin[2] + check->v.absmax[2]) * 0.5;
+			org[0] = (check->v.absmin[0] + check->v.absmax[0]) * 0.5f;
+			org[1] = (check->v.absmin[1] + check->v.absmax[1]) * 0.5f;
+			org[2] = (check->v.absmin[2] + check->v.absmax[2]) * 0.5f;
 			VectorSubtract(org, pusher->v.origin, start);
 		}
 		else
@@ -745,7 +746,7 @@ int SV_PushRotate( edict_t* pusher, float movetime )
 			}
 			else
 			{
-				check->v.angles[1] += amove[1];
+				VectorAdd(check->v.angles, amove, check->v.angles);
 			}
 		}
 
@@ -776,7 +777,7 @@ int SV_PushRotate( edict_t* pusher, float movetime )
 
 			// Notify Game DLL that the pushing entity attempted
 			// to move but was blocked by another entity
-			gEntityInterface.pfnBlocked(pusher, check);
+			DispatchBlocked(pusher, check);
 
 			// Move back any entities we already moved
 			for (i = 0; i < num_moved; i++)
@@ -789,7 +790,7 @@ int SV_PushRotate( edict_t* pusher, float movetime )
 				}
 				else if (g_moved_edict[i]->v.movetype != MOVETYPE_PUSHSTEP)
 				{
-					g_moved_edict[i]->v.angles[1] -= amove[1];
+					VectorSubtract(g_moved_edict[i]->v.angles, amove, g_moved_edict[i]->v.angles);
 				}
 
 				SV_LinkEdict(g_moved_edict[i], FALSE);
@@ -853,7 +854,7 @@ void SV_Physics_Pusher( edict_t* ent )
 	{
 		ent->v.nextthink = 0;
 		gGlobalVariables.time = sv.time;
-		gEntityInterface.pfnThink(ent);
+		DispatchThink(ent);
 	}
 }
 
@@ -872,9 +873,9 @@ qboolean SV_CheckWater( edict_t* ent )
 	int		truecont;
 
 	// Pick a spot just above the players feet.
-	point[0] = (ent->v.absmin[0] + ent->v.absmax[0]) * 0.5;
-	point[1] = (ent->v.absmin[1] + ent->v.absmax[1]) * 0.5;
-	point[2] = (ent->v.absmin[2] + 1.0);
+	point[0] = (ent->v.absmin[0] + ent->v.absmax[0]) * 0.5f;
+	point[1] = (ent->v.absmin[1] + ent->v.absmax[1]) * 0.5f;
+	point[2] = (ent->v.absmin[2] + 1.0f);
 
 //
 // get waterlevel
@@ -896,7 +897,7 @@ qboolean SV_CheckWater( edict_t* ent )
 		else
 		{
 			// Now check a point that is at the player hull midpoint.
-			point[2] = (ent->v.absmin[2] + ent->v.absmax[2]) * 0.5;
+			point[2] = (ent->v.absmin[2] + ent->v.absmax[2]) * 0.5f;
 			truecont = SV_PointContents(point);
 			// If that point is also under water...
 			if (truecont <= CONTENTS_WATER && truecont > CONTENTS_TRANSLUCENT)
@@ -914,7 +915,7 @@ qboolean SV_CheckWater( edict_t* ent )
 		}
 
 		// Adjust velocity based on water current, if any.
-		if (cont <= CONTENTS_CURRENT_0)
+		if (cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
 		{
 			// The deeper we are, the stronger the current.
 			static vec3_t current_table[] =
@@ -923,7 +924,7 @@ qboolean SV_CheckWater( edict_t* ent )
 				{0, -1, 0}, {0, 0, 1}, {0, 0, -1}
 			};
 
-			VectorMA(ent->v.basevelocity, 50.0 * ent->v.waterlevel, current_table[CONTENTS_CURRENT_0 - cont], ent->v.basevelocity);
+			VectorMA(ent->v.basevelocity, 50.0f * ent->v.waterlevel, current_table[CONTENTS_CURRENT_0 - cont], ent->v.basevelocity);
 		}
 	}
 
@@ -936,14 +937,18 @@ float SV_RecursiveWaterLevel( vec_t* center, float out, float in, int count )
 	vec3_t	test;
 	float	offset;
 
-	offset = (out - in) * 0.5 + in;
+	offset = out;
+	offset -= in;
+	offset *= 0.5f;
 	count++;
+	offset += in;
 
 	if (count >= 6)
 		return offset;
 
-	VectorCopy(center, test);
-	test[2] += offset;
+	test[0] = center[0];
+	test[1] = center[1];
+	test[2] = center[2] + offset;
 
 	if (SV_PointContents(test) == CONTENTS_WATER)
 		return SV_RecursiveWaterLevel(center, out, offset, count);
@@ -956,35 +961,30 @@ float SV_Submerged( edict_t* ent )
 {
 	float	bottom;
 	vec3_t	center;
+	vec3_t	point;
 
-	center[0] = (ent->v.absmin[0] + ent->v.absmax[0]) * 0.5;
-	center[1] = (ent->v.absmin[1] + ent->v.absmax[1]) * 0.5;
-	center[2] = (ent->v.absmin[2] + ent->v.absmax[2]) * 0.5;
+	center[0] = (ent->v.absmin[0] + ent->v.absmax[0]) * 0.5f;
+	center[1] = (ent->v.absmin[1] + ent->v.absmax[1]) * 0.5f;
+	center[2] = (ent->v.absmin[2] + ent->v.absmax[2]) * 0.5f;
 
 	bottom = ent->v.absmin[2] - center[2];
 
 	switch (ent->v.waterlevel)
 	{
 	case 1:
-		return SV_RecursiveWaterLevel(center, 0.0, bottom, 0) - bottom;
-	case 2:
-		return SV_RecursiveWaterLevel(center, ent->v.absmax[2] - center[2], 0.0, 0) - bottom;
+		return SV_RecursiveWaterLevel(center, 0.0f, bottom, 0) - bottom;
 	case 3:
-	{
-		vec3_t point;
-
 		point[0] = center[0];
 		point[1] = center[1];
 		point[2] = ent->v.absmax[2];
 
 		if (SV_PointContents(point) == CONTENTS_WATER)
 			return ent->v.maxs[2] - ent->v.mins[2];
-
-		return SV_RecursiveWaterLevel(center, ent->v.absmax[2] - center[2], 0.0, 0) - bottom;
+	case 2:
+		return SV_RecursiveWaterLevel(center, ent->v.absmax[2] - center[2], 0.0f, 0) - bottom;
 	}
-	}
 
-	return 0.0;
+	return 0.0f;
 }
 
 /*
@@ -1013,17 +1013,18 @@ void SV_Physics_Follow( edict_t* ent )
 	if (!SV_RunThink(ent))
 		return;
 	
-	// no entity to follow
 	if (!ent->v.aiment)
-	{
-		Con_DPrintf("%s movetype FOLLOW with NULL aiment\n", &pr_strings[ent->v.classname]);
-		ent->v.movetype = MOVETYPE_NONE;
-		return;
-	}
+		goto no_entity;
 
 	VectorAdd(ent->v.aiment->v.origin, ent->v.v_angle, ent->v.origin);
 	VectorCopy(ent->v.aiment->v.angles, ent->v.angles);
+	goto link_entity;
 
+no_entity:
+	ent->v.movetype = MOVETYPE_NONE;
+	return;
+
+link_entity:
 	SV_LinkEdict(ent, TRUE);
 }
 
@@ -1066,9 +1067,9 @@ void SV_CheckWaterTransition( edict_t* ent )
 
 	vec3_t	point;
 
-	point[0] = (ent->v.absmin[0] + ent->v.absmax[0]) * 0.5;
-	point[1] = (ent->v.absmin[1] + ent->v.absmax[1]) * 0.5;
-	point[2] = (ent->v.absmin[2] + 1.0);
+	point[0] = (ent->v.absmin[0] + ent->v.absmax[0]) * 0.5f;
+	point[1] = (ent->v.absmin[1] + ent->v.absmax[1]) * 0.5f;
+	point[2] = (ent->v.absmin[2] + 1.0f);
 
 	cont = SV_PointContents(point);
 	if (!ent->v.watertype)
@@ -1082,8 +1083,8 @@ void SV_CheckWaterTransition( edict_t* ent )
 	{
 		if (ent->v.watertype == -1)
 		{	// just crossed into water
-			SV_StartSound(ent, CHAN_AUTO, "player/pl_wade1.wav", 255, 1.0, 0, PITCH_NORM);
-			ent->v.velocity[2] *= 0.5;
+			SV_StartSound(ent, CHAN_AUTO, "player/pl_wade1.wav", 255, 1.0f, 0, PITCH_NORM);
+			ent->v.velocity[2] *= 0.5f;
 		}
 		ent->v.watertype = cont;
 		ent->v.waterlevel = 1;
@@ -1095,7 +1096,7 @@ void SV_CheckWaterTransition( edict_t* ent )
 			return;
 		}
 
-		point[2] = (ent->v.absmin[2] + ent->v.absmax[2]) * 0.5;
+		point[2] = (ent->v.absmin[2] + ent->v.absmax[2]) * 0.5f;
 
 		cont = SV_PointContents(point);
 		if (cont <= CONTENTS_WATER && cont > CONTENTS_TRANSLUCENT)
@@ -1115,7 +1116,7 @@ void SV_CheckWaterTransition( edict_t* ent )
 	{
 		if (ent->v.watertype != CONTENTS_EMPTY)
 		{	// just crossed into water
-			SV_StartSound(ent, CHAN_AUTO, "player/pl_wade2.wav", 255, 1.0, 0, PITCH_NORM);
+			SV_StartSound(ent, CHAN_AUTO, "player/pl_wade2.wav", 255, 1.0f, 0, PITCH_NORM);
 		}
 		ent->v.watertype = CONTENTS_EMPTY;
 		ent->v.waterlevel = 0;
@@ -1141,17 +1142,22 @@ void SV_Physics_Toss( edict_t* ent )
 	if (!SV_RunThink(ent))
 		return;
 
-	if (ent->v.velocity[2] > 0.0 || !ent->v.groundentity || (ent->v.groundentity->v.flags & (FL_MONSTER | FL_CLIENT)))
+	if (ent->v.velocity[2] > 0.0f || !ent->v.groundentity || (ent->v.groundentity->v.flags & (FL_MONSTER | FL_CLIENT)))
 	{
 		ent->v.flags &= ~FL_ONGROUND;
 	}
 
 // if on ground and not moving, return.
-	if ((ent->v.flags & FL_ONGROUND) && VectorCompare(ent->v.velocity, vec_origin))
+	if ((ent->v.flags & FL_ONGROUND) &&
+		ent->v.velocity[0] == vec_origin[0] &&
+		ent->v.velocity[1] == vec_origin[1] &&
+		ent->v.velocity[2] == vec_origin[2])
 	{
 		VectorCopy(vec3_origin, ent->v.avelocity);
 
-		if (VectorCompare(ent->v.basevelocity, vec_origin))
+		if (ent->v.basevelocity[0] == vec_origin[0] &&
+			ent->v.basevelocity[1] == vec_origin[1] &&
+			ent->v.basevelocity[2] == vec_origin[2])
 		{
 			return; // at rest
 		}
@@ -1205,16 +1211,16 @@ void SV_Physics_Toss( edict_t* ent )
 		return;
 
 	if (ent->v.movetype == MOVETYPE_BOUNCE)
-		backoff = 2.0 - ent->v.friction;
+		backoff = 2.0f - ent->v.friction;
 	else if (ent->v.movetype == MOVETYPE_BOUNCEMISSILE)
-		backoff = 2.0; // A backoff of 2.0 is a reflection
+		backoff = 2.0f; // A backoff of 2.0 is a reflection
 	else
-		backoff = 1.0;
+		backoff = 1.0f;
 
 	ClipVelocity(ent->v.velocity, trace.plane.normal, ent->v.velocity, backoff);
 
 // stop if on ground
-	if (trace.plane.normal[2] > 0.7)
+	if (trace.plane.normal[2] > 0.7f)
 	{
 		float vel;
 
@@ -1228,7 +1234,7 @@ void SV_Physics_Toss( edict_t* ent )
 			// we're rolling on the ground, add static friction
 			ent->v.flags |= FL_ONGROUND;
 			ent->v.groundentity = trace.ent;
-			ent->v.velocity[2] = 0.0;
+			ent->v.velocity[2] = 0.0f;
 		}
 
 		//Con_DPrintf("%f %f: %.0f %.0f %.0f\n", vel, trace.fraction, ent->velocity[0], ent->velocity[1], ent->velocity[2]);
@@ -1242,8 +1248,8 @@ void SV_Physics_Toss( edict_t* ent )
 		}
 		else
 		{
-			VectorScale(ent->v.velocity, (1.0 - trace.fraction) * host_frametime * 0.9, move);
-			VectorMA(move, (1.0 - trace.fraction) * host_frametime * 0.9, ent->v.basevelocity, move);
+			VectorScale(ent->v.velocity, (1.0f - trace.fraction) * host_frametime * 0.9f, move);
+			VectorMA(move, (1.0f - trace.fraction) * host_frametime * 0.9f, ent->v.basevelocity, move);
 			trace = SV_PushEntity(ent, move);
 		}
 	}
@@ -1273,7 +1279,7 @@ void PF_WaterMove( edict_t* pSelf )
 		return;
 	}
 
-	if (pSelf->v.health < 0.0)
+	if (pSelf->v.health < 0.0f)
 		return;
 
 	drownlevel = (pSelf->v.deadflag == DEAD_NO) ? 3 : 1;
@@ -1334,9 +1340,9 @@ void PF_WaterMove( edict_t* pSelf )
 		if (!(flags & (FL_IMMUNE_LAVA | FL_GODMODE)) && pSelf->v.dmgtime < sv.time)
 		{
 			if (pSelf->v.radsuit_finished < sv.time)
-				pSelf->v.dmgtime = sv.time + 0.2;
+				pSelf->v.dmgtime = sv.time + 0.2f;
 			else
-				pSelf->v.dmgtime = sv.time + 1.0;
+				pSelf->v.dmgtime = sv.time + 1.0f;
 		}
 	}
 	else if (watertype == CONTENTS_SLIME)
@@ -1344,7 +1350,7 @@ void PF_WaterMove( edict_t* pSelf )
 		if (!(flags & (FL_IMMUNE_SLIME | FL_GODMODE)) && pSelf->v.dmgtime < sv.time)
 		{
 			if (pSelf->v.radsuit_finished < sv.time)
-				pSelf->v.dmgtime = sv.time + 1.0;
+				pSelf->v.dmgtime = sv.time + 1.0f;
 		}
 	}
 
@@ -1376,7 +1382,7 @@ void PF_WaterMove( edict_t* pSelf )
 
 	if (!(flags & FL_WATERJUMP))
 	{
-		VectorMA(pSelf->v.velocity, (-0.8 * pSelf->v.waterlevel * host_frametime), pSelf->v.velocity, pSelf->v.velocity);
+		VectorMA(pSelf->v.velocity, (-0.8f * pSelf->v.waterlevel * host_frametime), pSelf->v.velocity, pSelf->v.velocity);
 	}
 }
 
@@ -1405,7 +1411,7 @@ void SV_Physics_Step( edict_t* ent )
 
 	SV_CheckVelocity(ent);
 
-	wasonground = (ent->v.flags & FL_ONGROUND) ? TRUE : FALSE;
+	wasonground = ent->v.flags & FL_ONGROUND;
 	inwater = SV_CheckWater(ent);
 
 	if ((ent->v.flags & FL_FLOAT) && ent->v.waterlevel > 0)
@@ -1427,7 +1433,12 @@ void SV_Physics_Step( edict_t* ent )
 		}
 	}
 
-	if (!VectorCompare(ent->v.velocity, vec_origin) || !VectorCompare(ent->v.basevelocity, vec_origin))
+	if (ent->v.velocity[0] != vec_origin[0] ||
+		ent->v.velocity[1] != vec_origin[1] ||
+		ent->v.velocity[2] != vec_origin[2] ||
+		ent->v.basevelocity[0] != vec_origin[0] ||
+		ent->v.basevelocity[1] != vec_origin[1] ||
+		ent->v.basevelocity[2] != vec_origin[2])
 	{
 		vec3_t mins, maxs, point;
 		int x, y;
@@ -1436,18 +1447,18 @@ void SV_Physics_Step( edict_t* ent )
 
 		// apply friction
 		// let dead monsters who aren't completely onground slide
-		if (wasonground && (ent->v.health > 0.0 || SV_CheckBottom(ent)))
+		if (wasonground && (ent->v.health > 0.0f || SV_CheckBottom(ent)))
 		{
-			speed = sqrt(ent->v.velocity[0] * ent->v.velocity[0] + ent->v.velocity[1] * ent->v.velocity[1]);
+			speed = sqrtf(ent->v.velocity[0] * ent->v.velocity[0] + ent->v.velocity[1] * ent->v.velocity[1]);
 			if (speed)
 			{
 				friction = ent->v.friction * sv_friction.value;
-				ent->v.friction = 1.0;
+				ent->v.friction = 1.0f;
 
 				control = (sv_stopspeed.value < speed) ? speed : sv_stopspeed.value;
 				newspeed = speed - (control * friction * host_frametime);
-				if (newspeed < 0.0)
-					newspeed = 0.0;
+				if (newspeed < 0.0f)
+					newspeed = 0.0f;
 
 				newspeed = newspeed / speed;
 
@@ -1469,7 +1480,7 @@ void SV_Physics_Step( edict_t* ent )
 		VectorAdd(ent->v.origin, ent->v.mins, mins);
 		VectorAdd(ent->v.origin, ent->v.maxs, maxs);
 
-		point[2] = mins[2] - 1.0;
+		point[2] = mins[2] - 1.0f;
 
 		for (x = 0; x <= 1; x++)
 		{
@@ -1494,7 +1505,7 @@ void SV_Physics_Step( edict_t* ent )
 			trace_t trace = SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, ent->v.origin, MOVE_NORMAL, ent, (ent->v.flags & FL_MONSTERCLIP) ? TRUE : FALSE);
 
 			// tentacle impact code
-			if (trace.fraction < 1.0 || trace.startsolid)
+			if (trace.fraction < 1.0f || trace.startsolid)
 			{
 				if (trace.ent)
 					SV_Impact(ent, trace.ent, &trace);
@@ -1521,11 +1532,13 @@ void SV_Physics( void )
 	int		i;
 	edict_t* ent;
 	edict_t* groundentity;
+	float	startTime;
 
 	// let the progs know that a new frame has started
 	gGlobalVariables.time = sv.time;
 
-	gEntityInterface.pfnStartFrame();
+	StartFrame();
+	startTime = (float)Sys_FloatTime();
 
 	// iterate through all entities and have them think or simulate
 	for (i = 0; i < sv.num_edicts; i++)
@@ -1567,7 +1580,7 @@ void SV_Physics( void )
 		if (!(ent->v.flags & FL_BASEVELOCITY))
 		{
 			// Apply momentum (add in half of the previous frame of velocity first)
-			VectorMA(ent->v.velocity, 1.0 + (host_frametime * 0.5), ent->v.basevelocity, ent->v.velocity);
+			VectorMA(ent->v.velocity, 1.0f + (host_frametime * 0.5f), ent->v.basevelocity, ent->v.velocity);
 			VectorCopy(vec3_origin, ent->v.basevelocity);
 		}
 
@@ -1606,6 +1619,9 @@ void SV_Physics( void )
 			ED_Free(ent);
 	}
 
+	sv_physicsTime += (float)Sys_FloatTime() - startTime;
+	sv_physicsEntities += sv.num_edicts;
+
 	if (gGlobalVariables.force_retouch != 0)
 		gGlobalVariables.force_retouch -= 1;
 
@@ -1618,10 +1634,10 @@ trace_t SV_Trace_Toss( edict_t* ent, edict_t* ignore )
 	trace_t trace;
 	vec3_t	move;
 	vec3_t	end;
-	double	save_frametime;
+	float	save_frametime;
 
 	save_frametime = host_frametime;
-	host_frametime = 0.05;
+	host_frametime = 0.05f;
 
 	memcpy(&tempent, ent, sizeof(tempent));
 	tent = &tempent;
@@ -1657,7 +1673,7 @@ void SV_SetMoveVars( void )
 	movevars.stepsize = sv_stepsize.value;
 	movevars.maxvelocity = sv_maxvelocity.value;
 	movevars.zmax = sv_zmax.value;
-	movevars.entgravity = 1.0;
+	movevars.entgravity = 1.0f;
 	movevars.waveHeight = sv_wateramp.value;
 	strcpy(movevars.skyName, sv_skyname.string);
 }
