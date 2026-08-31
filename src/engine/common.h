@@ -216,7 +216,7 @@ int COM_OpenFileByName( char* gamedir, char* filename, int* hndl );
 int COM_FOpenFile( char* filename, FILE** file );
 void COM_CloseFile( int filepos, int filelen, int handle );
 
-void COM_FreeFile( void* buffer );
+void COM_FreeFile( void );
 byte* COM_LoadFile( char* path, int usehunk, int* pLength );
 byte* COM_LoadFileLimit( char* path, int pos, int cbmax, int* pcbread, int* phFile );
 byte* COM_LoadStackFile( char* path, void* buffer, int bufsize );

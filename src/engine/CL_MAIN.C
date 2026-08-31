@@ -727,7 +727,7 @@ void CL_Disconnect( void )
 
 	if (cls.upload)
 	{
-		COM_FreeFile(cls.upload);
+		COM_FreeFile();
 		cls.upload = NULL;
 	}
 
@@ -1750,7 +1750,7 @@ void CL_ParseNextUpload( void )
 	if (g_bSkipUpload)
 	{
 		g_bSkipUpload = FALSE;
-		COM_FreeFile(cls.upload);
+		COM_FreeFile();
 		cls.upload = NULL;
 		Con_Printf("Skipping upload...\n");
 		return;
@@ -1777,7 +1777,7 @@ void CL_ParseNextUpload( void )
 	if (cls.uploadpos != cls.uploadsize)
 		return;
 
-	COM_FreeFile(cls.upload);
+	COM_FreeFile();
 	cls.upload = NULL;
 }
 

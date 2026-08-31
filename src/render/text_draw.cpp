@@ -745,7 +745,7 @@ void Text_LoadLangTags( void )
 	}
 
 	if (buf)
-		COM_FreeFile(buf);
+		COM_FreeFile();
 }
 
 /*

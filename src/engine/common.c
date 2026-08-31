@@ -3011,10 +3011,9 @@ byte* COM_LoadFile( char* path, int usehunk, int* pLength )
 	return buf;
 }
 
-void COM_FreeFile( void* buffer )
+void COM_FreeFile( void )
 {
-	if (buffer)
-		free(buffer);
+	_FreeBlock();
 }
 
 byte* COM_LoadFileLimit( char* path, int pos, int cbmax, int* pcbread, int* phFile )
