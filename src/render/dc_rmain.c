@@ -30,6 +30,7 @@ int			currenttexture = -1;	// to avoid unnecessary texture sets
 int			cnttextures[2] = { -1, -1 };     // cached
 
 int			particletexture;	// little dot for particles
+int			particlepufftexture;
 int			playertextures;		// up to 16 color translated skins
 
 int			mirrortexturenum;	// quake texturenum, not gltexturenum
@@ -376,7 +377,7 @@ changing their clip planes.
 void R_ApplyViewModelProjection( float zn )
 {
 	extern	int	glwidth, glheight;
-	float	aspect, fov, fovy, xmax, ymax, msw, zf, znear;
+	float	aspect, fov, fovy, xmin, xmax, ymin, ymax, msw, zf, znear;
 
 	DCV_SetTransform( D3DTRANSFORMSTATE_PROJECTION, &g_identityMatrix );
 
@@ -391,10 +392,49 @@ void R_ApplyViewModelProjection( float zn )
 
 	znear = VIEWMODEL_ZNEAR;
 	ymax = znear * tan( (fovy * (float)M_PI) / 360.0f );
+	ymin = -ymax;
+
+	xmin = aspect * ymin;
 	xmax = aspect * ymax;
 
-	DCV_Frustum( D3DTRANSFORMSTATE_PROJECTION, -xmax, xmax, -ymax, ymax,
+	DCV_Frustum( D3DTRANSFORMSTATE_PROJECTION, xmin, xmax, ymin, ymax,
 		znear, zf, msw );
+
+	DCV_SetViewportDepthRange( dc_depthmin.value, dc_depthmax.value );
+}
+
+/*
+==================
+R_ApplyViewProjection
+
+Rebuild the scene projection at the fixed 2-unit near plane with the view
+scale.  Used by the passes that draw after the world has been submitted.
+==================
+*/
+void R_ApplyViewProjection( void )
+{
+	extern	int	glwidth, glheight;
+	float	aspect, fov, fovy, xmin, xmax, ymin, ymax, zf, znear, scale;
+
+	DCV_SetTransform( D3DTRANSFORMSTATE_PROJECTION, &g_identityMatrix );
+
+	aspect = (float)glwidth / (float)glheight;
+
+	fov = scr_fov_value;
+	fovy = CalcFov(fov, (float)glwidth, (float)glheight);
+
+	zf = gl_zmax.value;
+	scale = dc_msv.value;
+
+	znear = VIEWMODEL_ZNEAR;
+	ymax = znear * tan( (fovy * (float)M_PI) / 360.0f );
+	ymin = -ymax;
+
+	xmin = aspect * ymin;
+	xmax = aspect * ymax;
+
+	DCV_Frustum( D3DTRANSFORMSTATE_PROJECTION, xmin, xmax, ymin, ymax,
+		znear, zf, scale );
 
 	DCV_SetViewportDepthRange( dc_depthmin.value, dc_depthmax.value );
 }
@@ -945,7 +985,7 @@ void R_PolyBlend( void )
 
 	if (cl.sf.fadeFlags & FFADE_MODULATE)
 	{
-		int remainder = 255 * (255 - alpha);
+		int remainder = (255 - alpha) * 255;
 
 		color[0] = (alpha * cl.sf.fader + remainder) >> 8;
 		color[1] = (alpha * cl.sf.fadeg + remainder) >> 8;
@@ -1058,21 +1098,19 @@ void R_SetupFrame( void )
 	c_alias_polys = 0;
 }
 
-#if 0
-void MYgluPerspective( GLdouble fovy, GLdouble aspect,
-	GLdouble zNear, GLdouble zFar )
+void MYgluPerspective( float fovy, float aspect,
+	float zNear, float zFar, float scale )
 {
-	GLdouble xmin, xmax, ymin, ymax;
+	float	xmin, xmax, ymin, ymax;
 
-	ymax = zNear * tan(fovy * M_PI / 360.0);
+	ymax = zNear * tan(fovy * (float)M_PI / 360.0f);
 	ymin = -ymax;
 
 	xmin = ymin * aspect;
 	xmax = ymax * aspect;
 
-	qglFrustum(xmin, xmax, ymin, ymax, zNear, zFar);
+	DCV_Frustum(D3DTRANSFORMSTATE_PROJECTION, xmin, xmax, ymin, ymax, zNear, zFar, scale);
 }
-#endif
 
 /*
 ====================
@@ -1094,6 +1132,35 @@ float CalcFov( float fov_x, float width, float height )
 	a = (a * 360.0f) / (float)M_PI;
 
 	return a;
+}
+
+float	g_flHudDepth;		// current HUD depth sublayer
+
+/*
+================
+DCV_SetHudDepth
+
+Set up a 2D orthographic projection for the HUD and place it at one of the depth
+sublayers between dc_msh and dc_msh2, so overlapping HUD elements sort correctly.
+================
+*/
+void DCV_SetHudDepth( float layer )
+{
+	float	depth;
+
+	DCV_SetViewport(glx, gly, glwidth, glheight);
+	DCV_SetTransform(3, &g_identityMatrix);
+
+	depth = dc_msh.value + (dc_msh2.value - dc_msh.value) * layer;
+
+	g_flHudDepth = layer;
+
+	DCV_Ortho(3, 0.0f, (float)glwidth, (float)glheight, 0.0f, 10.0f, -10.0f, depth);
+
+	DCV_SetTransform(2, &g_identityMatrix);
+	DCV_SetTransform(1, &g_identityMatrix);
+
+	DCV_SetViewportDepthRange(dc_depthminhud.value, dc_depthmaxhud.value);
 }
 
 /*

@@ -192,7 +192,7 @@ void Sbar_Draw( void )
 		VectorAdd(r_refdef.viewangles, cl.crosshairangle, angles);
 		AngleVectors(angles, forward, NULL, NULL);
 		VectorAdd(r_origin, forward, point);
-		R_WorldToScreen(point, screen);
+		ScreenTransform(point, screen);
 		DrawCrosshair(x + (0.5f * screen[0] * scr_vrect.width + 0.5f), y + (0.5f * screen[1] * scr_vrect.height + 0.5f));
 	}
 

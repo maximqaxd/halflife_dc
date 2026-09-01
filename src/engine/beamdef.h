@@ -17,6 +17,22 @@
 #define FBEAM_ISACTIVE			0x40000000
 #define FBEAM_FOREVER			0x80000000
 
+// Beam constructor parameters, 44 bytes.
+typedef struct beam_info_s
+{
+	int			modelIndex;
+	float		life;
+	float		width;
+	float		amplitude;
+	float		brightness;
+	float		speed;
+	int			startFrame;
+	float		frameRate;
+	float		r;
+	float		g;
+	float		b;
+} BEAMINFO;
+
 typedef struct beam_s
 {
 	struct beam_s* next;
@@ -42,6 +58,7 @@ typedef struct beam_s
 	int			endEntity;
 	int			modelIndex;
 	int			frameCount;
+	struct model_s* pFollowModel;
 	struct particle_s* particles;
 } BEAM;
 

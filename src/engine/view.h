@@ -19,6 +19,9 @@ extern int			screengammatable[1024];
 extern float v_blend[4];
 
 extern cvar_t lcd_x;
+extern cvar_t cl_rollspeed;
+extern cvar_t cl_rollangle;
+extern float v_idlescale;
 
 void V_Init( void );
 void V_InitLevel( void );
@@ -29,9 +32,8 @@ void V_CalcBlend( void );
 
 void V_UpdatePalette( void );
 
-float V_CalcRoll( float* angles, float* velocity );
+float V_CalcRoll( float* angles, float* velocity, float rollangle, float rollspeed );
 
 int V_ScreenShake( const char* pszName, int iSize, void* pbuf );
-int V_ScreenFade( const char* pszName, int iSize, void* pbuf );
 
 #endif // VIEW_H

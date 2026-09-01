@@ -1,10 +1,10 @@
 // gl_rlight.c
 
 #include "quakedef.h"
+#include "qgl.h"
+#include <floatmathlib.h>
 
-/* Maximum lightmap grid dimensions: extents capped at 2040 world units → (2040>>4)+1 = 128+1 */
-#define MAX_LM_AXIS 129
-#define MAX_LM_SAMPLE (MAX_LM_AXIS * MAX_LM_AXIS)
+#pragma intrinsic(fabsf)
 
 int	r_dlightframecount;
 int	r_dlightchanged;
@@ -66,32 +66,30 @@ void R_RenderDlight( dlight_t* light )
 	vec3_t	v;
 	float	rad;
 
-	rad = light->radius * 0.35;
+	rad = light->radius * 0.35f;
 
 	VectorSubtract(light->origin, r_origin, v);
 	if (VectorLength(v) < rad)
 	{	// view is inside the dlight
-		AddLightBlend(1, 0.5, 0, light->radius * 0.0003);
+		AddLightBlend(1, 0.5f, 0, light->radius * 0.0003f);
 		return;
 	}
 
-#if 0
 	qglBegin(GL_TRIANGLE_FAN);
-	qglColor3f(0.2, 0.1, 0.0);
+	qglColor3f(0.2f, 0.1f, 0.0f);
 	for (i = 0; i < 3; i++)
 		v[i] = light->origin[i] - vpn[i] * rad;
 	qglVertex3fv(v);
 	qglColor3f(0, 0, 0);
 	for (i = 16; i >= 0; i--)
 	{
-		a = i / 16.0 * M_PI * 2;
+		a = i / 16.0f * (float)M_PI * 2;
 		for (j = 0; j < 3; j++)
 			v[j] = light->origin[j] + vright[j] * cos(a) * rad
 				+ vup[j] * sin(a) * rad;
 		qglVertex3fv(v);
 	}
 	qglEnd();
-#endif
 }
 
 /*
@@ -109,7 +107,6 @@ void R_RenderDlights( void )
 
 	r_dlightframecount = r_framecount + 1; // because the count hasn't
 										//  advanced yet for this frame
-#if 0
 	qglDepthMask(GL_FALSE);
 	qglDisable(GL_TEXTURE_2D);
 	qglShadeModel(GL_SMOOTH);
@@ -129,7 +126,6 @@ void R_RenderDlights( void )
 	qglEnable(GL_TEXTURE_2D);
 	qglBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	qglDepthMask(GL_TRUE);
-#endif
 }
 
 
@@ -174,18 +170,23 @@ void R_MarkLights( dlight_t* light, int bit, mnode_t* node )
 	surf = cl.worldmodel->surfaces + node->firstsurface;
 	for (i = 0; i < node->numsurfaces; i++, surf++)
 	{
-		float rad, minlight;
+		float rad;
+		int minlight;
 		int s, t;
 		int smax, tmax;
 		mtexinfo_t* tex;
 
-		rad = light->radius - fabs(dist);
+		rad = light->radius;
+		rad -= fabsf(dist);
 		if (light->minlight > rad)
 			continue;
 
 		tex = surf->texinfo;
 
-		minlight = rad - light->minlight;
+		smax = surf->extents[0];
+		tmax = surf->extents[1];
+
+		rad -= light->minlight;
 
 		// Project light center into texture coordinates
 		s = DotProduct(light->origin, tex->vecs[0])
@@ -193,8 +194,7 @@ void R_MarkLights( dlight_t* light, int bit, mnode_t* node )
 		t = DotProduct(light->origin, tex->vecs[1])
 			+ tex->vecs[1][3] - surf->texturemins[1];
 
-		smax = surf->extents[0];
-		tmax = surf->extents[1];
+		minlight = rad;
 
 		if (s <= -minlight || t <= -minlight || s > minlight + smax || t > minlight + tmax)
 		{
@@ -202,10 +202,8 @@ void R_MarkLights( dlight_t* light, int bit, mnode_t* node )
 		}
 
 		if (surf->dlightframe != (char)r_dlightframecount)
-		{
 			surf->dlightframe = (char)r_dlightframecount;
-			surf->dlightbits = 0;
-		}
+
 		surf->dlightbits |= bit;
 	}
 
@@ -250,6 +248,183 @@ LIGHT SAMPLING
 mclipplane_t* lightplane;
 vec3_t			lightspot;
 
+/*
+=============
+R_LightSurfPoint
+
+Add the lightmap texel under (ds,dt) on this surface, scaled by each of its
+light styles, into c.  cl.worldmodel->lightmap_mode picks the on-disk encoding:
+1 = packed-delta 16-bit texels, 2 = row-run bilinear, 3 = LERP grid.
+=============
+*/
+
+// floatmathlib.h only fast-paths `floor`, not `ceil` (only `fceil`), so a bare
+// `ceil()` call falls through to the real double-precision routine. Declare it
+// so the compiler emits a proper double-returning call instead of assuming an
+// int-returning implicit declaration.
+extern double ceil( double x );
+
+void R_LightSurfPoint( msurface_t* surf, int ds, int dt, colorVec* c )
+{
+	byte*		lightmap;
+	int			smax, tmax;
+	int			maps, s, t;
+	int			r, g, b;
+	unsigned	scale;
+
+	lightmap = (byte*)surf->samples;
+
+	smax = (surf->extents[0] >> 4) + 1;
+	tmax = (surf->extents[1] >> 4) + 1;
+
+	r = 0;
+	g = 0;
+	b = 0;
+
+	if (!lightmap)
+		return;
+
+	if (cl.worldmodel->lightmap_mode == 1)
+	{
+		for (maps = 0; maps < MAXLIGHTMAPS && surf->styles[maps] != 255; maps++)
+		{
+			const unsigned short* row;
+
+			scale = d_lightstylevalue[surf->styles[maps]];
+			row = (const unsigned short*)lightmap + dt * smax + maps * smax * tmax;
+
+			for (s = 0; s < ds + 1; s++)
+			{
+				unsigned short v = row[s];
+
+				if (v & LT2D_DELTA_FLAG)
+				{
+					int d;
+
+					if (v & LT2D_R_SIGN)
+						r -= (v & LT2D_R_MAG_MASK) >> 10;
+					else
+						r += (v & LT2D_R_MAG_MASK) >> 10;
+
+					d = v & LT2D_GB_SIGN;
+
+					if (d)
+						g -= (v & LT2D_G_MAG_MASK) >> 5;
+					else
+						g += (v & LT2D_G_MAG_MASK) >> 5;
+
+					if (d)
+						b -= v & LT2D_B_MAG_MASK;
+					else
+						b += v & LT2D_B_MAG_MASK;
+				}
+				else
+				{
+					r = (v & LT2D_R_MASK_ABS) >> 7;
+					g = (v & LT2D_G_MASK_ABS) >> 2;
+					b = (v & LT2D_B_MASK_ABS) << 3;
+				}
+			}
+
+			c->r += r * scale;
+			c->g += g * scale;
+			c->b += b * scale;
+		}
+	}
+	else if (cl.worldmodel->lightmap_mode == 2)
+	{
+		/* Row-run bilinear: each row is a run of `n` RGB triples resampled
+		   across smax columns, so every row has to be stepped over to find
+		   the one holding dt. */
+		const byte* lt2ptr = lightmap;
+		float recip = 1.0f / (float)(smax - 1);
+
+		for (maps = 0; maps < MAXLIGHTMAPS && surf->styles[maps] != 255; maps++)
+		{
+			scale = d_lightstylevalue[surf->styles[maps]];
+
+			for (t = 0; t < tmax; t++)
+			{
+				int n = *lt2ptr++;
+
+				if (t == dt)
+				{
+					float pos = (float)(n - 1) * ds * recip;
+					int fi = (int)floor(pos);
+					int ci = (int)ceil(pos);
+					float frac = pos - (float)fi;
+					float inv = 1.0f - frac;
+					int ci3 = ci * 3, fi3 = fi * 3;
+					int rf, rc, gf, gc, bf, bc;
+
+					rc = lt2ptr[ci3]; rf = lt2ptr[fi3];
+					r = g_GammaTable256[(int)((float)rf * inv + (float)rc * frac + 0.5f)];
+					gc = lt2ptr[ci3 + 1]; gf = lt2ptr[fi3 + 1];
+					g = g_GammaTable256[(int)((float)gf * inv + (float)gc * frac + 0.5f)];
+					bc = lt2ptr[ci3 + 2]; bf = lt2ptr[fi3 + 2];
+					b = g_GammaTable256[(int)((float)bf * inv + (float)bc * frac + 0.5f)];
+				}
+
+				lt2ptr += n * 3;
+			}
+
+			c->r += r * scale;
+			c->g += g * scale;
+			c->b += b * scale;
+		}
+	}
+	else if (cl.worldmodel->lightmap_mode == 3)
+	{
+		/* LERP grid: each style stores an ncols x nrows grid of RGB triples
+		   that gets resampled up to the surface's smax x tmax lightmap. */
+		const byte* lt2ptr = lightmap;
+		int sRange = smax - 1;
+		int tRange = tmax - 1;
+
+		for (maps = 0; maps < MAXLIGHTMAPS && surf->styles[maps] != 255; maps++)
+		{
+			int hdr, ncols, nrows, si, ti, i;
+
+			scale = d_lightstylevalue[surf->styles[maps]];
+
+			hdr = *lt2ptr++;
+			ncols = (hdr >> 4) + 2;
+			nrows = (hdr & 15) + 2;
+
+			si = (ncols - 1) * ds / sRange;
+			ti = dt * (nrows - 1) / tRange;
+
+			i = (ncols * ti + si) * 3;
+
+			r = g_GammaTable256[lt2ptr[i]];
+			g = g_GammaTable256[lt2ptr[i + 1]];
+			b = g_GammaTable256[lt2ptr[i + 2]];
+
+			lt2ptr += ncols * nrows * 3;
+
+			c->r += r * scale;
+			c->g += g * scale;
+			c->b += b * scale;
+		}
+	}
+	else
+	{
+		/* Standard BSP lightdata: one color24 per texel, one map per style. */
+		const color24* p = surf->samples + dt * smax + ds;
+
+		for (maps = 0; maps < MAXLIGHTMAPS && surf->styles[maps] != 255; maps++)
+		{
+			scale = d_lightstylevalue[surf->styles[maps]];
+
+			c->r += p->r * scale;
+			c->g += p->g * scale;
+			c->b += p->b * scale;
+
+			p += smax * tmax;
+		}
+	}
+}
+
 colorVec RecursiveLightPoint( mnode_t* node, vec_t* start, vec_t* end )
 {
 	colorVec	c;
@@ -261,16 +436,15 @@ colorVec RecursiveLightPoint( mnode_t* node, vec_t* start, vec_t* end )
 	int			s, t, ds, dt;
 	int			i;
 	mtexinfo_t* tex;
-	color24* lightmap;
-	unsigned	scale;
-	int			maps;
+
+// clear to no light
+	c.r = 0;
+	c.g = 0;
+	c.b = 0;
+	c.a = 0;
 
 	if (node->contents < 0)		// didn't hit anything
-	{
-	// clear to no light
-		c.r = c.g = c.b = c.a = 0;
 		return c;
-	}
 
 // calculate mid point
 
@@ -294,11 +468,7 @@ colorVec RecursiveLightPoint( mnode_t* node, vec_t* start, vec_t* end )
 		return c;		// hit something
 
 	if ((back < 0) == side)		// didn't hit anuthing
-	{
-	// clear to no light
-		c.r = c.g = c.b = c.a = 0;
 		return c;
-	}
 
 // check for impact on this node
 	VectorCopy(mid, lightspot);
@@ -326,59 +496,18 @@ colorVec RecursiveLightPoint( mnode_t* node, vec_t* start, vec_t* end )
 			continue;
 
 		if (!surf->samples)
-		{
-		// clear to no light
-			c.r = c.g = c.b = c.a = 0;
 			return c;
-		}
 
-		ds >>= 4;
-		dt >>= 4;
+		R_LightSurfPoint(surf, ds >> 4, dt >> 4, &c);
 
-	// clear to no light
-		c.r = c.g = c.b = c.a = 0;
+		c.r >>= 8;
+		c.g >>= 8;
+		c.b >>= 8;
 
-		if (cl.worldmodel->lightmap_mode >= 2)
-		{
-			/* LT2 mode: surf->samples points into the packed payload; decode style 0 only for speed. */
-			int smax = (surf->extents[0] >> 4) + 1;
-			int tmax = (surf->extents[1] >> 4) + 1;
-			static color24 lt2_tmp[MAX_LM_SAMPLE];
-			int consumed = DCV_LT2Decode((byte*)surf->samples,
-				(int)(((byte*)cl.worldmodel->lightdata + cl.worldmodel->lightBytes) - (byte*)surf->samples),
-				lt2_tmp, smax, tmax);
-			if (consumed > 0 && surf->styles[0] != 255)
-			{
-				int idx = dt * smax + ds;
-				scale = d_lightstylevalue[surf->styles[0]];
-				c.r = (lt2_tmp[idx].r * scale) >> 8;
-				c.g = (lt2_tmp[idx].g * scale) >> 8;
-				c.b = (lt2_tmp[idx].b * scale) >> 8;
-				if (c.r > 255) c.r = 255;
-				if (c.g > 255) c.g = 255;
-				if (c.b > 255) c.b = 255;
-			}
-		}
-		else
-		{
-			/* Standard BSP color24 lightdata */
-			lightmap = surf->samples;
-			lightmap += dt * ((surf->extents[0] >> 4) + 1) + ds;
-
-			for (maps = 0; maps < MAXLIGHTMAPS && surf->styles[maps] != 255; maps++)
-			{
-				scale = d_lightstylevalue[surf->styles[maps]];
-				c.r += lightmap->r * scale;
-				c.g += lightmap->g * scale;
-				c.b += lightmap->b * scale;
-				lightmap += ((surf->extents[0] >> 4) + 1) *
-					((surf->extents[1] >> 4) + 1);
-			}
-
-			c.r >>= 8;
-			c.g >>= 8;
-			c.b >>= 8;
-		}
+	// the caller stops as soon as a component is set, so a fully black
+	// sample still has to read as "we landed on a surface"
+		if (!c.r)
+			c.r = 1;
 
 		return c;
 	}
@@ -391,10 +520,20 @@ colorVec R_LightVec( vec_t* start, vec_t* end )
 {
 	colorVec	c;
 
+	c.r = 0;
+	c.g = 0;
+	c.b = 0;
+	c.a = 0;
+
+	if (!cl.worldmodel)
+	{
+		c.r = c.g = c.b = 255;
+		return c;
+	}
+
 	if (!cl.worldmodel->lightdata)
 	{
 		c.r = c.g = c.b = 255;
-		c.a = 0;
 		return c;
 	}
 

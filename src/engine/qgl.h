@@ -19,13 +19,18 @@ extern "C" {
 #endif
 
 void APIENTRY qglBegin( GLenum mode );
-void APIENTRY qglEnd( void );
-void APIENTRY qglVertex2f( GLfloat x, GLfloat y );
-void APIENTRY qglTexCoord2f( GLfloat s, GLfloat t );
+void APIENTRY qglBlendFunc( GLenum sfactor, GLenum dfactor );
+void APIENTRY qglColor3f( GLfloat red, GLfloat green, GLfloat blue );
 void APIENTRY qglColor4f( GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha );
-void APIENTRY qglEnable( GLenum cap );
+void APIENTRY qglDepthMask( GLboolean flag );
 void APIENTRY qglDisable( GLenum cap );
+void APIENTRY qglEnable( GLenum cap );
+void APIENTRY qglEnd( void );
+void APIENTRY qglShadeModel( GLenum mode );
+void APIENTRY qglTexCoord2f( GLfloat s, GLfloat t );
 void APIENTRY qglTexEnvf( GLenum target, GLenum pname, GLfloat param );
+void APIENTRY qglVertex2f( GLfloat x, GLfloat y );
+void APIENTRY qglVertex3fv( const GLfloat* v );
 
 #ifdef __cplusplus
 }

@@ -1,9 +1,17 @@
 // view.c -- player eye positioning
 
 #include "quakedef.h"
+#include <floatmathlib.h>
+#include <shintr.h>
 #include "pmove.h"
 #include "pr_cmds.h"
 #include "shake.h"
+
+#undef fabs
+#pragma intrinsic(fabsf)
+#pragma intrinsic(sqrtf)
+
+extern float _utos( unsigned int value );
 
 /*
 
@@ -32,13 +40,13 @@ cvar_t	cl_waterdist = { "cl_waterdist", "4" };
 cvar_t	v_kicktime = { "v_kicktime", "0.5" };
 cvar_t	v_kickroll = { "v_kickroll", "0.6" };
 cvar_t	v_kickpitch = { "v_kickpitch", "0.6" };
-cvar_t	v_iyaw_cycle = { "v_iyaw_cycle", "2" };
-cvar_t	v_iroll_cycle = { "v_iroll_cycle", "0.5" };
-cvar_t	v_ipitch_cycle = { "v_ipitch_cycle", "1" };
-cvar_t	v_iyaw_level = { "v_iyaw_level", "0.3" };
-cvar_t	v_iroll_level = { "v_iroll_level", "0.1" };
-cvar_t	v_ipitch_level = { "v_ipitch_level", "0.3" };
-cvar_t	v_idlescale = { "v_idlescale", "0" };
+cvar_t	v_iyaw_cycle = { "v_iyaw_cycle", "2", 0, 2.0f };
+cvar_t	v_iroll_cycle = { "v_iroll_cycle", "0.5", 0, 0.5f };
+cvar_t	v_ipitch_cycle = { "v_ipitch_cycle", "1", 0, 1.0f };
+cvar_t	v_iyaw_level = { "v_iyaw_level", "0.3", 0, 0.3f };
+cvar_t	v_iroll_level = { "v_iroll_level", "0.1", 0, 0.1f };
+cvar_t	v_ipitch_level = { "v_ipitch_level", "0.3", 0, 0.3f };
+float	v_idlescale;
 
 cvar_t	v_dark = { "v_dark", "0" };
 cvar_t	crosshair = { "crosshair", "0", TRUE };
@@ -61,21 +69,21 @@ V_CalcRoll
 Used by view and sv_user
 ===============
 */
-float V_CalcRoll( float* angles, float* velocity )
+float V_CalcRoll( float* angles, float* velocity, float rollangle, float rollspeed )
 {
-	float	sign;
+	int		sign;
 	float	side;
 	float	value;
 
 	AngleVectors(angles, forward, right, up);
 	side = DotProduct(velocity, right);
-	sign = side < 0 ? -1 : 1;
-	side = fabs(side);
+	sign = side < 0.0f ? -1 : 1;
+	side = fabsf(side);
 
-	value = cl_rollangle.value;
+	value = rollangle;
 
-	if (side < cl_rollspeed.value)
-		side = side * value / cl_rollspeed.value;
+	if (side < rollspeed)
+		side = side * value / rollspeed;
 	else
 		side = value;
 
@@ -95,7 +103,7 @@ float V_CalcBob( void )
 	float	cycle;
 
 	if (cl.spectator)
-		return 0;
+		return 0.0f;
 
 	if (onground == -1 ||
 		cl.time == cl.oldtime)
@@ -108,19 +116,19 @@ float V_CalcBob( void )
 	cycle = bobtime - (int)(bobtime / cl_bobcycle.value) * cl_bobcycle.value;
 	cycle /= cl_bobcycle.value;
 	if (cycle < cl_bobup.value)
-		cycle = M_PI * cycle / cl_bobup.value;
+		cycle = (float)M_PI * cycle / cl_bobup.value;
 	else
-		cycle = M_PI + M_PI * (cycle - cl_bobup.value) / (1.0 - cl_bobup.value);
+		cycle = (float)M_PI + (float)M_PI * (cycle - cl_bobup.value) / (1.0f - cl_bobup.value);
 
 // bob is proportional to simulated velocity in the xy plane
 // (don't count Z, or jumping messes it up)
 
-	bob = sqrt(cl.simvel[0] * cl.simvel[0] + cl.simvel[1] * cl.simvel[1]) * cl_bob.value;
-	bob = bob * 0.3 + bob * 0.7 * sin(cycle);
-	if (bob > 4)
-		bob = 4;
-	else if (bob < -7)
-		bob = -7;
+	bob = sqrtf(cl.simvel[0] * cl.simvel[0] + cl.simvel[1] * cl.simvel[1]) * cl_bob.value;
+	bob = bob * 0.3f + bob * 0.7f * sin(cycle);
+	if (bob > 4.0f)
+		bob = 4.0f;
+	else if (bob < -7.0f)
+		bob = -7.0f;
 	return bob;
 }
 
@@ -150,9 +158,9 @@ void V_StartPitchDrift( void )
 
 void V_StopPitchDrift( void )
 {
-	cl.nodrift = TRUE;
-	cl.pitchvel = 0.0;
 	cl.laststop = cl.time;
+	cl.nodrift = TRUE;
+	cl.pitchvel = 0.0f;
 }
 
 /*
@@ -179,7 +187,7 @@ void V_DriftPitch( void )
 // don't count small mouse motion
 	if (cl.nodrift)
 	{
-		if (fabs(cl.cmd.forwardmove) < cl_forwardspeed.value)
+		if (fabsf(cl.cmd.forwardmove) < cl_forwardspeed.value)
 			cl.driftmove = 0;
 		else
 			cl.driftmove += host_frametime;
@@ -246,82 +254,6 @@ cvar_t		v_texgamma = { "texgamma", "2.0" };		// source gamma of textures
 cvar_t		v_lambert = { "lambert", "1.5" };
 cvar_t		v_direct = { "direct", "0.9" };
 
-void BuildGammaTable( float g )
-{
-	int		i, inf;
-	float	g1, g3;
-
-	if (g <= 0) // prevent division by zero
-	{
-		g3 = 0.0;
-		g1 = g;
-	}
-
-	if (g > 3.0)
-		g = 3.0;
-
-	g = 1.0 / g;
-
-	g1 = g * v_texgamma.value;
-
-	if (v_brightness.value <= 0.0)
-	{
-		g3 = 0.125;
-	}
-	else if (v_brightness.value > 1.0)
-	{
-		g3 = 0.05;
-	}
-	else
-	{
-		g3 = 0.125 - (v_brightness.value * v_brightness.value) * 0.075;
-	}
-
-	for (i = 0; i < 256; i++)
-	{
-		inf = 255 * pow(i / 255.0, g1);
-		if (inf < 0)
-			inf = 0;
-		if (inf > 255)
-			inf = 255;
-		texgammatable[i] = inf;
-	}
-
-	for (i = 0; i < 1024; i++)
-	{
-		float f;
-
-		f = pow(i / 1023.0, v_lightgamma.value);
-
-		// scale up
-		if (v_brightness.value > 1.0)
-			f = f * v_brightness.value;
-
-		// shift up
-		if (f <= g3)
-			f = (f / g3) * 0.125;
-		else
-			f = 0.125 + ((f - g3) / (1.0 - g3)) * 0.875;
-
-		// convert
-		inf = 1023 * pow(f, g);
-
-		if (inf < 0)
-			inf = 0;
-		if (inf > 1023)
-			inf = 1023;
-		lightgammatable[i] = inf;
-	}
-
-	for (i = 0; i < 1024; i++)
-	{
-		// convert from screen gamma space to linear space
-		lineargammatable[i] = 1023 * pow(i / 1023.0, v_gamma.value);
-		// convert from linear gamma space to screen space
-		screengammatable[i] = 1023 * pow(i / 1023.0, 1.0 / v_gamma.value);
-	}
-}
-
 /*
 =================
 V_CheckGamma
@@ -362,8 +294,6 @@ qboolean V_CheckGamma( void )
 	ambientb = r_ambient_b.value;
 #endif
 
-	BuildGammaTable(v_gamma.value);
-
 	D_FlushCaches();
 	vid.recalc_refdef = 1;				// force a surface cache flush
 
@@ -382,21 +312,10 @@ void V_CalcPowerupCshift( void )
 	static float cshift3;
 	static float cshift4;
 
-	cshift1 -= host_frametime;
-	if (cshift1 <= 0)
-		cshift1 = 0;
-
-	cshift2 -= host_frametime;
-	if (cshift2 <= 0)
-		cshift2 = 0;
-
-	cshift3 -= host_frametime;
-	if (cshift3 <= 0)
-		cshift3 = 0;
-
-	cshift4 -= host_frametime;
-	if (cshift4 <= 0)
-		cshift4 = 0;
+	cshift1 = cshift1 - host_frametime < 0.0f ? 0.0f : cshift1 - host_frametime;
+	cshift2 = cshift2 - host_frametime < 0.0f ? 0.0f : cshift2 - host_frametime;
+	cshift3 = cshift3 - host_frametime < 0.0f ? 0.0f : cshift3 - host_frametime;
+	cshift4 = cshift4 - host_frametime < 0.0f ? 0.0f : cshift4 - host_frametime;
 }
 
 /*
@@ -409,19 +328,19 @@ void V_CalcBlend( void )
 {
 	float	r, g, b, a;
 
-	r = 0;
-	g = 0;
-	b = 0;
-	a = 0;
+	r = 0.0f;
+	g = 0.0f;
+	b = 0.0f;
+	a = 0.0f;
 
-	v_blend[0] = r / 255.0;
-	v_blend[1] = g / 255.0;
-	v_blend[2] = b / 255.0;
+	v_blend[0] = r / 255.0f;
+	v_blend[1] = g / 255.0f;
+	v_blend[2] = b / 255.0f;
 	v_blend[3] = a;
-	if (v_blend[3] > 1)
-		v_blend[3] = 1;
-	if (v_blend[3] < 0)
-		v_blend[3] = 0;
+	if (v_blend[3] > 1.0f)
+		v_blend[3] = 1.0f;
+	if (v_blend[3] < 0.0f)
+		v_blend[3] = 0.0f;
 }
 #endif
 
@@ -438,6 +357,7 @@ void V_UpdatePalette( void )
 	float	r, g, b, a;
 	int		ir, ig, ib;
 	qboolean force;
+	void (* volatile calcBlend)( void ) = V_CalcBlend;
 
 	V_CalcPowerupCshift();
 
@@ -447,16 +367,16 @@ void V_UpdatePalette( void )
 	if (!newFlag && !force)
 		return;
 
-	V_CalcBlend();
+	calcBlend();
 
 //Con_Printf("b: %4.2f %4.2f %4.2f %4.6f\n", v_blend[0],	v_blend[1],	v_blend[2],	v_blend[3]);
 
 	a = v_blend[3];
-	r = 255.0 * v_blend[0] * a;
-	g = 255.0 * v_blend[1] * a;
-	b = 255.0 * v_blend[2] * a;
+	r = 255.0f * v_blend[0] * a;
+	g = 255.0f * v_blend[1] * a;
+	b = 255.0f * v_blend[2] * a;
 
-	a = 1.0 - a;
+	a = 1.0f - a;
 	for (i = 0; i < 256; i++)
 	{
 		ir = r + i * a;
@@ -469,9 +389,9 @@ void V_UpdatePalette( void )
 		if (ib > 255)
 			ib = 255;
 
-		ramps[0][i] = texgammatable[ir];
-		ramps[1][i] = texgammatable[ig];
-		ramps[2][i] = texgammatable[ib];
+		ramps[0][i] = ir;
+		ramps[1][i] = ig;
+		ramps[2][i] = ib;
 	}
 }
 #else	// !GLQUAKE
@@ -493,8 +413,8 @@ void V_UpdatePalette( void )
 float angledelta( float a )
 {
 	a = anglemod(a);
-	if (a > 180)
-		a -= 360;
+	if (a > 180.0f)
+		a -= 360.0f;
 	return a;
 }
 
@@ -507,12 +427,12 @@ V_CalcGunAngle
 void V_CalcGunAngle( void )
 {	
 	cl.viewent.angles[YAW] = r_refdef.viewangles[YAW] + cl.crosshairangle[YAW];
-	cl.viewent.angles[PITCH] = -r_refdef.viewangles[PITCH] + cl.crosshairangle[PITCH] * 0.25;
-	cl.viewent.angles[ROLL] -= v_idlescale.value * sin(cl.time * v_iroll_cycle.value) * v_iroll_level.value;
+	cl.viewent.angles[PITCH] = -r_refdef.viewangles[PITCH] + cl.crosshairangle[PITCH] * 0.25f;
+	cl.viewent.angles[ROLL] -= v_idlescale * sin(cl.time * v_iroll_cycle.value) * v_iroll_level.value;
 
 	// don't apply all of the v_ipitch to prevent normally unseen parts of viewmodel from coming into view.	
-	cl.viewent.angles[PITCH] -= v_idlescale.value * sin(cl.time * v_ipitch_cycle.value) * v_ipitch_level.value;
-	cl.viewent.angles[YAW] -= v_idlescale.value * sin(cl.time * v_iyaw_cycle.value) * v_iyaw_level.value;
+	cl.viewent.angles[PITCH] -= v_idlescale * sin(cl.time * v_ipitch_cycle.value) * (v_ipitch_level.value * 0.5f);
+	cl.viewent.angles[YAW] -= v_idlescale * sin(cl.time * v_iyaw_cycle.value) * v_iyaw_level.value;
 }
 
 /*
@@ -548,9 +468,9 @@ Idle swaying
 */
 void V_AddIdle( void )
 {
-	r_refdef.viewangles[ROLL] += v_idlescale.value * sin(cl.time * v_iroll_cycle.value) * v_iroll_level.value;
-	r_refdef.viewangles[PITCH] += v_idlescale.value * sin(cl.time * v_ipitch_cycle.value) * v_ipitch_level.value;
-	r_refdef.viewangles[YAW] += v_idlescale.value * sin(cl.time * v_iyaw_cycle.value) * v_iyaw_level.value;
+	r_refdef.viewangles[ROLL] += v_idlescale * sin(cl.time * v_iroll_cycle.value) * v_iroll_level.value;
+	r_refdef.viewangles[PITCH] += v_idlescale * sin(cl.time * v_ipitch_cycle.value) * v_ipitch_level.value;
+	r_refdef.viewangles[YAW] += v_idlescale * sin(cl.time * v_iyaw_cycle.value) * v_iyaw_level.value;
 }
 
 
@@ -561,27 +481,30 @@ V_CalcViewRoll
 Roll is induced by movement and damage
 ==============
 */
+#pragma inline_depth(0)
 void V_CalcViewRoll( void )
 {
 	float		side;
 
-	side = V_CalcRoll(cl_entities[cl.viewentity].angles, cl.simvel);
+	side = V_CalcRoll(cl_entities[cl.viewentity].angles, cl.simvel,
+		cl_rollangle.value, cl_rollspeed.value);
 
 	r_refdef.viewangles[ROLL] += side;
 
-	if (v_dmg_time > 0)
+	if (v_dmg_time > 0.0f)
 	{
 		r_refdef.viewangles[ROLL] += v_dmg_time / v_kicktime.value * v_dmg_roll;
 		r_refdef.viewangles[PITCH] += v_dmg_time / v_kicktime.value * v_dmg_pitch;
 		v_dmg_time -= host_frametime;
 	}
 
-	if (cl.stats[STAT_HEALTH] <= 0)
+	if (cl.stats[STAT_HEALTH] <= 0 && cl.viewheight != 0.0f)
 	{
-		r_refdef.viewangles[ROLL] = 80;	// dead view angle
+		r_refdef.viewangles[ROLL] = 80.0f;	// dead view angle
 		return;
 	}
 }
+#pragma inline_depth(255)
 
 
 /*
@@ -603,10 +526,10 @@ void V_CalcIntermissionRefdef( void )
 	view->model = NULL;
 
 // allways idle in intermission
-	old = v_idlescale.value;
-	v_idlescale.value = 1;
+	old = v_idlescale;
+	v_idlescale = 1.0f;
 	V_AddIdle();
-	v_idlescale.value = old;
+	v_idlescale = old;
 }
 
 /*
@@ -635,21 +558,21 @@ void V_CalcRefdef( void )
 	VectorCopy(cl.viewangles, r_refdef.viewangles);
 
 	V_CalcShake();
-	V_ApplyShake(r_refdef.vieworg, r_refdef.viewangles, 1.0);
+	V_ApplyShake(r_refdef.vieworg, r_refdef.viewangles, 1.0f);
 
 	// never let view origin sit exactly on a node line, because a water plane can
 	// dissapear when viewed with the eye exactly on it.
 	// FIXME, we send origin at 1/128 now, change this?
 	// the server protocol only specifies to 1/16 pixel, so add 1/32 in each axis
 
-	r_refdef.vieworg[0] += 1.0 / 32;
-	r_refdef.vieworg[1] += 1.0 / 32;
-	r_refdef.vieworg[2] += 1.0 / 32;
+	r_refdef.vieworg[0] += 1.0f / 32.0f;
+	r_refdef.vieworg[1] += 1.0f / 32.0f;
+	r_refdef.vieworg[2] += 1.0f / 32.0f;
 
 	// Check for problems around water, move the viewer artificially if necessary 
 	// -- this prevents drawing errors in GL due to waves
 
-	waterOffset = 0;
+	waterOffset = 0.0f;
 	if (cl.waterlevel >= 2)
 	{
 		int		i, contents, waterDist, waterEntity;
@@ -660,7 +583,7 @@ void V_CalcRefdef( void )
 		waterEntity = PM_WaterEntity(cl.simorg);
 		if (waterEntity >= 0 && waterEntity < cl.max_edicts && cl_entities[waterEntity].model)
 		{
-			waterDist += (cl_entities[waterEntity].scale * 16);	// Add in wave height
+			waterDist += (cl_entities[waterEntity].scale * 16.0f);	// Add in wave height
 		}
 #else
 		waterEntity = 0;	// Don't need this in software
@@ -677,7 +600,7 @@ void V_CalcRefdef( void )
 				contents = PM_PointContents(point);
 				if (contents > CONTENTS_WATER)
 					break;
-				point[2] += 1;
+				point[2] += 1.0f;
 			}
 			waterOffset = (point[2] + waterDist) - r_refdef.vieworg[2];
 		}
@@ -691,7 +614,7 @@ void V_CalcRefdef( void )
 				contents = PM_PointContents(point);
 				if (contents <= CONTENTS_WATER)
 					break;
-				point[2] -= 1;
+				point[2] -= 1.0f;
 			}
 			waterOffset = (point[2] - waterDist) - r_refdef.vieworg[2];
 		}
@@ -739,45 +662,45 @@ void V_CalcRefdef( void )
 	cl.viewent.origin[2] += (waterOffset + cl.viewheight);
 
 	// Let the viewmodel shake at about 10% of the amplitude
-	V_ApplyShake(cl.viewent.origin, cl.viewent.angles, 0.9);
+	V_ApplyShake(cl.viewent.origin, cl.viewent.angles, 0.9f);
 
 	for (i = 0; i < 3; i++)
 	{
-		cl.viewent.origin[i] += bob * 0.4 * forward[i];
+		cl.viewent.origin[i] += bob * 0.4f * forward[i];
 	}
 	cl.viewent.origin[2] += bob;
 
 	// throw in a little tilt.
-	cl.viewent.angles[YAW] -= bob * 0.5;
-	cl.viewent.angles[ROLL] -= bob * 1;
-	cl.viewent.angles[PITCH] -= bob * 0.3;
+	cl.viewent.angles[YAW] -= bob * 0.5f;
+	cl.viewent.angles[ROLL] -= bob;
+	cl.viewent.angles[PITCH] -= bob * 0.3f;
 
 	// pushing the view origin down off of the same X/Z plane as the ent's origin will give the
 	// gun a very nice 'shifting' effect when the player looks up/down. If there is a problem
 	// with view model distortion, this may be a cause. (SJB). 
-	cl.viewent.origin[2] -= 1;
+	cl.viewent.origin[2] -= 1.0f;
 
 	// fudge position around to keep amount of weapon visible
 	// roughly equal with different FOV
-	if (scr_viewsize.value == 110)
+	if (scr_viewsize.value == 110.0f)
 	{
-		cl.viewent.origin[2] += 1;
+		cl.viewent.origin[2] += 1.0f;
 	}
-	else if (scr_viewsize.value == 100)
+	else if (scr_viewsize.value == 100.0f)
 	{
-		cl.viewent.origin[2] += 2;
+		cl.viewent.origin[2] += 2.0f;
 	}
-	else if (scr_viewsize.value == 90)
+	else if (scr_viewsize.value == 90.0f)
 	{
-		cl.viewent.origin[2] += 1;
+		cl.viewent.origin[2] += 1.0f;
 	}
-	else if (scr_viewsize.value == 80)
+	else if (scr_viewsize.value == 80.0f)
 	{
-		cl.viewent.origin[2] += 0.5;
+		cl.viewent.origin[2] += 0.5f;
 	}
 	
 	cl.viewent.model = cl.model_precache[cl.stats[STAT_WEAPON]];
-	cl.viewent.frame = 0.0;
+	cl.viewent.frame = 0.0f;
 	cl.viewent.index = cl.playernum + 1;
 
 // set up the refresh position
@@ -791,13 +714,13 @@ void V_CalcRefdef( void )
 		steptime = cl.time - cl.oldtime;
 		if (steptime < 0)
 //FIXME		I_Error ("steptime < 0");
-			steptime = 0;
+			steptime = 0.0f;
 
-		oldz += steptime * 80;
+		oldz += steptime * 80.0f;
 		if (oldz > cl.simorg[2])
 			oldz = cl.simorg[2];
-		if (cl.simorg[2] - oldz > 12)
-			oldz = cl.simorg[2] - 12;
+		if (cl.simorg[2] - oldz > 12.0f)
+			oldz = cl.simorg[2] - 12.0f;
 		r_refdef.vieworg[2] += oldz - cl.simorg[2];
 		cl.viewent.origin[2] += oldz - cl.simorg[2];
 	}
@@ -815,11 +738,8 @@ void V_CalcRefdef( void )
 	// override all previous settings if the viewent isn't the client
 	if (cl.viewentity > cl.maxclients)
 	{
-		cl_entity_t* viewentity;
-
-		viewentity = &cl_entities[cl.viewentity];
-		VectorCopy(viewentity->origin, r_refdef.vieworg);
-		VectorCopy(viewentity->angles, r_refdef.viewangles);
+		VectorCopy(cl_entities[cl.viewentity].origin, r_refdef.vieworg);
+		VectorCopy(cl_entities[cl.viewentity].angles, r_refdef.viewangles);
 	}
 }
 
@@ -859,42 +779,7 @@ void V_RenderView( void )
 	}
 
 	R_PushDlights();
-
-	if (lcd_x.value)
-	{
-		//
-		// render two interleaved views
-		//
-		int		i;
-
-		vid.rowbytes <<= 1;
-		vid.aspect *= 0.5;
-
-		r_refdef.viewangles[YAW] -= lcd_yaw.value;
-		for (i = 0; i < 3; i++)
-			r_refdef.vieworg[i] -= right[i] * lcd_x.value;
-		R_RenderView();
-
-		vid.buffer += vid.rowbytes >> 1;
-
-		R_PushDlights();
-
-		r_refdef.viewangles[YAW] += lcd_yaw.value * 2;
-		for (i = 0; i < 3; i++)
-			r_refdef.vieworg[i] += 2 * right[i] * lcd_x.value;
-		R_RenderView();
-
-		vid.buffer -= vid.rowbytes >> 1;
-
-		r_refdef.vrect.height <<= 1;
-
-		vid.rowbytes >>= 1;
-		vid.aspect *= 2;
-	}
-	else
-	{
-		R_RenderView();
-	}
+	R_RenderView();
 }
 
 // Screen shake variables
@@ -928,15 +813,15 @@ void V_CalcShake( void )
 	float	fraction, freq;
 
 	if ((cl.time > gVShake.time) ||
-		gVShake.duration <= 0 ||
-		gVShake.amplitude <= 0 ||
-		gVShake.frequency <= 0)
+		gVShake.duration <= 0.0f ||
+		gVShake.amplitude <= 0.0f ||
+		gVShake.frequency <= 0.0f)
 	{
-		if (gVShake.time != 0.0)
+		if (gVShake.time != 0.0f)
 		{
-			gVShake.time = 0.0;
+			gVShake.time = 0.0f;
 			VectorCopy(vec3_origin, gVShake.appliedOffset);
-			gVShake.appliedAngle = 0.0;
+			gVShake.appliedAngle = 0.0f;
 		}
 		return;
 	}
@@ -954,7 +839,7 @@ void V_CalcShake( void )
 			gVShake.offset[i] = RandomFloat(-gVShake.amplitude, gVShake.amplitude);
 		}
 
-		gVShake.angle = RandomFloat(-gVShake.amplitude * 0.25, gVShake.amplitude * 0.25);
+		gVShake.angle = RandomFloat(-gVShake.amplitude * 0.25f, gVShake.amplitude * 0.25f);
 	}
 
 	// Ramp down amplitude over duration (fraction goes from 1 to 0 linearly with slope 1/duration)
@@ -967,7 +852,7 @@ void V_CalcShake( void )
 	}
 	else
 	{
-		freq = 0.0;
+		freq = 0.0f;
 	}
 
 	// square fraction to approach zero more quickly
@@ -1018,68 +903,17 @@ int V_ScreenShake( const char* pszName, int iSize, void* pbuf )
 	ScreenShake* pShake = (ScreenShake*)pbuf;
 	float amplitude;
 
-	gVShake.duration = pShake->duration / 4096.0;
+	gVShake.duration = pShake->duration * (1.0f / 4096.0f);
 	gVShake.time = gVShake.duration + cl.time;
 
-	amplitude = pShake->amplitude / 4096.0;
+	amplitude = pShake->amplitude * (1.0f / 4096.0f);
 
 	// Don't overwrite larger existing shake unless we are told to
 	if (gVShake.amplitude < amplitude)
 		gVShake.amplitude = amplitude;
 
+	gVShake.frequency = pShake->frequency * (1.0f / 256.0f);
 	gVShake.nextShake = 0; // apply immediately
-	gVShake.frequency = pShake->frequency / 256.0;
-
-	return 1;
-}
-
-/*
-=================
-V_ScreenFade
-
-Message hook to parse ScreenFade messages
-=================
-*/
-int V_ScreenFade( const char* pszName, int iSize, void* pbuf )
-{
-	ScreenFade* pFade = (ScreenFade*)pbuf;
-
-	cl.sf.fadeEnd = pFade->duration * (1.0 / 4096.0);
-	cl.sf.fadeReset = pFade->holdTime * (1.0 / 4096.0);
-
-	cl.sf.fader = pFade->r;
-	cl.sf.fadeg = pFade->g;
-	cl.sf.fadeb = pFade->b;
-	cl.sf.fadealpha = pFade->a;
-
-	cl.sf.fadeFlags = pFade->fadeFlags;
-	cl.sf.fadeSpeed = 0.0;
-
-	// Calc fade speed
-	if (pFade->duration)
-	{
-		// Fade out (reversed fade in)
-		if (pFade->fadeFlags & FFADE_OUT)
-		{
-			if (cl.sf.fadeEnd)
-			{
-				cl.sf.fadeSpeed = -(cl.sf.fadealpha / cl.sf.fadeEnd);
-			}
-
-			cl.sf.fadeEnd += cl.time;
-			cl.sf.fadeReset += cl.sf.fadeEnd;
-		}
-		else
-		{
-			if (cl.sf.fadeEnd)
-			{
-				cl.sf.fadeSpeed = cl.sf.fadealpha / cl.sf.fadeEnd;
-			}
-
-			cl.sf.fadeReset += cl.time;
-			cl.sf.fadeEnd += cl.sf.fadeReset;
-		}
-	}
 
 	return 1;
 }
@@ -1091,17 +925,31 @@ V_FadeAlpha
 Compute the overall color & alpha of the fades
 =============
 */
+static void (*s_pfnFadeDoneCallback)( int parm1 );
+static int s_nCallbackParameter;
+
 int V_FadeAlpha( void )
 {
 	int alpha;
 
-	if (cl.sf.fadeReset < cl.time && cl.sf.fadeEnd < cl.time)
-		return 0;
+	if (cl.sf.fadeFlags & FFADE_STAYOUT)
+		cl.sf.fadeEnd = cl.time + 0.1f;
 
-	alpha = (cl.sf.fadeEnd - cl.time) * cl.sf.fadeSpeed;
+	if (cl.sf.fadeReset < cl.time && cl.sf.fadeEnd < cl.time)
+	{
+		if (s_pfnFadeDoneCallback)
+		{
+			s_pfnFadeDoneCallback(s_nCallbackParameter);
+			s_pfnFadeDoneCallback = NULL;
+			s_nCallbackParameter = 0;
+		}
+		return 0;
+	}
 
 	if (cl.sf.fadeFlags & FFADE_OUT)
-		alpha += cl.sf.fadealpha;
+		alpha = cl.sf.fadealpha + (cl.sf.fadeEnd - cl.time) * cl.sf.fadeSpeed;
+	else
+		alpha = (cl.sf.fadeEnd - cl.time) * cl.sf.fadeSpeed;
 
 	// clamp it
 	if (alpha > cl.sf.fadealpha)
@@ -1128,14 +976,6 @@ void V_Init( void )
 
 	Cvar_RegisterVariable(&v_centermove);
 	Cvar_RegisterVariable(&v_centerspeed);
-	Cvar_RegisterVariable(&v_iyaw_cycle);
-	Cvar_RegisterVariable(&v_iroll_cycle);
-	Cvar_RegisterVariable(&v_ipitch_cycle);
-	Cvar_RegisterVariable(&v_iyaw_level);
-	Cvar_RegisterVariable(&v_iroll_level);
-	Cvar_RegisterVariable(&v_ipitch_level);
-	Cvar_RegisterVariable(&v_idlescale);
-
 	Cvar_RegisterVariable(&v_dark);
 	Cvar_RegisterVariable(&crosshair);
 	Cvar_RegisterVariable(&scr_ofsx);
@@ -1153,8 +993,6 @@ void V_Init( void )
 	Cvar_RegisterVariable(&v_kickroll);
 	Cvar_RegisterVariable(&v_kickpitch);
 
-	BuildGammaTable(2.5);
-
 	Cvar_RegisterVariable(&v_gamma);
 	Cvar_RegisterVariable(&v_lightgamma);
 	Cvar_RegisterVariable(&v_texgamma);
@@ -1162,8 +1000,8 @@ void V_Init( void )
 	Cvar_RegisterVariable(&v_lambert);
 	Cvar_RegisterVariable(&v_direct);
 
-	HookServerMsg("ScreenShake", V_ScreenShake);
-	HookServerMsg("ScreenFade", V_ScreenFade);
+	s_pfnFadeDoneCallback = NULL;
+	s_nCallbackParameter = 0;
 }
 
 /*
@@ -1179,25 +1017,28 @@ void V_InitLevel( void )
 
 	if (v_dark.value)
 	{
-		cl.sf.fadealpha = 255;
-		cl.sf.fadeSpeed = 51.0;
-		cl.sf.fadeReset = cl.time + 5.0;
-		cl.sf.fadeEnd = cl.sf.fadeReset + 5.0;
-		cl.sf.fader = 0;
-		cl.sf.fadeg = 0;
+		cl.sf.fadeEnd = 5.0f;
+		cl.sf.fadeReset = 5.0f;
 		cl.sf.fadeb = 0;
+		cl.sf.fadeg = 0;
+		cl.sf.fader = 0;
+		cl.sf.fadealpha = 255;
 		cl.sf.fadeFlags = 0;
-		v_dark.value = 0.0;
+		if (cl.sf.fadeEnd)
+			cl.sf.fadeSpeed = _utos(cl.sf.fadealpha) / cl.sf.fadeEnd;
+		cl.sf.fadeReset += cl.time;
+		cl.sf.fadeEnd += cl.sf.fadeReset;
+		v_dark.value = 0.0f;
 	}
 	else
 	{
+		cl.sf.fadeSpeed = 0.0f;
+		cl.sf.fadeEnd = 0.0f;
+		cl.sf.fadeReset = 0.0f;
 		cl.sf.fadealpha = 0;
-		cl.sf.fadeSpeed = 0.0;
-		cl.sf.fadeReset = 0.0;
-		cl.sf.fadeEnd = 0.0;
-		cl.sf.fader = 0;
-		cl.sf.fadeg = 0;
 		cl.sf.fadeb = 0;
+		cl.sf.fadeg = 0;
+		cl.sf.fader = 0;
 		cl.sf.fadeFlags = 0;
 	}
 }

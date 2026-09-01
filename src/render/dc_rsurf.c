@@ -187,80 +187,6 @@ void R_AddDynamicLights( msurface_t* surf )
 	}
 }
 
-
-/*
-===============
-LT2 LERP 'a' decode
-Decode one grid; returns bytes consumed or 0 on error.
-===============
-*/
-int DCV_LT2Decode( const byte* in, int in_size, color24* out, int w, int h )
-{
-	int gw, gh, need, y, x, cy, cx;
-	const byte* p;
-	color24* grid;
-	float u, v, fx, fy;
-	int r, g, b;
-
-	if (in_size < 1) return 0;
-	gh = ((in[0] >> 4) & 0x0F) + 2;
-	gw = (in[0] & 0x0F) + 2;
-	need = 1 + gw * gh * 3;
-	if (need > in_size) return 0;
-
-	p = in + 1;
-	/* Max grid 17x17 from opcode 0xFF */
-	if (gw > 17 || gh > 17) return 0;
-	{
-		color24 grid_storage[17 * 17];
-		grid = grid_storage;
-
-	for (y = 0; y < gh; y++)
-	{
-		for (x = 0; x < gw; x++)
-		{
-			grid[y * gw + x].r = p[0];
-			grid[y * gw + x].g = p[1];
-			grid[y * gw + x].b = p[2];
-			p += 3;
-		}
-	}
-
-	for (y = 0; y < h; y++)
-	{
-		v = (h == 1) ? 0.0f : ((float)y / (float)(h - 1)) * (float)(gh - 1);
-		cy = (gh > 1) ? (int)floor(v) : 0;
-		if (cy < 0) cy = 0;
-		if (cy > gh - 2) cy = gh - 2;
-		fy = (gh > 1) ? (v - (float)cy) : 0.0f;
-
-		for (x = 0; x < w; x++)
-		{
-			u = (w == 1) ? 0.0f : ((float)x / (float)(w - 1)) * (float)(gw - 1);
-			cx = (gw > 1) ? (int)floor(u) : 0;
-			if (cx < 0) cx = 0;
-			if (cx > gw - 2) cx = gw - 2;
-			fx = (gw > 1) ? (u - (float)cx) : 0.0f;
-
-			/* bilerp */
-			r = (int)(grid[cy * gw + cx].r + (grid[cy * gw + cx + 1].r - grid[cy * gw + cx].r) * fx + 0.5f);
-			g = (int)(grid[cy * gw + cx].g + (grid[cy * gw + cx + 1].g - grid[cy * gw + cx].g) * fx + 0.5f);
-			b = (int)(grid[cy * gw + cx].b + (grid[cy * gw + cx + 1].b - grid[cy * gw + cx].b) * fx + 0.5f);
-			r = (int)(r + (grid[(cy + 1) * gw + cx].r + (grid[(cy + 1) * gw + cx + 1].r - grid[(cy + 1) * gw + cx].r) * fx - r) * fy + 0.5f);
-			g = (int)(g + (grid[(cy + 1) * gw + cx].g + (grid[(cy + 1) * gw + cx + 1].g - grid[(cy + 1) * gw + cx].g) * fx - g) * fy + 0.5f);
-			b = (int)(b + (grid[(cy + 1) * gw + cx].b + (grid[(cy + 1) * gw + cx + 1].b - grid[(cy + 1) * gw + cx].b) * fx - b) * fy + 0.5f);
-			if (r < 0) r = 0; if (r > 255) r = 255;
-			if (g < 0) g = 0; if (g > 255) g = 255;
-			if (b < 0) b = 0; if (b > 255) b = 255;
-			out[y * w + x].r = (byte)r;
-			out[y * w + x].g = (byte)g;
-			out[y * w + x].b = (byte)b;
-		}
-	}
-	}
-	return need;
-}
-
 /*
 ===============
 DC_FullbrightBlockLights
@@ -314,28 +240,13 @@ on-disk encoding: 1 = packed-delta 16-bit samples, 2 = LT2 row-run bilinear,
 3 = LT2 LERP 'a' grid bilinear.
 ===============
 */
-#define LT2_LIGHTGAMMA(j) ((unsigned)(lightgammatable[(unsigned)(j) << 2]) >> 2)
+#define LT2_LIGHTGAMMA(j) ((unsigned)g_GammaTable256[(unsigned)(j)])
 
 // floatmathlib.h only fast-paths `floor`/`fceil`, not `ceil` -- so a bare
 // `ceil()` call falls through to the real double-precision libm routine.
 // Declare it so the compiler emits a proper double-returning call for it
 // instead of assuming an int-returning implicit declaration.
 extern double ceil( double x );
-
-/* Mode 1 texel encoding: a stream of unsigned shorts, one per texel, row-major.
- * Bit 15 clear -> an absolute RGB555 sample (5 bits/channel, R:14-10 G:9-5 B:4-0,
- * each widened to 0-248 by <<3). Bit 15 set -> a signed delta from the *previous*
- * texel's decoded R/G/B: R has its own sign (bit14) and 4-bit magnitude (13-10);
- * G and B share one sign bit (9) with their own 4-bit magnitudes (8-5 and 3-0). */
-#define LT2D_DELTA_FLAG   0x8000
-#define LT2D_R_MASK_ABS   0x7c00
-#define LT2D_G_MASK_ABS   0x03e0
-#define LT2D_B_MASK_ABS   0x001f
-#define LT2D_R_SIGN       0x4000
-#define LT2D_R_MAG_MASK   0x3c00
-#define LT2D_GB_SIGN      0x0200
-#define LT2D_G_MAG_MASK   0x01e0
-#define LT2D_B_MAG_MASK   0x000f
 
 static void DC_SumBlockLights( msurface_t* psurf, int smax, int tmax )
 {
@@ -442,11 +353,11 @@ static void DC_SumBlockLights( msurface_t* psurf, int smax, int tmax )
 					unsigned r, g, b;
 
 					rf = row[fi3+0]; rc = row[ci3+0];
-					r = texgammatable[(int)((float)rf * (1.0f - frac) + (float)rc * frac + 0.5f)];
+					r = g_GammaTable256[(int)((float)rf * (1.0f - frac) + (float)rc * frac + 0.5f)];
 					gf = row[fi3+1]; gc = row[ci3+1];
-					g = texgammatable[(int)((float)gf * (1.0f - frac) + (float)gc * frac + 0.5f)];
+					g = g_GammaTable256[(int)((float)gf * (1.0f - frac) + (float)gc * frac + 0.5f)];
 					bf = row[fi3+2]; bc = row[ci3+2];
-					b = texgammatable[(int)((float)bf * (1.0f - frac) + (float)bc * frac + 0.5f)];
+					b = g_GammaTable256[(int)((float)bf * (1.0f - frac) + (float)bc * frac + 0.5f)];
 
 					blocklights[i].r += r * scale;
 					blocklights[i].g += g * scale;
@@ -524,9 +435,9 @@ static void DC_SumBlockLights( msurface_t* psurf, int smax, int tmax )
 					b = lt2ptr[i00 + 2] * tw0 * w0 + lt2ptr[i10 + 2] * tw1 * w0
 						+ lt2ptr[i01 + 2] * tw0 * w1 + lt2ptr[i11 + 2] * tw1 * w1 + 0.5f;
 
-					blocklights[i].r += texgammatable[r] * scale;
-					blocklights[i].g += texgammatable[g] * scale;
-					blocklights[i].b += texgammatable[b] * scale;
+					blocklights[i].r += g_GammaTable256[r] * scale;
+					blocklights[i].g += g_GammaTable256[g] * scale;
+					blocklights[i].b += g_GammaTable256[b] * scale;
 					i++;
 				}
 
@@ -2904,6 +2815,5 @@ void R_DrawDecals( void )
 	R_ApplyViewModelProjection(g_frustum_zn + DECAL_DEPTH_NUDGE);
 	DCV_SetPackedColor(0xFFFFFFFF);
 }
-
 
 

@@ -124,7 +124,8 @@ typedef enum {
 	pt_blob,
 	pt_blob2,
 	pt_vox_slowgrav,
-	pt_vox_grav
+	pt_vox_grav,
+	pt_puff
 } ptype_t;
 
 // !!! if this is changed, it must be changed in d_ifacea.h too !!!
@@ -245,14 +246,17 @@ void R_ParseParticleEffect( void );
 void R_RunParticleEffect( vec_t* org, vec_t* dir, int color, int count );
 void R_RocketTrail( vec_t* start, vec_t* end, int type );
 void R_EntityParticles( cl_entity_t* ent );
+void R_ParticleBurst( vec_t* pos, int size, int color, float life );
 void R_ParticleExplosion( vec_t* org );
 void R_ParticleExplosion2( vec_t* org, int colorStart, int colorLength );
 void R_BlobExplosion( vec_t* org );
 
 void R_FlickerParticles( vec_t* org );
-particle_t* R_TracerParticles( vec_t* org, vec_t* vel, float life );
+particle_t* R_AllocTracer( vec_t* org, vec_t* vel, float life );
+void UserTracer( vec_t* org, vec_t* vel, float life, int color, float length );
 void R_Implosion( vec_t* end, float radius, int count, float life );
 void R_SparkStreaks( vec_t* pos, int count, int velocityMin, int velocityMax );
+void R_ParticleWallPuff( vec_t* pos );
 void R_StreakSplash( vec_t* pos, vec_t* dir, int color, int count, float speed, int velocityMin, int velocityMax );
 void R_LavaSplash( vec_t* org );
 void R_LargeFunnel( vec_t* org, int reverse );
@@ -264,13 +268,13 @@ void R_Blood( vec_t* org, vec_t* dir, int pcolor, int speed );
 // Beams
 struct beam_s* R_BeamAlloc( void );
 void R_BeamSetup( struct beam_s* pbeam, vec_t* start, vec_t* end, int modelIndex, float life, float width, float amplitude, float brightness, float speed );
-struct beam_s* R_BeamLightning( vec_t* start, vec_t* end, int modelIndex, float life, float width, float amplitude, float brightness, float speed );
-struct beam_s* R_BeamEnts( int startEnt, int endEnt, int modelIndex, float life, float width, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b );
-struct beam_s* R_BeamEntPoint( int startEnt, vec_t* end, int modelIndex, float life, float width, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b );
-struct beam_s* R_BeamPoints( vec_t* start, vec_t* end, int modelIndex, float life, float width, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b );
-struct beam_s* R_BeamCirclePoints( int type, vec_t* start, vec_t* end, int modelIndex, float life, float width, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b );
-struct beam_s* R_BeamFollow( int startEnt, int modelIndex, float life, float width, float r, float g, float b, float brightness );
-struct beam_s* R_BeamRing( int startEnt, int endEnt, int modelIndex, float life, float width, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b );
+struct beam_s* R_BeamLightning( vec_t* start, vec_t* end, struct beam_info_s* pInfo );
+struct beam_s* R_BeamEnts( int startEnt, int endEnt, struct beam_info_s* pInfo );
+struct beam_s* R_BeamEntPoint( int startEnt, vec_t* end, struct beam_info_s* pInfo );
+struct beam_s* R_BeamPoints( vec_t* start, vec_t* end, struct beam_info_s* pInfo );
+struct beam_s* R_BeamCirclePoints( int type, vec_t* start, vec_t* end, struct beam_info_s* pInfo );
+struct beam_s* R_BeamFollow( int startEnt, struct beam_info_s* pInfo );
+struct beam_s* R_BeamRing( int startEnt, int endEnt, struct beam_info_s* pInfo );
 
 void R_KillDeadBeams( int deadEntity );
 void R_BeamKill( int deadEntity );

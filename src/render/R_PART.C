@@ -2,6 +2,8 @@
 #include "pr_cmds.h"
 #include "r_triangle.h"
 #include "customentity.h"
+#include "dc_accum.h"
+#include <floatmathlib.h>
 
 #define MAX_BEAMS				128		// Max simultaneous beams
 #define MAX_PARTICLES			2048	// default max # of particles at one
@@ -45,6 +47,8 @@ void R_TracerDraw( void );
 void R_BeamDraw( BEAM* pbeam, float frametime );
 void R_BeamDrawList( void );
 int R_BeamCull( vec_t* start, vec_t* end, int pvsOnly );
+particle_t* R_AllocParticle( void );
+particle_t* R_AllocTracer( vec_t* org, vec_t* vel, float life );
 
 
 void R_BeamInit( void )
@@ -95,6 +99,32 @@ void R_InitParticles( void )
 	R_BeamInit();
 }
 
+particle_t* R_AllocParticle( void )
+{
+	particle_t* p;
+
+	if (!free_particles)
+		return NULL;
+
+	if (free_particles < particles || free_particles > particles + r_numparticles)
+		Sys_Error("free particle pointer is non-NULL but outside particle array");
+
+	if (active_particles &&
+		(active_particles < particles || active_particles > particles + r_numparticles))
+	{
+		Sys_Error("active particle pointer is non-NULL but outside particle array");
+	}
+
+	p = free_particles;
+	free_particles = p->next;
+	p->next = active_particles;
+	active_particles = p;
+
+	return p;
+}
+
+#pragma inline_depth(0)
+
 void R_DarkFieldParticles( cl_entity_t* ent )
 {
 	int			i, j, k;
@@ -110,22 +140,15 @@ void R_DarkFieldParticles( cl_entity_t* ent )
 	{
 		for (j = -16; j < 16; j += 8)
 		{
-			for (k = 0; k < 32; k += 8)
-			{
-				if (!free_particles)
+		for (k = 0; k < 32; k += 8)
+		{
+				p = R_AllocParticle();
+				if (!p)
 					return;
-				p = free_particles;
-				free_particles = p->next;
-				p->next = active_particles;
-				active_particles = p;
 
-				p->die = cl.time + RandomFloat(0.2, 0.34);
+				p->die = cl.time + RandomFloat(0.2f, 0.34f);
 				p->color = RandomLong(150, 155);
-#if defined( GLQUAKE )
 				p->packedColor = 0;
-#else
-				p->packedColor = hlRGB(host_basepal, p->color);
-#endif
 				p->type = pt_slowgrav;
 
 				dir[0] = j * 8;
@@ -137,7 +160,7 @@ void R_DarkFieldParticles( cl_entity_t* ent )
 				p->org[2] = org[2] + k + RandomLong(0, 3);
 
 				VectorNormalize(dir);
-				vel = RandomFloat(50.0, 113.0);
+				vel = RandomFloat(50.0f, 113.0f);
 				VectorScale(dir, vel, p->vel);
 			}
 		}
@@ -156,8 +179,8 @@ extern	float	r_avertexnormals[NUMVERTEXNORMALS][3];
 vec3_t	avelocities[NUMVERTEXNORMALS];
 float	beamlength = 16;
 vec3_t	avelocity = { 23, 7, 3 };
-float	partstep = 0.01;
-float	timescale = 0.01;
+float	partstep = 0.01f;
+float	timescale = 0.01f;
 
 void R_EntityParticles( cl_entity_t* ent )
 {
@@ -175,7 +198,7 @@ void R_EntityParticles( cl_entity_t* ent )
 	if (!avelocities[0][0])
 	{
 		for (i = 0; i < NUMVERTEXNORMALS * 3; i++)
-			avelocities[0][i] = RandomFloat(0, 2.55);
+			avelocities[0][i] = RandomFloat(0, 2.55f);
 	}
 
 	for (i = 0; i < NUMVERTEXNORMALS; i++)
@@ -194,21 +217,13 @@ void R_EntityParticles( cl_entity_t* ent )
 		forward[1] = cp * sy;
 		forward[2] = -sp;
 
-		if (!free_particles)
+		p = R_AllocParticle();
+		if (!p)
 			return;
 
-		p = free_particles;
-		free_particles = p->next;
-		p->next = active_particles;
-		active_particles = p;
-
-		p->die = cl.time + 0.01;
+		p->die = cl.time + 0.01f;
 		p->color = 111;
-#if defined( GLQUAKE )
 		p->packedColor = 0;
-#else
-		p->packedColor = hlRGB(host_basepal, p->color);
-#endif
 		p->type = pt_explode;
 	
 		p->org[0] = ent->origin[0] + r_avertexnormals[i][0] * dist + forward[0] * beamlength;
@@ -222,6 +237,7 @@ void R_EntityParticles( cl_entity_t* ent )
 R_ClearParticles
 ===============
 */
+#pragma inline_depth(255)
 void R_ClearParticles( void )
 {
 	int		i;
@@ -237,6 +253,7 @@ void R_ClearParticles( void )
 
 	R_BeamClear();
 }
+#pragma inline_depth(0)
 
 /*
 ===============
@@ -296,9 +313,6 @@ void R_ReadPointFile_f( void )
 	particle_t* p;
 	char	name[MAX_OSPATH];
 
-	if (!cl.worldmodel)
-		return;
-
 	sprintf(name, "maps/%s.pts", sv.name);
 
 	COM_FOpenFile(name, &f);
@@ -317,31 +331,20 @@ void R_ReadPointFile_f( void )
 			break;
 		c++;
 
-		if (!free_particles)
+		p = R_AllocParticle();
+		if (p)
 		{
-			Con_Printf("Not enough free particles\n");
-			break;
+			p->die = 99999;
+			p->color = -c & 15;
+			p->packedColor = 0;
+			p->type = pt_static;
+
+			VectorCopy(vec3_origin, p->vel);
+			VectorCopy(org, p->org);
 		}
-
-		p = free_particles;
-		free_particles = p->next;
-		p->next = active_particles;
-		active_particles = p;
-
-		p->die = 99999;
-		p->type = pt_static;
-		p->color = -(short)c & 15;
-#if defined( GLQUAKE )
-		p->packedColor = 0;
-#else
-		p->packedColor = hlRGB(host_basepal, p->color);
-#endif
-
-		VectorCopy(vec3_origin, p->vel);
-		VectorCopy(org, p->org);
 	}
 
-	fclose(f);
+	Sys_CloseHandle(f);
 	Con_Printf("%i points read\n", c);
 }
 
@@ -360,7 +363,7 @@ void R_ParseParticleEffect( void )
 	for (i = 0; i < 3; i++)
 		org[i] = MSG_ReadCoord();
 	for (i = 0; i < 3; i++)
-		dir[i] = MSG_ReadChar() * (1.0 / 16);
+		dir[i] = MSG_ReadChar() * (1.0f / 16.0f);
 	msgcount = MSG_ReadByte();
 	color = MSG_ReadByte();
 
@@ -385,62 +388,35 @@ void R_ParticleExplosion( vec_t* org )
 
 	for (i = 0; i < 1024; i++)
 	{
-		if (!free_particles)
+		p = R_AllocParticle();
+		if (!p)
 			return;
-
-		p = free_particles;
-		free_particles = p->next;
-		p->next = active_particles;
-		active_particles = p;
 		
-		p->die = cl.time + 5.0;
+		p->die = cl.time + 5.0f;
 		p->color = ramp1[0];
-		p->ramp = RandomLong(0, 3);
-#if defined( GLQUAKE )
 		p->packedColor = 0;
-#else
-		p->packedColor = hlRGB(host_basepal, p->color);
-#endif
+		p->ramp = RandomLong(0, 3);
 
 		if (i & 1)
-		{
 			p->type = pt_explode;
-
-			while (1)
-			{
-				for (j = 0; j < 3; j++)
-				{
-					p->vel[j] = RandomFloat(-512, 512);
-				}
-
-				if (DotProduct(p->vel, p->vel) <= 262144.0)
-					break;
-			}
-
-			for (j = 0; j < 3; j++)
-			{
-				p->org[j] = org[j] + p->vel[j] * 0.25;
-			}
-		}
 		else
-		{
 			p->type = pt_explode2;
 
-			while (1)
-			{
-				for (j = 0; j < 3; j++)
-				{
-					p->vel[j] = RandomFloat(-512, 512);
-				}
-
-				if (DotProduct(p->vel, p->vel) <= 262144.0)
-					break;
-			}
-
+		while (1)
+		{
 			for (j = 0; j < 3; j++)
 			{
-				p->org[j] = org[j] + p->vel[j] * 0.25;
+				p->vel[j] = RandomFloat(-512, 512);
 			}
+
+			if (p->vel[0] * p->vel[0] + p->vel[1] * p->vel[1] +
+				p->vel[2] * p->vel[2] <= 262144.0f)
+				break;
+		}
+
+		for (j = 0; j < 3; j++)
+		{
+			p->org[j] = org[j] + p->vel[j] / 4.0f;
 		}
 	}
 }
@@ -459,21 +435,13 @@ void R_ParticleExplosion2( vec_t* org, int colorStart, int colorLength )
 
 	for (i = 0; i < 512; i++)
 	{
-		if (!free_particles)
+		p = R_AllocParticle();
+		if (!p)
 			return;
-
-		p = free_particles;
-		free_particles = p->next;
-		p->next = active_particles;
-		active_particles = p;
 		
-		p->die = cl.time + 0.3;
+		p->die = cl.time + 0.3f;
 		p->color = colorStart + (colorMod % colorLength);
-#if defined( GLQUAKE )
 		p->packedColor = 0;
-#else
-		p->packedColor = hlRGB(host_basepal, p->color);
-#endif
 
 		colorMod++;
 
@@ -500,25 +468,17 @@ void R_BlobExplosion( vec_t* org )
 
 	for (i = 0; i < 1024; i++)
 	{
-		if (!free_particles)
+		p = R_AllocParticle();
+		if (!p)
 			return;
 
-		p = free_particles;
-		free_particles = p->next;
-		p->next = active_particles;
-		active_particles = p;
-
-		p->die = cl.time + RandomFloat(1, 1.4);
+		p->die = cl.time + RandomFloat(1.0f, 1.4f);
 
 		if (i & 1)
 		{
 			p->type = pt_blob;
 			p->color = RandomLong(66, 71);
-#if defined( GLQUAKE )
 			p->packedColor = 0;
-#else
-			p->packedColor = hlRGB(host_basepal, p->color);
-#endif
 
 			for (j = 0; j < 3; j++)
 			{
@@ -530,11 +490,7 @@ void R_BlobExplosion( vec_t* org )
 		{
 			p->type = pt_blob2;
 			p->color = RandomLong(150, 155);
-#if defined( GLQUAKE )
 			p->packedColor = 0;
-#else
-			p->packedColor = hlRGB(host_basepal, p->color);
-#endif
 
 			for (j = 0; j < 3; j++)
 			{
@@ -545,12 +501,7 @@ void R_BlobExplosion( vec_t* org )
 	}
 }
 
-/*
-===============
-R_TracerParticles
-===============
-*/
-particle_t* R_TracerParticles( vec_t* org, vec_t* vel, float life )
+particle_t* R_AllocTracer( vec_t* org, vec_t* vel, float life )
 {
 	int		i;
 	particle_t* p;
@@ -563,11 +514,10 @@ particle_t* R_TracerParticles( vec_t* org, vec_t* vel, float life )
 	p->next = gpActiveTracers;
 	gpActiveTracers = p;
 
-	p->type = pt_static;
+	p->die = cl.time + life;
 	p->color = 4;
 	p->packedColor = 255;
-	p->die = cl.time + life;
-
+	p->type = pt_static;
 	p->ramp = tracerLength.value;
 
 	for (i = 0; i < 3; i++)
@@ -577,6 +527,43 @@ particle_t* R_TracerParticles( vec_t* org, vec_t* vel, float life )
 	}
 
 	return p;
+}
+
+void UserTracer( vec_t* org, vec_t* vel, float life, int color, float length )
+{
+	if (color < 0)
+	{
+		Con_Printf("UserTracer with color < 0\n");
+	}
+	else if ((unsigned int)color > 12)
+	{
+		Con_Printf("UserTracer with color > %d\n", 12);
+	}
+	else
+	{
+		particle_t* p;
+		int i;
+
+		if (!free_particles)
+			return;
+
+		p = free_particles;
+		free_particles = p->next;
+		p->next = gpActiveTracers;
+		gpActiveTracers = p;
+
+		p->die = cl.time + life;
+		p->color = color;
+		p->packedColor = 255;
+		p->type = pt_static;
+		p->ramp = length;
+
+		for (i = 0; i < 3; i++)
+		{
+			p->org[i] = org[i];
+			p->vel[i] = vel[i];
+		}
+	}
 }
 
 /*
@@ -591,24 +578,16 @@ void R_RunParticleEffect( vec_t* org, vec_t* dir, int color, int count )
 
 	for (i = 0; i < count; i++)
 	{
-		if (!free_particles)
+		p = R_AllocParticle();
+		if (!p)
 			return;
-
-		p = free_particles;
-		free_particles = p->next;
-		p->next = active_particles;
-		active_particles = p;
 
 		if (count == 1024)
 		{
 			// rocket explosion
-			p->die = cl.time + 5.0;
+			p->die = cl.time + 5.0f;
 			p->color = ramp1[0];
-#if defined( GLQUAKE )
 			p->packedColor = 0;
-#else
-			p->packedColor = hlRGB(host_basepal, ramp1[0]);
-#endif
 			p->ramp = RandomLong(0, 3);
 
 			if (i & 1)
@@ -632,13 +611,9 @@ void R_RunParticleEffect( vec_t* org, vec_t* dir, int color, int count )
 		}
 		else
 		{
-			p->die = cl.time + RandomFloat(0, 0.4);
+			p->die = cl.time + RandomFloat(0.0f, 0.4f);
 			p->color = (color & ~7) + RandomLong(0, 7);
-#if defined( GLQUAKE )
 			p->packedColor = 0;
-#else
-			p->packedColor = hlRGB(host_basepal, p->color);
-#endif
 			p->type = pt_slowgrav;
 
 			for (j = 0; j < 3; j++)
@@ -647,6 +622,38 @@ void R_RunParticleEffect( vec_t* org, vec_t* dir, int color, int count )
 				p->vel[j] = dir[j] * 15;
 			}
 		}
+	}
+}
+
+/*
+===============
+R_ParticleWallPuff
+===============
+*/
+void R_ParticleWallPuff( vec_t* pos )
+{
+	int		i;
+	particle_t*	p;
+	vec3_t		dir;
+
+	R_SparkStreaks(pos, 2, -200, 200);
+
+	for (i = 0; i < 1; i++)
+	{
+		p = R_AllocParticle();
+		if (!p)
+			return;
+
+		VectorSubtract(r_origin, pos, dir);
+		VectorNormalize(dir);
+		VectorScale(dir, 8.0f, dir);
+		VectorAdd(pos, dir, p->org);
+		VectorClear(dir);
+		VectorCopy(dir, p->vel);
+		p->color = 0;
+		p->packedColor = 0;
+		p->type = pt_puff;
+		p->die = cl.time + 0.5f;
 	}
 }
 
@@ -662,13 +669,9 @@ void R_FlickerParticles( vec_t* org )
 
 	for (i = 0; i < 15; i++)
 	{
-		if (!free_particles)
+		p = R_AllocParticle();
+		if (!p)
 			return;
-
-		p = free_particles;
-		free_particles = p->next;
-		p->next = active_particles;
-		active_particles = p;
 
 		for (j = 0; j < 3; j++)
 		{
@@ -678,14 +681,10 @@ void R_FlickerParticles( vec_t* org )
 
 		p->vel[2] = RandomFloat(80, 143);
 
-		p->color = 254;
+		p->die = cl.time + 2.0f;
 		p->ramp = 0;
-#if defined( GLQUAKE )
+		p->color = 254;
 		p->packedColor = 0;
-#else
-		p->packedColor = hlRGB(host_basepal, p->color);
-#endif
-		p->die = cl.time + 2.0;
 		p->type = pt_blob2;
 	}
 }
@@ -710,16 +709,17 @@ void R_SparkStreaks( vec_t* pos, int count, int velocityMin, int velocityMax )
 		p->next = gpActiveTracers;
 		gpActiveTracers = p;
 
+		p->die = cl.time + RandomFloat(0.1f, 0.5f);
 		p->color = 5;
-		p->type = pt_grav;
 		p->packedColor = 255;
-		p->die = cl.time + RandomFloat(0.1, 0.5);
-		p->ramp = 0.5;
-
-		VectorCopy(pos, p->org);
+		p->type = pt_grav;
+		p->ramp = 0.5f;
 
 		for (j = 0; j < 3; j++)
+		{
+			p->org[j] = pos[j];
 			p->vel[j] = RandomFloat(velocityMin, velocityMax);
+		}
 	}
 }
 
@@ -749,13 +749,48 @@ void R_StreakSplash( vec_t* pos, vec_t* dir, int color, int count, float speed, 
 		p->color = color;
 		p->packedColor = 255;
 		p->type = pt_grav;
-		p->die = cl.time + RandomFloat(0.1, 0.5);
+		p->die = cl.time + RandomFloat(0.1f, 0.5f);
 		p->ramp = 1;
 
 		for (j = 0; j < 3; j++)
 		{
 			p->org[j] = pos[j];
 			p->vel[j] = initialVelocity[j] + RandomFloat(velocityMin, velocityMax);
+		}
+	}
+}
+
+void R_ParticleBurst( vec_t* pos, int size, int color, float life )
+{
+	int i, j, k;
+	particle_t* p;
+	float vel;
+	vec3_t dir, temp;
+
+	for (i = -16; i < 16; i++)
+	{
+		for (j = -16; j < 16; j++)
+		{
+			for (k = 0; k < 1; k++)
+			{
+				if ((p = R_AllocParticle()) == NULL)
+					return;
+
+				p->color = color + RandomLong(0, 10);
+				p->packedColor = 0;
+				p->type = pt_static;
+				VectorCopy(pos, p->org);
+
+				temp[0] = pos[0] + RandomFloat(-size, size);
+				temp[1] = pos[1] + RandomFloat(-size, size);
+				temp[2] = pos[2] + RandomFloat(-size, size);
+
+				VectorSubtract(temp, p->org, dir);
+				vel = VectorNormalize(dir) / life;
+
+				p->die = cl.time + life + RandomFloat(-0.5f, 0.5f);
+				VectorScale(dir, vel, p->vel);
+			}
 		}
 	}
 }
@@ -779,22 +814,13 @@ void R_LavaSplash( vec_t* org )
 		{
 			for (k = 0; k < 1; k++)
 			{
-				if (!free_particles)
+				if ((p = R_AllocParticle()) == NULL)
 					return;
 
-				p = free_particles;
-				free_particles = p->next;
-				p->next = active_particles;
-				active_particles = p;
-
-				p->die = cl.time + RandomFloat(2, 2.62);
+				p->die = cl.time + RandomFloat(2.0f, 2.62f);
 				p->type = pt_slowgrav;
 				p->color = RandomLong(224, 231);
-#if defined( GLQUAKE )
 				p->packedColor = 0;
-#else
-				p->packedColor = hlRGB(host_basepal, p->color);
-#endif
 
 				dir[0] = j * 8 + RandomFloat(0, 7);
 				dir[1] = i * 8 + RandomFloat(0, 7);
@@ -829,13 +855,9 @@ void R_LargeFunnel( vec_t* org, int reverse )
 	{
 		for (j = -256; j <= 256; j += 32)
 		{
-			if (!free_particles)
+			p = R_AllocParticle();
+			if (!p)
 				return;
-
-			p = free_particles;
-			free_particles = p->next;
-			p->next = active_particles;
-			active_particles = p;
 
 			if (reverse)
 			{
@@ -848,7 +870,7 @@ void R_LargeFunnel( vec_t* org, int reverse )
 				// send particle heading to dest at a random speed
 				VectorSubtract(dest, p->org, dir);
 
-				vel = dest[2] / 8.0;// velocity based on how far particle starts from org
+				vel = dest[2] / 8.0f;// velocity based on how far particle starts from org
 			}
 			else
 			{
@@ -859,16 +881,12 @@ void R_LargeFunnel( vec_t* org, int reverse )
 				// send particle heading to dest at a random speed
 				VectorSubtract(org, p->org, dir);
 
-				vel = p->org[2] / 8.0;// velocity based on how far particle starts from org
+				vel = p->org[2] / 8.0f;// velocity based on how far particle starts from org
 			}
 
-			p->type = pt_static;
 			p->color = 244;
-#if defined( GLQUAKE )
 			p->packedColor = 0;
-#else
-			p->packedColor = hlRGB(host_basepal, p->color);
-#endif
+			p->type = pt_static;
 
 			flDist = VectorNormalize(dir);	// save the distance
 
@@ -906,22 +924,13 @@ void R_TeleportSplash( vec_t* org )
 		{
 			for (k = -24; k < 32; k += 4)
 			{
-				if (!free_particles)
+				if ((p = R_AllocParticle()) == NULL)
 					return;
 
-				p = free_particles;
-				free_particles = p->next;
-				p->next = active_particles;
-				active_particles = p;
-
-				p->die = cl.time + RandomFloat(0.2, 0.34);
+				p->die = cl.time + RandomFloat(0.2f, 0.34f);
 				p->color = RandomLong(7, 14);
 				p->type = pt_slowgrav;
-#if defined( GLQUAKE )
 				p->packedColor = 0;
-#else
-				p->packedColor = hlRGB(host_basepal, p->color);
-#endif
 
 				dir[0] = j * 8;
 				dir[1] = i * 8;
@@ -961,24 +970,16 @@ void R_ShowLine( vec_t* start, vec_t* end )
 	{
 		len -= dec;
 
-		if (!free_particles)
+		p = R_AllocParticle();
+		if (!p)
 			return;
-
-		p = free_particles;
-		free_particles = p->next;
-		p->next = active_particles;
-		active_particles = p;
 
 		VectorCopy(vec3_origin, p->vel);
 
 		p->die = cl.time + 30;
-		p->type = pt_static;
 		p->color = 75;
-#if defined( GLQUAKE )
 		p->packedColor = 0;
-#else
-		p->packedColor = hlRGB(host_basepal, p->color);
-#endif
+		p->type = pt_static;
 
 		VectorCopy(start, p->org);
 		VectorAdd(start, vec, start);
@@ -1004,24 +1005,16 @@ void R_BloodStream( vec_t* org, vec_t* dir, int pcolor, int speed )
 
 	VectorNormalize(dir);
 
-	arc = 0.05;
+	arc = 0.05f;
 	for (count = 0; count < 100; count++)
 	{
-		if (!free_particles)
+		p = R_AllocParticle();
+		if (!p)
 			return;
 
-		p = free_particles;
-		free_particles = p->next;
-		p->next = active_particles;
-		active_particles = p;
-
-		p->die = cl.time + 2.0;
+		p->die = cl.time + 2.0f;
 		p->color = pcolor + RandomLong(0, 9);
-#if defined( GLQUAKE )
 		p->packedColor = 0;
-#else
-		p->packedColor = hlRGB(host_basepal, p->color);
-#endif
 
 		p->type = pt_vox_grav;
 
@@ -1029,63 +1022,47 @@ void R_BloodStream( vec_t* org, vec_t* dir, int pcolor, int speed )
 		VectorCopy(dir, dirCopy);
 		dirCopy[2] -= arc;
 
-		arc -= 0.005;
+		arc -= 0.005f;
 
 		VectorScale(dirCopy, speedCopy, p->vel);
-		speedCopy -= 0.00001; // make last few drip
+		speedCopy -= 0.00001f; // make last few drip
 	}
 
-	arc = 0.075;
+	arc = 0.075f;
 	for (count = 0; count < (speed / 5); count++)
 	{
-		if (!free_particles)
+		p = R_AllocParticle();
+		if (!p)
 			return;
 
-		p = free_particles;
-		free_particles = p->next;
-		p->next = active_particles;
-		active_particles = p;
-
-		p->die = cl.time + 3.0;
+		p->die = cl.time + 3.0f;
 		p->type = pt_vox_slowgrav;
 		p->color = pcolor + RandomLong(0, 9);
-#if defined( GLQUAKE )
 		p->packedColor = 0;
-#else
-		p->packedColor = hlRGB(host_basepal, p->color);
-#endif
 
 		VectorCopy(org, p->org);
 		VectorCopy(dir, dirCopy);
 		dirCopy[2] -= arc;
 
-		arc -= 0.005;
+		arc -= 0.005f;
 
 		num = RandomFloat(0, 1);
 		speedCopy = speed * num;
-		num *= 1.7;
+		num *= 1.7f;
 
 		VectorScale(dirCopy, num, dirCopy); // randomize a bit
 		VectorScale(dirCopy, speedCopy, p->vel);
 
 		for (count2 = 0; count2 < 2; count2++)
 		{
-			if (!free_particles)
+			p = R_AllocParticle();
+			if (!p)
 				return;
 
-			p = free_particles;
-			free_particles = p->next;
-			p->next = active_particles;
-			active_particles = p;
-
-			p->die = cl.time + 3.0;
+			p->die = cl.time + 3.0f;
 			p->type = pt_vox_slowgrav;
 			p->color = pcolor + RandomLong(0, 9);
-#if defined( GLQUAKE )
 			p->packedColor = 0;
-#else
-			p->packedColor = hlRGB(host_basepal, p->color);
-#endif
 
 			p->org[0] = org[0] + RandomFloat(-1, 1);
 			p->org[1] = org[1] + RandomFloat(-1, 1);
@@ -1110,45 +1087,34 @@ void R_Blood( vec_t* org, vec_t* dir, int pcolor, int speed )
 {
 	vec3_t	dirCopy;
 	vec3_t	orgCopy;
-	float	arc;
 	int		count;
 	int		count2;
 	particle_t* p;
 	int		pspeed;
 
+	pspeed = speed * 3;
 	VectorNormalize(dir);
 
-	pspeed = speed * 3;
-
-	arc = 0.06;
 	for (count = 0; count < (speed / 2); count++)
 	{
 		orgCopy[0] = org[0] + RandomFloat(-3, 3);
 		orgCopy[1] = org[1] + RandomFloat(-3, 3);
 		orgCopy[2] = org[2] + RandomFloat(-3, 3);
 
-		dirCopy[0] = dir[0] + RandomFloat(-arc, arc);
-		dirCopy[1] = dir[1] + RandomFloat(-arc, arc);
-		dirCopy[2] = dir[2] + RandomFloat(-arc, arc);
+		dirCopy[0] = dir[0] + RandomFloat(-0.06f, 0.06f);
+		dirCopy[1] = dir[1] + RandomFloat(-0.06f, 0.06f);
+		dirCopy[2] = dir[2] + RandomFloat(-0.06f, 0.06f);
 
 		for (count2 = 0; count2 < 8; count2++)
 		{
-			if (!free_particles)
+			p = R_AllocParticle();
+			if (!p)
 				return;
 
-			p = free_particles;
-			free_particles = p->next;
-			p->next = active_particles;
-			active_particles = p;
-
-			p->die = cl.time + 1.5;
+			p->die = cl.time + 1.5f;
 			p->color = pcolor + RandomLong(0, 9);
 			p->type = pt_vox_grav;
-#if defined( GLQUAKE )
 			p->packedColor = 0;
-#else
-			p->packedColor = hlRGB(host_basepal, p->color);
-#endif
 
 			p->org[0] = orgCopy[0] + RandomFloat(-1, 1);
 			p->org[1] = orgCopy[1] + RandomFloat(-1, 1);
@@ -1201,32 +1167,28 @@ void R_RocketTrail( vec_t *start, vec_t *end, int type )
 	{
 		len -= dec;
 
-		if (!free_particles)
+		p = R_AllocParticle();
+		if (!p)
 			return;
-
-		p = free_particles;
-		free_particles = p->next;
-		p->next = active_particles;
-		active_particles = p;
 
 		VectorCopy(vec3_origin, p->vel);
 
-		p->die = cl.time + 2.0;
+		p->die = cl.time + 2.0f;
 
 		switch (type)
 		{
 		case 0: // rocket trail
 			p->ramp = RandomLong(0, 3);
-			p->type = pt_fire;
 			p->color = ramp3[(int)p->ramp];
+			p->type = pt_fire;
 			for (j = 0; j < 3; j++)
 				p->org[j] = start[j] + RandomFloat(-3, 3);
 			break;
 
 		case 1:	// smoke
 			p->ramp = RandomLong(2, 5);
-			p->type = pt_fire;
 			p->color = ramp3[(int)p->ramp];
+			p->type = pt_fire;
 			for (j = 0; j < 3; j++)
 				p->org[j] = start[j] + RandomFloat(-3, 3);
 			break;
@@ -1240,7 +1202,7 @@ void R_RocketTrail( vec_t *start, vec_t *end, int type )
 
 		case 3:
 		case 5:	// tracer
-			p->die = cl.time + 0.5;
+			p->die = cl.time + 0.5f;
 			p->type = pt_static;
 
 			if (type == 3)
@@ -1248,8 +1210,8 @@ void R_RocketTrail( vec_t *start, vec_t *end, int type )
 			else
 				p->color = 230 + (tracercount & 4) * 2;
 
-			VectorCopy(start, p->org);
 			tracercount++;
+			VectorCopy(start, p->org);
 
 			if (tracercount & 1)
 			{
@@ -1273,44 +1235,37 @@ void R_RocketTrail( vec_t *start, vec_t *end, int type )
 
 		case 6:	// voor trail
 			p->ramp = RandomLong(0, 3);
-			p->type = pt_fire;
 			p->color = ramp3[(int)p->ramp];
+			p->type = pt_fire;
 			VectorCopy(start, p->org);
 			break;
 
 		case 7:	// explosion tracer
 		{
-			float s, c, x, y;
+			float angle, radius, x, y;
 
-			j = RandomLong(0, 0xFFFF);
-			s = sin(j);
-			c = cos(j);
-
-			j = RandomLong(8, 16);
-			y = s * j;
-			x = c * j;
+			angle = RandomLong(0, 0xFFFF);
+			radius = RandomLong(8, 16);
+			y = sin(angle) * radius;
+			x = cos(angle) * radius;
 
 			p->org[0] = start[0] + right[0] * y + up[0] * x;
 			p->org[1] = start[1] + right[1] * y + up[1] * x;
 			p->org[2] = start[2] + right[2] * y + up[2] * x;
 			
 			VectorSubtract(start, p->org, p->vel);
-			VectorScale(p->vel, 2.0, p->vel);
+			VectorScale(p->vel, 2.0f, p->vel);
 			VectorMA(p->vel, RandomFloat(96, 111), vec, p->vel);
 
-			p->die = cl.time + 2.0;
+			p->die = cl.time + 2.0f;
+			p->type = pt_explode2;
 			p->ramp = RandomLong(0, 3);
 			p->color = ramp3[(int)p->ramp];
-			p->type = pt_explode2;
 			break;
 		}
 		}
 
-#if defined( GLQUAKE )
 		p->packedColor = 0;
-#else
-		p->packedColor = hlRGB(host_basepal, p->color);
-#endif
 
 		VectorAdd(start, vec, start);
 	}
@@ -1323,6 +1278,7 @@ R_DrawParticles
 */
 extern	cvar_t	sv_gravity;
 
+#pragma inline_depth(255)
 void R_DrawParticles( void )
 {
 	particle_t* p;
@@ -1332,64 +1288,80 @@ void R_DrawParticles( void )
 	float			time1;
 	float			dvel;
 	float			frametime;
-#if 0
-	vec3_t			up, right;
-	float			scale;
-
-	GL_Bind(particletexture, 0);
-	qglEnable(GL_ALPHA_TEST);
-	qglEnable(GL_BLEND);
-	qglTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	qglBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	qglBegin(GL_TRIANGLES);
-
-	VectorScale(vup, 1.5, up);
-	VectorScale(vright, 1.5, right);
-#endif
-
+	vec3_t		up, right;
+	float			scale, scale2;
 
 	DCV_TexState_Blend();
+
+	VectorScale(vright, 0.38f, right);
+	VectorScale(vup, 0.38f, up);
 
 	frametime = cl.time - cl.oldtime;
 	time3 = frametime * 15;
 	time2 = frametime * 10; // 15;
 	time1 = frametime * 5;
-	grav = frametime * sv_gravity.value * 0.05;
+	grav = frametime * sv_gravity.value * 0.05f;
 	dvel = 4 * frametime;
 
 	R_FreeDeadParticles(&active_particles);
 
 	for (p = active_particles; p; p = p->next)
 	{
+		if (p->type == pt_puff)
+			GL_Bind(particlepufftexture, 0);
+		else
+			GL_Bind(particletexture, 0);
+
 		if (p->type != pt_blob)
 		{
-#if 0
-			word* pb;
-			byte rgba[4];
+			word*	pb;
+			byte	alpha;
 
 			// hack a scale up to keep particles from disapearing
 			scale = (p->org[0] - r_origin[0]) * vpn[0] + (p->org[1] - r_origin[1]) * vpn[1]
 				+ (p->org[2] - r_origin[2]) * vpn[2];
 
-			if (scale < 20)
-				scale = 1;
+			if (scale < 20.0f)
+				scale = 1.0f;
 			else
-				scale = 1 + scale * 0.004;
+				scale = 1.0f + scale * 0.004f;
 
+			if (p->type == pt_puff)
+				scale *= 24.0f - (p->die - cl.time) * 40.0f;
+
+			if (scale < 0.0f)
+				scale = 0.0f;
+
+			scale2 = scale * 3.0f;
 			pb = &host_basepal[4 * p->color];
-			rgba[0] = pb[2];
-			rgba[1] = pb[1];
-			rgba[2] = pb[0];
-			rgba[3] = 255;
 
-			qglColor3ubv(rgba);
-			qglTexCoord2f(0, 0);
-			qglVertex3fv(p->org);
-			qglTexCoord2f(1, 0);
-			qglVertex3f(p->org[0] + up[0] * scale, p->org[1] + up[1] * scale, p->org[2] + up[2] * scale);
-			qglTexCoord2f(0, 1);
-			qglVertex3f(p->org[0] + right[0] * scale, p->org[1] + right[1] * scale, p->org[2] + right[2] * scale);
-#endif
+			if (p->type == pt_puff)
+			{
+				alpha = (byte)((p->die - cl.time) * 500.0f);
+				alpha = max(0, min(alpha, 255));
+			}
+			else
+			{
+				alpha = 255;
+			}
+
+			DCV_SetColor(pb[2], pb[1], pb[0], alpha);
+			DCV_FlushIfLarge();
+			DCV_AddVertexIndexed(
+				p->org[0] - right[0] * scale - up[0] * scale,
+				p->org[1] - right[1] * scale - up[1] * scale,
+				p->org[2] - right[2] * scale - up[2] * scale,
+				0.0f, 0.0f);
+			DCV_AddVertexIndexed(
+				p->org[0] + right[0] * scale2 - up[0] * scale,
+				p->org[1] + right[1] * scale2 - up[1] * scale,
+				p->org[2] + right[2] * scale2 - up[2] * scale,
+				1.0f, 0.0f);
+			DCV_AddVertexIndexed(
+				p->org[0] + up[0] * scale2 - right[0] * scale,
+				p->org[1] + up[1] * scale2 - right[1] * scale,
+				p->org[2] + up[2] * scale2 - right[2] * scale,
+				0.0f, 1.0f);
 		}
 
 		p->org[0] += p->vel[0] * frametime;
@@ -1398,6 +1370,10 @@ void R_DrawParticles( void )
 
 		switch (p->type)
 		{
+		case pt_static:
+		case pt_puff:
+			break;
+
 		case pt_grav:
 			p->vel[2] -= grav * 20;
 			break;
@@ -1416,9 +1392,7 @@ void R_DrawParticles( void )
 			else
 			{
 				p->color = ramp3[(int)p->ramp];
-#if 0
 				p->packedColor = 0;
-#endif
 			}
 
 			p->vel[2] += grav;
@@ -1434,13 +1408,11 @@ void R_DrawParticles( void )
 			else
 			{
 				p->color = ramp1[(int)p->ramp];
-#if 0
 				p->packedColor = 0;
-#endif
 			}
 
 			for (i = 0; i < 3; i++)
-				p->vel[i] *= (dvel + 1.0);
+				p->vel[i] += p->vel[i] * dvel;
 
 			p->vel[2] -= grav;
 			break;
@@ -1455,13 +1427,11 @@ void R_DrawParticles( void )
 			else
 			{
 				p->color = ramp2[(int)p->ramp];
-#if 0
 				p->packedColor = 0;
-#endif
 			}
 
 			for (i = 0; i < 3; i++)
-				p->vel[i] *= (1.0 - frametime);
+				p->vel[i] -= p->vel[i] * frametime;
 
 			p->vel[2] -= grav;
 			break;
@@ -1475,13 +1445,11 @@ void R_DrawParticles( void )
 
 			// set spark color
 			p->color = gSparkRamp[(int)p->ramp];
-#if 0
 			p->packedColor = 0;
-#endif
 
-			p->vel[0] *= (1.0 - (frametime * 0.5));
-			p->vel[1] *= (1.0 - (frametime * 0.5));
-			p->vel[2] -= grav * 5.0;
+			p->vel[0] -= p->vel[0] * 0.5f * frametime;
+			p->vel[1] -= p->vel[1] * 0.5f * frametime;
+			p->vel[2] -= grav * 5.0f;
 
 			if (RandomLong(0, 3))
 			{
@@ -1502,21 +1470,11 @@ void R_DrawParticles( void )
 			break;
 		}
 	}
-
-#if 0
-	qglEnd();
-#endif
-
 	R_TracerDraw();
 	R_BeamDrawList();
-
-#if 0
-	qglDisable(GL_BLEND);
-	qglDisable(GL_ALPHA_TEST);
-#endif
 }
 
-float	gTracerSize[10] = { 1.5, 0.5, 1, 1, 1, 1, 1, 1, 1, 1 };
+float	gTracerSize[10] = { 1.5f, 0.5f, 1, 1, 1, 1, 1, 1, 1, 1 };
 
 /*
 ===============
@@ -1553,17 +1511,17 @@ void R_TracerDraw( void )
 
 	R_FreeDeadParticles(&gpActiveTracers);
 
-	VectorScale(vup, 1.5, up);
-	VectorScale(vright, 1.5, right);
+	VectorScale(vup, 1.5f, up);
+	VectorScale(vright, 1.5f, right);
 
 	if (R_TriangleSpriteTexture(cl_sprite_dot, 0))
 	{
 		gravity = sv_gravity.value * frametime;
 		size = DotProduct(r_origin, vpn);
 
-		scale = 1.0 - frametime * 0.9;
-		if (scale < 0.0)
-			scale = 0.0;
+		scale = 1.0f - frametime * 0.9f;
+		if (scale < 0.0f)
+			scale = 0.0f;
 
 		tri_RenderMode(kRenderTransAdd);
 		tri_CullFace(TRI_NONE);
@@ -1575,8 +1533,8 @@ void R_TracerDraw( void )
 			pColor = &gTracerColors[p->color];
 
 			attenuation = (p->die - cl.time);
-			if (attenuation > 0.1)
-				attenuation = 0.1;
+			if (attenuation > 0.1f)
+				attenuation = 0.1f;
 
 			VectorScale(p->vel, (p->ramp * attenuation), end);
 			VectorAdd(p->org, end, end);
@@ -1592,13 +1550,13 @@ void R_TracerDraw( void )
 				dist1 = DotProduct(vpn, start) - size;
 				dist2 = DotProduct(vpn, end) - size;
 
-				if (dist1 <= 0.0 && dist2 <= 0.0)
+				if (dist1 <= 0.0f && dist2 <= 0.0f)
 					draw = FALSE;
 
 				if (draw == TRUE)
 				{
 					clipDist = dist2 - dist1;
-					if (clipDist < 0.01)
+					if (clipDist < 0.01f)
 						draw = FALSE;
 				}
 
@@ -1643,46 +1601,46 @@ void R_TracerDraw( void )
 				VectorScale(vup, tmp[0] * gTracerSize[p->type], normal);
 				VectorMA(normal, -tmp[1] * gTracerSize[p->type], vright, normal);
 
-				tri_Begin(TRI_QUADS);
-
+				DCV_FlushIfLarge();
+				DCV_AddPolyIndices(DCV_GetVertCount(), 4);
 				tri_Color4ub(pColor->r, pColor->g, pColor->b, p->packedColor);
 
 				tri_Brightness(0);
-				tri_TexCoord2f(0, 0);
-				tri_Vertex3f(start[0] + normal[0], start[1] + normal[1], start[2] + normal[2]);
+				DCV_AddVertex(start[0] + normal[0], start[1] + normal[1],
+					start[2] + normal[2], 0.0f, 0.0f);
 
 				tri_Brightness(1);
-				tri_TexCoord2f(0, 1);
-				tri_Vertex3f(end[0] + normal[0], end[1] + normal[1], end[2] + normal[2]);
+				DCV_AddVertex(end[0] + normal[0], end[1] + normal[1],
+					end[2] + normal[2], 0.0f, 1.0f);
 
 				tri_Brightness(1);
-				tri_TexCoord2f(1, 1);
-				tri_Vertex3f(end[0] - normal[0], end[1] - normal[1], end[2] - normal[2]);
+				DCV_AddVertex(end[0] - normal[0], end[1] - normal[1],
+					end[2] - normal[2], 1.0f, 1.0f);
 
 				tri_Brightness(0);
-				tri_TexCoord2f(1, 0);
-				tri_Vertex3f(start[0] - normal[0], start[1] - normal[1], start[2] - normal[2]);
+				DCV_AddVertex(start[0] - normal[0], start[1] - normal[1],
+					start[2] - normal[2], 1.0f, 0.0f);
+			}
 
-				p->org[0] = frametime * p->vel[0] + p->org[0];
-				p->org[1] = frametime * p->vel[1] + p->org[1];
-				p->org[2] = frametime * p->vel[2] + p->org[2];
+			p->org[0] = frametime * p->vel[0] + p->org[0];
+			p->org[1] = frametime * p->vel[1] + p->org[1];
+			p->org[2] = frametime * p->vel[2] + p->org[2];
 
-				if (p->type == pt_grav)
-				{
-					p->vel[0] *= scale;
-					p->vel[1] *= scale;
-					p->vel[2] -= gravity;
+			switch (p->type)
+			{
+			case pt_grav:
+				p->vel[0] *= scale;
+				p->vel[1] *= scale;
+				p->vel[2] -= gravity;
 
-					p->packedColor = 255 * (p->die - cl.time) * 2;
-					if (p->packedColor > 255)
-						p->packedColor = 255;
-				}
-				else if (p->type == pt_slowgrav)
-				{
-					p->vel[2] = gravity * 0.05;
-				}
+				p->packedColor = 255 * (p->die - cl.time) * 2;
+				if (p->packedColor > 255)
+					p->packedColor = 255;
+				break;
 
-				tri_End();
+			case pt_slowgrav:
+				p->vel[2] = gravity * 0.05f;
+				break;
 			}
 		}
 
@@ -1712,7 +1670,7 @@ BEAM* R_BeamAlloc( void )
 	return pbeam;
 }
 
-BEAM* R_BeamLightning( vec_t* start, vec_t* end, int modelIndex, float life, float width, float amplitude, float brightness, float speed )
+BEAM* R_BeamLightning( vec_t* start, vec_t* end, BEAMINFO* pInfo )
 {
 	BEAM* pbeam;
 
@@ -1722,10 +1680,11 @@ BEAM* R_BeamLightning( vec_t* start, vec_t* end, int modelIndex, float life, flo
 	
 	pbeam->die = cl.time;
 
-	if (modelIndex < 0)
+	if (pInfo->modelIndex < 0)
 		return NULL;
 
-	R_BeamSetup(pbeam, start, end, modelIndex, life, width, amplitude, brightness, speed);
+	R_BeamSetup(pbeam, start, end, pInfo->modelIndex, pInfo->life, pInfo->width,
+		pInfo->amplitude, pInfo->brightness, pInfo->speed);
 
 	return pbeam;
 }
@@ -1755,18 +1714,19 @@ void R_BeamSetup( BEAM* pbeam, vec_t* start, vec_t* end, int modelIndex, float l
 	pbeam->brightness = brightness;
 	pbeam->speed = speed;
 
-	if (amplitude >= 0.5)
-		pbeam->segments = Length(pbeam->delta) * 0.25 + 3;	// once per 4 pixels
+	if (pbeam->amplitude >= 0.5f)
+		pbeam->segments = Length(pbeam->delta) * 0.25f + 3;	// once per 4 pixels
 	else
-		pbeam->segments = Length(pbeam->delta) * 0.075 + 3; // once per 16 pixels
+		pbeam->segments = Length(pbeam->delta) * 0.075f + 3; // once per 16 pixels
 
 	pbeam->flags = 0;
+	pbeam->pFollowModel = NULL;
 }
 
-void SetBeamAttributes( BEAM* pbeam, float r, float g, float b, float framerate, int startFrame )
+static void SetBeamAttributes( BEAM* pbeam, float r, float g, float b, float framerate, int startFrame )
 {
-	pbeam->frameRate = framerate;
 	pbeam->frame = startFrame;
+	pbeam->frameRate = framerate;
 
 	pbeam->r = r;
 	pbeam->g = g;
@@ -1789,14 +1749,14 @@ void R_DrawBeamEntList( float frametime )
 		// Set up the beam
 		beamType = ent->rendermode & 0xF;
 
-		R_BeamSetup(&beam, ent->origin, ent->angles, ent->movetype, 0.0, ent->scale, ent->body * 0.01,
-			CL_FxBlend(ent) / 255.0, ent->animtime);
+		R_BeamSetup(&beam, ent->origin, ent->angles, ent->movetype, 0.0f, ent->scale, ent->body * 0.01f,
+			CL_FxBlend(ent) * (1.0f / 255.0f), ent->animtime);
 
 		SetBeamAttributes(&beam,
-			ent->rendercolor.r / 255.0,
-			ent->rendercolor.g / 255.0,
-			ent->rendercolor.b / 255.0,
-			0.0,
+			ent->rendercolor.r * (1.0f / 255.0f),
+			ent->rendercolor.g * (1.0f / 255.0f),
+			ent->rendercolor.b * (1.0f / 255.0f),
+			0.0f,
 			ent->frame);
 		
 		// Handle code from relinking.
@@ -1835,12 +1795,12 @@ void R_DrawBeamEntList( float frametime )
 	}
 }
 
-BEAM* R_BeamEnts( int startEnt, int endEnt, int modelIndex, float life, float width, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b )
+BEAM* R_BeamEnts( int startEnt, int endEnt, BEAMINFO* pInfo )
 {
 	BEAM* pbeam;
 	cl_entity_t* start, * end;
 
-	if (life != 0.0)
+	if (pInfo->life != 0.0f)
 	{
 		start = &cl_entities[BEAMENT_ENTITY(startEnt)];
 		if (!start->model)
@@ -1851,14 +1811,14 @@ BEAM* R_BeamEnts( int startEnt, int endEnt, int modelIndex, float life, float wi
 			return NULL;
 	}
 
-	pbeam = R_BeamLightning(vec3_origin, vec3_origin, modelIndex, life, width, amplitude, brightness, speed);
+	pbeam = R_BeamLightning(vec3_origin, vec3_origin, pInfo);
 	if (!pbeam)
 		return NULL;
 
 	pbeam->type = TE_BEAMPOINTS;
 	pbeam->flags = (FBEAM_STARTENTITY | FBEAM_ENDENTITY);
 
-	if (life == 0.0)
+	if (pInfo->life == 0.0f)
 	{
 		pbeam->flags |= FBEAM_FOREVER;
 	}
@@ -1866,32 +1826,32 @@ BEAM* R_BeamEnts( int startEnt, int endEnt, int modelIndex, float life, float wi
 	pbeam->startEntity = startEnt;
 	pbeam->endEntity = endEnt;
 
-	SetBeamAttributes(pbeam, r, g, b, framerate, startFrame);
+	SetBeamAttributes(pbeam, pInfo->r, pInfo->g, pInfo->b, pInfo->frameRate, pInfo->startFrame);
 
 	return pbeam;
 }
 
 // Creates a beam between an entity and a point
-BEAM* R_BeamEntPoint( int startEnt, vec_t* end, int modelIndex, float life, float width, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b )
+BEAM* R_BeamEntPoint( int startEnt, vec_t* end, BEAMINFO* pInfo )
 {
 	BEAM* pbeam;
 	cl_entity_t* start;
 
-	if (life != 0.0)
+	if (pInfo->life != 0.0f)
 	{
 		start = &cl_entities[BEAMENT_ENTITY(startEnt)];
 		if (!start->model)
 			return NULL;
 	}
 
-	pbeam = R_BeamLightning(vec3_origin, end, modelIndex, life, width, amplitude, brightness, speed);
+	pbeam = R_BeamLightning(vec3_origin, end, pInfo);
 	if (!pbeam)
 		return NULL;
 
 	pbeam->type = TE_BEAMPOINTS;
 	pbeam->flags = FBEAM_STARTENTITY;
 
-	if (life == 0.0)
+	if (pInfo->life == 0.0f)
 	{
 		pbeam->flags |= FBEAM_FOREVER;
 	}
@@ -1899,58 +1859,59 @@ BEAM* R_BeamEntPoint( int startEnt, vec_t* end, int modelIndex, float life, floa
 	pbeam->startEntity = startEnt;
 	pbeam->endEntity = 0;
 
-	SetBeamAttributes(pbeam, r, g, b, framerate, startFrame);
+	SetBeamAttributes(pbeam, pInfo->r, pInfo->g, pInfo->b, pInfo->frameRate, pInfo->startFrame);
 
 	return pbeam;
 }
 
-BEAM* R_BeamPoints( vec_t* start, vec_t* end, int modelIndex, float life, float width, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b )
+BEAM* R_BeamPoints( vec_t* start, vec_t* end, BEAMINFO* pInfo )
 {
 	BEAM* pbeam;
 
 	// don't start temporary beams out of the PVS
-	if (life != 0.0 && !R_BeamCull(start, end, TRUE))
+	if (pInfo->life != 0.0f && !R_BeamCull(start, end, TRUE))
 		return NULL;
 
-	pbeam = R_BeamLightning(start, end, modelIndex, life, width, amplitude, brightness, speed);
+	pbeam = R_BeamLightning(start, end, pInfo);
 	if (!pbeam)
 		return NULL;
 
-	if (life == 0.0)
+	if (pInfo->life == 0.0f)
 	{
 		pbeam->flags |= FBEAM_FOREVER;
 	}
 
-	SetBeamAttributes(pbeam, r, g, b, framerate, startFrame);
+	SetBeamAttributes(pbeam, pInfo->r, pInfo->g, pInfo->b, pInfo->frameRate, pInfo->startFrame);
 
 	return pbeam;
 }
 
-BEAM* R_BeamCirclePoints( int type, vec_t* start, vec_t* end, int modelIndex, float life, float width, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b )
+BEAM* R_BeamCirclePoints( int type, vec_t* start, vec_t* end, BEAMINFO* pInfo )
 {
 	BEAM* pbeam;
 
-	pbeam = R_BeamLightning(start, end, modelIndex, life, width, amplitude, brightness, speed);
+	pbeam = R_BeamLightning(start, end, pInfo);
 	if (!pbeam)
 		return NULL;
 
 	pbeam->type = type;
 
-	if (life == 0.0)
+	if (pInfo->life == 0.0f)
 	{
 		pbeam->flags |= FBEAM_FOREVER;
 	}
 
-	SetBeamAttributes(pbeam, r, g, b, framerate, startFrame);
+	SetBeamAttributes(pbeam, pInfo->r, pInfo->g, pInfo->b, pInfo->frameRate, pInfo->startFrame);
 
 	return pbeam;
 }
 
-BEAM* R_BeamFollow( int startEnt, int modelIndex, float life, float width, float r, float g, float b, float brightness )
+BEAM* R_BeamFollow( int startEnt, BEAMINFO* pInfo )
 {
 	BEAM* pbeam;
 
-	pbeam = R_BeamLightning(vec3_origin, vec3_origin, modelIndex, life, width, life, brightness, 1.0);
+	pInfo->speed = 1.0f;
+	pbeam = R_BeamLightning(vec3_origin, vec3_origin, pInfo);
 	if (!pbeam)
 		return NULL;
 
@@ -1959,18 +1920,18 @@ BEAM* R_BeamFollow( int startEnt, int modelIndex, float life, float width, float
 
 	pbeam->startEntity = startEnt;
 
-	SetBeamAttributes(pbeam, r, g, b, 1.0, 0);
+	SetBeamAttributes(pbeam, pInfo->r, pInfo->g, pInfo->b, 1.0f, 0);
 
 	return pbeam;
 }
 
 // Create a beam ring between two entities
-BEAM* R_BeamRing( int startEnt, int endEnt, int modelIndex, float life, float width, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b )
+BEAM* R_BeamRing( int startEnt, int endEnt, BEAMINFO* pInfo )
 {
 	BEAM* pbeam;
 	cl_entity_t* start, * end;
 
-	if (life != 0.0)
+	if (pInfo->life != 0.0f)
 	{
 		start = &cl_entities[startEnt];
 		if (!start->model)
@@ -1981,14 +1942,14 @@ BEAM* R_BeamRing( int startEnt, int endEnt, int modelIndex, float life, float wi
 			return NULL;
 	}
 
-	pbeam = R_BeamLightning(vec3_origin, vec3_origin, modelIndex, life, width, amplitude, brightness, speed);
+	pbeam = R_BeamLightning(vec3_origin, vec3_origin, pInfo);
 	if (!pbeam)
 		return NULL;
 
 	pbeam->type = TE_BEAMRING;
 	pbeam->flags = (FBEAM_STARTENTITY | FBEAM_ENDENTITY);
 
-	if (life == 0.0)
+	if (pInfo->life == 0.0f)
 	{
 		pbeam->flags |= FBEAM_FOREVER;
 	}
@@ -1996,7 +1957,7 @@ BEAM* R_BeamRing( int startEnt, int endEnt, int modelIndex, float life, float wi
 	pbeam->startEntity = startEnt;
 	pbeam->endEntity = endEnt;
 	
-	SetBeamAttributes(pbeam, r, g, b, framerate, startFrame);
+	SetBeamAttributes(pbeam, pInfo->r, pInfo->g, pInfo->b, pInfo->frameRate, pInfo->startFrame);
 
 	return pbeam;
 }
@@ -2028,13 +1989,13 @@ void R_KillDeadBeams( int deadEntity )
 		if (pbeam->type != TE_BEAMFOLLOW)
 		{
 			// Die Die Die!
-			pbeam->die = cl.time - 0.1;
+			pbeam->die = cl.time - 0.1f;
 
 			// Kill off particles
 			pHead = pbeam->particles;
 			while (pHead)
 			{
-				pHead->die = cl.time - 0.1;
+				pHead->die = cl.time - 0.1f;
 				pHead = pHead->next;
 			}
 
@@ -2097,20 +2058,22 @@ void R_Implosion( vec_t* end, float radius, int count, float life )
 	vec3_t	start, temp;
 	vec3_t	vel;
 
+	radius /= 100.0f;
+
 	for (i = 0; i < count; i++)
 	{
-		temp[0] = (radius / 100) * RandomFloat(-100, 100);
-		temp[1] = (radius / 100) * RandomFloat(-100, 100);
-		temp[2] = (radius / 100) * RandomFloat(0, 100);
+		temp[0] = RandomFloat(-100, 100) * radius;
+		temp[1] = RandomFloat(-100, 100) * radius;
+		temp[2] = RandomFloat(0, 100) * radius;
 
-		VectorAdd(temp, end, start);
-		VectorScale(temp, -1.0 / life, vel);
+		VectorAdd(end, temp, start);
+		VectorScale(temp, -1.0f / life, vel);
 
-		R_TracerParticles(start, vel, life);
+		R_AllocTracer(start, vel, life);
 	}
 }
 
-#define NOISE_DIVISIONS		128
+#define NOISE_DIVISIONS		32
 float	gNoise[NOISE_DIVISIONS + 1];
 
 //		freq2 += step * 0.1;
@@ -2125,7 +2088,7 @@ void Noise( float* noise, int divs )
 		return;
 
 	// noise is normalized to +/- scale
-	noise[div2] = (noise[0] + noise[divs]) * 0.5 + divs * RandomFloat(-0.125, 0.125);
+	noise[div2] = (noise[0] + noise[divs]) * 0.5f + divs * RandomFloat(-0.125f, 0.125f);
 	if (div2 > 1)
 	{
 		Noise(&noise[div2], div2);
@@ -2133,11 +2096,11 @@ void Noise( float* noise, int divs )
 	}
 }
 
-void SineNoise( float* noise, int divs )
+static void SineNoise( float* noise, int divs )
 {
 	int i;
 	float freq, freq2;
-	float step = M_PI / (float)divs;
+	float step = (float)M_PI / (float)divs;
 
 	freq = 0;
 	freq2 = 0;
@@ -2154,26 +2117,18 @@ int ScreenTransform( vec_t* point, vec_t* screen )
 {
 	float w;
 
-#if defined ( GLQUAKE )
 	screen[0] = gWorldToScreen[0] * point[0] + gWorldToScreen[4] * point[1] + gWorldToScreen[8] * point[2] + gWorldToScreen[12];
 	screen[1] = gWorldToScreen[1] * point[0] + gWorldToScreen[5] * point[1] + gWorldToScreen[9] * point[2] + gWorldToScreen[13];
 	w = gWorldToScreen[3] * point[0] + gWorldToScreen[7] * point[1] + gWorldToScreen[11] * point[2] + gWorldToScreen[15];
-#else
-	vec3_t out;
-	VectorSubtract(point, r_origin, out);
-	TransformVector(out, screen);
 
-	w = screen[2];
-#endif
-
-	if (w != 0.0)
+	if (w != 0.0f)
 	{
-		w = 1.0 / w;
+		w = 1.0f / w;
 		screen[0] *= w;
 		screen[1] *= w;
 	}
 
-	return w <= 0.0;
+	return w <= 0.0f;
 }
 
 // Draw segmented beams
@@ -2191,13 +2146,13 @@ void R_DrawSegs( vec_t* source, vec_t* delta, float width, float scale, float fr
 		segments = NOISE_DIVISIONS;
 	}
 
-	length = Length(delta) * 0.01;
+	length = Length(delta) * 0.01f;
 
 	// Don't lose all of the noise/texture on short beams
-	if (length < 0.5)
-		length = 0.5;
+	if (length < 0.5f)
+		length = 0.5f;
 
-	div = 1.0 / (segments - 1);
+	div = 1.0f / (segments - 1);
 
 	vStep = length * div;	// Texture length texels per space pixel
 
@@ -2209,7 +2164,7 @@ void R_DrawSegs( vec_t* source, vec_t* delta, float width, float scale, float fr
 			segments = 16;
 
 		scale *= 100;
-		length = segments * (1.0 / 10);
+		length = segments * (1.0f / 10.0f);
 	}
 	else
 	{
@@ -2233,7 +2188,7 @@ void R_DrawSegs( vec_t* source, vec_t* delta, float width, float scale, float fr
 	VectorMA(source, -width, normal, last2);
 
 	// Iterator to resample noise waveform (it needs to be generated in powers of 2)
-	noiseStep = (int)((float)NOISE_DIVISIONS * div * 65536.0);
+	noiseStep = (int)((float)NOISE_DIVISIONS * div * 65536.0f);
 	noiseIndex = noiseStep;
 	
 	// Sine noise beams have different length calculations
@@ -2244,18 +2199,18 @@ void R_DrawSegs( vec_t* source, vec_t* delta, float width, float scale, float fr
 
 	brightness = 1.0f;
 	if (flags & FBEAM_SHADEIN)
-		brightness = 0.0;
+		brightness = 0.0f;
 
 	for (i = 1; i < segments; i++)
 	{
 		fraction = i * div;
 
+		DCV_FlushIfLarge();
+		DCV_AddPolyIndices(DCV_GetVertCount(), 4);
 		tri_Brightness(brightness);
-		tri_TexCoord2f(0, vLast);
-		tri_Vertex3fv(last1);
+		DCV_PushVertexLit(last1, 0.0f, vLast);
 		tri_Brightness(brightness);
-		tri_TexCoord2f(1, vLast);
-		tri_Vertex3fv(last2);
+		DCV_PushVertexLit(last2, 1.0f, vLast);
 
 		if (flags & FBEAM_SHADEIN)
 		{
@@ -2263,7 +2218,7 @@ void R_DrawSegs( vec_t* source, vec_t* delta, float width, float scale, float fr
 		}
 		else if (flags & FBEAM_SHADEOUT)
 		{
-			brightness = 1.0 - fraction;
+			brightness = 1.0f - fraction;
 		}
 
 		VectorMA(source, fraction, delta, point);
@@ -2271,18 +2226,18 @@ void R_DrawSegs( vec_t* source, vec_t* delta, float width, float scale, float fr
 		// Distort using noise
 		if (scale != 0)
 		{
-			factor = gNoise[noiseIndex >> 16] * scale;
+			factor = gNoise[(short)(noiseIndex >> 16) & (NOISE_DIVISIONS - 1)] * scale;
 
 			if (flags & FBEAM_SINENOISE)
 			{
-				VectorMA(point, factor * sin(fraction * M_PI * length + freq), vup, point);
+				VectorMA(point, factor * sin(fraction * (float)M_PI * length + freq), vup, point);
 				// rotate the noise along the perpendicluar axis a bit to keep the bolt from looking diagonal
-				VectorMA(point, factor * cos(fraction * M_PI * length + freq), vright, point);
+				VectorMA(point, factor * cos(fraction * (float)M_PI * length + freq), vright, point);
 			}
 			else
 			{
 				VectorMA(point, factor, vup, point);
-				VectorMA(point, factor * cos(fraction * M_PI * 3.0 + freq), vright, point);
+				VectorMA(point, factor * cos(fraction * (float)M_PI * 3.0f + freq), vright, point);
 			}
 		}
 
@@ -2304,16 +2259,14 @@ void R_DrawSegs( vec_t* source, vec_t* delta, float width, float scale, float fr
 
 		vLast += vStep; // advance texture scroll (v axis only)
 		tri_Brightness(brightness);
-		tri_TexCoord2f(1, vLast);
-		tri_Vertex3fv(last2);
+		DCV_PushVertexLit(last2, 1.0f, vLast);
 		tri_Brightness(brightness);
-		tri_TexCoord2f(0, vLast);
-		tri_Vertex3fv(last1);
+		DCV_PushVertexLit(last1, 0.0f, vLast);
 
 		VectorCopy(screen, screenLast);
 
 		noiseIndex += noiseStep;
-		vLast = fmod(vLast, 1.0);
+		vLast = fmod(vLast, 1.0f);
 	};
 }
 
@@ -2332,38 +2285,39 @@ void R_DrawTorus( vec_t* source, vec_t* delta, float width, float scale, float f
 		segments = NOISE_DIVISIONS;
 	}
 
-	length = Length(delta) * 0.01;
+	length = Length(delta) * 0.01f;
 
 	// Don't lose all of the noise/texture on short beams
-	if (length < 0.5)
-		length = 0.5;
+	if (length < 0.5f)
+		length = 0.5f;
 
-	div = 1.0 / (segments - 1);
+	div = 1.0f / (segments - 1);
 	
 	vStep = length * div; // Texture length texels per space pixel
 	
 	// Scroll speed 3.5 -- initial texture position, scrolls 3.5/sec (1.0 is entire texture)
-	vLast = fmod(freq * speed, 1.0);
+	vLast = fmod(freq * speed, 1.0f);
 	scale *= length;
 
 	// Iterator to resample noise waveform (it needs to be generated in powers of 2)
-	noiseStep = (int)((float)NOISE_DIVISIONS * div * 65536.0);
+	noiseStep = (int)((float)NOISE_DIVISIONS * div * 65536.0f);
 	noiseIndex = 0;
 
 	for (i = 0; i <= segments; i++)
 	{
 		fraction = i * div;
 
-		point[0] = source[0] + sin(fraction * 2 * M_PI) * freq * delta[2];
-		point[1] = source[1] + cos(fraction * 2 * M_PI) * freq * delta[2];
+		point[0] = source[0] + sin(fraction * 2.0f * (float)M_PI) * freq * delta[2];
+		point[1] = source[1] + cos(fraction * 2.0f * (float)M_PI) * freq * delta[2];
 		point[2] = source[2];
 
 		// Distort using noise
-		factor = gNoise[noiseIndex >> 16] * scale;
+		factor = gNoise[(short)(noiseIndex >> 16) & (NOISE_DIVISIONS - 1)] * scale;
 		VectorMA(point, factor, vup, point);
 
 		// Rotate the noise along the perpendicluar axis a bit to keep the bolt from looking diagonal
-		factor = gNoise[noiseIndex >> 16] * scale * cos(fraction * M_PI * 3 + freq);
+		factor = gNoise[(short)(noiseIndex >> 16) & (NOISE_DIVISIONS - 1)] * scale *
+			cos(fraction * (float)M_PI * 3.0f + freq);
 		VectorMA(point, factor, vright, point);
 
 		// Transform start into screen space
@@ -2385,15 +2339,23 @@ void R_DrawTorus( vec_t* source, vec_t* delta, float width, float scale, float f
 			VectorMA(point, -width, normal, last2);
 
 			vLast += vStep; // advance texture scroll (v axis only)
-			tri_TexCoord2f(1, vLast);
-			tri_Vertex3fv(last2);
-			tri_TexCoord2f(0, vLast);
-			tri_Vertex3fv(last1);
+			if (i & 1)
+			{
+				DCV_FlushIfLarge();
+				DCV_AddPolyIndices(DCV_GetVertCount(), 4);
+				DCV_PushVertexLit(last2, 1.0f, vLast);
+				DCV_PushVertexLit(last1, 0.0f, vLast);
+			}
+			else
+			{
+				DCV_PushVertexLit(last1, 0.0f, vLast);
+				DCV_PushVertexLit(last2, 1.0f, vLast);
+			}
 		}
 
 		VectorCopy(screen, screenLast);
 
-		vLast = fmod(vLast, 1.0);
+		vLast = fmod(vLast, 1.0f);
 		noiseIndex += noiseStep;
 	}
 }
@@ -2403,7 +2365,7 @@ void R_DrawDisk( vec_t* source, vec_t* delta, float width, float scale, float fr
 {
 	int				i;
 	float			div, length, fraction, vLast, vStep;
-	vec3_t			point;
+	vec3_t			start, point;
 	float			w;
 
 	if (segments < 2)
@@ -2414,41 +2376,47 @@ void R_DrawDisk( vec_t* source, vec_t* delta, float width, float scale, float fr
 		segments = NOISE_DIVISIONS;
 	}
 
-	length = Length(delta) * 0.01;
-	if (length < 0.5)	// Don't lose all of the noise/texture on short beams
-		length = 0.5;
+	length = Length(delta) * 0.01f;
+	if (length < 0.5f)	// Don't lose all of the noise/texture on short beams
+		length = 0.5f;
 
-	div = 1.0 / (segments - 1);
+	div = 1.0f / (segments - 1);
 	
 	vStep = length * div;		// Texture length texels per space pixel
 
 	// Scroll speed 3.5 -- initial texture position, scrolls 3.5/sec (1.0 is entire texture)
-	vLast = fmod(freq * speed, 1.0);
+	vLast = fmod(freq * speed, 1.0f);
 
 	// Beam width
 	w = freq * delta[2];
+	tri_Brightness(1);
 
 	for (i = 0; i < segments; i++)
 	{
-		VectorCopy(source, point);
+		VectorCopy(source, start);
 
 		fraction = i * div;
 
-		tri_Brightness(1);
-		tri_TexCoord2f(1, vLast);
-		tri_Vertex3fv(point);
-
-		point[0] = source[0] + sin(fraction * 2 * M_PI) * w;
-		point[1] = source[1] + cos(fraction * 2 * M_PI) * w;
+		point[0] = source[0] + sin(fraction * 2.0f * (float)M_PI) * w;
+		point[1] = source[1] + cos(fraction * 2.0f * (float)M_PI) * w;
 		point[2] = source[2];
 
-		tri_Brightness(1);
-		tri_TexCoord2f(0, vLast);
-		tri_Vertex3fv(point);
+		if (i & 1)
+		{
+			DCV_PushVertexLit(point, 0.0f, vLast);
+			DCV_PushVertexLit(start, 1.0f, vLast);
+		}
+		else
+		{
+			DCV_FlushIfLarge();
+			DCV_AddPolyIndices(DCV_GetVertCount(), 4);
+			DCV_PushVertexLit(start, 1.0f, vLast);
+			DCV_PushVertexLit(point, 0.0f, vLast);
+		}
 
 		vLast += vStep; // advance texture scroll (v axis only)
 
-		vLast = fmod(vLast, 1.0);
+		vLast = fmod(vLast, 1.0f);
 	}
 }
 
@@ -2457,7 +2425,7 @@ void R_DrawCylinder( vec_t* source, vec_t* delta, float width, float scale, floa
 {
 	int				i;
 	float			div, length, fraction, vLast, vStep;
-	vec3_t			point;
+	vec3_t			point, point2;
 
 	if (segments < 2)
 		return;
@@ -2467,41 +2435,40 @@ void R_DrawCylinder( vec_t* source, vec_t* delta, float width, float scale, floa
 		segments = NOISE_DIVISIONS;
 	}
 
-	length = Length(delta) * 0.01;
+	length = Length(delta) * 0.01f;
 
 	// Don't lose all of the noise/texture on short beams
-	if (length < 0.5)
-		length = 0.5;
+	if (length < 0.5f)
+		length = 0.5f;
 
-	div = 1.0 / (segments - 1);
+	div = 1.0f / (segments - 1);
 
 	vStep = length * div;		// Texture length texels per space pixel
 
-	vLast = fmod(freq * speed, 1.0);	// Scroll speed 3.5 -- initial texture position, scrolls 3.5/sec (1.0 is entire texture)
+	vLast = fmod(freq * speed, 1.0f);	// Scroll speed 3.5 -- initial texture position, scrolls 3.5/sec (1.0 is entire texture)
+	DCV_FlushIfLarge();
+	DCV_AddPolyIndices(DCV_GetVertCount(), segments * 2);
 
 	for (i = 0; i < segments; i++)
 	{
 		fraction = i * div;
 
-		point[0] = source[0] + sin(fraction * 2 * M_PI) * freq * delta[2];
-		point[1] = source[1] + cos(fraction * 2 * M_PI) * freq * delta[2];
+		point[0] = source[0] + sin(fraction * 2.0f * (float)M_PI) * freq * delta[2];
+		point[1] = source[1] + cos(fraction * 2.0f * (float)M_PI) * freq * delta[2];
 		point[2] = source[2] + width;
+		point2[0] = point[0];
+		point2[1] = point[1];
+		point2[2] = source[2] - width;
 
 		tri_Brightness(0);
-		tri_TexCoord2f(1, vLast);
-		tri_Vertex3fv(point);
-
-		point[0] = source[0] + sin(fraction * 2 * M_PI) * freq * (delta[2] + width);
-		point[1] = source[1] + cos(fraction * 2 * M_PI) * freq * (delta[2] + width);
-		point[2] = source[2] - width;
+		DCV_PushVertexLit(point, 1.0f, vLast);
 
 		tri_Brightness(1);
-		tri_TexCoord2f(0, vLast);
-		tri_Vertex3fv(point);
+		DCV_PushVertexLit(point2, 0.0f, vLast);
 
 		vLast += vStep; // advance texture scroll (v axis only)
 
-		vLast = fmod(vLast, 1.0);
+		vLast = fmod(vLast, 1.0f);
 	}
 }
 
@@ -2514,8 +2481,8 @@ void R_DrawBeamFollow( BEAM* pbeam )
 	vec3_t			delta;
 	float			fraction;
 	float			div;
-	float			vLast = 0.0;
-	float			vStep = 1.0;
+	float			vLast = 0.0f;
+	float			vStep = 1.0f;
 	vec3_t			last1, last2, screen, screenLast, tmp, normal;
 
 	R_FreeDeadParticles(&pbeam->particles);
@@ -2588,18 +2555,18 @@ void R_DrawBeamFollow( BEAM* pbeam )
 	VectorMA(delta, pbeam->width, normal, last1);
 	VectorMA(delta, -pbeam->width, normal, last2);
 
-	div = 1.0 / pbeam->amplitude;
+	div = 1.0f / pbeam->amplitude;
 	fraction = (pbeam->die - cl.time) * div;
 
 	for (; pHead; pHead = pHead->next)
 	{
+		DCV_FlushIfLarge();
+		DCV_AddPolyIndices(DCV_GetVertCount(), 4);
 		tri_Brightness(fraction);
-		tri_TexCoord2f(0, 0);
-		tri_Vertex3fv(last1);
+		DCV_PushVertexLit(last1, 0.0f, 0.0f);
 
 		tri_Brightness(fraction);
-		tri_TexCoord2f(1, 0);
-		tri_Vertex3fv(last2);
+		DCV_PushVertexLit(last2, 1.0f, 0.0f);
 
 		// Transform start into screen space
 		ScreenTransform(pHead->org, screen);
@@ -2623,20 +2590,18 @@ void R_DrawBeamFollow( BEAM* pbeam )
 		}
 		else
 		{
-			fraction = 0.0;
+			fraction = 0.0f;
 		}
 
 		tri_Brightness(fraction);
-		tri_TexCoord2f(1, 1);
-		tri_Vertex3fv(last2);
+		DCV_PushVertexLit(last2, 1.0f, 1.0f);
 
 		tri_Brightness(fraction);
-		tri_TexCoord2f(0, 1);
-		tri_Vertex3fv(last1);
+		DCV_PushVertexLit(last1, 0.0f, 1.0f);
 
 		VectorCopy(screen, screenLast);
 
-		vLast = fmod(vLast, 1.0);
+		vLast = fmod(vLast, 1.0f);
 	}
 
 	// Drift popcorn trail if there is a velocity
@@ -2661,29 +2626,29 @@ void R_DrawRing( vec_t* source, vec_t* delta, float width, float amplitude, floa
 		return;
 
 	VectorClear(screenLast);
-	segments = segments * M_PI;
+	segments = segments * (float)M_PI;
 
 	if (segments > NOISE_DIVISIONS * 8)		// UNDONE: Allow more segments?
 	{
 		segments = NOISE_DIVISIONS * 8;
 	}
 
-	length = Length(delta) * 0.01 * M_PI;
-	if (length < 0.5)	// Don't lose all of the noise/texture on short beams
-		length = 0.5;
+	length = Length(delta) * 0.01f * (float)M_PI;
+	if (length < 0.5f)	// Don't lose all of the noise/texture on short beams
+		length = 0.5f;
 
-	div = 1.0 / (segments - 1);
+	div = 1.0f / (segments - 1);
 
-	vStep = length * div / 8.0;	// Texture length texels per space pixel
+	vStep = length * div / 8.0f;	// Texture length texels per space pixel
 
 	vLast = fmod(freq * speed, 1);	// Scroll speed 3.5 -- initial texture position, scrolls 3.5/sec (1.0 is entire texture)
-	scale = amplitude * length / 8.0;
+	scale = amplitude * length / 8.0f;
 
 	// Iterator to resample noise waveform (it needs to be generated in powers of 2)
-	noiseStep = (int)(NOISE_DIVISIONS * div * 65536.0) * 8;
+	noiseStep = (int)(NOISE_DIVISIONS * div * 65536.0f) * 8;
 	noiseIndex = 0;
 
-	VectorScale(delta, 0.5, delta);
+	VectorScale(delta, 0.5f, delta);
 	VectorAdd(source, delta, center);
 	zaxis[0] = 0; zaxis[1] = 0; zaxis[2] = 1;
 
@@ -2713,12 +2678,14 @@ void R_DrawRing( vec_t* source, vec_t* delta, float width, float amplitude, floa
 	VectorScale(yaxis, radius, yaxis);
 
 	j = segments / 8;
+	DCV_FlushIfLarge();
+	DCV_AddPolyIndices(DCV_GetVertCount(), segments * 2);
 
 	for (i = 0; i < segments + 1; i++)
 	{
 		fraction = i * div;
-		x = sin(fraction * 2 * M_PI);
-		y = cos(fraction * 2 * M_PI);
+		x = sin(fraction * 2.0f * (float)M_PI);
+		y = cos(fraction * 2.0f * (float)M_PI);
 
 		point[0] = center[0] + xaxis[0] * x + yaxis[0] * y;
 		point[1] = center[1] + xaxis[1] * x + yaxis[1] * y;
@@ -2730,7 +2697,7 @@ void R_DrawRing( vec_t* source, vec_t* delta, float width, float amplitude, floa
 
 		// Rotate the noise along the perpendicluar axis a bit to keep the bolt from looking diagonal
 		factor = gNoise[(noiseIndex >> 16) & (NOISE_DIVISIONS - 1)] * scale;
-		factor *= cos(fraction * M_PI * 24 + freq);
+		factor *= cos(fraction * (float)M_PI * 24.0f + freq);
 		VectorMA(point, factor, vright, point);
 
 		// Transform start into screen space
@@ -2751,15 +2718,13 @@ void R_DrawRing( vec_t* source, vec_t* delta, float width, float amplitude, floa
 			VectorMA(point, -width, normal, last2);
 
 			vLast += vStep;	// Advance texture scroll (v axis only)
-			tri_TexCoord2f(1, vLast);
-			tri_Vertex3fv(last2);
-			tri_TexCoord2f(0, vLast);
-			tri_Vertex3fv(last1);
+			DCV_PushVertexLit(last2, 1.0f, vLast);
+			DCV_PushVertexLit(last1, 0.0f, vLast);
 		}
 
 		VectorCopy(screen, screenLast);
 
-		vLast = fmod(vLast, 1.0);
+		vLast = fmod(vLast, 1.0f);
 		noiseIndex += noiseStep;
 
 		j--;
@@ -2799,26 +2764,6 @@ void ParticleBox( vec_t* mins, vec_t* maxs )
 	ParticleLine(maxs[0], maxs[1], mins[2], maxs[0], maxs[1], maxs[2]);
 	ParticleLine(maxs[0], mins[1], mins[2], maxs[0], mins[1], maxs[2]);
 }
-
-#if !defined( GLQUAKE )
-/*
-===============
-R_TriangleFakeTexture
-===============
-*/
-int R_TriangleFakeTexture( float r, float g, float b, float a )
-{
-	static byte fakeTex[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-	static word fakePal[4] = { 128, 128, 128, 128 };
-
-	fakePal[0] = ((int)(b * a * 255.0)) & 0xFF;
-	fakePal[1] = ((int)(g * a * 255.0)) & 0xFF;
-	fakePal[2] = ((int)(r * a * 255.0)) & 0xFF;
-	fakePal[3] = 0;
-	R_TriangleSetTexture(fakeTex, 1, 1, fakePal);
-	return TRUE;
-}
-#endif
 
 // Cull beam by bbox
 int R_BeamCull( vec_t* start, vec_t* end, int pvsOnly )
@@ -2911,7 +2856,7 @@ void R_BeamDraw( BEAM* pbeam, float frametime )
 			cl_entity_t* start;
 
 			start = &cl_entities[BEAMENT_ENTITY(pbeam->startEntity)];
-			if (start->model)
+			if (start->model && (!pbeam->pFollowModel || pbeam->pFollowModel == start->model))
 			{
 				float* attachmentPoint;
 
@@ -2919,6 +2864,8 @@ void R_BeamDraw( BEAM* pbeam, float frametime )
 				VectorCopy(attachmentPoint, pbeam->source);
 
 				pbeam->flags |= FBEAM_STARTVISIBLE;
+				if (!pbeam->pFollowModel)
+					pbeam->pFollowModel = start->model;
 			}
 			else
 			{
@@ -2963,10 +2910,10 @@ void R_BeamDraw( BEAM* pbeam, float frametime )
 		VectorSubtract(pbeam->target, pbeam->source, difference);
 		VectorCopy(difference, pbeam->delta);
 		
-		if (pbeam->amplitude >= 0.50)
-			pbeam->segments = Length(pbeam->delta) * 0.25 + 3; // one per 4 pixels
+		if (pbeam->amplitude >= 0.50f)
+			pbeam->segments = Length(pbeam->delta) * 0.25f + 3; // one per 4 pixels
 		else
-			pbeam->segments = Length(pbeam->delta) * 0.075 + 3; // one per 16 pixels
+			pbeam->segments = Length(pbeam->delta) * 0.075f + 3; // one per 16 pixels
 	}
 
 	if ((pbeam->type != TE_BEAMPOINTS || R_BeamCull(pbeam->source, pbeam->target, FALSE))
@@ -2978,15 +2925,15 @@ void R_BeamDraw( BEAM* pbeam, float frametime )
 			vec3_t org, speed;
 			float length;
 
-			VectorMA(pbeam->target, sin(pbeam->freq * 10.0) * egon_amplitude.value * pbeam->amplitude, vup, org);
-			VectorMA(org, cos(pbeam->freq * 10.0) * egon_amplitude.value * pbeam->amplitude, vright, org);
+			VectorMA(pbeam->target, sin(pbeam->freq * 10.0f) * egon_amplitude.value * pbeam->amplitude, vup, org);
+			VectorMA(org, cos(pbeam->freq * 10.0f) * egon_amplitude.value * pbeam->amplitude, vright, org);
 
 			VectorSubtract(pbeam->source, org, speed);
 			length = Length(speed);
 			if (length != 0)
-				VectorScale(speed, 1000.0 / length, speed);
+				VectorScale(speed, 1000.0f / length, speed);
 
-			p = R_TracerParticles(org, speed, length * 0.001);
+			p = R_AllocTracer(org, speed, length * 0.001f);
 			if (p)
 				p->color = 7;
 		}
@@ -2994,12 +2941,12 @@ void R_BeamDraw( BEAM* pbeam, float frametime )
 		// update life cycle
 		pbeam->t = pbeam->freq + (pbeam->die - cl.time);
 		if (pbeam->t != 0)
-			pbeam->t = 1.0 - (pbeam->freq / pbeam->t);
+			pbeam->t = 1.0f - (pbeam->freq / pbeam->t);
 
 		if (pbeam->flags & FBEAM_FADEIN)
 			tri_Color4f(pbeam->r, pbeam->g, pbeam->b, pbeam->t * pbeam->brightness);
 		else if (pbeam->flags & FBEAM_FADEOUT)
-			tri_Color4f(pbeam->r, pbeam->g, pbeam->b, (1.0 - pbeam->t) * pbeam->brightness);
+			tri_Color4f(pbeam->r, pbeam->g, pbeam->b, (1.0f - pbeam->t) * pbeam->brightness);
 		else
 			tri_Color4f(pbeam->r, pbeam->g, pbeam->b, pbeam->brightness);
 
@@ -3062,16 +3009,12 @@ void R_BeamDrawList( void )
 		return;
 
 	frametime = cl.time - cl.oldtime;
-#if 0
-	qglDisable(GL_ALPHA_TEST);
-	qglDepthMask(GL_FALSE);
-#endif
 	tri_CullFace(TRI_NONE);
 
 	for (;;)
 	{
 		pkill = gpActiveBeams;
-		if (pkill && pkill->die < cl.time && !(pkill->flags & FBEAM_FOREVER))
+		if (pkill && !(pkill->flags & FBEAM_FOREVER) && pkill->die < cl.time)
 		{
 			gpActiveBeams = pkill->next;
 			pkill->next = gpFreeBeams;
@@ -3086,7 +3029,7 @@ void R_BeamDrawList( void )
 		for (;;)
 		{
 			pkill = pbeam->next;
-			if (pkill && pkill->die <= cl.time && !(pkill->flags & FBEAM_FOREVER))
+			if (pkill && !(pkill->flags & FBEAM_FOREVER) && pkill->die <= cl.time)
 			{
 				pbeam->next = pkill->next;
 				pkill->next = gpFreeBeams;
@@ -3101,9 +3044,6 @@ void R_BeamDrawList( void )
 
 	R_DrawBeamEntList(frametime);
 
-#if 0
-	qglDepthMask(GL_TRUE);
-#endif
 	tri_CullFace(TRI_FRONT);
 	tri_RenderMode(kRenderNormal);
 }

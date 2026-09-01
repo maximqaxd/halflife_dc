@@ -1,6 +1,7 @@
 // dc_rmisc.c
 
 #include "quakedef.h"
+#include "pr_cmds.h"
 
 cvar_t	r_cachestudio = { "r_cachestudio", "1" };
 cvar_t	r_norefresh = { "r_norefresh", "0" };
@@ -53,10 +54,10 @@ cvar_t	progress = { "progress", "0.0" };
 cvar_t	profilescale = { "profilescale", "0" };
 cvar_t	profilemeter = { "profilemeter", "0" };
 
-cvar_t	dc_light_min = { "dc_light_min", "0.04" };
-cvar_t	dc_light_max = { "dc_light_max", "1" };
-cvar_t	dc_light_alpha = { "dc_light_alpha", "2.0" };
-cvar_t	dc_light_beta = { "dc_light_beta", "0" };
+cvar_t	dc_light_min = { "dc_light_min", "0.04", 0, 0.04f };
+cvar_t	dc_light_max = { "dc_light_max", "1", 0, 1.0f };
+cvar_t	dc_light_alpha = { "dc_light_alpha", "2.0", 0, 2.0f };
+cvar_t	dc_light_beta = { "dc_light_beta", "0", 0, 0.0f };
 
 cvar_t	dc_depthhud = { "dc_depthhud", "-0.1" };
 cvar_t	dc_depthminhud = { "dc_depthminhud", "-0.4" };
@@ -113,46 +114,70 @@ void R_UploadEmptyTex( void )
 	r_notexture_mip->gl_texturenum = GL_LoadTexture("**empty**", GLT_SYSTEM, r_notexture_mip->width, r_notexture_mip->height, (byte*)(r_notexture_mip + 1), TRUE, TEX_TYPE_NONE, pPal);
 }
 
-byte	dottexture[8][8] =
+byte	dottexture[16][16] =
 {
-	{0,1,1,0,0,0,0,0},
-	{1,1,1,1,0,0,0,0},
-	{1,1,1,1,0,0,0,0},
-	{0,1,1,0,0,0,0,0},
-	{0,0,0,0,0,0,0,0},
-	{0,0,0,0,0,0,0,0},
-	{0,0,0,0,0,0,0,0},
-	{0,0,0,0,0,0,0,0},
+	{ 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 3, 7, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 3, 5, 8, 5, 3, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 4, 5, 6, 7, 8, 9, 8, 7, 6, 5, 4, 0, 0, 0, 0 },
+	{ 0, 0, 0, 3, 5, 8, 5, 3, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 3, 7, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 };
 void R_InitParticleTexture( void )
 {
 	int		x, y;
-	byte	data[8][8][4];
+	int		alpha;
+	float		distance;
+	byte	data[16][16][4];
+	byte	puff[32][32][4];
 
 	//
 	// particle texture
 	//
-	particletexture = texture_extension_number++;
-	GL_Bind(particletexture, 0);
-
-	for (x = 0; x < 8; x++)
+	for (x = 0; x < 16; x++)
 	{
-		for (y = 0; y < 8; y++)
+		for (y = 0; y < 16; y++)
 		{
 			data[y][x][0] = 255;
 			data[y][x][1] = 255;
 			data[y][x][2] = 255;
-			data[y][x][3] = dottexture[x][y] * 255;
+			data[y][x][3] = dottexture[y][x] * 28;
 		}
 	}
-#if 0
-	qglTexImage2D(GL_TEXTURE_2D, 0, 4, 8, 8, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
-	qglTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	particletexture = DC_LoadTexture("particle_star", GLT_SYSTEM, 16, 16,
+		data, FALSE, TEX_TYPE_RGBA, NULL);
 
-	qglTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	qglTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-#endif
+	for (x = 0; x < 32; x++)
+	{
+		for (y = 0; y < 32; y++)
+		{
+			puff[y][x][0] = 255;
+			puff[y][x][1] = 255;
+			puff[y][x][2] = 255;
+			distance = sqrtf((float)((8 - x) * (8 - x) + (8 - y) * (8 - y)));
+			alpha = (int)((128 - RandomLong(0, 32)) -
+				distance * 18.0f);
+			if (alpha < 0)
+				alpha = 0;
+			if (alpha > 128)
+				alpha = 128;
+			puff[y][x][3] = alpha;
+		}
+	}
+
+	particlepufftexture = DC_LoadTexture("particle_puff", GLT_SYSTEM, 32, 32,
+		puff, FALSE, TEX_TYPE_RGBA, NULL);
 }
 
 /*

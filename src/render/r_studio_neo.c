@@ -1574,7 +1574,7 @@ void R_StudioDrawPoints_Neo( void )
 		else
 		{
 			flags &= ~(STUDIO_NF_FLATSHADE | STUDIO_NF_CHROME);
-			R_BindSpriteFrame(cl_sprite_white, 0);
+			R_TriangleSpriteTexture(cl_sprite_white, 0);
 		}
 
 		c_alias_polys += mesh->numtris;
@@ -1659,7 +1659,7 @@ void R_StudioDrawPointsSimple_Neo( void )
 		else
 		{
 			flags &= ~(STUDIO_NF_FLATSHADE | STUDIO_NF_CHROME);
-			R_BindSpriteFrame(cl_sprite_white, 0);
+			R_TriangleSpriteTexture(cl_sprite_white, 0);
 		}
 
 		c_alias_polys += mesh->numtris;

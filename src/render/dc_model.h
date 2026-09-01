@@ -415,6 +415,21 @@ typedef struct cache_user_s
 } cache_user_t;
 #endif
 
+/* Mode 1 texel encoding: a stream of unsigned shorts, one per texel, row-major.
+ * Bit 15 clear -> an absolute RGB555 sample (5 bits/channel, R:14-10 G:9-5 B:4-0,
+ * each widened to 0-248 by <<3). Bit 15 set -> a signed delta from the *previous*
+ * texel's decoded R/G/B: R has its own sign (bit14) and 4-bit magnitude (13-10);
+ * G and B share one sign bit (9) with their own 4-bit magnitudes (8-5 and 3-0). */
+#define LT2D_DELTA_FLAG   0x8000
+#define LT2D_R_MASK_ABS   0x7c00
+#define LT2D_G_MASK_ABS   0x03e0
+#define LT2D_B_MASK_ABS   0x001f
+#define LT2D_R_SIGN       0x4000
+#define LT2D_R_MAG_MASK   0x3c00
+#define LT2D_GB_SIGN      0x0200
+#define LT2D_G_MAG_MASK   0x01e0
+#define LT2D_B_MAG_MASK   0x000f
+
 typedef struct model_s
 {
 	char		name[48];		// DC uses a compact model-name buffer (needload@0x30)

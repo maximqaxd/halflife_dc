@@ -1,6 +1,7 @@
 // chase.c -- chase camera code
 
 #include "quakedef.h"
+#include <floatmathlib.h>
 
 cvar_t chase_back = { "chase_back", "100" };
 cvar_t chase_up = { "chase_up", "16" };
@@ -45,6 +46,7 @@ void Chase_Update( void )
 	float	dist;
 	vec3_t	forward, up, right;
 	vec3_t	dest, stop;
+	trace_t trace;
 
 
 	// if can't see player, reset
@@ -59,14 +61,18 @@ void Chase_Update( void )
 
 	// find the spot the player is looking at
 	VectorMA(r_refdef.vieworg, 4096.0f, forward, dest);
-	TraceLine(r_refdef.vieworg, dest, stop);
+	memset(&trace, 0, sizeof(trace));
+	SV_RecursiveHullTrace(cl.worldmodel->hulls, 0, 0.0f, 1.0f,
+		r_refdef.vieworg, dest, &trace);
+	VectorCopy(trace.endpos, stop);
 
 	// calculate pitch to look at the same spot from camera
 	VectorSubtract(stop, r_refdef.vieworg, stop);
 	dist = DotProduct(stop, forward);
 	if (dist < 1.0f)
 		dist = 1.0f;
-	r_refdef.viewangles[PITCH] = -(float)atan(stop[2] / dist) / (float)M_PI * 180.0f;
+	r_refdef.viewangles[PITCH] = -atan(stop[2] / dist);
+	r_refdef.viewangles[PITCH] /= (float)M_PI * 180.0f;
 
 	// move towards destination
 	VectorCopy(chase_dest, r_refdef.vieworg);

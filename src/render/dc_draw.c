@@ -2670,29 +2670,3 @@ void GL_PaletteClearSky( void )
 {
 	Sys_Error("GL_PaletteClearSky no longer used\n");
 }
-
-float	g_flHudDepth;		// current HUD depth sublayer
-
-/*
-================
-DCV_SetHudDepth
-
-Set up a 2D orthographic projection for the HUD and place it at one of the depth
-sublayers between dc_msh and dc_msh2, so overlapping HUD elements sort correctly.
-================
-*/
-void DCV_SetHudDepth( float layer )
-{
-	DCV_SetViewport(glx, gly, glwidth, glheight);
-	DCV_SetTransform(3, &g_identityMatrix);
-
-	g_flHudDepth = layer;
-
-	DCV_Ortho(3, 0.0f, (float)glwidth, (float)glheight, 0.0f, 10.0f, -10.0f,
-		dc_msh.value + (dc_msh2.value - dc_msh.value) * layer);
-
-	DCV_SetTransform(2, &g_identityMatrix);
-	DCV_SetTransform(1, &g_identityMatrix);
-
-	DCV_SetViewportDepthRange(dc_depthminhud.value, dc_depthmaxhud.value);
-}

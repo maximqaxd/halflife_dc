@@ -197,6 +197,7 @@ extern	int	currenttexture;
 extern	int	cnttextures[2];
 
 extern	int	particletexture;
+extern	int	particlepufftexture;
 extern	int	playertextures;
 
 extern	int	skytexturenum;		// index in cl.loadmodel, not gl texture object
@@ -361,7 +362,6 @@ void		DCV_SetHudDepth( float layer );
 void		DCV_Flip( void );
 void		DCV_InvalidateTextureCache( void );
 void		DCV_SetupFog( void );
-int			DCV_LT2Decode( const byte* in, int in_size, color24* out, int w, int h );
 
 //
 // dc_rmain.c / dc_warp.c -- world view transform + water shading
@@ -382,6 +382,7 @@ extern int		char_texture;
 extern short	g_iPalIdxDefault;
 extern short	g_iPalIdxClass6;
 extern short	g_iPalIdxClass9;
+extern byte	g_GammaTable256[256];
 int		DC_GetPaletteIndex( unsigned char* pPal );
 
 //

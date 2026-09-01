@@ -332,6 +332,7 @@ typedef struct
 	float		laststop;
 
 	float		viewheight;
+	float		viewheight_unused;
 
 	screenfade_t sf;
 

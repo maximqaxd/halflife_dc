@@ -96,7 +96,6 @@ void R_StudioRenderMeshChrome( void );
 void R_StudioBuildTriangleStrips( short* commands );
 studiohdr_t* R_StudioGetTextureHeader( model_t* model );
 void R_StudioSetupPlayerSkin( studiohdr_t* textureHeader, int textureIndex );
-int R_BindSpriteFrame( model_t* sprite, int frame );
 void R_StudioRemapPaletteRange( byte* palette, int color, int first, int last );
 void R_StudioChromeForMesh( int count, int normalIndex, const char* pnormbone, const vec3_t* pstudionorms );
 void R_StudioSetupSkin( mstudiotexture_t* ptexture );
@@ -111,7 +110,6 @@ static void R_StudioPlayerBlend( mstudioseqdesc_t* sequence, int* blend, float* 
 
 static studiohdr_t* (* volatile g_pStudioGetTextureHeader)(model_t*) = R_StudioGetTextureHeader;
 static void (* volatile g_pStudioSetupPlayerSkin)(studiohdr_t*, int) = R_StudioSetupPlayerSkin;
-static int (* volatile g_pBindSpriteFrame)(model_t*, int) = R_BindSpriteFrame;
 
 extern	vec3_t	shadevector;
 
@@ -3601,7 +3599,7 @@ void R_StudioRenderMeshChrome( void )
 		else
 		{
 			textureFlags &= ~(STUDIO_NF_FLATSHADE | STUDIO_NF_CHROME);
-			R_BindSpriteFrame(cl_sprite_white, 0);
+			R_TriangleSpriteTexture(cl_sprite_white, 0);
 		}
 
 		c_alias_polys += mesh[i].numtris;
@@ -4044,7 +4042,7 @@ void R_StudioDrawPoints( void )
 		else
 		{
 			flags = 0;
-			g_pBindSpriteFrame(cl_sprite_white, 0);
+			R_TriangleSpriteTexture(cl_sprite_white, 0);
 		}
 
 		c_alias_polys += mesh->numtris;
@@ -4111,21 +4109,6 @@ void R_StudioDrawPoints( void )
 	submit_points_mesh:
 		DCV_SubmitBatchCopy();
 	}
-}
-
-int R_BindSpriteFrame( model_t* sprite, int frame )
-{
-	mspriteframe_t*		spriteFrame;
-	unsigned int		data;
-
-	data = (unsigned int)sprite->cache.data;
-	if (data & 1)
-		data = 0;
-	spriteFrame = R_GetSpriteFrame((msprite_t*)data, frame);
-	if (spriteFrame == NULL)
-		return 0;
-	GL_Bind(spriteFrame->gl_texturenum, 0);
-	return 1;
 }
 
 void R_StudioRemapPaletteRange( byte* palette, int color, int first, int last )

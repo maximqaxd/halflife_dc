@@ -229,7 +229,7 @@ void R_TracerEffect( vec_t* start, vec_t* end )
 	VectorAdd(start, vel, start);
 	VectorScale(temp, tracerSpeed.value, vel);
 
-	R_TracerParticles(start, vel, len / tracerSpeed.value);
+	R_AllocTracer(start, vel, len / tracerSpeed.value);
 }
 
 /*
@@ -1188,14 +1188,14 @@ void CL_ParseTEnt( void )
 	int		colorStart, colorLength;
 	dlight_t* dl;
 	int		startEnt, endEnt;
-	int		startFrame;
 	int		count;
 	float	life;
 	float	scale;
 	float	flSpeed;
-	float	r, g, b, a;
+	float	a;
 	float	frameRate;
 	int		flags;
+	BEAMINFO beamInfo;
 
 	type = MSG_ReadByte();
 	switch (type)
@@ -1204,10 +1204,6 @@ void CL_ParseTEnt( void )
 	case TE_BEAMENTPOINT:
 	case TE_BEAMENTS:
 	{
-		float width;
-		float amplitude;
-		float flSpeed;
-
 		if (type == TE_BEAMENTS)
 		{
 			startEnt = MSG_ReadShort();
@@ -1232,32 +1228,32 @@ void CL_ParseTEnt( void )
 			endpos[2] = MSG_ReadCoord();
 		}
 
-		modelindex = MSG_ReadShort();
+		beamInfo.modelIndex = MSG_ReadShort();
 
-		startFrame = MSG_ReadByte();
-		frameRate = MSG_ReadByte() * 0.1;
+		beamInfo.startFrame = MSG_ReadByte();
+		beamInfo.frameRate = MSG_ReadByte() * 0.1f;
 
-		life = MSG_ReadByte() * 0.1;
-		width = MSG_ReadByte() * 0.1;
-		amplitude = MSG_ReadByte() * 0.01;
+		beamInfo.life = MSG_ReadByte() * 0.1f;
+		beamInfo.width = MSG_ReadByte() * 0.1f;
+		beamInfo.amplitude = MSG_ReadByte() * 0.01f;
 
-		r = MSG_ReadByte() / 255.0;
-		g = MSG_ReadByte() / 255.0;
-		b = MSG_ReadByte() / 255.0;
-		a = MSG_ReadByte() / 255.0;
+		beamInfo.r = MSG_ReadByte() / 255.0f;
+		beamInfo.g = MSG_ReadByte() / 255.0f;
+		beamInfo.b = MSG_ReadByte() / 255.0f;
+		beamInfo.brightness = MSG_ReadByte() / 255.0f;
 
-		flSpeed = MSG_ReadByte() * 0.1;
+		beamInfo.speed = MSG_ReadByte() * 0.1f;
 
 		switch (type)
 		{
 		case TE_BEAMENTS:
-			R_BeamEnts(startEnt, endEnt, modelindex, life, width, amplitude, a, flSpeed, startFrame, frameRate, r, g, b);
+			R_BeamEnts(startEnt, endEnt, &beamInfo);
 			break;
 		case TE_BEAMENTPOINT:
-			R_BeamEntPoint(startEnt, endpos, modelindex, life, width, amplitude, a, flSpeed, startFrame, frameRate, r, g, b);
+			R_BeamEntPoint(startEnt, endpos, &beamInfo);
 			break;
 		case TE_BEAMPOINTS:
-			R_BeamPoints(pos, endpos, modelindex, life, width, amplitude, a, flSpeed, startFrame, frameRate, r, g, b);
+			R_BeamPoints(pos, endpos, &beamInfo);
 			break;
 		}
 		break;
@@ -1377,20 +1373,19 @@ void CL_ParseTEnt( void )
 
 	case TE_LIGHTNING:				// lightning bolts
 	{
-		float width;
-		float amplitude;
-
 		pos[0] = MSG_ReadCoord();
 		pos[1] = MSG_ReadCoord();
 		pos[2] = MSG_ReadCoord();
 		endpos[0] = MSG_ReadCoord();
 		endpos[1] = MSG_ReadCoord();
 		endpos[2] = MSG_ReadCoord();
-		life = MSG_ReadByte() * 0.1;
-		width = MSG_ReadByte() * 0.1;
-		amplitude = MSG_ReadByte() * 0.01;
-		modelindex = MSG_ReadShort();
-		R_BeamLightning(pos, endpos, modelindex, life, width, amplitude, 0.6, 3.5);
+		beamInfo.life = MSG_ReadByte() * 0.1f;
+		beamInfo.width = MSG_ReadByte() * 0.1f;
+		beamInfo.amplitude = MSG_ReadByte() * 0.01f;
+		beamInfo.modelIndex = MSG_ReadShort();
+		beamInfo.brightness = 0.6f;
+		beamInfo.speed = 3.5f;
+		R_BeamLightning(pos, endpos, &beamInfo);
 		break;
 	}
 
@@ -1550,10 +1545,20 @@ void CL_ParseTEnt( void )
 		endpos[1] = MSG_ReadCoord();
 		endpos[2] = MSG_ReadCoord();
 
-		modelindex = MSG_ReadShort();	// beam modelindex
+		beamInfo.modelIndex = MSG_ReadShort();	// beam modelindex
 		modelindex2 = MSG_ReadShort();	// sprite modelindex
 
-		R_BeamPoints(pos, endpos, modelindex, 0.01, 0.4, 0, RandomFloat(0.5, 0.655), 5, 0, 0, 1, 0, 0);
+		beamInfo.life = 0.01f;
+		beamInfo.width = 0.4f;
+		beamInfo.amplitude = 0.0f;
+		beamInfo.brightness = RandomFloat(0.5f, 0.655f);
+		beamInfo.speed = 5.0f;
+		beamInfo.startFrame = 0;
+		beamInfo.frameRate = 0.0f;
+		beamInfo.r = 1.0f;
+		beamInfo.g = 0.0f;
+		beamInfo.b = 0.0f;
+		R_BeamPoints(pos, endpos, &beamInfo);
 		R_TempSprite(endpos, vec3_origin, 0.1, modelindex2, kRenderTransAdd, kRenderFxNone, 0.35, 0.01, 0);
 		break;
 
@@ -1561,9 +1566,6 @@ void CL_ParseTEnt( void )
 	case TE_BEAMDISK:
 	case TE_BEAMCYLINDER:
 	{
-		float width;
-		float amplitude;
-
 		pos[0] = MSG_ReadCoord();
 		pos[1] = MSG_ReadCoord();
 		pos[2] = MSG_ReadCoord();
@@ -1572,40 +1574,39 @@ void CL_ParseTEnt( void )
 		endpos[1] = MSG_ReadCoord();
 		endpos[2] = MSG_ReadCoord();
 
-		modelindex = MSG_ReadShort();
-		startFrame = MSG_ReadByte();
-		frameRate = MSG_ReadByte() * 0.1;
-		life = MSG_ReadByte() * 0.1;
-		width = MSG_ReadByte();
-		amplitude = MSG_ReadByte() * 0.01;
+		beamInfo.modelIndex = MSG_ReadShort();
+		beamInfo.startFrame = MSG_ReadByte();
+		beamInfo.frameRate = MSG_ReadByte() * 0.1f;
+		beamInfo.life = MSG_ReadByte() * 0.1f;
+		beamInfo.width = MSG_ReadByte();
+		beamInfo.amplitude = MSG_ReadByte() * 0.01f;
 
-		r = MSG_ReadByte() / 255.0;
-		g = MSG_ReadByte() / 255.0;
-		b = MSG_ReadByte() / 255.0;
-		a = MSG_ReadByte() / 225.0;
+		beamInfo.r = MSG_ReadByte() / 255.0f;
+		beamInfo.g = MSG_ReadByte() / 255.0f;
+		beamInfo.b = MSG_ReadByte() / 255.0f;
+		beamInfo.brightness = MSG_ReadByte() / 225.0f;
 
-		flSpeed = MSG_ReadByte() * 0.1;
+		beamInfo.speed = MSG_ReadByte() * 0.1f;
 
-		R_BeamCirclePoints(type, pos, endpos, modelindex, life, width, amplitude, a, flSpeed, startFrame, frameRate, r, g, b);
+		R_BeamCirclePoints(type, pos, endpos, &beamInfo);
 		break;
 	}
 
 	case TE_BEAMFOLLOW:
 	{
-		float width;
-
 		startEnt = MSG_ReadShort();
-		modelindex = MSG_ReadShort();
+		beamInfo.modelIndex = MSG_ReadShort();
 
-		life = MSG_ReadByte() * 0.1;
-		width = MSG_ReadByte();
+		beamInfo.life = MSG_ReadByte() * 0.1f;
+		beamInfo.width = MSG_ReadByte();
+		beamInfo.amplitude = beamInfo.life;
 
-		r = MSG_ReadByte() / 255.0;
-		g = MSG_ReadByte() / 255.0;
-		b = MSG_ReadByte() / 255.0;
-		a = MSG_ReadByte() / 255.0;
+		beamInfo.r = MSG_ReadByte() / 255.0f;
+		beamInfo.g = MSG_ReadByte() / 255.0f;
+		beamInfo.b = MSG_ReadByte() / 255.0f;
+		beamInfo.brightness = MSG_ReadByte() / 255.0f;
 
-		R_BeamFollow(startEnt, modelindex, life, width, r, g, b, a);
+		R_BeamFollow(startEnt, &beamInfo);
 		break;
 	}
 
@@ -1624,27 +1625,24 @@ void CL_ParseTEnt( void )
 
 	case TE_BEAMRING:
 	{
-		float width;
-		float amplitude;
-
 		startEnt = MSG_ReadShort();
 		endEnt = MSG_ReadShort();
-		modelindex = MSG_ReadShort();
+		beamInfo.modelIndex = MSG_ReadShort();
 
-		startFrame = MSG_ReadByte();
-		frameRate = MSG_ReadByte() * 0.1;
-		life = MSG_ReadByte() * 0.1;
-		width = MSG_ReadByte() * 0.1;
-		amplitude = MSG_ReadByte() * 0.01;
+		beamInfo.startFrame = MSG_ReadByte();
+		beamInfo.frameRate = MSG_ReadByte() * 0.1f;
+		beamInfo.life = MSG_ReadByte() * 0.1f;
+		beamInfo.width = MSG_ReadByte() * 0.1f;
+		beamInfo.amplitude = MSG_ReadByte() * 0.01f;
 
-		r = MSG_ReadByte() / 255.0;
-		g = MSG_ReadByte() / 255.0;
-		b = MSG_ReadByte() / 255.0;
-		a = MSG_ReadByte() / 255.0;
+		beamInfo.r = MSG_ReadByte() / 255.0f;
+		beamInfo.g = MSG_ReadByte() / 255.0f;
+		beamInfo.b = MSG_ReadByte() / 255.0f;
+		beamInfo.brightness = MSG_ReadByte() / 255.0f;
 
-		flSpeed = MSG_ReadByte() * 0.1;
+		beamInfo.speed = MSG_ReadByte() * 0.1f;
 
-		R_BeamRing(startEnt, endEnt, modelindex, life, width, amplitude, a, flSpeed, startFrame, frameRate, r, g, b);
+		R_BeamRing(startEnt, endEnt, &beamInfo);
 		break;
 	}
 
@@ -1827,7 +1825,6 @@ void CL_ParseTEnt( void )
 	case TE_GUNSHOTDECAL:
 	{
 		int decalTextureIndex;
-		TEMPENTITY* pTemp;
 
 		pos[0] = MSG_ReadCoord();
 		pos[1] = MSG_ReadCoord();
@@ -1836,8 +1833,7 @@ void CL_ParseTEnt( void )
 		entnumber = MSG_ReadShort();
 		decalTextureIndex = MSG_ReadByte();	
 
-		pTemp = CL_TempEntAlloc(pos, cl_sprite_shell);
-		R_Sprite_WallPuff(pTemp, 0.3);
+		R_ParticleWallPuff(pos);
 
 		iRand = RandomLong(0, 0x7FFF);
 		if (iRand < 0x3FFF)
@@ -2029,6 +2025,42 @@ void CL_ParseTEnt( void )
 		color = MSG_ReadByte();
 		fsize = MSG_ReadByte();
 		R_BloodSprite(pos, color, modelindex, modelindex2, fsize);
+		break;
+	}
+
+	case TE_PARTICLEBURST:
+	{
+		int radius;
+
+		pos[0] = MSG_ReadCoord();
+		pos[1] = MSG_ReadCoord();
+		pos[2] = MSG_ReadCoord();
+
+		radius = MSG_ReadShort();
+		color = MSG_ReadByte();
+		life = MSG_ReadByte() * 0.1f;
+
+		R_ParticleBurst(pos, radius, color, life);
+		break;
+	}
+
+	case TE_USERTRACER:
+	{
+		float length;
+
+		pos[0] = MSG_ReadCoord();
+		pos[1] = MSG_ReadCoord();
+		pos[2] = MSG_ReadCoord();
+
+		endpos[0] = MSG_ReadCoord();
+		endpos[1] = MSG_ReadCoord();
+		endpos[2] = MSG_ReadCoord();
+
+		life = MSG_ReadByte() * 0.1f;
+		color = MSG_ReadByte();
+		length = MSG_ReadByte() * 0.1f;
+
+		UserTracer(pos, endpos, life, color, length);
 		break;
 	}
 

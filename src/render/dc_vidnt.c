@@ -48,9 +48,6 @@ cvar_t		_windowed_mouse = { "_windowed_mouse", "0", FCVAR_ARCHIVE };
 int			window_center_x, window_center_y;
 RECT		window_rect;
 
-extern void	(*VID_GetVID)( struct viddef_s* pvid );
-extern char* (*VID_GetExtModeDescription)( int mode );
-
 extern int GlideReadPixels( int x, int y, int width, int height, word* pixels );
 
 
@@ -64,6 +61,42 @@ int		texture_mode = 0x2601;
 //int		texture_mode = GL_LINEAR_MIPMAP_LINEAR;
 
 int		texture_extension_number = 1;
+
+/*
+===============
+CheckTextureExtensions
+===============
+*/
+void CheckTextureExtensions( void )
+{
+}
+
+/*
+===============
+CheckArrayExtensions
+===============
+*/
+void CheckArrayExtensions( void )
+{
+}
+
+/*
+===============
+CheckMultiTextureExtensions
+===============
+*/
+void CheckMultiTextureExtensions( void )
+{
+}
+
+/*
+===============
+GL_Config
+===============
+*/
+void GL_Config( void )
+{
+}
 
 /*
 ===============
@@ -113,13 +146,11 @@ GL_BeginRendering
 */
 void GL_BeginRendering( int* x, int* y, int* width, int* height )
 {
-	*y = 0;
-	*x = 0;
-	*width  = window_rect.right - window_rect.left;
+	*x = *y = 0;
+	*width = window_rect.right - window_rect.left;
 	*height = window_rect.bottom - window_rect.top;
-
-	vid.conwidth  = vid.width  = *width;
-	vid.conheight = vid.height = *height;
+	vid.width = vid.conwidth = *width;
+	vid.height = vid.conheight = *height;
 
 	DCV_SetViewport(*x, *y, *width, *height);
 }
@@ -131,6 +162,10 @@ void GL_EndRendering( void )
 	DCV_Flip();
 }
 
+void VID_Update( struct vrect_s* rects )
+{
+}
+
 /*
 =================
 VID_DescribeMode_f
@@ -138,11 +173,31 @@ VID_DescribeMode_f
 */
 static char vid_describe_msg[256];
 
+char* VID_GetExtModeDescription( int mode );
+
 void VID_DescribeMode_f( void )
 {
-	Q_atoi(Cmd_Argv(1));
-	sprintf(vid_describe_msg, "FIXME: %s, %d", __FILE__, __LINE__);
-	Con_Printf("%s\n", vid_describe_msg);
+	int		modenum;
+
+	modenum = Q_atoi(Cmd_Argv(1));
+
+	Con_Printf("%s\n", VID_GetExtModeDescription(modenum));
+}
+
+//==========================================================================
+
+BOOL bSetupPixelFormat( HDC hDC )
+{
+	return TRUE;
+}
+
+DLL_EXPORT int GL_SetMode( HWND mainwindow, HDC* pmaindc, HGLRC* pbaseRC, int fD3D, char* pszDriver )
+{
+	return 0;
+}
+
+DLL_EXPORT void GL_Shutdown( HWND hwnd, HDC hdc, HGLRC hglrc )
+{
 }
 
 
@@ -215,14 +270,32 @@ DLL_EXPORT int VID_AllocBuffers( void )
 	return TRUE;
 }
 
-void VID_Shutdown ( void )
+DLL_EXPORT void VID_GetVID( viddef_t* pvid )
 {
-
+	if (pvid)
+		*pvid = vid;
 }
 
-void VID_Update ( struct vrect_s* rects )
+DLL_EXPORT void VID_FlipScreen( void )
 {
-	
+	DCV_Flip();
+}
+
+void VID_Shutdown( void )
+{
+}
+
+/*
+================
+VID_GetExtModeDescription
+
+Mode driver name shown by the "vid_describemode" console command.
+================
+*/
+char* VID_GetExtModeDescription( int mode )
+{
+	sprintf(vid_describe_msg, "FIXME: %s, %d", __FILE__, __LINE__);
+	return vid_describe_msg;
 }
 /*
 ================

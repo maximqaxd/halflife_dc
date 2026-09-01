@@ -23,6 +23,7 @@ extern int gmsgFade;
 #define FFADE_IN			0x0000		// Just here so we don't pass 0 into the function
 #define FFADE_OUT			0x0001		// Fade out (not in)
 #define FFADE_MODULATE		0x0002		// Modulate (don't blend)
+#define FFADE_STAYOUT		0x0004		// Ignore the duration and stay faded out
 
 
 // This structure is sent over the net to describe a screen fade event

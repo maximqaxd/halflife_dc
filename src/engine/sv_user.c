@@ -328,7 +328,8 @@ void SV_RunCmd( usercmd_t* ucmd )
 		VectorCopy(sv_player->v.basevelocity, sv_player->v.clbasevelocity);
 
 	VectorAdd(sv_player->v.v_angle, sv_player->v.punchangle, sv_player->v.v_angle);
-	sv_player->v.angles[ROLL] = V_CalcRoll(sv_player->v.angles, sv_player->v.velocity) * 4;
+	sv_player->v.angles[ROLL] = V_CalcRoll(sv_player->v.angles, sv_player->v.velocity,
+		cl_rollangle.value, cl_rollspeed.value) * 4;
 	if (sv_player->v.fixangle == 0)
 	{
 		sv_player->v.angles[PITCH] = -sv_player->v.v_angle[PITCH] / 3;

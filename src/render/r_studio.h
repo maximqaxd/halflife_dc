@@ -62,7 +62,7 @@ void	R_StudioGetAttachment_Neo( const edict_t* edict, int attachment,
 void	R_StudioTransformVerts_Neo( vec3_t* output, const char* normalIndices, int count );
 void	R_StudioTransformVertsMatrix_Neo( vec3_t* output, const char* bones, const char* normalIndices, int count );
 studiohdr_t* R_StudioGetTextureHeader( model_t* model );
-int		R_BindSpriteFrame( model_t* sprite, int frame );
+int		R_TriangleSpriteTexture( model_t* sprite, int frame );
 void	StudioTransformVerts( auxvert_t* output, const char* bones,
 	vec3_t* vertices, int count );
 

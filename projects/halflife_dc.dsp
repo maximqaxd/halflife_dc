@@ -2808,10 +2808,6 @@ SOURCE=..\src\render\text_draw.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\render\r_beams.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\src\render\dc_accum.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"

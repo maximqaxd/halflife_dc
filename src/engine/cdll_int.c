@@ -165,7 +165,6 @@ Called every frame while running a map
 void ClientDLL_UpdateClientData( void )
 {
 	client_data_t cdat;
-	int bits;
 
 	if (!cl.spectator)
 	{
@@ -179,10 +178,11 @@ void ClientDLL_UpdateClientData( void )
 		VectorCopy(cl_entities[cl.viewentity].origin, cdat.origin);
 		
 		cdat.iKeyBits = CL_ButtonBits(0);
-		bits = cdat.iKeyBits;
 
 		cdat.fov = scr_fov_value;
 		cdat.iWeaponBits = cl.weapons;
+		cdat.view_idlescale = v_idlescale;
+		cdat.mouse_sensitivity = sensitivity.value;
 
 		if (cl_funcs.pHudUpdateClientDataFunc(&cdat, cl.time))
 		{
@@ -193,9 +193,8 @@ void ClientDLL_UpdateClientData( void )
 			VectorCopy(cdat.punchangle, cl.punchangle);
 
 			scr_fov_value = cdat.fov;
-
-			if (bits != cdat.iKeyBits && cdat.iKeyBits - bits != -1)
-				Con_DPrintf("HUD changed ikeybits, xor %i diff %i\n", cdat.iKeyBits ^ bits, cdat.iKeyBits - bits);
+			sensitivity.value = cdat.mouse_sensitivity;
+			v_idlescale = cdat.view_idlescale;
 
 			CL_ResetButtonBits(cdat.iKeyBits);
 		}

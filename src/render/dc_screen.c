@@ -206,7 +206,7 @@ void SCR_DrawCenterString( void )
 	} while (1);
 }
 
-static __inline void SCR_CheckDrawCenterString( void )
+void SCR_CheckDrawCenterString( void )
 {
 	scr_copytop = 1;
 	if (scr_center_lines > scr_erase_lines)
@@ -258,19 +258,17 @@ static void SCR_CalcRefdef( void )
 	size = scr_viewsize.value;
 
 // intermission is always full screen
-	full = size;
 	if (cl.intermission)
 		full = 120.0f;
-
-	if (full < 120.0f)
-	{
-		if (full < 110.0f)
-			sb_lines = 48;
-		else
-			sb_lines = 24;
-	}
 	else
-		sb_lines = 0;
+		full = size;
+
+	if (full >= 120.0f)
+		sb_lines = 0;			// no status bar at all
+	else if (full >= 110.0f)
+		sb_lines = 24;			// no inventory
+	else
+		sb_lines = 24 + 16 + 8;
 
 	if (size > 100.0f)
 		size = 100.0f;
@@ -375,7 +373,41 @@ Draw_CenterPic
 */
 void Draw_CenterPic( qpic_t* pPic )
 {
-	Draw_Pic(320 - pPic->width / 2, 240 - pPic->height / 2, pPic);
+	int		x, y;
+
+	x = glwidth / 2;
+	y = glheight / 2;
+
+	Draw_Pic(x - pPic->width / 2, y - pPic->height / 2, pPic);
+}
+
+/*
+==============
+SCR_DrawRam
+==============
+*/
+void SCR_DrawRam( void )
+{
+	if (!scr_showram.value)
+		return;
+
+	if (!r_cache_thrash)
+		return;
+}
+
+/*
+==============
+SCR_DrawLoading
+==============
+*/
+void SCR_DrawLoading( void )
+{
+	if (!scr_drawloading)
+		return;
+
+	DCV_SetHudDepth(g_flHudDepth + 3.0f);
+	Draw_BeginDisc();
+	DCV_SetHudDepth(g_flHudDepth - 3.0f);
 }
 
 //=============================================================================
@@ -396,18 +428,15 @@ void SCR_SetUpToDrawConsole( void )
 // decide on the height of the console
 	con_forcedup = !cl.worldmodel || cls.signon != SIGNONS;
 
-	if (!con_forcedup)
-	{
-		if (key_dest == key_console)
-			scr_conlines = vid.height / 2;	// half screen
-		else
-			scr_conlines = 0;				// none visible
-	}
-	else
+	if (con_forcedup)
 	{
 		scr_conlines = vid.height;		// full screen
 		scr_con_current = scr_conlines;
 	}
+	else if (key_dest == key_console)
+		scr_conlines = vid.height / 2;	// half screen
+	else
+		scr_conlines = 0;				// none visible
 
 	if (scr_conlines < scr_con_current)
 	{
@@ -534,9 +563,6 @@ void SCR_DrawNotifyString( void )
 
 	start = scr_notifystring;
 
-	if (!start || glwidth <= 0 || glheight <= 0)
-		return;
-
 	y = glheight * 0.35f;
 
 	do
@@ -578,7 +604,6 @@ int SCR_ModalMessage( char* text )
 // draw a fresh screen
 	scr_fullupdate = 0;
 	scr_drawdialog = TRUE;
-	scr_notifystring = text;
 	SCR_UpdateScreen();
 	scr_drawdialog = FALSE;
 
@@ -600,6 +625,23 @@ int SCR_ModalMessage( char* text )
 //=============================================================================
 
 /*
+===================
+SCR_BringDownConsole
+
+Brings the console down and fades the palettes back to normal
+================
+*/
+void SCR_BringDownConsole( void )
+{
+	int		i;
+
+	scr_centertime_off = 0;
+
+	for (i = 0; i < 20 && scr_conlines != scr_con_current; i++)
+		SCR_UpdateScreen();
+}
+
+/*
 ===============
 SCR_TileClear
 ================
@@ -609,15 +651,16 @@ void SCR_TileClear( void )
 	if (r_refdef.vrect.x > 0)
 	{
 		Draw_TileClear(0, 0, r_refdef.vrect.x, 152);
-		Draw_TileClear(r_refdef.vrect.x + r_refdef.vrect.width, 0, r_refdef.vrect.width - r_refdef.vrect.x + 320, 152);
+		Draw_TileClear(r_refdef.vrect.x + r_refdef.vrect.width, 0, 320 - r_refdef.vrect.x + r_refdef.vrect.width, 152);
 	}
 
 	if (r_refdef.vrect.height < 152)
 	{
 		Draw_TileClear(r_refdef.vrect.x, 0, r_refdef.vrect.width, r_refdef.vrect.y);
-		Draw_TileClear(r_refdef.vrect.x, r_refdef.vrect.height + r_refdef.vrect.y,
+		Draw_TileClear(r_refdef.vrect.x,
+			r_refdef.vrect.y + r_refdef.vrect.height,
 			r_refdef.vrect.width,
-			152 - (r_refdef.vrect.height + r_refdef.vrect.y));
+			152 - (r_refdef.vrect.y + r_refdef.vrect.height));
 	}
 }
 
@@ -712,9 +755,7 @@ void SCR_UpdateScreen( void )
 		}
 		else if (scr_drawloading)
 		{
-			DCV_SetHudDepth(g_flHudDepth + 3.0f);
-			Draw_BeginDisc();
-			DCV_SetHudDepth(g_flHudDepth - 3.0f);
+			SCR_DrawLoading();
 			Sbar_Draw();
 		}
 		else if (cl.intermission == 1 && key_dest == key_game)
@@ -1064,7 +1105,7 @@ void SCR_DrawDownloadProgress( void )
 	if (scale < 1.0f)
 		scale = 1.0f;
 
-	w = scr_vrect.width / 2;
+	w = scr_vrect.width >> 1;
 	h = scale * 8;
 
 	offset = h / 4;
