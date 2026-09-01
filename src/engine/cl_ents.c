@@ -398,7 +398,7 @@ void CL_ParsePacketEntities( qboolean delta )
 	if (!newp_number)
 		newp_number = 1;
 
-	newp->entities = (entity_state_t*)MnemoReallocDbg(newp->entities, (int)(sizeof(entity_state_t) * newp_number), __FILE__, __LINE__);
+	newp->entities = (entity_state_t*)DebugRealloc(newp->entities, (int)(sizeof(entity_state_t) * newp_number), __FILE__, __LINE__);
 	if (!newp->entities)
 		Sys_Error("CL_ParsePacketEntities:  Failed to allocate space for %i entities.\n", newp_number);
 

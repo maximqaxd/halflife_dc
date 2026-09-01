@@ -2,9 +2,12 @@
 // Only functions actually missing from the WinCE C runtime should live here.
 #ifdef _WIN32_WCE
 #include <windows.h>
+#include <stdio.h>
 #include <string.h>
 
 extern "C" void* MnemoAllocDbg( int size, const char* srcFile, int srcLine );
+
+#define MNEMO_FLAG_MALLOC 0x0020
 
 extern "C" {
 
@@ -51,10 +54,72 @@ int _stricmp( const char* s1, const char* s2 )
 // (The exe link uses /FORCE:MULTIPLE so this wins over coredll's free; per-module
 // symbol resolution means other DLLs keep their own free.)
 extern void MnemoFree( void* ptr );
+extern void* MnemoAlloc( int size, unsigned int flags, int allocClass, const char* tag );
+extern int Mnemo_BlockSize( void* ptr );
+extern void Sys_Error( char* error, ... );
+char* strrchr( const char* s, int c );
+
 void free( void* ptr )
 {
 	MnemoFree( ptr );
 }
+
+#pragma inline_depth(0)
+void* DebugRealloc( void* oldPtr, unsigned int sizeBytes, const char* srcFile, int srcLine )
+{
+	static char tag[260];
+	const char* base;
+	unsigned int copyBytes;
+	void* newPtr;
+
+	if ( sizeBytes == 0 )
+	{
+		MnemoFree( oldPtr );
+		return NULL;
+	}
+
+	if ( oldPtr == NULL )
+	{
+		base = strrchr( srcFile, '\\' );
+		if ( !base )
+			base = strrchr( srcFile, '/' );
+		if ( base )
+			base++;
+		else
+			base = srcFile;
+
+		sprintf( tag, "%d %s", srcLine, base );
+		return MnemoAlloc( sizeBytes, MNEMO_FLAG_MALLOC, 0, tag );
+	}
+
+	base = strrchr( srcFile, '\\' );
+	if ( !base )
+		base = strrchr( srcFile, '/' );
+	if ( base )
+		base++;
+	else
+		base = srcFile;
+
+	sprintf( tag, "%d %s", srcLine, base );
+	newPtr = MnemoAlloc( sizeBytes, MNEMO_FLAG_MALLOC, 0, tag );
+	copyBytes = Mnemo_BlockSize( oldPtr );
+
+	if ( !newPtr )
+	{
+		Sys_Error( "Realloc failed." );
+	}
+	else
+	{
+		if ( copyBytes > sizeBytes )
+			copyBytes = sizeBytes;
+
+		memcpy( newPtr, oldPtr, copyBytes );
+		MnemoFree( oldPtr );
+	}
+
+	return newPtr;
+}
+#pragma inline_depth(255)
 
 // Case-insensitive
 // Simple bsearch implementation for environments without a CRT bsearch.

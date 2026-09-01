@@ -2,11 +2,11 @@
 
 #include "quakedef.h"
 #include "textures.h"
+#include "kzap.h"
 #include <windows.h>
 
-#define TEX_MAX_WADS			128
+#define TEX_MAX_WADS			40
 #define TEX_MAX_MIPTEX_NAME		64
-#define TEX_MAX_PER_LEVEL_WADS	7
 
 int nummiptex = 0;
 char miptex[MAX_MAP_TEXTURES][TEX_MAX_MIPTEX_NAME];
@@ -18,21 +18,16 @@ typedef struct
 	int			iTexFile;	// index of the wad this texture is located in
 } texlumpinfo_t;
 
-typedef struct
-{
-	int filepos;
-	int filelen;
-	int handle;
-} texfile_t;
-
-texfile_t texfiles[TEX_MAX_WADS];
+void* texfiles[TEX_MAX_WADS];
+char texpaths[TEX_MAX_WADS][MAX_PATH];
 int nTexFiles = 0;
 texlumpinfo_t* lumpinfo = NULL;
 int nTexLumps = 0;
+int currentTexFile = -1;
 
-void SafeRead( texfile_t* f, void* buffer, int count )
+void SafeRead( void* f, void* buffer, int count )
 {
-	if (Sys_FileRead(f->handle, buffer, count) != count)
+	if (DC_fread(buffer, count, 1, f) != 1)
 		Sys_Error("File read failure");
 }
 
@@ -79,98 +74,19 @@ void ForwardSlashes( char* pname )
 
 /*
 =================
-TEX_BuildPerMapWadPath
-=================
-*/
-qboolean TEX_BuildPerMapWadPath( const char* mapPath, char* outPath )
-{
-	int i, h[3], wadLen, outLen;
-	int foundSmallWad = 0;
-	char mapPathLocal[MAX_PATH];
-	char mapName[MAX_PATH];
-	char wadProbe[MAX_PATH];
-	char wadToken[MAX_PATH];
-
-	if (!outPath)
-		return FALSE;
-
-	outPath[0] = '\0';
-
-	if (!mapPath || !mapPath[0])
-		return FALSE;
-
-	strncpy(mapPathLocal, mapPath, sizeof(mapPathLocal) - 1);
-	mapPathLocal[sizeof(mapPathLocal) - 1] = '\0';
-	ForwardSlashes(mapPathLocal);
-	COM_FileBase(mapPathLocal, mapName);
-
-	Con_Printf("Looking for small per level wads\n");
-	for (i = 1; i <= TEX_MAX_PER_LEVEL_WADS; i++)
-	{
-		sprintf(wadProbe, "%s/%d_%s.wad", com_gamedir, i, mapName);
-		h[2] = -1;
-		wadLen = COM_OpenFile(wadProbe, h);
-		/* Stop at first missing file; max 7 per-level wads */
-		if (h[2] == -1 || wadLen <= 0)
-			break;
-
-		COM_CloseFile(h[0], h[1], h[2]);
-		sprintf(wadToken, "%d_%s.wad", i, mapName);
-
-		outLen = strlen(outPath);
-		if (outLen + (int)strlen(wadToken) + 2 >= MAX_OSPATH)
-			break;
-		if (outLen > 0)
-			strcat(outPath, ";");
-		strcat(outPath, wadToken);
-		foundSmallWad++;
-	}
-
-	if (foundSmallWad > 0)
-		return TRUE;
-
-	Con_Printf("Looking for monolithic per level wad\n");
-	sprintf(wadProbe, "%s/%s", com_gamedir, mapName);
-	COM_DefaultExtension(wadProbe, ".wad");
-	wadLen = COM_OpenFile(wadProbe, h);
-	(void)wadLen;
-	if (h[2] != -1)
-	{
-		COM_CloseFile(h[0], h[1], h[2]);
-		strncpy(outPath, wadProbe, MAX_OSPATH - 1);
-		outPath[MAX_OSPATH - 1] = '\0';
-		return TRUE;
-	}
-
-	sprintf(wadProbe, "valve/%s", mapName);
-	COM_DefaultExtension(wadProbe, ".wad");
-	wadLen = COM_OpenFile(wadProbe, h);
-	(void)wadLen;
-	if (h[2] != -1)
-	{
-		COM_CloseFile(h[0], h[1], h[2]);
-		strncpy(outPath, wadProbe, MAX_OSPATH - 1);
-		outPath[MAX_OSPATH - 1] = '\0';
-		return TRUE;
-	}
-
-	return FALSE;
-}
-
-/*
-=================
 TEX_InitFromWad
 =================
 */
 qboolean TEX_InitFromWad( char* path )
 {
 	int			i;
-	int			loadedWads = 0;
+	int			dstOffset;
+	int			srcOffset;
 	wadinfo_t	wadinfo;
 	char		szTmpPath[1024];
-	char* pszWadFile;
+	char*		pszWadFile;
 
-	strcpy(szTmpPath, path); 
+	strcpy(szTmpPath, path);
 
 	// temporary kludge so we don't have to deal with no occurances of a semicolon
 	//  in the path name ..
@@ -181,65 +97,88 @@ qboolean TEX_InitFromWad( char* path )
 
 	while (pszWadFile)
 	{
-		texfile_t texfile;
-		int h[3];
-		int wadLen;
-		char wadPath[MAX_PATH];
-		char wadName[MAX_PATH];
-		char wadSearch[MAX_PATH];
+		void*	texfile;
+		char	wadPath[MAX_PATH];
+		char	wadName[MAX_PATH];
 
-		/* Skip empty tokens (e.g. from trailing ";") */
-		if (!pszWadFile[0])
+		ForwardSlashes(pszWadFile);
+
+		COM_FileBase(pszWadFile, wadName);
+		sprintf(wadPath, "%s/%s", com_gamedir, wadName);
+		COM_DefaultExtension(wadPath, ".wad");
+
+		if (strstr(wadName, "pldecal"))
 		{
 			pszWadFile = strtok(NULL, ";");
 			continue;
 		}
 
-		ForwardSlashes(pszWadFile);
-
-		COM_FileBase(pszWadFile, wadName);
-		strcpy(wadSearch, wadName);
-		COM_DefaultExtension(wadSearch, ".wad");
-		wadLen = COM_OpenFile(wadSearch, h);
-		strcpy(wadPath, wadSearch);
-		if (h[2] == -1)
+		strcpy(texpaths[nTexFiles], wadPath);
+		texfile = Sys_OpenHandle(wadPath, "rb");
+		texfiles[nTexFiles] = texfile;
+		if (!texfile)
 		{
-			// Try the full token from the BSP WAD list as a secondary lookup.
-			strcpy(wadSearch, pszWadFile);
-			COM_DefaultExtension(wadSearch, ".wad");
-			wadLen = COM_OpenFile(wadSearch, h);
-			strcpy(wadPath, wadSearch);
-			if (h[2] == -1)
-			{
-				Con_SafePrintf("WARNING: couldn't open %s\n", wadPath);
-				pszWadFile = strtok(NULL, ";");
-				continue;
-			}
+			COM_FileBase(pszWadFile, wadName);
+			sprintf(wadPath, "/CD-ROM/valve/%s", wadName);
+			COM_DefaultExtension(wadPath, ".wad");
+
+			strcpy(texpaths[nTexFiles], wadPath);
+			texfile = Sys_OpenHandle(wadPath, "rb");
+			texfiles[nTexFiles] = texfile;
 		}
 
-		texfile.filepos = h[0];
-		texfile.filelen = h[1];
-		texfile.handle = h[2];
-		texfiles[nTexFiles] = texfile;
+		if (!texfile)
+		{
+			Sys_ErrorColor(RGB565_GREEN, "ERROR: couldn't open %s\n", wadPath);
+			return FALSE;
+		}
+
 		nTexFiles++;
-		loadedWads++;
 
-		Con_SafePrintf("Using WAD File: %s\n", wadPath);
-
-		COM_FileSeek(texfile.filepos, texfile.filelen, texfile.handle, 0);
-		SafeRead(&texfile, &wadinfo, sizeof(wadinfo));
+		SafeRead(texfile, &wadinfo, sizeof(wadinfo));
 		if (strncmp(wadinfo.identification, "WAD2", 4) &&
 			strncmp(wadinfo.identification, "WAD3", 4))
-			Sys_Error("TEX_InitFromWad: %s isn't a wadfile", wadPath);
+		{
+			Sys_Error("TEX_InitFromWad: %s isn't a wadfile - probably got built incorrectly due to a renegade 4-bit BMP.", wadPath);
+		}
 
 		wadinfo.numlumps = LittleLong(wadinfo.numlumps);
 		wadinfo.infotableofs = LittleLong(wadinfo.infotableofs);
-		COM_FileSeek(texfile.filepos, texfile.filelen, texfile.handle, wadinfo.infotableofs);
-		lumpinfo = (texlumpinfo_t*)realloc(lumpinfo, sizeof(texlumpinfo_t) * (nTexLumps + wadinfo.numlumps));
+		DC_fseek(texfile, wadinfo.infotableofs, SEEK_SET);
+
+		//
+		// WAD lumps are packed without the texture file index.
+		//
+		// The runtime table adds that index to every record.
+		//
+		// Grow the table to its expanded stride before reading
+		// the packed records into it.
+		//
+		lumpinfo = (texlumpinfo_t*)DebugRealloc(lumpinfo,
+			sizeof(texlumpinfo_t) * (nTexLumps + wadinfo.numlumps), __FILE__, __LINE__);
+
+		SafeRead(texfile, &lumpinfo[nTexLumps], wadinfo.numlumps * sizeof(lumpinfo_t));
+
+		i = wadinfo.numlumps;
+		if (i)
+		{
+			i--;
+			dstOffset = i * sizeof(texlumpinfo_t);
+			srcOffset = i * sizeof(lumpinfo_t);
+
+			do
+			{
+				byte* base = (byte*)&lumpinfo[nTexLumps];
+
+				memmove(base + dstOffset, base + srcOffset, sizeof(lumpinfo_t));
+				srcOffset -= sizeof(lumpinfo_t);
+				dstOffset -= sizeof(texlumpinfo_t);
+			}
+			while (i--);
+		}
 
 		for (i = 0; i < wadinfo.numlumps; i++)
 		{
-			SafeRead(&texfile, &lumpinfo[nTexLumps], sizeof(lumpinfo_t));
 			CleanupName(lumpinfo[nTexLumps].lump.name, lumpinfo[nTexLumps].lump.name);
 
 			lumpinfo[nTexLumps].lump.filepos = LittleLong(lumpinfo[nTexLumps].lump.filepos);
@@ -249,14 +188,123 @@ qboolean TEX_InitFromWad( char* path )
 			nTexLumps++;
 		}
 
-		// next wad file
 		pszWadFile = strtok(NULL, ";");
 	}
 
-	if (nTexLumps > 0)
-		qsort(lumpinfo, nTexLumps, sizeof(texlumpinfo_t), lump_sorter);
+	qsort(lumpinfo, nTexLumps, sizeof(texlumpinfo_t), lump_sorter);
 
-	return loadedWads > 0 ? TRUE : FALSE;
+	return TRUE;
+}
+
+/*
+=================
+TEX_BuildPerMapWadPath
+=================
+*/
+qboolean TEX_BuildPerMapWadPath( const char* mapPath, char* outPath )
+{
+	int		i;
+	int		foundSmallWad;
+	void*	file;
+	char	mapName[MAX_PATH];
+	char	wadProbe[MAX_PATH];
+	char	wadList[MAX_PATH];
+	char	mapPathLocal[MAX_PATH];
+
+	strcpy(mapPathLocal, mapPath);
+	ForwardSlashes(mapPathLocal);
+	COM_FileBase(mapPathLocal, mapName);
+	sprintf(outPath, "%s/%s", com_gamedir, mapName);
+	COM_DefaultExtension(outPath, ".wad");
+
+	i = 1;
+	foundSmallWad = 0;
+	wadList[0] = '\0';
+
+	while (1)
+	{
+		Sys_SetTaskName("Looking for small per level wads");
+		sprintf(wadProbe, "%s/%d_%s.wad", com_gamedir, i, mapPath);
+		file = Sys_OpenHandle(wadProbe, "rb");
+		if (file)
+			Sys_CloseHandle(file);
+
+		if (!file)
+		{
+			if (foundSmallWad)
+				strcpy(outPath, wadList);
+			break;
+		}
+
+		sprintf(wadProbe, "%d_%s.wad", i, mapPath);
+		strcat(wadList, wadProbe);
+		strcat(wadList, ";");
+		foundSmallWad++;
+		i++;
+	}
+
+	if (foundSmallWad)
+		return TRUE;
+
+	Sys_SetTaskName("Looking for monolithic per level wad");
+	file = Sys_OpenHandle(outPath, "rb");
+	if (!file)
+	{
+		COM_FileBase(mapPathLocal, mapName);
+		sprintf(outPath, "valve/%s", mapName);
+		COM_DefaultExtension(outPath, ".wad");
+		file = Sys_OpenHandle(outPath, "rb");
+	}
+
+	if (!file)
+		return FALSE;
+
+	Sys_CloseHandle(file);
+	strcpy(outPath, mapName);
+	return TRUE;
+}
+
+/*
+=================
+TEX_SelectLevelWad
+=================
+*/
+void TEX_SelectLevelWad( int wadIndex )
+{
+	char*		path;
+	qboolean	isLevelWad;
+
+	isLevelWad = wadIndex >= 0;
+	if (isLevelWad)
+	{
+		path = texpaths[wadIndex];
+		while (*path)
+		{
+			if (*path >= '0' && *path <= '9' && path[1] == '_')
+				break;
+			path++;
+		}
+
+		if (!*path)
+			return;
+	}
+
+	if (wadIndex == currentTexFile)
+		return;
+
+	if (currentTexFile >= 0)
+		Bremove_path(texpaths[currentTexFile]);
+
+	if (isLevelWad)
+	{
+		if (texfiles[wadIndex])
+			Sys_CloseHandle(texfiles[wadIndex]);
+
+		Bfetch_disc(texpaths[wadIndex]);
+		Sys_SetTaskName("accelerating per-level WAD");
+		texfiles[wadIndex] = Sys_OpenHandle(texpaths[wadIndex], "rb");
+		currentTexFile = wadIndex;
+	}
 }
 
 /*
@@ -276,14 +324,13 @@ void TEX_CleanupWadInfo( void )
 
 	for (i = 0; i < nTexFiles; i++)
 	{
-		COM_CloseFile(texfiles[i].filepos, texfiles[i].filelen, texfiles[i].handle);
-		texfiles[i].handle = -1;
-		texfiles[i].filepos = 0;
-		texfiles[i].filelen = 0;
+		Sys_CloseHandle(texfiles[i]);
+		texfiles[i] = NULL;
 	}
 
 	nTexLumps = 0;
 	nTexFiles = 0;
+	TEX_SelectLevelWad(-1);
 }
 
 /*
@@ -302,8 +349,9 @@ int TEX_LoadLump( char* name, byte* dest )
 	found = (texlumpinfo_t*)bsearch(&key, lumpinfo, nTexLumps, sizeof(key), lump_sorter);
 	if (found)
 	{
-		COM_FileSeek(texfiles[found->iTexFile].filepos, texfiles[found->iTexFile].filelen, texfiles[found->iTexFile].handle, found->lump.filepos);
-		SafeRead(&texfiles[found->iTexFile], dest, found->lump.disksize);
+		TEX_SelectLevelWad(found->iTexFile);
+		DC_fseek(texfiles[found->iTexFile], found->lump.filepos, SEEK_SET);
+		SafeRead(texfiles[found->iTexFile], dest, found->lump.disksize);
 		return found->lump.disksize;
 	}
 
@@ -311,7 +359,7 @@ int TEX_LoadLump( char* name, byte* dest )
 	return 0;
 }
 
-int FindMiptex( char* name )
+static __inline int FindMiptex( char* name )
 {
 	int		i;
 
@@ -357,14 +405,13 @@ void TEX_AddAnimatingTextures( void )
 
 			// see if this name exists in the wadfile
 			for (k = 0; k < nTexLumps; k++)
+			{
 				if (!strcmp(name, lumpinfo[k].lump.name))
 				{
 					FindMiptex(name);	// add to the miptex list
 					break;
 				}
+			}
 		}
 	}
-
-	if (nummiptex != base)
-		Con_SafePrintf("added %i texture frames\n", nummiptex - base);
 }

@@ -306,12 +306,19 @@ def _trim_pool_once(insns):
     out = []
     i = 0
     n = len(insns)
+    seen_braf = False
     while i < n:
         out.append(insns[i])
         # An indirect jmp is commonly the dispatch for a switch table.  Treating
         # it like a pool-skipping bra discards every case body because those
         # destinations are not encoded as direct branch targets in the stream.
-        if insns[i][1].lower() in ("bra", "rts"):
+        # A switch body uses bra to leave each indirectly reached case.  None of
+        # those branches delimit a pool, and treating the first one as such
+        # discards the remaining cases and the common epilogue.
+        transfer = insns[i][1].lower()
+        if transfer == "braf":
+            seen_braf = True
+        if transfer == "rts" or (transfer == "bra" and not seen_braf):
             if i + 1 < n:
                 out.append(insns[i + 1])   # delay slot
             i += 2

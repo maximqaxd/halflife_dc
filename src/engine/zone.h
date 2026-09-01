@@ -87,10 +87,10 @@ void Memory_Init( void* buf, int size );
 
 void* MnemoAlloc( int size, unsigned int flags, int allocClass, const char* tag );
 void* MnemoAllocDbg( int size, const char* srcFile, int srcLine );
+void* DebugRealloc( void* oldPtr, unsigned int sizeBytes, const char* srcFile, int srcLine );
 char* Bmakename( char* path, unsigned int type );
 int Mnemo_LastChanceActive( void );
 void* MnemoRealloc( void* oldPtr, int sizeBytes );
-void* MnemoReallocDbg( void* oldPtr, int sizeBytes, const char* srcFile, int srcLine );
 void MnemoFreeDbg( void* ptr );
 void MnemoFree( void* ptr );
 void _FreeBlock( void );

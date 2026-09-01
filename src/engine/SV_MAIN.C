@@ -2723,7 +2723,7 @@ void SV_WriteEntitiesToClient( client_t* client, sizebuf_t* msg )
 	if (entsinpacket == 0)
 		entsinpacket = 1;
 
-	pack->entities = (entity_state_t*)MnemoReallocDbg(pack->entities, (int)(sizeof(entity_state_t) * entsinpacket), __FILE__, __LINE__);
+	pack->entities = (entity_state_t*)DebugRealloc(pack->entities, (int)(sizeof(entity_state_t) * entsinpacket), __FILE__, __LINE__);
 	if (!pack->entities)
 		Sys_Error("Failed to allocate space for %i packet entities\n", entsinpacket);
 

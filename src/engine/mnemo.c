@@ -1184,21 +1184,6 @@ void* MnemoAlloc( int size, unsigned int flags, int allocClass, const char* tag 
 	return (void*)(block + 1);
 }
 
-static int MnemoDbgOldSize( void* ptr )
-{
-	mnemo_header_t* hdr;
-
-	if (!ptr)
-		return 0;
-
-	hdr = ((mnemo_header_t*)ptr) - 1;
-
-	if (!(hdr->flags & MNEMO_FLAG_USED))
-		return 0;
-
-	return hdr->payload_size;
-}
-
 void* MnemoAllocDbg( int size, const char* srcFile, int srcLine )
 {
 	static char tag[MAX_QPATH];
@@ -1244,56 +1229,6 @@ void* calloc( unsigned int num, unsigned int size, const char* file, int line )
 		memset(p, 0, size * num);
 
 	return p;
-}
-
-void* MnemoReallocDbg( void* oldPtr, int sizeBytes, const char* srcFile, int srcLine )
-{
-	char tag[MAX_OSPATH];
-	const char* base;
-	const char* slash;
-	const char* p;
-	int copyBytes;
-	void* newPtr;
-
-	if (sizeBytes <= 0)
-	{
-		MnemoFree(oldPtr);
-		return NULL;
-	}
-
-	base = srcFile ? srcFile : "unknown";
-	slash = NULL;
-
-	for (p = base; *p; p++)
-		if (*p == '\\' || *p == '/')
-			slash = p;
-
-	base = slash ? slash + 1 : base;
-
-	sprintf(tag, "%d %s", srcLine, base);
-
-	newPtr = MnemoAlloc(sizeBytes, MNEMO_FLAG_MALLOC, 0, tag);
-
-	if (!newPtr)
-	{
-		if (oldPtr)
-			Sys_Error("Realloc failed.");
-		return NULL;
-	}
-
-	if (!oldPtr)
-		return newPtr;
-
-	copyBytes = MnemoDbgOldSize(oldPtr);
-
-	if (copyBytes > sizeBytes)
-		copyBytes = sizeBytes;
-
-	if (copyBytes > 0)
-		memcpy(newPtr, oldPtr, copyBytes);
-
-	MnemoFree(oldPtr);
-	return newPtr;
 }
 
 /*
