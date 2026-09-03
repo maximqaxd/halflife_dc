@@ -661,9 +661,9 @@ void QuaternionSlerp( vec_t* p, vec_t* q, float t, vec_t* qt )
 
 	cosom = p[0] * q[0] + p[1] * q[1] + p[2] * q[2] + p[3] * q[3];
 
-	if ((1.0f + cosom) > 0.000001f)
+	if ((1.0f + cosom) > 0.001f)
 	{
-		if ((1.0f - cosom) > 0.000001f)
+		if ((1.0f - cosom) > 0.001f)
 		{
 			omega = acos(cosom);
 			sinom = sin(omega);

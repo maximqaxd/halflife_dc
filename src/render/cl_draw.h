@@ -15,9 +15,6 @@ void	SPR_Init( void );
 void	SetCrosshair( HSPRITE_t hspr, wrect_t rc, int r, int g, int b );
 void	DrawCrosshair( int x, int y );
 
-extern int gSpriteColorR;
-extern int gSpriteColorG;
-extern int gSpriteColorB;
 
 HSPRITE_t SPR_Load( const char* pTextureName );
 int		SPR_Frames( HSPRITE_t hSprite );

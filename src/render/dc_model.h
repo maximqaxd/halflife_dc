@@ -531,6 +531,7 @@ model_t* Mod_FindName( char* name );
 void* Mod_Extradata( model_t* mod );	// handles caching
 void Mod_TouchModel( char* name );
 void Mod_MarkClient( model_t* pModel );
+void DC_PrecacheMap( char* mapName );
 
 mleaf_t* Mod_PointInLeaf( vec_t* p, model_t* model );
 

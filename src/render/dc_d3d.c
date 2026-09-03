@@ -25,7 +25,7 @@ extern int      GetVideoOutputFormat( void );
 #define MAX_METERS      32
 #define METER_FLIP      400
 
-static HWND                 g_hwndAppDC;
+HWND                        g_hWnd;
 static LPDIRECTDRAW         g_pDD           = NULL;
 LPDIRECTDRAW4               g_pDD4          = NULL;	/* shared: dc_draw.c texture surfaces */
 static LPDIRECTDRAWSURFACE4 g_pddsPrimary   = NULL;
@@ -365,7 +365,7 @@ int DCV_InitDirectDraw( void )
 
 	DirectDrawCreate(NULL, &g_pDD, NULL);
 	g_pDD->lpVtbl->QueryInterface(g_pDD, &IID_IDirectDraw4, (LPVOID*)&g_pDD4);
-	g_pDD4->lpVtbl->SetCooperativeLevel(g_pDD4, g_hwndAppDC, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
+	g_pDD4->lpVtbl->SetCooperativeLevel(g_pDD4, g_hWnd, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
 	g_pDD4->lpVtbl->SetDisplayMode(g_pDD4, 640, 480, 16, 0, 0);
 
 	windowRect.top    = 0;
@@ -914,7 +914,7 @@ qboolean DCV_CreateWindow( void )
 			return FALSE;
 	}
 
-	g_hwndAppDC = CreateWindowEx(0,
+	g_hWnd = CreateWindowEx(0,
 	                             TEXT("Halflife"),
 	                             TEXT("Halflife"),
 	                             WS_VISIBLE,

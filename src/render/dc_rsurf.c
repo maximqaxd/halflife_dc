@@ -514,31 +514,30 @@ poly->verts[i][3] (packed ARGB DWORD).
 */
 static void DC_SurfacePolyApplyBlockLights( msurface_t* surf )
 {
-	glpoly_t* p;
 	int       i;
 	unsigned r, g, b;
 
-	if (!surf || !(p = surf->polys) || p->numverts <= 0)
+	if (!surf || !surf->polys)
 		return;
 
-	for (i = 0; i < p->numverts; i++)
+	for (i = 0; i < surf->polys->numverts; i++)
 	{
 		if (!surf->samples)
 		{
-			*(DWORD*)&p->verts[i][3] = 0xFFFFFFFFu;
+			*(DWORD*)&surf->polys->verts[i][3] = 0xFFFFFFFFu;
 		}
 		else
 		{
 			colorVec* c = &blocklights[
-				(((int)(p->verts[i][7] * (BLOCK_HEIGHT * 16.0f) - 8.0f)
-					- ((int)surf->light_t << 4)) >> 4) * ((surf->extents[0] >> 4) + 1)
-				+ (((int)(p->verts[i][6] * (BLOCK_WIDTH * 16.0f) - 8.0f)
-					- ((int)surf->light_s << 4)) >> 4)];
+				((int)(surf->polys->verts[i][7] * (BLOCK_HEIGHT * 16.0f) - 8.0f
+					- (float)(surf->light_t << 4)) >> 4) * ((surf->extents[0] >> 4) + 1)
+				+ ((int)(surf->polys->verts[i][6] * (BLOCK_WIDTH * 16.0f) - 8.0f
+					- (float)(surf->light_s << 4)) >> 4)];
 
 			r = c->r >> 8; if (r > 255) r = 255;
 			g = c->g >> 8; if (g > 255) g = 255;
 			b = c->b >> 8; if (b > 255) b = 255;
-			*(DWORD*)&p->verts[i][3] = 0xFF000000u | (r << 16) | (g << 8) | b;
+			*(DWORD*)&surf->polys->verts[i][3] = 0xFF000000u | (r << 16) | (g << 8) | b;
 		}
 	}
 }
@@ -1332,7 +1331,7 @@ void R_RecursiveWorldNode( mnode_t* node )
 	if (node->contents == CONTENTS_SOLID)
 		return;		// solid
 
-	if (node->visframe != (byte)r_visframecount)
+	if (node->visframe != r_visframecount)
 		return;
 
 	if (R_TestPackedBoundsAgainstFrustum(node->minmaxs, node->minmaxs + 3))
@@ -1634,9 +1633,20 @@ static void DC_BuildSurfaceDisplayList( msurface_t* fa )
 	//
 	// draw texture
 	//
-	poly = (glpoly_t*)Hunk_Alloc(sizeof(glpoly_t) + (lnumverts - 4) * VERTEXSIZE * sizeof(float));
+	poly = (glpoly_t*)Hunk_AllocName(sizeof(glpoly_t) + (lnumverts - 4) * VERTEXSIZE * sizeof(float), "surf polys");
+#if HLDC_FIXES
+	// Test the allocation before writing through it, or a full hunk takes the
+	// renderer down before it can report what ran out.
+	if (!poly)
+		Sys_Error("NULL poly in BuildSurfaceDisplayList");
 	poly->next = fa->polys;
 	poly->flags = fa->flags;
+#else
+	poly->next = fa->polys;
+	poly->flags = fa->flags;
+	if (!poly)
+		Sys_Error("NULL poly in BuildSurfaceDisplayList");
+#endif
 	fa->polys = poly;
 	poly->numverts = lnumverts;
 
@@ -1687,7 +1697,13 @@ static void DC_BuildSurfaceDisplayList( msurface_t* fa )
 	//
 	// remove co-linear points - Ed
 	//
+#if HLDC_FIXES
+	// Warped surfaces move off their own plane every frame, so they have to
+	// keep their co-linear points or the water tears open along its edges.
 	if (!gl_keeptjunctions.value && !(fa->flags & SURF_UNDERWATER))
+#else
+	if (!gl_keeptjunctions.value && !(fa->flags & SURF_DRAWBACKGROUND))
+#endif
 	{
 		for (i = 0; i < lnumverts; ++i)
 		{

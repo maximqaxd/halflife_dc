@@ -10,6 +10,7 @@ cvar_t	r_drawviewmodel = { "r_drawviewmodel", "1" };
 cvar_t	r_speeds = { "r_speeds", "0" };
 cvar_t	r_fullbright = { "r_fullbright", "0" };
 cvar_t	r_decals = { "r_decals", "1" };
+cvar_t	mp_decals = { "mp_decals", "300" };
 cvar_t	r_lightmap = { "r_lightmap", "0" };
 cvar_t	r_lightmap_upload = { "r_lightmap_upload", "0" }; 
 cvar_t	r_shadows = { "r_shadows", "0" };
@@ -211,6 +212,7 @@ void R_Init( void )
 	Cvar_RegisterVariable(&r_lightmap_upload);
 	Cvar_RegisterVariable(&r_fullbright);
 	Cvar_RegisterVariable(&r_decals);
+	Cvar_RegisterVariable(&mp_decals);
 	Cvar_RegisterVariable(&r_drawentities);
 	Cvar_RegisterVariable(&r_drawviewmodel);
 	Cvar_RegisterVariable(&r_mirroralpha);

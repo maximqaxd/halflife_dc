@@ -1347,7 +1347,7 @@ LPDIRECTDRAWSURFACE4 DCV_PrepSurfaceTwiddled(int w, int h, void *data, unsigned 
 	byte *idx = (byte *)data;
 	(void)mipmap;
 
-	DCV_CREATE_SURFACE(pSurf, ddsd, w, h, fmt, DDSCAPS_TEXTURE | DDSCAPS_3DDEVICE | DDSCAPS_VIDEOMEMORY);
+	DCV_CREATE_SURFACE(pSurf, ddsd, w, h, fmt, DDSCAPS_TEXTURE | DDSCAPS_3DDEVICE | DDSCAPS_VIDEOMEMORY | DDSCAPS_OPTIMIZED);
 	if (!pSurf)
 		return NULL;
 

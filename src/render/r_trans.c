@@ -4,6 +4,7 @@
 #include "pmove.h"
 #include "r_studio.h"
 #include "r_trans.h"
+#include "dc_accum.h"
 #if !defined( GLQUAKE )
 #include "d_local.h"
 #endif
@@ -75,22 +76,22 @@ float GlowBlend( cl_entity_t* pEntity )
 	else
 		trace = PM_PlayerMove(r_origin, r_entorigin, PM_GLASS_IGNORE | PM_STUDIO_IGNORE);
 
-	if ((1.0 - trace.fraction) * dist > 8.0)
-		return 0.0;
+	if ((1.0f - trace.fraction) * dist > 8.0f)
+		return 0.0f;
 
 	if (pEntity->renderfx == kRenderFxNoDissipation)
 	{
-		return pEntity->renderamt * (1.0 / 255.0);
+		return pEntity->renderamt * (1.0f / 255.0f);
 	}
 
 	// UNDONE: Tweak these magic numbers (19000 - falloff & 200 - sprite size)
-	brightness = 19000.0 / (dist * dist);
-	if (brightness < 0.05)
-		brightness = 0.05;
-	if (brightness > 1.0)
-		brightness = 1.0;
+	brightness = 19000.0f / (dist * dist);
+	if (brightness < 0.05f)
+		brightness = 0.05f;
+	if (brightness > 1.0f)
+		brightness = 1.0f;
 
-	pEntity->scale = dist * (1.0 / 200.0);
+	pEntity->scale = dist * (1.0f / 200.0f);
 	return brightness;
 }
 
@@ -113,7 +114,7 @@ void RotatedBBox( vec_t* mins, vec_t* maxs, vec_t* angles, vec_t* tmins, vec_t* 
     }
     else
     {
-        max = 0.0;
+        max = 0.0f;
         for (i = 0; i < 3; i++)
         {
             v = fabs(mins[i]);
@@ -151,7 +152,7 @@ void AddTEntity( cl_entity_t* pEnt )
 	if (!pEnt->model || pEnt->model->type != mod_brush || pEnt->rendermode != kRenderTransAlpha)
 	{
 		VectorAdd(pEnt->model->maxs, pEnt->model->mins, v);
-		VectorScale(v, 0.5, v);
+		VectorScale(v, 0.5f, v);
 		VectorAdd(v, pEnt->origin, v);
 		VectorSubtract(r_origin, v, v);
 
@@ -195,7 +196,7 @@ void AppendTEntity( cl_entity_t* pEnt )
 		Sys_Error("AddTentity: Too many objects");
 
 	VectorAdd(pEnt->model->mins, pEnt->model->maxs, v);
-	VectorScale(v, 0.5, v);
+	VectorScale(v, 0.5f, v);
 	VectorAdd(v, pEnt->origin, v);
 	VectorSubtract(r_origin, v, v);
 
@@ -215,7 +216,8 @@ R_DrawTEntitiesOnList
 */
 void R_DrawTEntitiesOnList( void )
 {
-	int     i;
+	int     i, j;
+	float   alpha;
 
 	if (!r_drawentities.value)
 		return;
@@ -226,10 +228,18 @@ void R_DrawTEntitiesOnList( void )
 		currententity = transObjects[i].pEnt;
 
 		r_blend = CL_FxBlend(currententity);
-		if (r_blend <= 0.0)
+		if (r_blend <= 0.0f)
 			continue;
 
-		r_blend /= 255.0;
+		// The entity's alpha rides on the vertex color for the whole model.
+		alpha = r_blend;
+		if (alpha < 0.0f)
+			alpha = 0.0f;
+		if (alpha > 255.0f)
+			alpha = 255.0f;
+		DCV_SetColor(255, 255, 255, (int)alpha);
+
+		r_blend *= (1.0f / 255.0f);
 
 		// Glow is only for sprite models
 		if (currententity->rendermode == kRenderGlow && currententity->model->type != mod_sprite)
@@ -260,7 +270,7 @@ void R_DrawTEntitiesOnList( void )
 				r_blend *= GlowBlend(currententity);
 			}
 
-			if (r_blend != 0.0)
+			if (r_blend != 0.0f)
 			{
 				R_DrawSpriteModel(currententity);
 			}
@@ -271,11 +281,46 @@ void R_DrawTEntitiesOnList( void )
 			break;
 
 		case mod_studio:
-			R_StudioDrawModel(STUDIO_RENDER | STUDIO_EVENTS, TRUE);
+			if (currententity->index > 0 && currententity->index <= cl.maxclients)
+			{
+				R_StudioDrawPlayer(STUDIO_RENDER | STUDIO_EVENTS,
+					&cl.frames[cl.parsecount & UPDATE_MASK].playerstate[currententity->index - 1]);
+			}
+			else
+			{
+				if (currententity->movetype == MOVETYPE_FOLLOW)
+				{
+					// Draw whatever this model is riding on before drawing it.
+					for (j = 0; j < numTransObjs; j++)
+					{
+						if (transObjects[j].pEnt->index != currententity->aiment)
+							continue;
+
+						currententity = transObjects[j].pEnt;
+						if (currententity->index > 0 && currententity->index <= cl.maxclients)
+						{
+							R_StudioDrawPlayer(0,
+								&cl.frames[cl.parsecount & UPDATE_MASK].playerstate[currententity->index - 1]);
+						}
+						else
+						{
+							R_StudioDrawModel(0, TRUE);
+						}
+
+						currententity = transObjects[i].pEnt;
+						R_StudioDrawModel(STUDIO_RENDER | STUDIO_EVENTS, TRUE);
+						break;
+					}
+				}
+				else
+				{
+					R_StudioDrawModel(STUDIO_RENDER | STUDIO_EVENTS, TRUE);
+				}
+			}
 			break;
 		}
 	}
 
 	numTransObjs = 0;
-	r_blend = 1.0;
+	r_blend = 1.0f;
 }

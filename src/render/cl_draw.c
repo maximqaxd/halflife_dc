@@ -4,12 +4,15 @@
 
 #include "quakedef.h"
 #include "cl_draw.h"
+#include "dc_accum.h"
+#include "host_cmd.h"
 
 typedef struct spritelist_s
 {
 	struct model_s* pSprite;
 	char* pName;
 	int frameCount;
+	int lastSpawnCount;
 } SPRITELIST;
 
 SPRITELIST* gSpriteList;
@@ -20,9 +23,6 @@ msprite_t* gpSprite;
 #define SPR_MAX_SPRITES		128
 unsigned short gSpritePalette[256];
 
-int gSpriteColorR = 255;
-int gSpriteColorG = 255;
-int gSpriteColorB = 255;
 
 // Crosshair sprite and colors
 HSPRITE_t ghCrosshair;
@@ -57,8 +57,6 @@ qboolean gSpriteMipMap = TRUE;
 HSPRITE_t SPR_Load( const char* pTextureName )
 {
 	int i;
-	model_t* pSprite;
-	model_t* pModel;
 
 	if (!pTextureName)
 		return 0;
@@ -66,46 +64,34 @@ HSPRITE_t SPR_Load( const char* pTextureName )
 	if (!gSpriteList || gSpriteCount <= 0)
 		return 0;
 
-	//
-	// Find a free model slot spot
-
 	for (i = 0; i < gSpriteCount; i++)
 	{
+		// An empty slot takes the name, so the compare below claims it.
 		if (!gSpriteList[i].pSprite)
-			break; // Found one
+		{
+			gSpriteList[i].pName = (char*)MnemoAllocDbg(strlen(pTextureName) + 1, __FILE__, __LINE__);
+			strcpy(gSpriteList[i].pName, pTextureName);
+		}
 
-		if (!_stricmp(pTextureName, gSpriteList[i].pName))
-			return i + 1;
+		if (!Q_stricmp((char*)pTextureName, gSpriteList[i].pName))
+		{
+			// HUD sprites are drawn at a fixed size, so they get no mip chain.
+			gSpriteMipMap = FALSE;
+			gSpriteList[i].pSprite = Mod_ForName((char*)pTextureName, FALSE);
+			gSpriteMipMap = TRUE;
+
+			if (gSpriteList[i].pSprite)
+			{
+				gSpriteList[i].lastSpawnCount = gHostSpawnCount;
+				gSpriteList[i].frameCount = ModelFrameCount(gSpriteList[i].pSprite);
+				return i + 1;
+			}
+
+			return 0;
+		}
 	}
 
-	if (i >= gSpriteCount)
-	{
-		Sys_Error("cannot allocate more than %d HUD sprites\n", SPR_MAX_SPRITES);
-		return 0;
-	}
-
-	// Now allocate the memory and take the slot
-	gSpriteList[i].pSprite = (model_t*)Hunk_Alloc(sizeof(model_t));
-	gSpriteList[i].pName = (char*)Hunk_Alloc(strlen(pTextureName));
-	strcpy(gSpriteList[i].pName, pTextureName);
-
-	pSprite = gSpriteList[i].pSprite;
-	strcpy(pSprite->name, pTextureName);
-
-	gSpriteMipMap = FALSE;
-
-	pSprite->needload = TRUE;
-	pModel = Mod_LoadModel(pSprite, FALSE, FALSE);
-
-	gSpriteMipMap = TRUE;
-
-	gSpriteList[i].pSprite = pModel;
-	if (gSpriteList[i].pSprite)
-	{
-		gSpriteList[i].frameCount = ModelFrameCount(gSpriteList[i].pSprite);
-		return i + 1;
-	}
-
+	Sys_Error("cannot allocate more than %d HUD sprites\n", SPR_MAX_SPRITES);
 	return 0;
 }
 
@@ -118,25 +104,41 @@ SPRITELIST* SPR_Get( HSPRITE_t hSprite )
 	if (spriteIndex < 0 || spriteIndex >= gSpriteCount)
 		return NULL;
 
+	// Touch the sprite so its cached image survives this level.
+	gSpriteList[spriteIndex].lastSpawnCount = gHostSpawnCount;
+
 	return &gSpriteList[spriteIndex];
 }
 
 msprite_t* SPR_Pointer( SPRITELIST* pList )
 {
-	return (msprite_t*)pList->pSprite->cache.data;
+	unsigned int data;
+
+	// A cached image that has been dropped comes back with the low bit set.
+	data = (unsigned int)pList->pSprite->cache.data;
+	if (data & 1)
+		data = 0;
+
+	return (msprite_t*)data;
 }
 
 void SPR_Init( void )
 {
 	int listSize;
 
+	// The list outlives the level, so build it once and keep the handles valid.
+	if (gSpriteList)
+		return;
+
 	ghCrosshair = 0;
 
 	gSpriteCount = SPR_MAX_SPRITES;
 
 	listSize = SPR_MAX_SPRITES * sizeof(SPRITELIST);
-	gSpriteList = (SPRITELIST *)Hunk_Alloc(listSize);
+	gSpriteList = (SPRITELIST *)MnemoAllocDbg(listSize, __FILE__, __LINE__);
 	memset(gSpriteList, 0, listSize);
+
+	gpSprite = NULL;
 }
 
 // Gets the number of frames in the sprite
@@ -220,11 +222,9 @@ void SPR_Set( HSPRITE_t hSprite, int r, int g, int b )
 		gpSprite = SPR_Pointer(pList);
 		if (gpSprite)
 		{
-			gSpriteColorR = r;
-			gSpriteColorG = g;
-			gSpriteColorB = b;
-
-#if !defined( GLQUAKE )
+#if defined( GLQUAKE )
+			DCV_SetColor(r, g, b, 255);
+#else
 			UnpackPalette(gSpritePalette, (unsigned short*)((byte*)gpSprite + gpSprite->paloffset), r, g, b);
 #endif
 		}
