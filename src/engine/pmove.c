@@ -335,7 +335,7 @@ void PM_ViewEntity( void )
 
 	VectorCopy(pmove.origin, origin);
 
-	fup = 0.5 * (player_mins[pmove.usehull][2] + player_maxs[pmove.usehull][2]);
+	fup = 0.5f * (player_mins[pmove.usehull][2] + player_maxs[pmove.usehull][2]);
 	fup += pmove.view_ofs[2];
 	fup -= 4;
 
@@ -1135,8 +1135,6 @@ JumpButton
 #define PLAYER_LONGJUMP_SPEED 350 // how fast we longjump
 void JumpButton( void )
 {
-	int i;
-
 	if (pmove.dead)
 	{
 		pmove.oldbuttons |= IN_JUMP;	// don't jump again until released
@@ -1164,27 +1162,23 @@ void JumpButton( void )
 	}
 
 	if (onground == -1)
+	{
+		// Flag that we jumped, so we don't jump again until released.
+		pmove.oldbuttons |= IN_JUMP;
 		return;		// in air, so no effect
+	}
 
 	if (pmove.oldbuttons & IN_JUMP)
 		return;		// don't pogo stick
 
 	onground = -1;
 
-	// Adjust for super long jump module
-	// UNDONE -- note this should be based on forward angles, not current velocity.
 	if (pmove.usehull == 1)
 	{
-		for (i = 0; i < 2; i++)
-		{
-			pmove.velocity[i] = pmove.velocity[i] * frametime * PLAYER_LONGJUMP_SPEED * 1.6f;
-		}
-
 		pmove.velocity[2] += sqrtf(2 * 800 * 56.0f);
 	}
 	else
 	{
-
 		pmove.velocity[2] += sqrtf(2 * 800 * 45.0f);
 	}
 
@@ -1208,24 +1202,36 @@ void PM_LadderMove( physent_t* ladder )
 	vec3_t tangent;
 	vec3_t wallRight, wallUp;
 	float fmove, smove;
-	qboolean startsolid;
+	int startcontents;
 	float d;
 
 	if (pmove.movetype == MOVETYPE_NOCLIP)
 		return;
 
-	center[0] = (ladder->model->mins[0] + ladder->model->maxs[0]) * 0.5f;
-	center[1] = (ladder->model->mins[1] + ladder->model->maxs[1]) * 0.5f;
-	center[2] = (ladder->model->mins[2] + ladder->model->maxs[2]) * 0.5f;
+	VectorAdd(ladder->model->mins, ladder->model->maxs, center);
+	VectorScale(center, 0.5f, center);
 
 	pmove.movetype = MOVETYPE_FLY;
 
 	VectorCopy(pmove.origin, start);
 	start[2] += player_mins[pmove.usehull][2] - 1.0f;
 
-	startsolid = (PM_PointContentsForPlayer(start) == CONTENTS_SOLID);
+	startcontents = PM_PointContentsForPlayer(start);
 
-	trace = PM_TraceModel(ladder, pmove.origin, center);
+	pmove.gravity = 0;
+
+	memset(&trace, 0, sizeof(trace));
+	trace.fraction = 1;
+	trace.allsolid = TRUE;
+	VectorCopy(center, trace.endpos);
+
+	PM_TraceModel(ladder, pmove.origin, center, &trace);
+
+	if (trace.allsolid)
+		trace.startsolid = TRUE;
+	if (trace.startsolid)
+		trace.fraction = 0;
+
 	if (trace.fraction == 1.0f)
 		return;
 
@@ -1247,42 +1253,41 @@ void PM_LadderMove( physent_t* ladder )
 	{
 		pmove.movetype = MOVETYPE_WALK;
 		VectorScale(trace.plane.normal, 270.0f, pmove.velocity);
-		return;
 	}
-
-	if (fmove == 0 && smove == 0)
+	else if (fmove == 0 && smove == 0)
 	{
 		VectorCopy(vec3_origin, pmove.velocity);
-		return;
 	}
-
-	wishvel[0] = vforward[0] * fmove + vright[0] * smove;
-	wishvel[1] = vforward[1] * fmove + vright[1] * smove;
-	wishvel[2] = vforward[2] * fmove + vright[2] * smove;
-
-	wallRight[0] = 0;
-	wallRight[1] = 0;
-	wallRight[2] = 1;
-	CrossProduct(wallRight, trace.plane.normal, wallRight);
-	VectorNormalize(wallRight);
-
-	d = DotProduct(wishvel, trace.plane.normal);
-
-	tangent[0] = wishvel[0] - trace.plane.normal[0] * d;
-	tangent[1] = wishvel[1] - trace.plane.normal[1] * d;
-	tangent[2] = wishvel[2] - trace.plane.normal[2] * d;
-
-	CrossProduct(trace.plane.normal, wallRight, wallUp);
-
-	pmove.velocity[0] = tangent[0] - wallUp[0] * d;
-	pmove.velocity[1] = tangent[1] - wallUp[1] * d;
-	pmove.velocity[2] = tangent[2] - wallUp[2] * d;
-
-	if (startsolid && d > 0)
+	else
 	{
-		pmove.velocity[0] += trace.plane.normal[0] * 200.0f;
-		pmove.velocity[1] += trace.plane.normal[1] * 200.0f;
-		pmove.velocity[2] += trace.plane.normal[2] * 200.0f;
+		wishvel[0] = vforward[0] * fmove + vright[0] * smove;
+		wishvel[1] = vforward[1] * fmove + vright[1] * smove;
+		wishvel[2] = vforward[2] * fmove + vright[2] * smove;
+
+		wallRight[0] = 0;
+		wallRight[1] = 0;
+		wallRight[2] = 1;
+		CrossProduct(wallRight, trace.plane.normal, wallUp);
+		VectorNormalize(wallUp);
+
+		d = DotProduct(wishvel, trace.plane.normal);
+
+		tangent[0] = wishvel[0] - trace.plane.normal[0] * d;
+		tangent[1] = wishvel[1] - trace.plane.normal[1] * d;
+		tangent[2] = wishvel[2] - trace.plane.normal[2] * d;
+
+		CrossProduct(trace.plane.normal, wallUp, wallRight);
+
+		pmove.velocity[0] = tangent[0] - wallRight[0] * d;
+		pmove.velocity[1] = tangent[1] - wallRight[1] * d;
+		pmove.velocity[2] = tangent[2] - wallRight[2] * d;
+
+		if (startcontents == CONTENTS_SOLID && d > 0)
+		{
+			pmove.velocity[0] += trace.plane.normal[0] * 200.0f;
+			pmove.velocity[1] += trace.plane.normal[1] * 200.0f;
+			pmove.velocity[2] += trace.plane.normal[2] * 200.0f;
+		}
 	}
 }
 

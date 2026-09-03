@@ -17,6 +17,10 @@ typedef struct sizebuf_s
 	int		cursize;
 } sizebuf_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void SZ_Alloc( sizebuf_t* buf, int startsize );
 void SZ_Clear( sizebuf_t* buf );
 void* SZ_GetSpace( sizebuf_t* buf, int length );
@@ -83,7 +87,7 @@ void MSG_WriteHiresAngle( sizebuf_t* sb, float f );
 void MSG_WriteDeltaUsercmd( sizebuf_t* buf, struct usercmd_s* from, struct usercmd_s* cmd );
 void MSG_WriteUsercmdGold( sizebuf_t* buf, struct usercmd_s* cmd, struct usercmd_s* from );
 void MSG_WriteUsercmd36( sizebuf_t* buf, struct usercmd_s* cmd, struct usercmd_s* from );
-void MSG_WriteBitUsercmd( sizebuf_t* buf, struct usercmd_s* cmd, struct usercmd_s* from );
+void MSG_WriteBitUsercmd( struct usercmd_s* cmd, struct usercmd_s* from );
 void MSG_WriteUsercmdByProtocol( sizebuf_t* buf, struct usercmd_s* cmd, struct usercmd_s* from );
 
 extern	int			msg_readcount;
@@ -111,13 +115,13 @@ void MSG_ReadUsercmd( struct usercmd_s* move, struct usercmd_s* from );
 void MSG_StartBitReading( sizebuf_t* buf );
 void MSG_EndBitReading( sizebuf_t* buf );
 qboolean MSG_ReadOneBit( void );
-unsigned int MSG_ReadBitField8( unsigned int numbits );
-unsigned int MSG_ReadBitField16( unsigned int numbits );
+unsigned char MSG_ReadBitField8( unsigned int numbits );
+unsigned short MSG_ReadBitField16( unsigned int numbits );
 unsigned int MSG_ReadBitField32( unsigned int numbits );
 unsigned int MSG_PeekBits( unsigned int numbits );
 float MSG_ReadScaledBitValue( unsigned int numbits );
 int MSG_ReadSignMagnitude8( int numbits );
-int MSG_ReadSignMagnitude16( int numbits );
+short MSG_ReadSignMagnitude16( int numbits );
 unsigned int MSG_ReadSignMagnitude32( int numbits );
 
 void MSG_StartBitWriting( sizebuf_t* buf );
@@ -149,6 +153,10 @@ int	Q_atoi( char* str );
 float Q_atof( char* str );
 int Q_FileNameCmp( char* file1, char* file2 );
 
+extern qboolean gfExtendedError;
+extern char gszDisconnectReason[256];
+void COM_ExplainDisconnection( qboolean bPrint, char* format, ... );
+
 //============================================================================
 
 extern	char		com_token[1024];
@@ -162,13 +170,7 @@ void COM_HexConvert( char* pszInput, int nInputLength, byte* pOutput );
 extern	int		com_argc;
 extern	char** com_argv;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 int COM_CheckParm( char* parm );
-#ifdef __cplusplus
-}
-#endif
 void COM_Init( char* basedir );
 void COM_InitArgv( int argc, char** argv );
 
@@ -178,9 +180,10 @@ char* COM_FileExtension( char* in );
 void COM_FileBase( char* in, char* out );
 void COM_DefaultExtension( char* path, char* extension );
 int COM_FindFile( char *filename, int *handle, FILE **file );
+int COM_FileSize( char* filename );
 char* COM_StringToLower( char* string );
 void COM_FixSlashes( char* pname );
-int COM_FindFileInSearchPaths( char* filename );
+int COM_EntsForPlayerSlots( int nPlayers );
 
 // does a varargs printf into a temp buffer
 char* va( char* format, ... );
@@ -219,6 +222,8 @@ void COM_CloseFile( int filepos, int filelen, int handle );
 void COM_FreeFile( void );
 byte* COM_LoadFile( char* path, int usehunk, int* pLength );
 byte* COM_LoadFileLimit( char* path, int pos, int cbmax, int* pcbread, int* phFile );
+byte* COM_LoadFileLimitAsync( char* path, int pos, int cbmax, int* pcbread, int* phFile, byte* dest, struct _OVERLAPPED* pov );
+int COM_OpenFileAsync( char* path, int* phFile, struct _OVERLAPPED* pov );
 byte* COM_LoadStackFile( char* path, void* buffer, int bufsize );
 byte* COM_LoadTempFile( char* path, int* pLength );
 byte* COM_LoadHunkFile( char* path );
@@ -247,5 +252,9 @@ byte* LoadBMP16( FILE* fin, qboolean is15bit );
 int build_number( void );
 
 extern qboolean		standard_quake, rogue, hipnotic;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // COMMON_H

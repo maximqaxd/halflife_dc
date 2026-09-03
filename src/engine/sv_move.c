@@ -32,7 +32,7 @@ qboolean SV_CheckBottom( edict_t* ent )
 // if all of the points under the corners are solid world, don't bother
 // with the tougher checks
 // the corners must be within 16 of the midpoint
-	start[2] = mins[2] - 1.0;
+	start[2] = mins[2] - 1.0f;
 	for (x = 0; x <= 1; x++)
 	{
 		for (y = 0; y <= 1; y++)
@@ -55,12 +55,12 @@ realcheck:
 	start[2] = mins[2] + sv_stepsize.value;
 
 // the midpoint must be within 16 of the bottom
-	start[0] = stop[0] = (mins[0] + maxs[0]) * 0.5;
-	start[1] = stop[1] = (mins[1] + maxs[1]) * 0.5;
-	stop[2] = start[2] - 2.0 * sv_stepsize.value;
+	start[0] = stop[0] = (mins[0] + maxs[0]) * 0.5f;
+	start[1] = stop[1] = (mins[1] + maxs[1]) * 0.5f;
+	stop[2] = start[2] - 2.0f * sv_stepsize.value;
 	trace = SV_Move(start, vec3_origin, vec3_origin, stop, MOVE_NOMONSTERS, ent, monsterClip);
 
-	if (trace.fraction == 1.0)
+	if (trace.fraction == 1.0f)
 		return FALSE;
 	mid = bottom = trace.endpos[2];
 
@@ -74,10 +74,10 @@ realcheck:
 
 			trace = SV_Move(start, vec3_origin, vec3_origin, stop, MOVE_NOMONSTERS, ent, monsterClip);
 
-			if (trace.fraction != 1.0 && trace.endpos[2] > bottom)
+			if (trace.fraction != 1.0f && trace.endpos[2] > bottom)
 				bottom = trace.endpos[2];
 
-			if (trace.fraction == 1.0 || (mid - trace.endpos[2]) > sv_stepsize.value)
+			if (trace.fraction == 1.0f || (mid - trace.endpos[2]) > sv_stepsize.value)
 				return FALSE;
 		}
 	}
@@ -103,7 +103,7 @@ qboolean SV_movetest( edict_t* ent, vec_t* move, qboolean relink )
 // push down from a step height above the wished position
 	neworg[2] += sv_stepsize.value;
 	VectorCopy(neworg, end);
-	end[2] -= sv_stepsize.value * 2.0;
+	end[2] -= sv_stepsize.value * 2.0f;
 
 	trace = SV_MoveNoEnts(neworg, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent);
 
@@ -118,7 +118,7 @@ qboolean SV_movetest( edict_t* ent, vec_t* move, qboolean relink )
 			return FALSE;
 	}
 
-	if (trace.fraction == 1.0)
+	if (trace.fraction == 1.0f)
 	{
 		// if monster had the ground pulled out, go ahead and fall
 		if (ent->v.flags & FL_PARTIALGROUND)
@@ -230,7 +230,7 @@ qboolean SV_movestep( edict_t* ent, vec_t* move, qboolean relink )
 // push down from a step height above the wished position
 	neworg[2] += sv_stepsize.value;
 	VectorCopy(neworg, end);
-	end[2] -= sv_stepsize.value * 2.0;
+	end[2] -= sv_stepsize.value * 2.0f;
 
 	trace = SV_Move(neworg, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent, monsterClip);
 
@@ -521,7 +521,7 @@ void SV_NewChaseDir2( edict_t* actor, vec_t* vecGoal, float dist )
 // try direct route
 	if (d[1] != DI_NODIR && d[2] != DI_NODIR)
 	{
-		if (d[1] == 0.0)
+		if (d[1] == 0.0f)
 			tdir = d[2] == 90 ? 45 : 315;
 		else
 			tdir = d[2] == 90 ? 135 : 215;

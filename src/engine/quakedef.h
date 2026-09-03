@@ -137,6 +137,7 @@ typedef struct _UserMsg
 #define	STAT_WEAPON			2
 
 
+#include "hldc_fixes.h"
 #include "platform.h"
 #include "bothdefs.h"
 #include "mathlib.h"
@@ -277,7 +278,9 @@ void Host_Error( char* error, ... );
 void Host_EndGame( char* message, ... );
 void Host_ClientCommands( char* fmt, ... );
 void Host_ShutdownServer( qboolean crash );
+void Host_WriteConfiguration( void );
 void Host_DeallocateDynamicData( void );
+void Host_CheckDynamicStructures( void );
 
 void Master_Init( void );
 

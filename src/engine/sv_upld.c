@@ -370,7 +370,9 @@ void SV_ParseResourceList( void )
 		host_client->uploadinprogress = FALSE;
 
 		host_client->fLastStatusUpdate = realtime;
+#ifdef HLDC_MP
 		host_client->fLastUploadTime = realtime;
+#endif
 
 		host_client->nRemainingToTransfer = host_client->nTotalToTransfer;
 

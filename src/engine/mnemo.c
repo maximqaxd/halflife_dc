@@ -8,6 +8,9 @@
 #include "studio.h"
 #include "afile.h"
 #include "kzap.h"
+#include "pr_cmds.h"
+#include "decal.h"
+#include "r_studio.h"
 
 #define	DYNAMIC_SIZE	0xc000
 
@@ -132,6 +135,8 @@ static int mnemo_temp_danger;
 static byte* mnemo_zone_sloppy_ptr;
 static int mnemo_zone_sloppy_left;
 static int hunk_alloc_class;
+
+void* g_edict_reserve;
 
 extern int hunk_high_used;
 
@@ -627,6 +632,8 @@ static void Mnemo_InitArena( void *buf, int size )
 	Mnemo_PezCreatePool(0x20, 0x400);
 	Mnemo_PezCreatePool(0x40, 0x100);
 	Mnemo_PezCreatePool(0x80, 0x100);
+
+	g_edict_reserve = MnemoAlloc(100, MNEMO_FLAG_HUNK, 0, "edict reserve");
 }
 
 static __forceinline int Mnemo_SelectAllocMode( unsigned int flags, int allocClass )
@@ -1429,6 +1436,10 @@ void* Hunk_Alloc( int size )
 	return Hunk_AllocName(size, "unknown");
 }
 
+void Hunk_Check( void )
+{
+}
+
 int	Hunk_LowMark( void )
 {
 	mnemo_zone_sloppy_ptr = NULL;
@@ -1794,10 +1805,10 @@ static int MnemoCacheMove( cache_system_t* cs )
 	if (((unsigned int)*cs->user & 1u) != 0)
 		return 0;
 
-	if (SNDDMA_BufferDrained(cs->size) == 0)
+	if (!AFile_HasRoomFor(cs->size))
 		return 0;
 
-	if (AFile_FindOrCreate((char*)cs, (byte*)cs + sizeof(cache_system_t),
+	if (AFile_LoadOrCreate((char*)cs, (byte*)cs + sizeof(cache_system_t),
 	                       cs->size - (int)sizeof(cache_system_t), 1) == NULL)
 		return 0;
 
@@ -2139,7 +2150,7 @@ void Cache_Free( cache_user_t* c, int keep )
 
 				if (juggle != NULL)
 				{
-					AFile_Read(af, juggle, CACHE_VQ_HDRSIZE);
+					AFile_ReadBlocks(af, juggle, CACHE_VQ_HDRSIZE);
 					phdr = (studiohdr_t*)juggle;
 
 					if (phdr->version == CACHE_VQ_MAGIC1 ||
@@ -2157,7 +2168,7 @@ void Cache_Free( cache_user_t* c, int keep )
 
 						if (juggle != NULL)
 						{
-							AFile_ReadOffset(af, juggle, base, total);
+							AFile_ReadBlocksOffset(af, juggle, base, total);
 
 							if (align != 0 && count > 0)
 							{
@@ -2249,7 +2260,7 @@ unsigned int Mnemo_CacheCheck( cache_user_t* c )
 			}
 
 			memcpy(newcs, cs, sizeof(cache_system_t));
-			AFile_Read(af, (byte*)newcs + sizeof(cache_system_t), size);
+			AFile_ReadBlocks(af, (byte*)newcs + sizeof(cache_system_t), size);
 			AFile_Free(af);
 
 			newcs->size = needed;
@@ -2382,4 +2393,84 @@ void Memory_Init( void* buf, int size )
 	Cmd_AddCommand("summary", Mnemo_Summary_f);
 
 	Cvar_RegisterVariable(&mnemo_cache);
+}
+
+typedef struct dc_precache_map_s
+{
+	char	*name;
+	char	**manifest;
+} dc_precache_map_t;
+
+#include "dc_precache_data.inc"
+
+/*
+========================
+DC_PrecacheMap
+
+Warms the models, animation groups, and decals used by a map while the server
+is spawning. Shared manifest tails keep the map lists compact.
+========================
+*/
+void DC_PrecacheMap( char* mapName )
+{
+	dc_precache_map_t	*map;
+	char			**manifest;
+	char			*entry;
+	char			*last;
+	char			lastDigit;
+	texture_t		*texture;
+	int			modelIndex;
+	int			index;
+
+	g_mnemo.cache_epoch_bytes = 0;
+
+	for (map = dc_precache_maps ; map->name ; map++)
+	{
+		if (!strcmp(map->name, mapName))
+			break;
+	}
+
+	if (!map->name)
+		return;
+
+	manifest = map->manifest;
+	modelIndex = -1;
+
+	while ((entry = *manifest) != NULL)
+	{
+		if (entry[0] == '+')
+		{
+			manifest++;
+			R_StudioCacheAnim_Neo(sv.models[modelIndex], (int)*manifest);
+			manifest++;
+		}
+		else if (entry[0] == ':')
+		{
+			manifest++;
+			entry = *manifest;
+			last = entry + strlen(entry) - 1;
+			lastDigit = *last;
+
+			do
+			{
+				index = Draw_CacheIndex(decal_wad, entry);
+				texture = (texture_t*)Draw_CacheGet(decal_wad, index);
+				DC_TouchTexture(texture->gl_texturenum);
+				(*last)--;
+			}
+			while (isdigit(*last) && *last != '0');
+
+			*last = lastDigit;
+			manifest++;
+		}
+		else if (entry[0] == '-')
+		{
+			manifest = (char**)*(manifest + 1);
+		}
+		else
+		{
+			modelIndex = PF_precache_model_I(entry);
+			manifest++;
+		}
+	}
 }

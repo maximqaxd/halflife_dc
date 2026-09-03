@@ -4,6 +4,7 @@
 #include <windows.h>
 #include <stdio.h>
 #include <string.h>
+#include "dreamcast_crt.h"
 
 extern "C" void* MnemoAllocDbg( int size, const char* srcFile, int srcLine );
 
@@ -220,12 +221,23 @@ float fmodf( float x, float y )
 // Time shim.
 long time( long* t )
 {
-	// Approximate time as seconds since boot; good enough for seeding, etc.
-	unsigned long ms = GetTickCount();
-	long secs = (long)(ms / 1000UL);
-	if ( t )
-		*t = secs;
-	return secs;
+	return 0;
+}
+
+struct tm* localtime( const long* t )
+{
+	static struct tm result;
+
+	result.tm_sec = 0;
+	result.tm_min = 0;
+	result.tm_hour = 0;
+	result.tm_mday = 1;
+	result.tm_mon = 0;
+	result.tm_year = 70;
+	result.tm_wday = 4;
+	result.tm_yday = 0;
+	result.tm_isdst = 0;
+	return &result;
 }
 
 // Case-insensitive string compares (WinCE lacks these); tolower is resolved

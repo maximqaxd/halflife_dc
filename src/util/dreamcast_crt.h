@@ -29,6 +29,7 @@ extern "C" {
 int _strnicmp( const char *s1, const char *s2, unsigned int n );
 int _stricmp( const char *s1, const char *s2 );
 int Q_stricmp( char* s1, char* s2 );
+int Q_strnicmp( char* s1, char* s2, int n );
 
 // The Dreamcast heap allocators tag each block with its call site and route
 // through the Mnemo arena. Declaring them here replaces the C runtime's
@@ -52,6 +53,24 @@ char* _strdup( const char *s );
 char* strrchr( const char *s, int c );
 
 long time( long* t );
+
+#ifndef _TM_DEFINED
+struct tm
+{
+	int tm_sec;
+	int tm_min;
+	int tm_hour;
+	int tm_mday;
+	int tm_mon;
+	int tm_year;
+	int tm_wday;
+	int tm_yday;
+	int tm_isdst;
+};
+#define _TM_DEFINED
+#endif
+
+struct tm* localtime( const long* t );
 
 // The FPU runs fixed in single precision, but <stdlib.h> only declares the double
 // form of fmod - calling that drags in the software double-precision helpers for

@@ -6,6 +6,7 @@
 #include "pr_cmds.h"
 #include "pmove.h"
 #include "customentity.h"
+#include "won.h"
 
 int cl_playerindex; // player index
 
@@ -31,45 +32,45 @@ PACKET ENTITY PARSING / LINKING
 
 /*
 ==================
-CL_ParseDeltaFlags
+CL_ReadEntityHeader
 
 ==================
 */
-int CL_ParseDeltaFlags( int* flags, int* bboxflags )
+int CL_ReadEntityHeader( int* flags, int* bboxflags )
 {
 	int			i, bits, bboxbits;
 	int			num;
 
 	bboxbits = 0;
 
-	bits = MSG_ReadByte();
+	bits = MSG_ReadBitField8(8);
 
 	if (bits & U_MOREBITS)
 	{
 		// read in the low order bits
-		i = MSG_ReadByte();
+		i = MSG_ReadBitField8(8);
 		bits |= i << 8;
 	}
 
 	if (bits & U_EVENMOREBITS)
 	{
-		i = MSG_ReadByte();
+		i = MSG_ReadBitField8(8);
 		bits |= i << 16;
 	}
 
 	if (bits & U_YETMOREBITS)
 	{
-		i = MSG_ReadByte();
+		i = MSG_ReadBitField8(8);
 		bits |= i << 24;
 	}
 
-	if (bits < 0)
-		bboxbits = MSG_ReadByte();
+	if (bits & U_BBOXBITS)
+		bboxbits |= MSG_ReadBitField8(8);
 
 	if (bits & U_LONGENTITY)
-		num = MSG_ReadShort();
+		num = MSG_ReadBitField16(10);
 	else
-		num = MSG_ReadByte();
+		num = MSG_ReadBitField8(8);
 
 	*flags = bits;
 	*bboxflags = bboxbits;
@@ -105,61 +106,61 @@ void CL_ParseCustomEntity( entity_state_t* from, entity_state_t* to, int bits, i
 	to->flags = bits;
 
 	if (bits & U_BEAM_STARTX)
-		to->origin[0] = MSG_ReadCoord();
+		to->origin[0] = MSG_ReadSignMagnitude16(16) / 8.0f;
 
 	if (bits & U_BEAM_STARTY)
-		to->origin[1] = MSG_ReadCoord();
+		to->origin[1] = MSG_ReadSignMagnitude16(16) / 8.0f;
 
 	if (bits & U_BEAM_STARTZ)
-		to->origin[2] = MSG_ReadCoord();
+		to->origin[2] = MSG_ReadSignMagnitude16(16) / 8.0f;
 
 	if (bits & U_BEAM_ENDX)
-		to->angles[0] = MSG_ReadCoord();
+		to->angles[0] = MSG_ReadSignMagnitude16(16) / 8.0f;
 
 	if (bits & U_BEAM_ENDY)
-		to->angles[1] = MSG_ReadCoord();
+		to->angles[1] = MSG_ReadSignMagnitude16(16) / 8.0f;
 
 	if (bits & U_BEAM_ENDZ)
-		to->angles[2] = MSG_ReadCoord();
+		to->angles[2] = MSG_ReadSignMagnitude16(16) / 8.0f;
 
 	if (bits & U_BEAM_ENTS)
 	{
-		to->sequence = MSG_ReadShort();
-		to->skin = MSG_ReadShort();
+		to->sequence = MSG_ReadBitField16(16);
+		to->skin = MSG_ReadBitField16(16);
 	}
 
 	if (bits & U_BEAM_TYPE)
-		to->rendermode = MSG_ReadByte();
+		to->rendermode = MSG_ReadBitField8(8);
 
 	if (bits & U_BEAM_MODEL)
 	{
-		to->modelindex = MSG_ReadShort();
+		to->modelindex = MSG_ReadBitField16(16);
 		if (to->modelindex >= MAX_MODELS)
 			Host_Error("CL_ParseCustomEntity: bad model number");
 	}
 
 	if (bits & U_BEAM_WIDTH)
-		to->scale = MSG_ReadByte() * 0.1;
+		to->scale = MSG_ReadBitField8(8) * 0.1f;
 
 	if (bits & U_BEAM_NOISE)
-		to->body = MSG_ReadByte();
+		to->body = MSG_ReadBitField8(8);
 
 	if (bits & U_BEAM_RENDER)
 	{
-		to->rendercolor.r = MSG_ReadByte();
-		to->rendercolor.g = MSG_ReadByte();
-		to->rendercolor.b = MSG_ReadByte();
-		to->renderfx = MSG_ReadByte();
+		to->rendercolor.r = MSG_ReadBitField8(8);
+		to->rendercolor.g = MSG_ReadBitField8(8);
+		to->rendercolor.b = MSG_ReadBitField8(8);
+		to->renderfx = MSG_ReadBitField8(8);
 	}
 
 	if (bits & U_BEAM_BRIGHTNESS)
-		to->renderamt = MSG_ReadByte();
+		to->renderamt = MSG_ReadBitField8(8);
 
 	if (bits & U_BEAM_FRAME)
-		to->frame = MSG_ReadByte();
+		to->frame = MSG_ReadBitField8(8);
 
 	if (bits & U_BEAM_SCROLL)
-		to->animtime = MSG_ReadByte() * 0.1;
+		to->animtime = MSG_ReadBitField8(8) * 0.1f;
 }
 
 /*
@@ -196,117 +197,122 @@ void CL_ParseDelta( entity_state_t* from, entity_state_t* to, int bits, int bbox
 	to->flags = bits;
 
 	if (bits & U_MODELINDEX)
-		to->modelindex = MSG_ReadShort();
+	{
+		if (MSG_ReadBitField8(1))
+			to->modelindex = MSG_ReadBitField16(10);
+		else
+			to->modelindex = MSG_ReadBitField8(8);
+	}
 
 	if (bits & U_FRAME)
-		to->frame = MSG_ReadWord() / 256.0;
+		to->frame = MSG_ReadBitField8(8);
 
 	if (bits & U_MOVETYPE)
-		to->movetype = MSG_ReadByte();
+		to->movetype = MSG_ReadBitField8(4);
 
 	if (bits & U_COLORMAP)
-		to->colormap = MSG_ReadByte();
+		to->colormap = MSG_ReadBitField16(16);
 
 	if (bits & U_CONTENTS)
 	{
-		to->skin = MSG_ReadShort();
-		to->solid = MSG_ReadByte();
+		to->skin = MSG_ReadBitField8(8);
+		to->solid = MSG_ReadBitField8(3);
 	}
 
 	if (bits & U_SCALE)
-		to->scale = MSG_ReadWord() / 256.0;
+		to->scale = MSG_ReadBitField16(16) / 256.0f;
 
 	if (bits & U_EFFECTS)
-		to->effects = MSG_ReadByte();
+		to->effects = MSG_ReadBitField8(8);
 
 	if (bits & U_ORIGIN1)
-		to->origin[0] = MSG_ReadCoord();
+		to->origin[0] = MSG_ReadSignMagnitude16(16) / 8.0f;
 
 	if (bits & U_ANGLE1)
-		to->angles[0] = MSG_ReadHiresAngle();
+		to->angles[0] = MSG_ReadScaledBitValue(11);
 
 	if (bits & U_ORIGIN2)
-		to->origin[1] = MSG_ReadCoord();
+		to->origin[1] = MSG_ReadSignMagnitude16(16) / 8.0f;
 
 	if (bits & U_ANGLE2)
-		to->angles[1] = MSG_ReadHiresAngle();
+		to->angles[1] = MSG_ReadScaledBitValue(13);
 
 	if (bits & U_ORIGIN3)
-		to->origin[2] = MSG_ReadCoord();
+		to->origin[2] = MSG_ReadSignMagnitude16(16) / 8.0f;
 
 	if (bits & U_ANGLE3)
-		to->angles[2] = MSG_ReadHiresAngle();
+		to->angles[2] = MSG_ReadScaledBitValue(11);
 
 	if (bits & U_SEQUENCE)
 	{
 		int	sequence;
 		float animtime, delta;
 
-		sequence = MSG_ReadByte();
+		sequence = MSG_ReadBitField8(8);
 
-		delta = (int)(cl.time * 100.0) - (byte)(cl.time * 100.0);
-		animtime = (MSG_ReadByte() / 100.0) + (delta / 100.0);
-		while (animtime > cl.time + 0.1)
-			animtime -= 2.56;
+		delta = (int)(cl.time * 100.0f) - (byte)(cl.time * 100.0f);
+		animtime = (MSG_ReadBitField8(8) / 100.0f) + (delta / 100.0f);
+		while (animtime > cl.time + 0.1f)
+			animtime -= 2.56f;
 
 		to->sequence = sequence;
 		to->animtime = animtime;
 	}
 
 	if (bits & U_FRAMERATE)
-		to->framerate = MSG_ReadChar() / 16.0;
+		to->framerate = MSG_ReadSignMagnitude8(8) / 16.0f;
 
 	if (bits & U_CONTROLLER1)
-		to->controller[0] = MSG_ReadByte();
+		to->controller[0] = MSG_ReadBitField8(8);
 
 	if (bits & U_CONTROLLER2)
-		to->controller[1] = MSG_ReadByte();
+		to->controller[1] = MSG_ReadBitField8(8);
 
 	if (bits & U_CONTROLLER3)
-		to->controller[2] = MSG_ReadByte();
+		to->controller[2] = MSG_ReadBitField8(8);
 
 	if (bits & U_CONTROLLER4)
-		to->controller[3] = MSG_ReadByte();
+		to->controller[3] = MSG_ReadBitField8(8);
 
 	if (bits & U_BLENDING1)
-		to->blending[0] = MSG_ReadByte();
+		to->blending[0] = MSG_ReadBitField8(8);
 
 	if (bits & U_BLENDING2)
-		to->blending[1] = MSG_ReadByte();
+		to->blending[1] = MSG_ReadBitField8(8);
 
 	if (bits & U_BODY)
-		to->body = MSG_ReadByte();
+		to->body = MSG_ReadBitField8(8);
 
 	if (bits & U_RENDER)
 	{
-		to->rendermode = MSG_ReadByte();
-		to->renderamt = MSG_ReadByte();
-		to->rendercolor.r = MSG_ReadByte();
-		to->rendercolor.g = MSG_ReadByte();
-		to->rendercolor.b = MSG_ReadByte();
-		to->renderfx = MSG_ReadByte();
+		to->rendermode = MSG_ReadBitField8(8);
+		to->renderamt = MSG_ReadBitField8(8);
+		to->rendercolor.r = MSG_ReadBitField8(8);
+		to->rendercolor.g = MSG_ReadBitField8(8);
+		to->rendercolor.b = MSG_ReadBitField8(8);
+		to->renderfx = MSG_ReadBitField8(8);
 	}
 
 	if (bboxbits & U_BBOXMINS1)
-		to->mins[0] = MSG_ReadCoord();
+		to->mins[0] = MSG_ReadSignMagnitude16(16) / 8.0f;
 
 	if (bboxbits & U_BBOXMINS2)
-		to->mins[1] = MSG_ReadCoord();
+		to->mins[1] = MSG_ReadSignMagnitude16(16) / 8.0f;
 
 	if (bboxbits & U_BBOXMINS3)
-		to->mins[2] = MSG_ReadCoord();
+		to->mins[2] = MSG_ReadSignMagnitude16(16) / 8.0f;
 
 	if (bboxbits & U_BBOXMAXS1)
-		to->maxs[0] = MSG_ReadCoord();
+		to->maxs[0] = MSG_ReadSignMagnitude16(16) / 8.0f;
 
 	if (bboxbits & U_BBOXMAXS2)
-		to->maxs[1] = MSG_ReadCoord();
+		to->maxs[1] = MSG_ReadSignMagnitude16(16) / 8.0f;
 
 	if (bboxbits & U_BBOXMAXS3)
-		to->maxs[2] = MSG_ReadCoord();
+		to->maxs[2] = MSG_ReadSignMagnitude16(16) / 8.0f;
 
-	if (bits & U_AIMENT)
-		to->aiment = MSG_ReadShort();
+	if (bboxbits & U_BBOXAIMENT)
+		to->aiment = MSG_ReadBitField16(10);
 }
 
 /*
@@ -314,26 +320,27 @@ void CL_ParseDelta( entity_state_t* from, entity_state_t* to, int bits, int bbox
 CL_FlushEntityPacket
 =================
 */
-void CL_FlushEntityPacket( void )
+void CL_FlushEntityPacket( qboolean startbitreading )
 {
 	int			num;
 	entity_state_t	olde, newe;
 	int			flags, bboxflags;
-	unsigned int peeklong;
 
 	memset(&olde, 0, sizeof(olde));
 
 	cl.validsequence = 0;		// can't render a frame
 	cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK].invalid = TRUE;
 	
+	if (startbitreading)
+		MSG_StartBitReading(&net_message);
+
 	// read it all, but ignore it
 	while (1)
 	{
-		memcpy(&peeklong, &net_message.data[msg_readcount], sizeof(unsigned int));
-		if (peeklong)
-			num = CL_ParseDeltaFlags(&flags, &bboxflags);
+		if (MSG_PeekBits(32))
+			num = CL_ReadEntityHeader(&flags, &bboxflags);
 		else
-			num = MSG_ReadLong();
+			num = MSG_ReadBitField32(32);
 
 		if (msg_badread)
 		{	// something didn't parse right...
@@ -355,6 +362,9 @@ void CL_FlushEntityPacket( void )
 			CL_ParseDelta(&olde, &newe, flags, bboxflags, num);
 		}
 	}
+
+	if (startbitreading)
+		MSG_EndBitReading(&net_message);
 }
 
 /*
@@ -373,8 +383,6 @@ void CL_ParsePacketEntities( qboolean delta )
 	int			num, newnum, oldnum;
 	int			flags, bboxflags;
 	qboolean	full;
-	byte		from;
-	unsigned int peeklong;
 	int			newp_number; // # of entities in new packet.
 
 	if (cls.signon == 2)
@@ -398,9 +406,13 @@ void CL_ParsePacketEntities( qboolean delta )
 	if (!newp_number)
 		newp_number = 1;
 
-	newp->entities = (entity_state_t*)DebugRealloc(newp->entities, (int)(sizeof(entity_state_t) * newp_number), __FILE__, __LINE__);
-	if (!newp->entities)
-		Sys_Error("CL_ParsePacketEntities:  Failed to allocate space for %i entities.\n", newp_number);
+	if (!newp->entities || newp->max_entities < newp_number)
+	{
+		newp->entities = (entity_state_t*)DebugRealloc(newp->entities, (int)(sizeof(entity_state_t) * newp_number), __FILE__, __LINE__);
+		if (!newp->entities)
+			Sys_Error("CL_ParsePacketEntities:  Failed to allocate space for %i entities.\n", newp_number);
+		newp->max_entities = newp_number;
+	}
 
 	memset(newp->entities, 0, sizeof(entity_state_t) * newp_number);
 
@@ -408,12 +420,8 @@ void CL_ParsePacketEntities( qboolean delta )
 
 	if (delta)
 	{
-		from = MSG_ReadByte();
-
+		MSG_ReadByte();
 		oldpacket = cl.frames[newpacket].delta_sequence;
-
-		if ((from & UPDATE_MASK) != (oldpacket & UPDATE_MASK))
-			Con_DPrintf("WARNING: from mismatch\n");
 	}
 	else
 	{
@@ -425,7 +433,7 @@ void CL_ParsePacketEntities( qboolean delta )
 	{
 		if (cls.netchan.outgoing_sequence - oldpacket >= UPDATE_BACKUP - 1)
 		{	// we can't use this, it is too old
-			CL_FlushEntityPacket();
+			CL_FlushEntityPacket(TRUE);
 			if (newp->entities)
 				MnemoFreeDbg(newp->entities);
 			dummy.num_entities = 0;
@@ -449,14 +457,14 @@ void CL_ParsePacketEntities( qboolean delta )
 	oldindex = 0;
 	newindex = 0;
 	newp->num_entities = 0;
+	MSG_StartBitReading(&net_message);
 
 	while (1)
 	{
-		memcpy(&peeklong, &net_message.data[msg_readcount], sizeof(unsigned int));
-		if (peeklong)
-			num = CL_ParseDeltaFlags(&flags, &bboxflags);
+		if (MSG_PeekBits(32))
+			num = CL_ReadEntityHeader(&flags, &bboxflags);
 		else
-			num = MSG_ReadLong();
+			num = MSG_ReadBitField32(32);
 
 		if (msg_badread)
 		{	// something didn't parse right...
@@ -484,12 +492,13 @@ void CL_ParsePacketEntities( qboolean delta )
 			if (full)
 			{
 				Con_Printf("WARNING: oldcopy on full update");
-				CL_FlushEntityPacket();
+				CL_FlushEntityPacket(FALSE);
 
 				if (newp->entities)
 					MnemoFreeDbg(newp->entities);
 				dummy.num_entities = 0;
 				dummy.entities = NULL;
+				MSG_EndBitReading(&net_message);
 				return;
 			}
 
@@ -512,11 +521,12 @@ void CL_ParsePacketEntities( qboolean delta )
 				{
 					cl.validsequence = 0;
 					Con_Printf("WARNING: U_REMOVE on full update\n");
-					CL_FlushEntityPacket();
+					CL_FlushEntityPacket(FALSE);
 					if (newp->entities)
 						MnemoFreeDbg(newp->entities);
 					newp->num_entities = 0;
 					newp->entities = NULL;
+					MSG_EndBitReading(&net_message);
 					return;
 				}
 				continue;
@@ -566,6 +576,9 @@ void CL_ParsePacketEntities( qboolean delta )
 	}
 
 	newp->num_entities = newindex;
+	MSG_EndBitReading(&net_message);
+	if (msg_badread)
+		Host_EndGame("msg_badread in packetentities\n");
 }
 
 /*
@@ -630,9 +643,9 @@ void CL_ProcessEntityUpdate( cl_entity_t* ent, entity_state_t* state, qboolean s
 	if (ent->model && sync)
 	{
 		if (ent->model->synctype == ST_RAND)
-			ent->syncbase = RandomFloat(0.0, 1.0);
+			ent->syncbase = RandomFloat(0.0f, 1.0f);
 		else
-			ent->syncbase = 0.0;
+			ent->syncbase = 0.0f;
 	}
 
 	ent->colormap = state->colormap;
@@ -754,9 +767,9 @@ void CL_PlayerFlashlight( void )
 			falloff = trace.fraction * FLASHLIGHT_DISTANCE;
 
 			if (falloff < 500)
-				falloff = 1.0;
+				falloff = 1.0f;
 			else
-				falloff = 500.0 / (falloff);
+				falloff = 500.0f / (falloff);
 			
 			falloff *= falloff;
 			dl->radius = 80;
@@ -767,12 +780,12 @@ void CL_PlayerFlashlight( void )
 			halo->radius = 200;
 			VectorCopy(ent->origin, halo->origin);
 			halo->origin[2] += 16;
-			halo->die = cl.time + 0.2;
+			halo->die = cl.time + 0.2f;
 #endif
 		}
 
 		cl.pLight = dl;
-		dl->die = cl.time + 0.2;
+		dl->die = cl.time + 0.2f;
 		CL_TouchLight(dl);
 	}
 	else
@@ -889,7 +902,7 @@ void CL_LinkPacketEntities( void )
 		{
 			if (!VectorCompare(ent->origin, nullent.origin))
 			{
-				ent->lastmove = cl.time + 0.2;
+				ent->lastmove = cl.time + 0.2f;
 				VectorCopy(ent->origin, ent->prevorigin);
 				VectorCopy(ent->angles, ent->prevangles);
 			}
@@ -940,7 +953,7 @@ void CL_LinkPacketEntities( void )
 				dl->origin[2] += 16;
 				dl->color.r = dl->color.g = dl->color.b = 250;
 				dl->radius = RandomFloat(400, 431);
-				dl->die = cl.time + 0.001;
+				dl->die = cl.time + 0.001f;
 			}
 
 			if (ent->effects & EF_DIMLIGHT)
@@ -949,7 +962,7 @@ void CL_LinkPacketEntities( void )
 				VectorCopy(ent->origin, dl->origin);
 				dl->color.r = dl->color.g = dl->color.b = 100;
 				dl->radius = RandomFloat(200, 231);
-				dl->die = cl.time + 0.001;
+				dl->die = cl.time + 0.001f;
 			}
 		}
 
@@ -961,7 +974,7 @@ void CL_LinkPacketEntities( void )
 			VectorCopy(ent->origin, dl->origin);
 			dl->color.r = dl->color.g = dl->color.b = 100;
 			dl->radius = 200;
-			dl->die = cl.time + 0.001;
+			dl->die = cl.time + 0.001f;
 		}
 
 		if (model)
@@ -974,7 +987,7 @@ void CL_LinkPacketEntities( void )
 				VectorCopy(ent->origin, dl->origin);
 				dl->color.r = dl->color.g = dl->color.b = 200;
 				dl->radius = 200;
-				dl->die = cl.time + 0.01;
+				dl->die = cl.time + 0.01f;
 			}
 			else if (ent->model->flags & EF_GRENADE)
 				R_RocketTrail(old_origin, ent->origin, 1);
@@ -1002,74 +1015,76 @@ CL_ParsePlayerinfo
 ===================
 */
 extern int parsecountmod;
-extern double parsecounttime;
+extern float parsecounttime;
 void CL_ParsePlayerinfo( void )
 {
-	int				msec;
-	int				flags;
-	player_info_t*	info;
+	int msec;
+	int flags;
+	int physflags;
+	player_info_t* info;
 	player_state_t* state;
-	int				num;
-	int				i;
-	cl_entity_t*	ent;
-	qboolean		spectator = FALSE;
-	vec3_t			prevorigin, prevangles;
+	int num;
+	int i;
+	cl_entity_t* ent;
+	qboolean spectator;
+	vec3_t prevorigin, prevangles;
 
-	num = MSG_ReadByte();
-	if (num & PN_SPECTATOR)
-	{
-		spectator = TRUE;
+	flags = MSG_ReadByte();
+	if (flags & g_PF_MOREBITS)
+		flags |= MSG_ReadByte() << 8;
+	if (flags & g_PF_EVENMOREBITS)
+		flags |= MSG_ReadByte() << 16;
+	if (flags & g_PF_YETMOREBITS)
+		flags |= MSG_ReadByte() << 24;
+
+	MSG_StartBitReading(&net_message);
+
+	num = MSG_ReadBitField8(6);
+	spectator = (num & PN_SPECTATOR) != 0;
+	if (spectator)
 		num &= ~PN_SPECTATOR;
-	}
 
 	if (num > MAX_CLIENTS)
 		Sys_Error("CL_ParsePlayerinfo: bad num");
 
 	info = &cl.players[num];
 	info->spectator = spectator;
-
 	state = &cl.frames[parsecountmod].playerstate[num];
-
 	state->received_time = realtime;
 	state->number = num;
-
-	flags = state->flags = MSG_ReadLong();
-
-	state->physflags = MSG_ReadLong();
 	state->messagenum = cl.parsecount;
-	state->origin[0] = MSG_ReadCoord();
-	state->origin[1] = MSG_ReadCoord();
-	state->origin[2] = MSG_ReadCoord();
+	state->flags = flags;
+
+	physflags = MSG_ReadBitField8(5);
+	state->physflags = FL_CLIENT;
+	if (physflags & g_PF_ONTRAIN)
+		state->physflags |= FL_ONTRAIN;
+	if (physflags & g_PF_DUCKING)
+		state->physflags |= FL_DUCKING;
+	if (physflags & g_PF_FROZEN)
+		state->physflags |= FL_FROZEN;
+	if (physflags & g_PF_SPECTATOR)
+		state->physflags |= FL_SPECTATOR;
+	if (physflags & g_PF_WATERJUMP)
+		state->physflags |= FL_WATERJUMP;
+
+	for (i = 0; i < 3; i++)
+		state->origin[i] = (int)MSG_ReadSignMagnitude32(18) / 32.0f;
 
 	VectorSubtract(state->origin, state->prevorigin, state->predorigin);
+	state->frame = MSG_ReadBitField8(8);
 
-	state->frame = MSG_ReadByte();
-
-	// Count player bits
-	for (i = 0; i < MAX_CLIENTS; i++)
+	for (i = 0; i < 32; i++)
 	{
 		if (flags & (1 << i))
 			playerbitcounts[i]++;
 	}
 
-	// the other player's last move was likely some time
-	// before the packet was sent out, so accurately track
-	// the exact time it was valid at
-	if (flags & PF_MSEC)
-	{
-		msec = MSG_ReadByte();
-		state->state_time = parsecounttime - msec * 0.001;
-	}
-	else
-	{
-		state->state_time = parsecounttime;
-	}
-
-	if (flags & PF_COMMAND)
+	if (flags & g_PF_COMMAND)
 	{
 		usercmd_t nullcmd;
 		memset(&nullcmd, 0, sizeof(nullcmd));
-		MSG_ReadDeltaUsercmd(&state->command, &nullcmd);
+		MSG_ReadBitUsercmd(&state->command, &nullcmd);
 		VectorCopy(state->command.angles, state->viewangles);
 	}
 	else
@@ -1077,67 +1092,83 @@ void CL_ParsePlayerinfo( void )
 		VectorCopy(vec3_origin, state->viewangles);
 	}
 
-	for (i = 0; i < 3; i++)
+	if (flags & g_PF_MSEC)
 	{
-		if (flags & (PF_VELOCITY1 << i))
-		{
-			state->velocity[i] = MSG_ReadShort();
-		}
-		else
-		{
-			state->velocity[i] = 0.0;
-		}
+		msec = MSG_ReadBitField8(8);
+		state->state_time = parsecounttime - msec * 0.001f;
+	}
+	else
+	{
+		state->state_time = parsecounttime;
 	}
 
-	if (flags & PF_MODEL)
-		state->modelindex = MSG_ReadShort();
+	if (flags & g_PF_VELOCITYXY)
+	{
+		state->velocity[0] = MSG_ReadSignMagnitude16(14) / 8.0f;
+		state->velocity[1] = MSG_ReadSignMagnitude16(14) / 8.0f;
+	}
+	else
+	{
+		state->velocity[0] = 0.0f;
+		state->velocity[1] = 0.0f;
+	}
+	if (flags & g_PF_VELOCITY3)
+		state->velocity[2] = MSG_ReadSignMagnitude16(14) / 8.0f;
+	else
+		state->velocity[2] = 0.0f;
+
+	if (flags & g_PF_MODEL_LONG)
+		state->modelindex = MSG_ReadBitField16(10);
+	else if (flags & g_PF_MODEL)
+		state->modelindex = MSG_ReadBitField8(8);
 	else
 		state->modelindex = cl_playerindex;
 
-	if (flags & PF_SKINNUM)
-		state->skinnum = MSG_ReadByte();
+	if (flags & g_PF_SKINNUM)
+		state->skinnum = MSG_ReadBitField8(8);
 	else
 		state->skinnum = 0;
 
-	if (flags & PF_EFFECTS)
-		state->effects = MSG_ReadByte();
+	if (flags & g_PF_EFFECTS)
+		state->effects = MSG_ReadBitField8(8);
 	else
 		state->effects = 0;
 
-	if (flags & PF_WEAPONMODEL)
-		state->weaponmodel = MSG_ReadShort();
+	if (flags & g_PF_WEAPONMODEL_LONG)
+		state->weaponmodel = MSG_ReadBitField16(10);
+	else if (flags & g_PF_WEAPONMODEL)
+		state->weaponmodel = MSG_ReadBitField8(8);
 	else
 		state->weaponmodel = 0;
 
-	if (flags & PF_MOVETYPE)
-		state->movetype = MSG_ReadByte();
+	if (flags & g_PF_MOVETYPE)
+		state->movetype = MSG_ReadBitField8(4);
 	else
-		state->movetype = 0;
+		state->movetype = MOVETYPE_WALK;
 
-	if (flags & PF_SEQUENCE)
+	if (flags & g_PF_SEQUENCE)
 	{
-		int	sequence;
+		int sequence;
 		float animtime, delta;
 
-		sequence = MSG_ReadByte();
-
-		delta = (int)(cl.time * 100.0) - (byte)(cl.time * 100.0);
-		animtime = (MSG_ReadByte() / 100.0) + (delta / 100.0);
-		while (animtime > cl.time + 0.1)
-			animtime -= 2.56;
+		sequence = MSG_ReadBitField8(8);
+		delta = (int)(cl.time * 100.0f) - (byte)(cl.time * 100.0f);
+		animtime = MSG_ReadBitField8(8) / 100.0f + delta / 100.0f;
+		while (animtime > cl.time + 0.1f)
+			animtime -= 2.56f;
 
 		state->sequence = sequence;
 		state->animtime = animtime;
 	}
 
-	if (flags & PF_RENDER)
+	if (flags & g_PF_RENDER)
 	{
-		state->rendermode = MSG_ReadByte();
-		state->renderamt = MSG_ReadByte();
-		state->rendercolor.r = MSG_ReadByte();
-		state->rendercolor.g = MSG_ReadByte();
-		state->rendercolor.b = MSG_ReadByte();
-		state->renderfx = MSG_ReadByte();
+		state->rendermode = MSG_ReadBitField8(8);
+		state->renderamt = MSG_ReadBitField8(8);
+		state->rendercolor.r = MSG_ReadBitField8(8);
+		state->rendercolor.g = MSG_ReadBitField8(8);
+		state->rendercolor.b = MSG_ReadBitField8(8);
+		state->renderfx = MSG_ReadBitField8(8);
 	}
 	else
 	{
@@ -1149,68 +1180,72 @@ void CL_ParsePlayerinfo( void )
 		state->renderfx = 0;
 	}
 
-	if (flags & PF_FRAMERATE)
-		state->framerate = MSG_ReadChar() / 16.0;
+	if (flags & g_PF_FRAMERATE)
+		state->framerate = (unsigned short)MSG_ReadBitField8(8) / 16.0f;
 	else
-		state->framerate = 1;
+		state->framerate = 1.0f;
 
-	if (flags & PF_BODY)
-		state->body = MSG_ReadByte();
+	if (flags & g_PF_BODY)
+		state->body = MSG_ReadBitField8(8);
 	else
 		state->body = 0;
 
-	if (flags & PF_CONTROLLER1)
-		state->controller[0] = MSG_ReadByte();
+	if (flags & g_PF_CONTROLLER1)
+		state->controller[0] = MSG_ReadBitField8(8);
 	else
 		state->controller[0] = 0;
-
-	if (flags & PF_CONTROLLER2)
-		state->controller[1] = MSG_ReadByte();
+	if (flags & g_PF_CONTROLLER2)
+		state->controller[1] = MSG_ReadBitField8(8);
 	else
 		state->controller[1] = 0;
-
-	if (flags & PF_CONTROLLER3)
-		state->controller[2] = MSG_ReadByte();
+	if (flags & g_PF_CONTROLLER3)
+		state->controller[2] = MSG_ReadBitField8(8);
 	else
 		state->controller[2] = 0;
-
-	if (flags & PF_CONTROLLER4)
-		state->controller[3] = MSG_ReadByte();
+	if (flags & g_PF_CONTROLLER4)
+		state->controller[3] = MSG_ReadBitField8(8);
 	else
 		state->controller[3] = 0;
 
-	if (flags & PF_BLENDING1)
-		state->blending[0] = MSG_ReadByte();
+	if (flags & g_PF_BLENDING1)
+		state->blending[0] = MSG_ReadBitField8(8);
 	else
 		state->blending[0] = 0;
-
-	if (flags & PF_BLENDING2)
-		state->blending[1] = MSG_ReadByte();
+	if (flags & g_PF_BLENDING2)
+		state->blending[1] = MSG_ReadBitField8(8);
 	else
-		state->blending[0] = 0;
+		state->blending[1] = 0;
 
-	if (flags & PF_BASEVELOCITY)
+	if (flags & g_PF_BASEVELOCITY)
 	{
-		state->basevelocity[0] = MSG_ReadShort();
-		state->basevelocity[1] = MSG_ReadShort();
-		state->basevelocity[2] = MSG_ReadShort();
+		state->basevelocity[0] = MSG_ReadSignMagnitude16(16) / 8.0f;
+		state->basevelocity[1] = MSG_ReadSignMagnitude16(16) / 8.0f;
+		state->basevelocity[2] = MSG_ReadSignMagnitude16(16) / 8.0f;
 	}
 	else
 	{
 		VectorCopy(vec3_origin, state->basevelocity);
 	}
 
-	if (flags & PF_FRICTION)
-	{
-		state->friction = MSG_ReadShort();
-	}
+	if (flags & g_PF_FRICTION)
+		state->friction = MSG_ReadSignMagnitude16(16) / 8.0f;
 	else
+		state->friction = 1.0f;
+
+	if (flags & g_PF_PING)
 	{
-		state->friction = 1.0;
+		info->ping = MSG_ReadBitField16(12);
+		info->packetloss = MSG_ReadBitField8(6);
+		if (info->packetloss > 100)
+			info->packetloss = 100;
 	}
 
-	if (flags & PF_PING)
-		info->ping = MSG_ReadShort();
+	if (flags & g_PF_GAITSEQUENCE)
+		state->gaitsequence = MSG_ReadBitField8(8);
+	else
+		state->gaitsequence = 0;
+
+	MSG_EndBitReading(&net_message);
 
 	ent = &cl_entities[num + 1];
 
@@ -1220,7 +1255,7 @@ void CL_ParsePlayerinfo( void )
 	VectorCopy(state->origin, ent->origin);
 	VectorCopy(state->viewangles, ent->angles);
 	// Player pitch is inverted
-	ent->angles[PITCH] /= -3.0;
+	ent->angles[PITCH] /= -3.0f;
 
 	ent->frame = state->frame;
 	ent->movetype = state->movetype;
@@ -1273,7 +1308,7 @@ void CL_LinkPlayers( void )
 	player_info_t* info;
 	player_state_t* state;
 	player_state_t	exact;
-	double			playertime;
+	float			playertime;
 	cl_entity_t* ent;
 	int				msec;
 	frame_t* frame;
@@ -1291,7 +1326,7 @@ void CL_LinkPlayers( void )
 		cl.mvelocity[1][i] = cl.mvelocity[1][i] +
 		frac * (cl.mvelocity[0][i] - cl.mvelocity[1][i]);
 
-	playertime = realtime - cls.latency + 0.02;
+	playertime = realtime - cls.latency + 0.02f;
 	if (playertime > realtime)
 		playertime = realtime;
 
@@ -1369,7 +1404,7 @@ void CL_LinkPlayers( void )
 				dl->origin[2] += 16;
 				dl->color.r = dl->color.g = dl->color.b = 250;
 				dl->radius = RandomFloat(400, 431);
-				dl->die = cl.time + 0.001;
+				dl->die = cl.time + 0.001f;
 			}
 
 			if (ent->effects & EF_DIMLIGHT)
@@ -1378,7 +1413,7 @@ void CL_LinkPlayers( void )
 				VectorCopy(ent->origin, dl->origin);
 				dl->color.r = dl->color.g = dl->color.b = 100;
 				dl->radius = RandomFloat(200, 231);
-				dl->die = cl.time + 0.001;
+				dl->die = cl.time + 0.001f;
 			}
 		}
 
@@ -1511,12 +1546,12 @@ void CL_SetUpPlayerPrediction( qboolean dopred )
 	int				j;
 	player_state_t* state;
 	player_state_t	exact;
-	double			playertime;
+	float			playertime;
 	int				msec;
 	frame_t* frame;
 	predicted_player* pplayer;
 
-	playertime = realtime - cls.latency + 0.02;
+	playertime = realtime - cls.latency + 0.02f;
 	if (playertime > realtime)
 		playertime = realtime;
 

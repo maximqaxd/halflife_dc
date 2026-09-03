@@ -35,6 +35,7 @@ typedef struct
 
 // Number of connection challenges tracked at once
 #define	MAX_CHALLENGES	16
+#define MAX_ROUTEABLE_PACKET	1400
 
 typedef struct
 {
@@ -42,6 +43,23 @@ typedef struct
 	int			challenge;			// the challenge value
 	int			time;				// time the challenge was created
 } challenge_t;
+
+#define MAX_USERFILTERS 1024
+
+typedef struct
+{
+	int		userid;
+	float	banEndTime;
+	float	banTime;
+} userfilter_t;
+
+typedef struct
+{
+	qboolean	active;
+	qboolean	net_log;
+	netadr_t	net_address;
+	void*		file;
+} server_log_t;
 
 // server_static_t
 typedef struct server_static_s
@@ -60,8 +78,13 @@ typedef struct server_static_s
 
 	int			serverflags;			// episode completion information
 
+	server_log_t log;
+#ifdef HLDC_MP
 	svstats_t	stats;
-} server_static_t;
+#else
+	byte		reserved[20];
+#endif
+} server_static_t; // sizeof(server_static_t) = 0x208
 
 //=============================================================================
 
@@ -73,7 +96,7 @@ typedef enum server_state_e
 	ss_active	// Running
 } server_state_t;
 
-// sizeof(server_t) = 0x34F90u
+// sizeof(server_t) = 0x2FFB8u
 typedef struct
 {
 	qboolean	active;				// false if only a net client
@@ -100,6 +123,9 @@ typedef struct
 	char*		model_precache[MAX_MODELS];	
 	struct model_s*	models[MAX_MODELS];
 	char*		sound_precache[MAX_SOUNDS];
+	byte		reserved_sound_precache[0x800];
+	char*		generic_precache[MAX_GENERIC];
+	byte		reserved_generic_precache[0x800];
 	char*		lightstyles[MAX_LIGHTSTYLES];
 
 	int			num_edicts;
@@ -116,9 +142,11 @@ typedef struct
 	sizebuf_t	reliable_datagram;
 	byte		reliable_datagram_buf[MAX_DATAGRAM];
 
+#ifdef HLDC_MP
 	// the master buffer is used for building log packets
 	sizebuf_t	master;
 	byte		master_buf[MAX_DATAGRAM];
+#endif
 
 	// the multicast buffer is used to send a message to a set of clients
 	sizebuf_t	multicast;
@@ -134,6 +162,13 @@ typedef struct
 	byte		signon_buffers[MAX_SIGNON_BUFFERS][MAX_DATAGRAM];
 } server_t;
 
+#define SERVER_FIELD_OFFSET(type, field) ((unsigned long)&(((type*)0)->field))
+typedef char server_datagram_offsetcheck[(SERVER_FIELD_OFFSET(server_t, datagram) == 0x1E1F4) ? 1 : -1];
+typedef char server_reliable_datagram_offsetcheck[(SERVER_FIELD_OFFSET(server_t, reliable_datagram) == 0x1F1A4) ? 1 : -1];
+typedef char server_multicast_offsetcheck[(SERVER_FIELD_OFFSET(server_t, multicast) == 0x20154) ? 1 : -1];
+typedef char server_signon_offsetcheck[(SERVER_FIELD_OFFSET(server_t, signon) == 0x20564) ? 1 : -1];
+#undef SERVER_FIELD_OFFSET
+
 typedef struct
 {
 	// received from client
@@ -146,7 +181,7 @@ typedef struct
 	float				frame_time;
 	// State of entities this frame from the POV of the client.
 	packet_entities_t	entities;
-} client_frame_t;
+} client_frame_t; // sizeof(client_frame_t) = 0x20
 
 // client_t
 typedef struct client_s
@@ -164,6 +199,7 @@ typedef struct client_s
 
 	int delta_sequence;					// -1 = no compression.  This is where the server is creating the
 										// compressed info from.
+	qboolean reserved0;
 
 	qboolean privileged; // can execute any host command
 
@@ -172,14 +208,21 @@ typedef struct client_s
 	qboolean spectator;	 // non-interactive
 
 	qboolean fakeclient; // JAC: This client is a fake player controlled by the game DLL
+	byte reserved1[10];
 
 	usercmd_t lastcmd; // for filling in big drops and partial predictions
 
-	double localtime; // of last message
+	float localtime; // of last message
 
 	int		oldbuttons;
+	int		reserved2;
+	double	svtimebase;
+	byte	reserved3[48];
 
 	float	maxspeed; // localized maxspeed
+	int		reserved4;
+	int		pmove_state;
+	qboolean pmove_flags;
 
 	// the datagram is written to after every frame, but only cleared
 	// when it is sent out to the client.  overflow is tolerated.
@@ -197,6 +240,7 @@ typedef struct client_s
 	const edict_t* pViewEntity; // View Entity (camera or the client itself)
 
 	int			userid;					// identifying number
+	int			network_userid;
 	char		userinfo[MAX_INFO_STRING];	// infostring (name, model, rate, etc.)
 	qboolean	sendinfo;				// at end of frame, send info to all
 	float		sendinfo_time;			// time when userinfo was last broadcast
@@ -205,7 +249,8 @@ typedef struct client_s
 
 	char		name[32];	// for printing to other people
 
-	int			colors;
+	int			topcolor;
+	int			bottomcolor;
 
 	int			saveSize; // the amount this client's edict is taking in our SAVERESTOREDATA
 
@@ -225,27 +270,44 @@ typedef struct client_s
 	resource_t* uploadresource;			// The resource we're trying to retrieve from the client (e.g. spray)
 	char		uploadfntmp[MAX_QPATH];
 	CRC32_t		uploadfinalCRC;
+#ifdef HLDC_MP
 	char		uploadfn[MAX_QPATH];
+#else
+	char		uploadfn[32];
+#endif
 	int			uploadcount;
 
-	qboolean	uploadinprogress;		// TRUE if uploading is in progress
+	qboolean	uploaddoneregistering;
 
 	int			nTotalSize;
 	int			nTotalToTransfer;
 	int			nRemainingToTransfer;
 
-	float		fLastStatusUpdate;		// The time of the last upload status
+	double		fLastStatusUpdate;		// The time of the last upload status
+#ifdef HLDC_MP
 	float		fLastUploadTime;		// The last time the file was uploaded
+#endif
 
 	downloadtime_t rgUploads[MAX_DL_STATS];
 	int			nCurUpload;
 
-	qboolean	uploaddoneregistering;
+	qboolean	uploadinprogress;		// TRUE if uploading is in progress
 
 	CRC32_t		uploadcurrentCRC;
 
 	customization_t customdata;
-} client_t;
+} client_t; // sizeof(client_t) = 0x36F0
+
+typedef char client_frame_t_sizecheck[(sizeof(client_frame_t) == 0x20) ? 1 : -1];
+#ifndef HLDC_MP
+#define CLIENT_FIELD_OFFSET(type, field) ((unsigned long)&(((type*)0)->field))
+typedef char server_static_t_sizecheck[(sizeof(server_static_t) == 0x208) ? 1 : -1];
+typedef char server_t_sizecheck[(sizeof(server_t) == 0x2FFB8) ? 1 : -1];
+typedef char client_t_sizecheck[(sizeof(client_t) == 0x36F0) ? 1 : -1];
+typedef char client_netchan_offsetcheck[(CLIENT_FIELD_OFFSET(client_t, netchan) == 0xC) ? 1 : -1];
+typedef char client_datagram_offsetcheck[(CLIENT_FIELD_OFFSET(client_t, datagram) == 0x2418) ? 1 : -1];
+#undef CLIENT_FIELD_OFFSET
+#endif
 
 // server flags
 #define	SFL_EPISODE_1		1
@@ -309,12 +371,15 @@ extern qboolean bUnreliableOverflow;
 extern int num_servers;
 
 extern	qboolean	allow_cheats;
+extern	userfilter_t userfilters[MAX_USERFILTERS];
+extern	int numuserfilters;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 extern	server_static_t	svs;				// persistant server info
 extern	server_t		sv;					// local server
+extern	char			localinfo[MAX_LOCALINFO];
 extern	float			sv_physicsTime;
 extern	int				sv_physicsEntities;
 #ifdef __cplusplus
@@ -335,9 +400,12 @@ extern int SV_UPDATE_BACKUP;
 extern int SV_UPDATE_MASK;
 
 void SV_ReallocateDynamicData( void );
+void Host_DeallocateDynamicData( void );
 void SV_ClearPacketEntities( client_frame_t* frame );
+void SV_AllocPacketEntities( client_frame_t* frame, int count );
 void SV_ClearFrames( client_frame_t** frames );
 void SV_AllocClientFrames( void );
+void SV_ExtractFromUserinfo( client_t* client );
 
 //===========================================================
 
@@ -353,13 +421,25 @@ void SV_CountPlayers( int* clients, int* spectators );
 void SV_DropClient( client_t* drop, qboolean crash );
 int SV_PointLeafnum( vec_t* p );
 int SV_CalcPing( client_t* cl );
+int SV_CalcPacketLoss( client_t* cl );
 void SV_StartParticle( const vec_t* org, const vec_t* dir, int color, int count );
+qboolean SV_BuildSoundMsg( edict_t* entity, int channel, const char* sample, int volume, float attenuation, int fFlags, int pitch, vec3_t origin, sizebuf_t* buffer );
 void SV_StartSound( edict_t* entity, int channel, const char* sample, int volume, float attenuation, int fFlags, int pitch );
 void SV_Multicast( vec_t* origin, int to, qboolean reliable );
 void SV_ClientPrintf( char* fmt, ... );
 void SV_BroadcastPrintf( char* fmt, ... );
 void SV_BroadcastCommand( char* fmt, ... );
+void SV_Serverinfo_f( void );
+void SV_Localinfo_f( void );
+void SV_ShowServerinfo_f( void );
+void SV_User_f( void );
+void SV_Users_f( void );
 void Log_Printf( char* fmt, ... );
+void Log_PrintServerVars( void );
+void Log_Open( void );
+void Log_Close( void );
+void SV_SetLogAddress_f( void );
+void SV_ServerLog_f( void );
 void SV_QueryMovevarsChanged( void );
 void SV_New_f( void );
 void SV_PTrack_f( void );
@@ -369,7 +449,6 @@ int SV_SpawnServer( qboolean bIsDemo, char* server, char* startspot );
 void SV_LoadEntities( void );
 void SV_ClearEntities( void );
 void SV_InactivateClients( void );
-void SV_MemPrediction_f( void );
 void SV_AddIP_f( void );
 void SV_RemoveIP_f( void );
 void SV_ListIP_f( void );
@@ -378,6 +457,11 @@ void SV_Keys_f( void );
 void SV_SendUserReg( sizebuf_t* sb );
 void SV_SendBan( void );
 qboolean SV_FilterPacket( void );
+qboolean SV_FilterUser( int userid );
+void SV_BanId_f( void );
+void SV_RemoveId_f( void );
+void SV_WriteId_f( void );
+void SV_ListId_f( void );
 void SV_SendClientMessages( void );
 void SV_WriteClientdataToMessage( client_t* client, sizebuf_t* msg );
 int SV_ModelIndex( char* name );

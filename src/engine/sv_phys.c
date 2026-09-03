@@ -61,7 +61,7 @@ void SV_CheckAllEnts( void )
 	edict_t* check;
 
 // see if any solid entities are inside the final position
-	check = sv.edicts;
+	check = sv.edicts + 1;
 	for (e = 1; e < sv.num_edicts; e++, check++)
 	{
 		if (check->free)
@@ -522,17 +522,17 @@ void SV_PushMove( edict_t* pusher, float movetime )
 		return;
 	}
 
-	for (i = 0; i < 3; i++)
-	{
-		move[i] = pusher->v.velocity[i] * movetime;
-		mins[i] = pusher->v.absmin[i] + move[i];
-		maxs[i] = pusher->v.absmax[i] + move[i];
-	}
-
 	VectorCopy(pusher->v.origin, pushorig);
 
 	// move the pusher to it's final position
-	VectorAdd(pusher->v.origin, move, pusher->v.origin);
+	for (i = 0; i < 3; i++)
+	{
+		move[i] = pusher->v.velocity[i] * movetime;
+		mins[i] = pusher->v.absmin[i] + pusher->v.velocity[i] * movetime;
+		maxs[i] = pusher->v.absmax[i] + move[i];
+		pusher->v.origin[i] += move[i];
+	}
+
 	pusher->v.ltime += movetime;
 	SV_LinkEdict(pusher, FALSE);
 
@@ -541,7 +541,7 @@ void SV_PushMove( edict_t* pusher, float movetime )
 
 // see if any solid entities are inside the final position
 	num_moved = 0;
-	check = sv.edicts;
+	check = sv.edicts + 1;
 	for (e = 1; e < sv.num_edicts; e++, check++)
 	{
 		if (check->free)
@@ -672,7 +672,7 @@ int SV_PushRotate( edict_t* pusher, float movetime )
 
 	// see if any solid entities are inside the final position
 	num_moved = 0;
-	check = sv.edicts;
+	check = sv.edicts + 1;
 	for (e = 1; e < sv.num_edicts; e++, check++)
 	{
 		if (check->free)

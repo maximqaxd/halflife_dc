@@ -7,6 +7,14 @@
 #include "cl_demo.h"
 #include "cl_draw.h"
 #include "hashpak.h"
+#include "tmessage.h"
+#include "vmu.h"
+
+// Message parsing is built unoptimized and never inlined. It runs a handful of
+// times a frame at most, and when a server sends something the client does not
+// expect this is the first place anyone puts a breakpoint.
+#pragma optimize( "", off )
+#pragma inline_depth( 0 )
 
 int		last_data[MAX_DATA_HISTORY];
 int		msg_buckets[MAX_DATA_HISTORY];
@@ -33,7 +41,7 @@ char* svc_strings[] =
 									// [string]..[0]model cache [string]...[0]sounds cache
 									// [string]..[0]item cache
 	"svc_lightstyle",			// [byte] [string]
-	"svc_updatename",			// [byte] [string]
+	"svc_updateuserinfo",		// [byte] [long] [string]
 	"svc_updatefrags",			// [byte] [short]
 	"svc_clientdata",			// <shortbits + data>
 	"svc_stopsound",			// <see code>
@@ -74,12 +82,13 @@ char* svc_strings[] =
 	"svc_customization",
 	"svc_crosshairangle",		// [char] pitch * 5 [char] yaw * 5
 	"svc_soundfade",			// char percent, char holdtime, char fadeouttime, char fadeintime
-	"svc_clientmaxspeed"
+	"svc_clientmaxspeed",
+	"svc_skippedupdate"
 };
 
 int	oldparsecountmod;
 int	parsecountmod;
-double	parsecounttime;
+float	parsecounttime;
 resource_t currentresource;
 
 //=============================================================================
@@ -320,38 +329,50 @@ void CL_ParseStartSoundPacket( void )
 	sfx_t* sfx;
 	sfx_t sfxsentence;
 
-	field_mask = MSG_ReadByte();
+	// a sentence is played from a name built on the stack, so it has to start
+	// out as a blank record -- everything downstream keys off the buffer
+	memset(&sfxsentence, 0, sizeof(sfxsentence));
+
+	MSG_StartBitReading(&net_message);
+
+	field_mask = MSG_ReadBitField16(9);
 
 	if (field_mask & SND_VOLUME)
-		volume = MSG_ReadByte() / 255.0;		// reduce back to 0.0 - 1.0 range
+		volume = MSG_ReadBitField8(8) * (1.0f / 255.0f);	// reduce back to 0.0 - 1.0 range
 	else
-		volume = DEFAULT_SOUND_PACKET_VOLUME / 255.0;
+		volume = DEFAULT_SOUND_PACKET_VOLUME * (1.0f / 255.0f);
 
 	if (field_mask & SND_ATTENUATION)
-		attenuation = MSG_ReadByte() / 64.0;
+		attenuation = MSG_ReadBitField8(8) * (1.0f / 64.0f);
 	else
 		attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
 
-	channel = MSG_ReadShort();
+	channel = MSG_ReadBitField8(3);
+	ent = MSG_ReadBitField16(10);
+
 	if (field_mask & SND_LARGE_INDEX)
-		sound_num = MSG_ReadShort();
+		sound_num = MSG_ReadBitField16(16);
 	else
-		sound_num = MSG_ReadByte();
-
-	ent = channel >> 3;
-	channel &= 7;
-
-	if (ent >= cl.max_edicts)
-		Host_Error("CL_ParseStartSoundPacket: ent = %i", ent);
+		sound_num = MSG_ReadBitField8(8);
 
 	for (i = 0; i < 3; i++)
-		pos[i] = MSG_ReadCoord();
+		pos[i] = MSG_ReadSignMagnitude16(16) / 8.0f;
 
 	if (field_mask & SND_PITCH)
-		pitch = MSG_ReadByte();
+		pitch = MSG_ReadBitField8(8);
 	else
 		pitch = DEFAULT_SOUND_PACKET_PITCH;
-#if 0
+
+	MSG_EndBitReading(&net_message);
+
+	// the whole message has been consumed by now, so a bad entity index can
+	// still be reported without leaving the stream half-read
+	if (ent >= cl.max_edicts)
+	{
+		Host_Error("CL_ParseStartSoundPacket: ent = %i", ent);
+		return;
+	}
+
 	if (field_mask & SND_SENTENCE)
 	{
 		sfx = &sfxsentence;
@@ -360,12 +381,12 @@ void CL_ParseStartSoundPacket( void )
 	}
 	else
 	{
-		sfx = cl.sound_precache[sound_num];
+		sfx = S_GetSfxByIndex(sound_num);
 	}
-#endif // stub sfx till sound implementation
+
 	if (channel == CHAN_STATIC)
 	{
-		S_StartStaticSound(ent, channel, sfx, pos, volume, attenuation, field_mask, pitch);
+		S_StartStaticSound(ent, CHAN_STATIC, sfx, pos, volume, attenuation, field_mask, pitch);
 	}
 	else
 	{
@@ -491,6 +512,56 @@ void CL_ClearResourceLists( void )
 	CL_ClearResourceList(&cl.resourcesonhand);
 }
 
+qboolean GetGameInfo( char* mapName )
+{
+	CRC32_t	mapCRC;
+	CRC32_t	clientdllCRC;
+	FILE*	file;
+	char	szDllName[MAX_QPATH];
+
+	if (sv.active)
+		return TRUE;
+
+	CRC32_Init(&mapCRC);
+	if (!CRC_MapFile(&mapCRC, mapName))
+	{
+		file = NULL;
+		if (COM_FOpenFile(mapName, &file) != -1)
+		{
+			if (file)
+				Sys_CloseHandle(file);
+			COM_ExplainDisconnection(TRUE, "Couldn't CRC map %s, disconnecting\n", mapName);
+			Host_Error("Disconnected");
+			return FALSE;
+		}
+
+		if (!cl_allowdownload.value)
+		{
+			COM_ExplainDisconnection(TRUE,
+				"Refusing to download map %s, (cl_allowdownload is 0 ) disconnecting\n", mapName);
+			Host_Error("Disconnected");
+			return FALSE;
+		}
+
+		Con_Printf("Couldn't find map %s, server will download the map\n", mapName);
+		mapCRC = cl.serverCRC;
+	}
+
+	sprintf(szDllName, "cl_dlls\\client.dll");
+	CRC32_Init(&clientdllCRC);
+	if (!CRC_File(&clientdllCRC, szDllName))
+	{
+		COM_ExplainDisconnection(TRUE, "Couldn't CRC client side dll %s.\n", szDllName);
+		Host_Error("Disconnected");
+		return FALSE;
+	}
+
+	if (cl.clientdllCRC != clientdllCRC)
+		Con_Printf("Mismatched client.dll, proceeding...\n");
+
+	return TRUE;
+}
+
 /*
 ==================
 CL_RegisterResources
@@ -500,7 +571,7 @@ Clean up and move to next part of sequence.
 */
 void CL_RegisterResources( void )
 {
-	double	time1, time2, time3, time4;
+	float	time1, time2, time3, time4;
 
 	if (cls.custom)
 	{
@@ -515,68 +586,17 @@ void CL_RegisterResources( void )
 	if (!cl.worldmodel)
 		Sys_Error("Client world model is NULL\n");
 
-	Con_DPrintf("Setting up renderer...\n");
 	time1 = Sys_FloatTime();
-
-	R_NewMap();			// Tell rendering system we have a new set of models.
+	R_NewMap();
 	time2 = Sys_FloatTime();
-
+	Hunk_Check();
 	time3 = Sys_FloatTime();
 
-	noclip_anglehack = FALSE;		// noclip is turned off at start
-
-	// Don't verify CRC if we are running a local server (i.e., we are playing single player, or we are the server in multiplay
-	if (!sv.active)
-	{
-		CRC32_t mapCRC;
-		CRC32_t clientdllCRC;
-		char szDllName[MAX_QPATH]; // client side DLL being used
-
-		CRC32_Init(&mapCRC);
-		if (!CRC_MapFile(&mapCRC, cl.worldmodel->name))
-		{
-			Con_Printf("Couldn't CRC client side map %s, disconnecting\n", cl.worldmodel->name);
-			CL_Disconnect();
-			return;
-		}
-
-		if (mapCRC != cl.serverCRC)
-		{
-			Con_Printf(
-				"Your local copy of %s failed the CRC check.\n"
-				"You must obtain an updated version of the map from the server operator before you can join this server.\n",
-				cl.worldmodel->name);
-			CL_Disconnect();
-			return;
-		}
-
-		// check to see that our copy of the client side dll matches the server's
-		// client side DLL  CRC check
-		sprintf(szDllName, "cl_dlls\\client.dll");
-
-		CRC32_Init(&clientdllCRC);
-		if (!CRC_File(&clientdllCRC, szDllName))
-		{
-			Con_Printf("Couldn't CRC client side dll %s, disconnecting\n", szDllName);
-			CL_Disconnect();
-			return;
-		}
-
-		if (clientdllCRC != cl.clientdllCRC)
-		{
-			Con_Printf(
-				"Your client side .dll [%s] failed the CRC check.\n"
-				"You must be using the same client side .dll to join this server.\n",
-				szDllName);
-			CL_Disconnect();
-			return;
-		}
-	}
+	noclip_anglehack = FALSE;
+	if (!GetGameInfo(cl.worldmodel->name))
+		return;
 
 	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-
-	// Done with all resources, issue spawn command.
-	// Include server count in case server disconnects and changes level during d/l
 	MSG_WriteString(&cls.netchan.message, va("prespawn %i 0", cl.servercount));
 	time4 = Sys_FloatTime();
 }
@@ -614,7 +634,7 @@ void CL_MoveToOnHandList( resource_t* pResource )
 		else
 		{
 			S_BeginPrecaching();
-			cl.sound_precache[pResource->nIndex] = S_PrecacheSound(pResource->szFileName);
+			cl.sound_precache[pResource->nIndex] = S_FindName(pResource->szFileName);
 			S_EndPrecaching();
 			if (!cl.sound_precache[pResource->nIndex] && (pResource->ucFlags & RES_FATALIFMISSING))
 			{
@@ -809,14 +829,15 @@ qboolean CL_RequestMissingResources( void )
 
 	p = cl.resourcesneeded.pNext;
 	cls.downloadresource = p;
-	memcpy(&currentresource, p, sizeof(currentresource));
+	currentresource = *p;
 
 	if (p == &cl.resourcesneeded)
 	{
 		cls.downloadresource = NULL;
-		Con_DPrintf("Resource propagation complete.\n");
+		Sys_SetTaskName("Resource propagation complete");
 		CL_RegisterResources();
 		cls.doneregistering = TRUE;
+		Sys_SetTaskName("Resources registered");
 		return FALSE;
 	}
 
@@ -835,36 +856,36 @@ void CL_StartResourceDownloading( char* pszMessage, qboolean bCustom )
 {
 	int		worldSize, modelsSize, decalsSize, soundsSize, skinsSize, genericSize;
 
-	if (pszMessage)
-		Con_DPrintf(pszMessage);
-
 	cls.nTotalSize = COM_SizeofResourceList(&cl.resourcesneeded, &worldSize, &modelsSize, &decalsSize, &soundsSize, &skinsSize, &genericSize);
 	cls.nTotalToTransfer = CL_EstimateNeededResources();
 
-	Con_DPrintf("Resources total %iK\n", cls.nTotalSize / 1024);
-
 	if (worldSize > 0)
-		Con_DPrintf("  World :  %iK\n", worldSize / 1024);
-	if (modelsSize > 0)
-		Con_DPrintf("  Models:  %iK\n", modelsSize / 1024);
-	if (soundsSize > 0)
-		Con_DPrintf("  Sounds:  %iK\n", soundsSize / 1024);
-	if (decalsSize > 0)
-		Con_DPrintf("  Decals:  %iK\n", decalsSize / 1024);
-	if (skinsSize > 0)
-		Con_DPrintf("  Skins :  %iK\n", skinsSize / 1024);
-
-	Con_DPrintf("----------------------\n");
-	Con_DPrintf("Resources to request: %iK\n", cls.nTotalToTransfer / 1024);
-
-	if (bCustom)
 	{
-		cls.custom = TRUE;
 	}
-	else
+	if (modelsSize > 0)
+	{
+	}
+	if (soundsSize > 0)
+	{
+	}
+	if (decalsSize > 0)
+	{
+	}
+	if (skinsSize > 0)
+	{
+	}
+	if (genericSize > 0)
+	{
+	}
+
+	if (!bCustom)
 	{
 		cls.state = ca_uninitialized;
 		cls.custom = FALSE;
+	}
+	else
+	{
+		cls.custom = TRUE;
 	}
 
 	cls.doneregistering = FALSE;
@@ -877,6 +898,18 @@ void CL_StartResourceDownloading( char* pszMessage, qboolean bCustom )
 
 	memset(cls.rgDownloads, 0, sizeof(cls.rgDownloads));
 	cls.downloadnumber = 0;
+}
+
+int CL_CountResourceList( resource_t* pList )
+{
+	resource_t* p;
+	int count;
+
+	count = 0;
+	for (p = pList->pNext; p != pList; p = p->pNext)
+		count++;
+
+	return count;
 }
 
 /*
@@ -913,7 +946,7 @@ void CL_ParseResourceList( void )
 		CL_AddToResourceList(resource, &cl.resourcesneeded);
 	}
 
-	if (total < totalsize)
+	if (CL_CountResourceList(&cl.resourcesneeded) < totalsize)
 	{
 		cls.state = ca_connected;
 	}
@@ -1008,39 +1041,6 @@ void CL_RemoveCustomization( int nPlayerNum, customization_t* pRemove )
 
 /*
 ================
-CL_ParseCustomization
-
-================
-*/
-void CL_ParseCustomization( void )
-{
-	resource_t* resource;
-	int	i;
-
-	i = MSG_ReadByte();
-	if (i < 0 || i >= MAX_CLIENTS)
-		Host_Error("Bogus player index during customization parsing.\n");
-
-	resource = (resource_t*)malloc(sizeof(resource_t));
-	memset(resource, 0, sizeof(resource_t));
-	resource->type = MSG_ReadByte();
-	strcpy(resource->szFileName, MSG_ReadString());
-	resource->nIndex = MSG_ReadShort();
-	MSG_ReadLong();
-	resource->ucFlags = MSG_ReadByte();
-	resource->ucFlags &= ~RES_WASMISSING;
-
-	if (resource->ucFlags & RES_CUSTOM)
-	{
-		unsigned char rgucMD5_hash[16];
-		MSG_ReadBuf(sizeof(rgucMD5_hash), rgucMD5_hash);
-	}
-
-	free(resource);
-}
-
-/*
-================
 CL_DeallocateDynamicData
 
 ================
@@ -1064,7 +1064,7 @@ CL_ReallocateDynamicData
 */
 void CL_ReallocateDynamicData( int nMaxClients )
 {
-	cl.max_edicts = 15 * (nMaxClients - 1) + 800;
+	cl.max_edicts = COM_EntsForPlayerSlots(nMaxClients);
 	if (cl.max_edicts <= 0)
 		Sys_Error("CL_ReallocateDynamicData allocating 0 entities");
 
@@ -1075,6 +1075,55 @@ void CL_ReallocateDynamicData( int nMaxClients )
 	memset(cl_entities, 0, (sizeof(cl_entity_t) * cl.max_edicts));
 
 	R_AllocObjects(cl.max_edicts);
+
+	if (nMaxClients == 1)
+		cl_update_backup = SINGLEPLAYER_BACKUP;
+	else
+		cl_update_backup = MULTIPLAYER_BACKUP;
+	cl_update_mask = cl_update_backup - 1;
+	cls.netchan.incoming_sequence &= cl_update_mask;
+	cls.netchan.outgoing_sequence &= cl_update_mask;
+
+	if (cl.frames)
+		free(cl.frames);
+
+	cl.frames = (frame_t*)MnemoAllocDbg(sizeof(frame_t) * cl_update_backup, __FILE__, __LINE__);
+	if (!cl.frames)
+		Sys_Error("CL_ReallocateDynamicData failed to allocate %i frames", cl_update_backup);
+	memset(cl.frames, 0, sizeof(frame_t) * cl_update_backup);
+}
+
+void CL_ParseChangeGame( char* gameDir )
+{
+	char gamedir[MAX_OSPATH];
+
+	if (!gameDir || !gameDir[0])
+	{
+		Con_Printf("Server didn't specify a gamedir\n");
+		return;
+	}
+
+	COM_FileBase(com_gamedir, gamedir);
+	if (Q_stricmp(gamedir, gameDir))
+	{
+		Host_WriteConfiguration();
+		COM_ChangeGameDir(gameDir);
+		Decal_Init();
+		Draw_Init();
+		TextMessageInit();
+		ClientDLL_Init();
+		ClientDLL_HudInit();
+		ClientDLL_HudVidInit();
+		Cbuf_AddText("exec config.cfg\n");
+		Cbuf_AddText("exec preset_a.cfg\n");
+		if (FileExists("/CD-ROM/valve/halflife.cfg"))
+			Cbuf_AddText("exec halflife.cfg\n");
+		Con_Printf("Changed to game %s\n", gameDir);
+	}
+	else
+	{
+		TextMessageInit();
+	}
 }
 
 /*
@@ -1089,13 +1138,11 @@ void CL_ParseServerInfo( void )
 	char* str;
 	int		i;
 
-	Con_DPrintf("Serverinfo packet received.\n");
+	Sys_SetTaskName("CL_ParseServerInfo");
 //
 // wipe the client_state_t struct
 //
 	CL_ClearState(FALSE);
-	
-	SPR_Init();
 	
 	// Re-init hud video, especially if we changed game directories
 	ClientDLL_HudVidInit();
@@ -1125,6 +1172,9 @@ void CL_ParseServerInfo( void )
 		return;
 	}
 
+	if (cl.maxclients > 1 && mp_decals.value < r_decals.value)
+		Cvar_SetValue("r_decals", mp_decals.value);
+
 	CL_DeallocateDynamicData();
 	CL_ReallocateDynamicData(cl.maxclients);
 
@@ -1138,10 +1188,21 @@ void CL_ParseServerInfo( void )
 	// parse gametype
 	cl.gametype = MSG_ReadByte();
 
-	// receive level name
+	CL_ParseChangeGame(MSG_ReadString());
+
+	cls.changelevel = FALSE;
+	str = MSG_ReadString();
+	if (str && str[0])
+	{
+		cls.changelevel = TRUE;
+		if (!GetGameInfo(str))
+			return;
+	}
+
 	str = MSG_ReadString();
 	strncpy(cl.levelname, str, sizeof(cl.levelname) - 1);
 
+	Sys_SetTaskName("Request resourcelist");
 	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
 	MSG_WriteString(&cls.netchan.message, va("resourcelist %i 0", cl.servercount));
 
@@ -1167,9 +1228,9 @@ void CL_ParseBaseline( cl_entity_t* ent )
 	ent->baseline.frame = MSG_ReadByte();
 
 	if (ent->baseline.entityType == ENTITY_NORMAL)
-		ent->baseline.scale = MSG_ReadWord() * (1.0 / 256.0);
+		ent->baseline.scale = MSG_ReadWord() * (1.0f / 256.0f);
 	else
-		ent->baseline.scale = MSG_ReadByte() * (1.0 / 10.0);	
+		ent->baseline.scale = MSG_ReadByte() * (1.0f / 10.0f);
 
 	ent->baseline.colormap = MSG_ReadByte();
 	ent->baseline.skin = MSG_ReadShort();
@@ -1210,7 +1271,7 @@ void CL_ParseClientdata( int bits )
 
 	i = cls.netchan.incoming_acknowledged;
 	cl.parsecount = i;
-	i &= UPDATE_MASK;
+	i &= cl_update_mask;
 	parsecountmod = i;
 	frame = &cl.frames[i];
 	parsecounttime = cl.frames[i].senttime;
@@ -1220,7 +1281,7 @@ void CL_ParseClientdata( int bits )
 // calculate latency
 	latency = frame->receivedtime - frame->senttime;
 
-	if (latency < 0 || latency > 1.0)
+	if (latency < 0 || latency > 1.0f)
 	{
 //		Con_Printf("Odd latency: %5.2f\n", latency);
 	}
@@ -1231,7 +1292,7 @@ void CL_ParseClientdata( int bits )
 		if (latency < cls.latency)
 			cls.latency = latency;
 		else
-			cls.latency += 0.001;	// drift up, so correction are needed		
+			cls.latency += 0.001f;	// drift up, so correction are needed
 	}
 
 	if (bits & SU_VIEWHEIGHT)
@@ -1340,15 +1401,18 @@ void CL_ParseStaticSound( void )
 	sfx_t* sfx;
 	sfx_t sfxsentence;
 
+	// a sentence is played from a name built on the stack, so it has to start
+	// out as a blank record -- everything downstream keys off the buffer
+	memset(&sfxsentence, 0, sizeof(sfxsentence));
+
 	for (i = 0; i < 3; i++)
 		org[i] = MSG_ReadCoord();
 	sound_num = MSG_ReadShort();
-	vol = MSG_ReadByte() / 255.0;		// reduce back to 0.0 - 1.0 range
-	atten = MSG_ReadByte() / 64.0;
+	vol = MSG_ReadByte() / 255.0f;		// reduce back to 0.0 - 1.0 range
+	atten = MSG_ReadByte() / 64.0f;
 	ent = MSG_ReadShort();
 	pitch = MSG_ReadByte();
 	flags = MSG_ReadByte();
-#if 0
 	if (flags & SND_SENTENCE)
 	{
 		// make dummy sfx for sentences
@@ -1360,7 +1424,7 @@ void CL_ParseStaticSound( void )
 	{
 		sfx = cl.sound_precache[sound_num];
 	}
-#endif // stub sfx till sound implementation
+
 	S_StartStaticSound(ent, CHAN_STATIC, sfx, org, vol, atten, flags, pitch);
 }
 
@@ -1428,36 +1492,35 @@ void CL_ParseSoundFade( void )
 
 /*
 ===============
-CL_Restore
+CL_ParseRestoreDecals
 
 Restores a saved game.
 ===============
 */
-void CL_Restore( char* fileName )
+void CL_ParseRestoreDecals( char* fileName )
 {
 	DECALLIST decalList;
-	int i, decalCount, temp, mapCount;
-	FILE* pFile;
+	int i, decalCount, tag, temp, mapCount;
+	void* pFile;
 	char name[16];
-	char* pMapName;
 
-	pFile = fopen(fileName, "rb");
+	pFile = Sys_OpenHandle(fileName, "rb");
 	if (pFile)
 	{
-		fread(&temp, sizeof(int), 1, pFile);
-		fread(&i, sizeof(int), 1, pFile);
+		DC_fread(&tag, sizeof(int), 1, pFile);
+		DC_fread(&temp, sizeof(int), 1, pFile);
 
-		if (temp == SAVEFILE_HEADER)
+		if (tag == SAVEFILE_HEADER)
 		{
-			fread(&decalCount, sizeof(int), 1, pFile);
+			DC_fread(&decalCount, sizeof(int), 1, pFile);
 
 			for (i = 0; i < decalCount; i++)
 			{
-				fread(name, sizeof(char), 16, pFile);
-				fread(&decalList.entityIndex, sizeof(short), 1, pFile);
-				fread(&decalList.depth, sizeof(byte), 1, pFile);
-				fread(&decalList.flags, sizeof(byte), 1, pFile);
-				fread(decalList.position, sizeof(vec3_t), 1, pFile);
+				DC_fread(name, sizeof(char), 16, pFile);
+				DC_fread(&decalList.entityIndex, sizeof(short), 1, pFile);
+				DC_fread(&decalList.depth, sizeof(byte), 1, pFile);
+				DC_fread(&decalList.flags, sizeof(byte), 1, pFile);
+				DC_fread(decalList.position, sizeof(vec3_t), 1, pFile);
 
 				if (r_decals.value)
 				{
@@ -1469,23 +1532,45 @@ void CL_Restore( char* fileName )
 			}
 		}
 
-		fclose(pFile);
+		Sys_CloseHandle(pFile);
 	}
 
 	mapCount = MSG_ReadByte();
 
 	for (i = 0; i < mapCount; i++)
 	{
-		pMapName = MSG_ReadString();
-
-		// JAY UNDONE:  Actually load decals that transferred through the transition!!!
-		Con_Printf("Loading decals from %s\n", pMapName);
+		MSG_ReadString();
 	}
 }
 
 void CL_PlayerDropped( int nPlayerNumber )
 {
 	COM_ClearCustomizationList(&cl.players[nPlayerNumber].customdata, TRUE);
+}
+
+void CL_ParseUpdateUserInfo( void )
+{
+	player_info_t* player;
+	int slot;
+
+	slot = MSG_ReadByte();
+	if (slot >= MAX_CLIENTS)
+		Host_EndGame("CL_ParseServerMessage: svc_updateuserinfo > MAX_CLIENTS");
+
+	player = &cl.players[slot];
+	player->userid = MSG_ReadLong();
+	strncpy(player->userinfo, MSG_ReadString(), sizeof(player->userinfo) - 1);
+	strncpy(player->name, Info_ValueForKey(player->userinfo, "name"), sizeof(player->name) - 1);
+	strncpy(player->model, Info_ValueForKey(player->userinfo, "model"), sizeof(player->model) - 1);
+	player->color = atoi(Info_ValueForKey(player->userinfo, "topcolor"));
+	player->bottomcolor = atoi(Info_ValueForKey(player->userinfo, "bottomcolor"));
+	if (*Info_ValueForKey(player->userinfo, "*spectator"))
+		player->spectator = TRUE;
+	else
+		player->spectator = FALSE;
+
+	if (!player->userinfo[0] || !player->name[0])
+		CL_PlayerDropped(slot);
 }
 
 int total_data[MAX_DATA_HISTORY];
@@ -1507,17 +1592,17 @@ void CL_DumpMessageLoad_f( void )
 	{
 		if (i > svc_lastmsg)
 		{
-			Con_Printf("%i:%s: %i msgs:%.2fK\n", i, "bogus #", msg_buckets[i], total_data[i] / 1024.0);
+			Con_Printf("%i:%s: %i msgs:%.2fK\n", i, "bogus #", msg_buckets[i], total_data[i] / 1024.0f);
 		}
 		else
 		{
-			Con_Printf("%i:%s: %i msgs:%.2fK\n", i, svc_strings[i], msg_buckets[i], total_data[i] / 1024.0);
+			Con_Printf("%i:%s: %i msgs:%.2fK\n", i, svc_strings[i], msg_buckets[i], total_data[i] / 1024.0f);
 		}
 
 		total += msg_buckets[i];
 	}
 
-	Con_Printf("User messages:  %i:%.2fK\n", msg_buckets[MAX_DATA_HISTORY - 1], total_data[MAX_DATA_HISTORY - 1] / 1024.0);
+	Con_Printf("User messages:  %i:%.2fK\n", msg_buckets[MAX_DATA_HISTORY - 1], total_data[MAX_DATA_HISTORY - 1] / 1024.0f);
 	Con_Printf("------ End:  %i Total----\n", msg_buckets[MAX_DATA_HISTORY - 1] + total);
 }
 
@@ -1566,9 +1651,6 @@ void CL_TransferMessageData( void )
 	}
 }
 
-int data_history[UPDATE_BACKUP][MAX_DATA_HISTORY];
-int history_index = 0;
-
 /*
 =================
 CL_ShowSizes
@@ -1577,140 +1659,10 @@ CL_ShowSizes
 */
 void CL_ShowSizes( void )
 {
-	int		i, j;
-	int		peak;
-	int		x, offset;
-	float	flScale;
-	float	flMax, flNormalized;
-	vrect_t rcFill;
-	byte	color[3];
-
-	if (!cl_showsizes.value)
-		return;
-
-	memcpy(data_history[history_index & UPDATE_MASK], last_data, sizeof(last_data));
-	history_index++;
-
-	x = scr_vrect.x;
-
-	color[0] = 200;
-	color[1] = 150;
-	color[2] = 63;
-
-	rcFill.x = x;
-	rcFill.y = scr_vrect.y;
-	rcFill.width = 256;
-	rcFill.height = 64;
-	SCR_DrawOutlineRect(&rcFill, color);
-
-	// draw scale markers
-	for (i = 0; i < MAX_DATA_HISTORY; i++)
-	{
-		if ((i % 5) == 0)
-		{
-			if ((i % 10) == 0)
-			{
-				color[0] = 255;
-				color[1] = 200;
-				color[2] = 127;
-			}
-			else
-			{
-				color[0] = 200;
-				color[1] = 150;
-				color[2] = 63;
-			}
-
-			rcFill.x = x + (i * 4) + 1;
-			rcFill.y = scr_vrect.y + 64;
-			rcFill.width = 2;
-			rcFill.height = 2;
-			D_FillRect(&rcFill, color);
-		}
-	}
-
-	// draw the actual data graph
-	for (i = 0; i < MAX_DATA_HISTORY; i++)
-	{
-		peak = 0;
-		for (j = 0; j < UPDATE_BACKUP; j++)
-		{
-			if (peak < data_history[(history_index - j - 1) & UPDATE_MASK][i])
-				peak = data_history[(history_index - j - 1) & UPDATE_MASK][i];
-		}
-		flMax = 0.0f;
-		for (j = 0; j < 128; j++)
-		{
-			if (flMax < data_history[(history_index - j - 1) & UPDATE_MASK][i])
-				flMax = data_history[(history_index - j - 1) & UPDATE_MASK][i];
-		}
-
-		if (flMax != 0.0)
-		{
-			// draw bar showing extended history maximum
-			flNormalized = flMax / 255.0;
-			flScale = flNormalized;
-			if (flScale > 1.0)
-				flScale = (511.0 - flMax) / 255.0;
-
-			if (flNormalized > 1.0 && flScale > 1.0)
-			{
-				color[0] = 255;
-				color[1] = 63 + (int)(flScale * 192.0 + 0.5);
-				color[2] = 0;
-			}
-			else
-			{
-				color[0] = 0;
-				color[1] = 63 + (int)(flScale * 192.0 + 0.5);
-				color[2] = 0;
-			}
-
-			if (flNormalized > 1.0)
-				flNormalized = 1.0;
-
-			offset = (flNormalized * 64.0) + 0.5;
-			rcFill.x = x;
-			rcFill.y = scr_vrect.y + 64 - offset;
-			rcFill.width = 3;
-			rcFill.height = offset;
-			D_FillRect(&rcFill, color);
-
-			// draw marker showing recent history peak
-			flNormalized = (float)peak / 255.0;
-			flScale = flNormalized;
-			if (flNormalized > 1.0)
-				flScale = (511.0 - (float)peak) / 255.0;
-
-			if (flNormalized > 1.0 && flScale > 1.0)
-			{
-				color[0] = 255;
-				color[1] = 0;
-				color[2] = 63 + (int)(flScale * 192.0 + 0.5);
-			}
-			else
-			{
-				color[0] = 0;
-				color[1] = 0;
-				color[2] = 63 + (int)(flScale * 192.0 + 0.5);
-			}
-
-			if (flNormalized > 1.0)
-				flNormalized = 1.0;
-
-			offset = (flNormalized * 64.0) + 0.5;
-			rcFill.x = x;
-			rcFill.y = scr_vrect.y + 64 - offset;
-			rcFill.width = 3;
-			rcFill.height = 2;
-			D_FillRect(&rcFill, color);
-		}
-		x += 4;
-	}
 }
 
 #define SHOWNET(x) \
-	if (cl_shownet.value == 2.0 && Q_strlen(x) > 1) \
+	if (cl_shownet.value == 2.0f && strlen(x) > 1) \
 		Con_Printf("%3i:%s\n", msg_readcount - 1, x);
 
 /*
@@ -1722,23 +1674,17 @@ Parse incoming message from server.
 */
 void CL_ParseServerMessage( void )
 {
-	// Index of svc_ or user command to issue.
 	int	cmd;
-	static int lastcmds[3];
 	int	i, j;
-	// For determining data parse sizes
 	int bufStart, bufEnd;
 
-	int	slot, spectator;
+	Sys_SetTaskName("CL_ParseServerMessage\n");
 
-//
-// if recording demos, copy the message out
-//
-	if (cl_shownet.value == 1.0)
+	if (cl_shownet.value == 1.0f)
 	{
 		Con_Printf("%i ", net_message.cursize);
 	}
-	else if (cl_shownet.value == 2.0)
+	else if (cl_shownet.value == 2.0f)
 	{
 		Con_Printf("------------------\n");
 	}
@@ -1777,10 +1723,6 @@ void CL_ParseServerMessage( void )
 		
 		SHOWNET(svc_strings[cmd]);
 
-		lastcmds[0] = lastcmds[1];
-		lastcmds[1] = lastcmds[2];
-		lastcmds[2] = cmd;
-
 		if (cmd <= 63)
 			msg_buckets[cmd]++;
 
@@ -1788,11 +1730,6 @@ void CL_ParseServerMessage( void )
 		switch (cmd)
 		{
 		default:
-			Con_DPrintf("Last 3 messages parsed.\n");
-			Con_DPrintf("%s\n", svc_strings[lastcmds[0]]);
-			Con_DPrintf("%s\n", svc_strings[lastcmds[1]]);
-			Con_DPrintf("%s\n", svc_strings[lastcmds[2]]);
-			Con_DPrintf("BAD:  %3i:%s\n", msg_readcount - 1, svc_strings[cmd]);
 			Host_Error("CL_ParseServerMessage: Illegible server message\n");
 			break;
 
@@ -1801,6 +1738,7 @@ void CL_ParseServerMessage( void )
 			break;
 
 		case svc_disconnect:
+			SCR_EndLoadingPlaque();
 			Host_EndGame("Server disconnected\n");
 
 		case svc_updatestat:
@@ -1857,22 +1795,8 @@ void CL_ParseServerMessage( void )
 			cl_lightstyle[i].length = Q_strlen(cl_lightstyle[i].map);
 			break;
 
-		case svc_updatename:
-			i = MSG_ReadByte();
-			slot = i & ~PN_SPECTATOR;
-			spectator = (i & PN_SPECTATOR) != 0;
-			if (slot >= cl.maxclients)
-				Host_Error("CL_ParseServerMessage: svc_updatename > MAX_SCOREBOARD");
-			strcpy(cl.players[slot].name, MSG_ReadString());
-			if (spectator)
-			{
-				CL_PlayerDropped(slot);
-			}
-			break;
-
-		case svc_updatefrags:
-			i = MSG_ReadByte();
-			MSG_ReadShort();
+		case svc_updateuserinfo:
+			CL_ParseUpdateUserInfo();
 			break;
 
 		case svc_clientdata:
@@ -1903,6 +1827,9 @@ void CL_ParseServerMessage( void )
 			CL_ParseStatic();
 			break;
 
+		case 21:
+			break;
+
 		case svc_spawnbaseline:
 			i = MSG_ReadShort();
 			// must use CL_EntityNum() to force cl.num_entities up
@@ -1915,10 +1842,6 @@ void CL_ParseServerMessage( void )
 
 		case svc_setpause:
 			cl.paused = MSG_ReadByte();
-			if (cl.paused)
-				CDAudio_Pause();
-			else
-				CDAudio_Resume();
 			break;
 
 		case svc_signonnum:
@@ -1960,11 +1883,18 @@ void CL_ParseServerMessage( void )
 			cl.cdtrack = MSG_ReadByte();
 			cl.looptrack = MSG_ReadByte();
 
-			CDAudio_Play(cl.cdtrack, TRUE);
+			CDAudio_PlayTrack(cl.cdtrack, TRUE);
 			break;
 
 		case svc_restore:
-			CL_Restore(MSG_ReadString());
+			CL_ParseRestoreDecals(MSG_ReadString());
+			break;
+
+		case svc_cutscene:
+			cl.intermission = 3;
+			vid.recalc_refdef = TRUE;
+			cl.completed_time = cl.time;
+			SCR_CenterPrint(MSG_ReadString());
 			break;
 		
 		case svc_weaponanim:
@@ -1996,10 +1926,12 @@ void CL_ParseServerMessage( void )
 
 		case svc_packetentities:
 			CL_ParsePacketEntities(FALSE);
+			CL_SetSolidEntities();
 			break;
 
 		case svc_deltapacketentities:
 			CL_ParsePacketEntities(TRUE);
+			CL_SetSolidEntities();
 			break;
 
 		case svc_playerinfo:
@@ -2009,7 +1941,7 @@ void CL_ParseServerMessage( void )
 		case svc_chokecount:
 			i = MSG_ReadByte();
 			for (j = 0; j < i; j++)
-				cl.frames[(cls.netchan.incoming_acknowledged - 1 - j) & UPDATE_MASK].receivedtime = -2;
+			cl.frames[(cls.netchan.incoming_acknowledged - 1 - j) & cl_update_mask].receivedtime = -2.0f;
 			break;
 
 		case svc_resourcelist:
@@ -2028,13 +1960,9 @@ void CL_ParseServerMessage( void )
 			CL_SendResourceListBlock();
 			break;
 
-		case svc_customization:
-			CL_ParseCustomization();
-			break;
-
 		case svc_crosshairangle:
-			cl.crosshairangle[PITCH] = MSG_ReadChar() * 0.2;
-			cl.crosshairangle[YAW] = MSG_ReadChar() * 0.2;
+			cl.crosshairangle[PITCH] = MSG_ReadChar() * 0.2f;
+			cl.crosshairangle[YAW] = MSG_ReadChar() * 0.2f;
 			break;
 
 		case svc_soundfade:
@@ -2049,6 +1977,15 @@ void CL_ParseServerMessage( void )
 			cl.players[i].maxspeed = MSG_ReadFloat();
 			if (cl.players[i].maxspeed > movevars.maxspeed)
 				cl.players[i].maxspeed = movevars.maxspeed;
+			break;
+
+		case svc_skippedupdate:
+			i = MSG_ReadByte();
+			if (cl.frames[i & cl_update_mask].receivedtime == -1.0f ||
+				cl.frames[i & cl_update_mask].receivedtime == -2.0f)
+			{
+				cl.frames[i & cl_update_mask].receivedtime = -3.0f;
+			}
 			break;
 		}
 

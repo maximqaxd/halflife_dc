@@ -209,6 +209,7 @@ extern	cvar_t	r_drawviewmodel;
 extern	cvar_t	r_speeds;
 extern	cvar_t	r_fullbright;
 extern	cvar_t	r_decals;
+extern	cvar_t	mp_decals;
 extern	cvar_t	r_lightmap;
 extern	cvar_t	r_shadows;
 extern	cvar_t	r_mirroralpha;
@@ -397,6 +398,7 @@ extern cvar_t	mipbias;
 //
 int		DC_ReclaimTextureSlot( void );
 int		DC_ReleaseTexture( int texnum );
+void		DC_TouchTexture( int texnum );
 void	Mod_FreeStudioTextures( void* buf );
 void	Mod_TouchStudioTextures( void* buf );
 

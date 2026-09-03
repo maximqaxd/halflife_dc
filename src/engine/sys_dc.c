@@ -15,7 +15,6 @@
 #include <wdm.h>
 #include <tchar.h>
 
-HWND*				pmainwindow;
 HINSTANCE       g_hInstance     = NULL;
 HINSTANCE       g_hPrevInstance = NULL;
 
@@ -899,4 +898,3 @@ void GDROM_ConfigureDoorBehavior( void )
 	if (g_gdDoorOpened)
 		GDROM_DoorReset();
 }
-

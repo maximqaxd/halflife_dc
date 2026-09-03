@@ -855,6 +855,10 @@ void Host_Map( qboolean bIsDemo, char* mapstring, char* mapName, qboolean loadGa
 	Sys_SetTaskName("client disconnected and server shut down");
 	SCR_BeginLoadingPlaque();
 
+	// stop sounds (especially looping!)
+	S_StopAllSounds(TRUE);
+	S_ClearBuffer(TRUE);
+
 	if (!loadGame)
 	{
 		Host_ClearGameState();
@@ -1118,6 +1122,10 @@ void Host_Restart_f( void )
 	if (cmd_source != src_command)
 		return;
 
+	// stop sounds (especially looping!)
+	S_StopAllSounds(TRUE);
+	S_ClearBuffer(TRUE);
+
 	Host_ClearGameState();
 	SV_InactivateClients();
 
@@ -1145,6 +1153,10 @@ void Host_Reload_f( void )
 
 	if (cmd_source != src_command)
 		return;
+
+	// stop sounds (especially looping!)
+	S_StopAllSounds(TRUE);
+	S_ClearBuffer(TRUE);
 
 	Host_ClearGameState();
 	SV_InactivateClients();
@@ -1946,6 +1958,11 @@ int Host_Load( const char* pName )
 		return FALSE;
 
 	CL_StartProgressBar();
+
+	// stop sounds (especially looping!)
+	S_StopAllSounds(TRUE);
+	S_ClearBuffer(TRUE);
+
 	Host_ClearGameState();
 
 	if (!SaveReadHeader(pFile, &gameHeader, TRUE))
@@ -2936,7 +2953,7 @@ void Host_Changelevel2_f( void )
 	SCR_BeginLoadingPlaque();
 
 	// stop sounds (especially looping!)
-	S_BlockSound(TRUE);
+	S_CloseAllSounds();
 	S_ClearBuffer(TRUE);
 
 	strcpy(level, Cmd_Argv(1));

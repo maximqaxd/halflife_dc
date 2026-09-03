@@ -29,4 +29,6 @@ int AllocEngineString( const char* szValue );
 void SaveSpawnParms( edict_t* pEdict );
 void* GetModelPtr( edict_t* pEdict );
 
+void PR_Profile_f( void );
+
 #endif

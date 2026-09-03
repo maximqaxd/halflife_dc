@@ -87,6 +87,8 @@ void Memory_Init( void* buf, int size );
 
 void* MnemoAlloc( int size, unsigned int flags, int allocClass, const char* tag );
 void* MnemoAllocDbg( int size, const char* srcFile, int srcLine );
+int Mnemo_BlockSize( void* payload );
+extern void* g_edict_reserve;
 void* DebugRealloc( void* oldPtr, unsigned int sizeBytes, const char* srcFile, int srcLine );
 char* Bmakename( char* path, unsigned int type );
 int Mnemo_LastChanceActive( void );
@@ -126,6 +128,7 @@ void Z_CheckHeap( void );
 
 void* Hunk_Alloc( int size );		// returns 0 filled memory
 void* Hunk_AllocName( int size, char* name );
+void Hunk_Check( void );
 
 void* Hunk_HighAllocName( int size, char* name );
 

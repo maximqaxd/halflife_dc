@@ -28,6 +28,8 @@ int             static_registered = 1;  // only for startup check, then set
 int             PROTOCOL_VERSION = PROTOCOL_VERSION_CURRENT;  // active protocol; -protocol can force PROTOCOL_VERSION_OLD
 
 qboolean		msg_suppress_1 = 0;
+qboolean		gfExtendedError = FALSE;
+char			gszDisconnectReason[256];
 
 void COM_InitFilesystem( void );
 
@@ -532,6 +534,30 @@ float FloatNoSwap( float f )
 }
 
 /*
+============
+COM_ExplainDisconnection
+
+Stores an extended reason for a failed connection.
+============
+*/
+void COM_ExplainDisconnection( qboolean bPrint, char* format, ... )
+{
+	va_list	argptr;
+	char	string[1024];
+
+	va_start(argptr, format);
+	vsprintf(string, format, argptr);
+	va_end(argptr);
+
+	strncpy(gszDisconnectReason, string, 255);
+	gszDisconnectReason[255] = 0;
+	gfExtendedError = TRUE;
+
+	if (bPrint)
+		Con_Printf("%s\n", gszDisconnectReason);
+}
+
+/*
 ==============================================================================
 
 			MESSAGE IO FUNCTIONS
@@ -565,7 +591,6 @@ void MSG_WriteByte( sizebuf_t* sb, int c )
 	if (c < 0 || c > 255)
 		Sys_Error("MSG_WriteByte: range error");
 #endif
-
 	buf = SZ_GetSpace(sb, 1);
 	buf[0] = c;
 }
@@ -836,7 +861,7 @@ Bit-level delta encoder for a movement command, used by the low-bandwidth
 protocol.  Movement values are packed to the minimum number of bits.
 ============
 */
-void MSG_WriteBitUsercmd( sizebuf_t* buf, usercmd_t* cmd, usercmd_t* from )
+void MSG_WriteBitUsercmd( usercmd_t* cmd, usercmd_t* from )
 {
 	byte	bits;
 	int		i;
@@ -1533,7 +1558,7 @@ qboolean MSG_ReadOneBit( void )
 	return (*bitread.curbyte & mask & 0xff) != 0;
 }
 
-unsigned int MSG_ReadBitField8( unsigned int numbits )
+unsigned char MSG_ReadBitField8( unsigned int numbits )
 {
 	unsigned int value;
 
@@ -1548,7 +1573,7 @@ unsigned int MSG_ReadBitField8( unsigned int numbits )
 	return value;
 }
 
-unsigned int MSG_ReadBitField16( unsigned int numbits )
+unsigned short MSG_ReadBitField16( unsigned int numbits )
 {
 	unsigned int value;
 
@@ -1849,7 +1874,7 @@ int MSG_ReadSignMagnitude8( int numbits )
 	return result;
 }
 
-int MSG_ReadSignMagnitude16( int numbits )
+short MSG_ReadSignMagnitude16( int numbits )
 {
 	int				sign;
 	unsigned int	value;
@@ -3070,6 +3095,96 @@ byte* COM_LoadFileLimit( char* path, int pos, int cbmax, int* pcbread, int* phFi
 	phFile[2] = h[2];
 	*pcbread = len;
 	return buf;
+}
+
+/*
+============
+COM_LoadFileLimitAsync
+
+As COM_LoadFileLimit, but the caller supplies the destination and the read is
+started in the background. The data is not there until the overlapped record
+says the read has finished -- poll it with COM_OpenFileAsync.
+============
+*/
+byte* COM_LoadFileLimitAsync( char* path, int pos, int cbmax, int* pcbread, int* phFile, byte* dest, LPOVERLAPPED pov )
+{
+	int             h[3];
+	char    base[32];
+	int             len;
+
+	if (phFile[2] == -1)
+	{
+	// look for it in the filesystem or pack files
+		len = COM_OpenFile(path, h);
+		h[1] = com_filesize;
+	}
+	else
+	{
+		h[0] = phFile[0];
+		h[1] = phFile[1];
+		h[2] = phFile[2];
+		len = h[1];
+	}
+
+	if (h[2] == -1)
+		return NULL;
+
+	if (pos > len)
+		Sys_Error("COM_LoadFileLimit: invalid seek position for %s", path);
+
+	COM_FileSeek(h[0], h[1], h[2], pos);
+
+	if (len > cbmax)
+		len = cbmax;
+
+	*pcbread = len;
+
+	if (path)
+		COM_FileBase(path, base);
+
+	if (!dest)
+	{
+		if (path)
+			Sys_Error("COM_LoadFileLimit: not enough space for %s", path);
+		COM_CloseFile(h[0], h[1], h[2]);
+		return NULL;
+	}
+
+	Sys_FileReadAsync((void *)h[2], dest, len, pov);
+	phFile[0] = h[0];
+	phFile[1] = h[1];
+	phFile[2] = h[2];
+	*pcbread = len;
+	return dest;
+}
+
+/*
+============
+COM_OpenFileAsync
+
+Make sure the file is open and report whether the read started for it is still
+running. Returns 0 once the data has landed.
+============
+*/
+int COM_OpenFileAsync( char* path, int* phFile, LPOVERLAPPED pov )
+{
+	int             h[3];
+
+	if (phFile[2] == -1)
+	{
+		COM_OpenFile(path, h);
+	}
+	else
+	{
+		h[0] = phFile[0];
+		h[1] = phFile[1];
+		h[2] = phFile[2];
+	}
+
+	if (h[2] == -1)
+		return 0;
+
+	return Sys_AsyncBusy(h[2], pov);
 }
 
 byte* COM_LoadHunkFile( char* path )

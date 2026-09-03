@@ -2280,15 +2280,23 @@ void ServerPrint( const char* szMsg )
 	Con_Printf("%s", szMsg);
 }
 
-// Info strings not carried on a client edict share this scratch buffer.
-static char localinfo[MAX_INFO_STRING];
-
 char* PF_GetInfoKeyBuffer_I( edict_t* e )
 {
-	if (e == NULL || e == &sv.edicts[0])
-		return serverinfo;
+	int index;
+	char* infobuffer;
 
-	return localinfo;
+	if (!e)
+		return localinfo;
+
+	index = NUM_FOR_EDICT(e);
+	if (index == 0)
+		infobuffer = Info_Serverinfo();
+	else if (index <= 1)
+		infobuffer = svs.clients[index - 1].userinfo;
+	else
+		infobuffer = localinfo;
+
+	return infobuffer;
 }
 
 char* PF_InfoKeyValue( char* infobuffer, char* key )
@@ -2310,8 +2318,6 @@ void PF_StaticDecal( const float* origin, int decalIndex, int entityIndex, int m
 {
 }
 
-static char* sv_generic_precache[MAX_GENERIC];
-
 int PF_precache_generic_I( char* s )
 {
 	int i;
@@ -2320,13 +2326,13 @@ int PF_precache_generic_I( char* s )
 	{
 		for (i = 0; i < MAX_GENERIC; i++)
 		{
-			if (!sv_generic_precache[i])
+			if (!sv.generic_precache[i])
 			{
-				sv_generic_precache[i] = s;
+				sv.generic_precache[i] = s;
 				return i;
 			}
 
-			if (!strcmp(sv_generic_precache[i], s))
+			if (!strcmp(sv.generic_precache[i], s))
 				return i;
 		}
 
@@ -2336,7 +2342,7 @@ int PF_precache_generic_I( char* s )
 
 	for (i = 0; i < MAX_GENERIC; i++)
 	{
-		if (sv_generic_precache[i] && !strcmp(sv_generic_precache[i], s))
+		if (sv.generic_precache[i] && !strcmp(sv.generic_precache[i], s))
 			return i;
 	}
 

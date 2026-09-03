@@ -69,10 +69,18 @@ extern char gpszVersionString[32];
 
 // Response to server info requests
 #define S2A_INFO				'C' // + Address, hostname, map, gamedir, gamedescription, active players, maxplayers, protocol
+#define S2A_INFO_DETAILED		'm' // + dedicated/listen, password, and mod information
 #define S2A_PLAYER				'D' // + Playernum, name, frags, /*deaths*/, time on server
 
 // Request for detailed server/rule information.
 #define S2A_RULES				'E' // + number of rules + string key and string value pairs
+
+#define M2A_SERVERS				'd' // + 6 byte IP/Port list
+#define A2A_PRINT				'l' // print a message on client
+#define M2A_MASTERSERVERS		'w' // + byte type + 6 byte IP/Port list
+
+#define S2C_BADPASSWORD			'8' // Special protocol for bad passwords.
+#define S2C_CONNREJECT			'9' // Special protocol for rejected connections.
 
 #define PROTOCOL_AUTHCERTIFICATE 0x01   // Connection from client is using a WON authenticated certificate
 #define PROTOCOL_HASHEDCDKEY     0x02    // Connection from client is using hashed CD key because WON comm. channel was unreachable
@@ -105,7 +113,8 @@ extern char gpszVersionString[32];
 											// [string]..[0]model cache
 											// [string]...[0]sounds cache
 #define	svc_lightstyle			12		// [byte] [string]
-#define svc_updatename			13		// [byte] [string]
+#define svc_updateuserinfo		13		// [byte] [long] [string]
+#define svc_updatename			svc_updateuserinfo
 #define	svc_updatefrags			14		// [byte] [short]
 #define	svc_clientdata			15		// <shortbits + data>
 #define svc_stopsound			16		// <see code>
@@ -145,7 +154,8 @@ extern char gpszVersionString[32];
 #define svc_crosshairangle		50		// [char] pitch * 5 [char] yaw * 5
 #define svc_soundfade			51      // char percent, char holdtime, char fadeouttime, char fadeintime
 #define svc_clientmaxspeed		52
-#define svc_lastmsg				52
+#define svc_skippedupdate		53		// [byte] sequence number of a skipped update
+#define svc_lastmsg				53
 
 //
 // client to server
@@ -283,6 +293,7 @@ extern char gpszVersionString[32];
 #define U_BBOXMAXS1		(1<<3)
 #define U_BBOXMAXS2		(1<<4)
 #define U_BBOXMAXS3		(1<<5)
+#define U_BBOXAIMENT		(1<<6)
 
 //==============================================
 
@@ -298,7 +309,7 @@ extern char gpszVersionString[32];
 #define SND_SPAWNING		(1<<8)		// duplicated in dlls/util.h we're spawing, used in some cases for ambients 
 
 #define DEFAULT_SOUND_PACKET_VOLUME			255
-#define DEFAULT_SOUND_PACKET_ATTENUATION	1.0
+#define DEFAULT_SOUND_PACKET_ATTENUATION	1.0f
 #define DEFAULT_SOUND_PACKET_PITCH			100
 
 //==============================================
@@ -337,6 +348,7 @@ ELEMENTS COMMUNICATED ACROSS THE NET
 typedef struct
 {
 	int		num_entities;
+	int		max_entities;
 	entity_state_t* entities;
 } packet_entities_t;
 

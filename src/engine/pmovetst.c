@@ -80,7 +80,6 @@ int PM_HullPointContents( hull_t* hull, int num, vec_t* p )
 {
 	float		d;
 	dclipnode_t* node;
-	mclipplane_t* boxplane;
 	mplane_t*	plane;
 
 	if (hull->firstclipnode >= hull->lastclipnode)
@@ -92,22 +91,11 @@ int PM_HullPointContents( hull_t* hull, int num, vec_t* p )
 			Sys_Error("PM_HullPointContents: bad node number");
 
 		node = hull->clipnodes + num;
-		if (!hull->planes)
-		{
-			boxplane = hull->boxplanes + node->planenum;
-			if (boxplane->type < 3)
-				d = p[boxplane->type] - boxplane->dist;
-			else
-				d = DotProduct(g_planeNormalTable[boxplane->normalindex].normal, p) - boxplane->dist;
-		}
+		plane = hull->planes + node->planenum;
+		if (plane->type < 3)
+			d = p[plane->type] - plane->dist;
 		else
-		{
-			plane = hull->planes + node->planenum;
-			if (plane->type < 3)
-				d = p[plane->type] - plane->dist;
-			else
-				d = DotProduct(plane->normal, p) - plane->dist;
-		}
+			d = DotProduct(plane->normal, p) - plane->dist;
 		if (d < 0)
 			num = node->children[1];
 		else
@@ -181,7 +169,10 @@ int PM_SimulateLinkContents( vec_t* p, int* pIndex )
 		VectorSubtract(p, pe->origin, test);
 
 		hull = pe->model->hulls;
-		cont = PM_HullPointContents(hull, hull[0].firstclipnode, test);
+		if (hull->boxplanes)
+			cont = PM_BoxPlaneContents(hull, hull[0].firstclipnode, test);
+		else
+			cont = PM_HullPointContents(hull, hull[0].firstclipnode, test);
 		if (cont != CONTENTS_EMPTY)
 		{
 			if (pIndex)
@@ -207,7 +198,10 @@ int PM_PointContents( vec_t* p )
 
 	hull = pmove.physents[0].model->hulls;
 
-	entityContents = PM_HullPointContents(hull, hull[0].firstclipnode, p);
+	if (hull->boxplanes)
+		entityContents = PM_BoxPlaneContents(hull, hull[0].firstclipnode, p);
+	else
+		entityContents = PM_HullPointContents(hull, hull[0].firstclipnode, p);
 	if (entityContents <= CONTENTS_CURRENT_0 && entityContents >= CONTENTS_CURRENT_DOWN)
 		entityContents = CONTENTS_WATER;
 
@@ -342,12 +336,12 @@ PM_PointContentsWorld
 
 ==================
 */
-int PM_PointContentsWorld( hull_t* hull, vec_t* p )
+int PM_PointContentsWorld( hull_t* hull, int num, vec_t* p )
 {
-	if (hull->boxplanes)
-		return PM_BoxPlaneContents(hull, hull->firstclipnode, p);
+	if (!hull->boxplanes)
+		return PM_HullPointContents(hull, num, p);
 
-	return PM_HullPointContents(hull, hull->firstclipnode, p);
+	return PM_BoxPlaneContents(hull, num, p);
 }
 
 /*
@@ -365,9 +359,9 @@ physent_t* PM_FindLadder( void )
 	vec3_t test;
 	hull_t* hull;
 
-	for (i = 0; i < pmove.numphysent; i++)
+	for (i = 0; i < pmove.nummoveent; i++)
 	{
-		pe = &pmove.physents[i];
+		pe = &pmove.moveents[i];
 
 		if (pe->model && pe->model->type == mod_brush && pe->skin == CONTENTS_LADDER)
 		{
@@ -375,7 +369,7 @@ physent_t* PM_FindLadder( void )
 
 			VectorSubtract(pmove.origin, offset, test);
 
-			if (PM_PointContentsWorld(hull, test) != CONTENTS_EMPTY)
+			if (PM_PointContentsWorld(hull, hull->firstclipnode, test) != CONTENTS_EMPTY)
 				return pe;
 		}
 	}
@@ -402,20 +396,14 @@ PM_RecursiveHullCheck
 */
 qboolean PM_RecursiveHullCheck( hull_t* hull, int num, float p1f, float p2f, vec_t* p1, vec_t* p2, pmtrace_t* trace )
 {
-	dclipnode_t* node;
-	mclipplane_t* boxplane;
-	mplane_t* plane;
-	const vec_t* normal;
-	float		dist;
-	byte		type;
+	dclipnode_t	*node;
+	mplane_t	*plane;
 	float		t1, t2;
 	float		frac;
 	int			i;
 	vec3_t		mid;
 	int			side;
-	int			otherside;
 	float		midf;
-	qboolean	retval = FALSE;
 
 // check for empty
 	if (num < 0)
@@ -425,52 +413,33 @@ qboolean PM_RecursiveHullCheck( hull_t* hull, int num, float p1f, float p2f, vec
 			trace->allsolid = FALSE;
 			if (num == CONTENTS_EMPTY)
 				trace->inopen = TRUE;
-			else
+			else if (num != CONTENTS_TRANSLUCENT)
 				trace->inwater = TRUE;
 		}
 		else
 			trace->startsolid = TRUE;
-		return TRUE;		// empty
-	}
 
-	if (hull->firstclipnode >= hull->lastclipnode)
-	{
-		trace->inopen = TRUE;
-		trace->allsolid = FALSE;
-		return TRUE;
+		return TRUE;		// empty
 	}
 
 	if (num < hull->firstclipnode || num > hull->lastclipnode || (!hull->boxplanes && !hull->planes))
 		Sys_Error("PM_RecursiveHullCheck: bad node number");
 
-//
-// find the point distances
-//
+	//
+	// find the point distances
+	//
 	node = hull->clipnodes + num;
-	if (!hull->planes)
-	{
-		boxplane = hull->boxplanes + node->planenum;
-		normal = g_planeNormalTable[boxplane->normalindex].normal;
-		dist = boxplane->dist;
-		type = boxplane->type;
-	}
-	else
-	{
-		plane = hull->planes + node->planenum;
-		normal = plane->normal;
-		dist = plane->dist;
-		type = plane->type;
-	}
+	plane = hull->planes + node->planenum;
 
-	if (type < 3)
+	if (plane->type < 3)
 	{
-		t1 = p1[type] - dist;
-		t2 = p2[type] - dist;
+		t1 = p1[plane->type] - plane->dist;
+		t2 = p2[plane->type] - plane->dist;
 	}
 	else
 	{
-		t1 = DotProduct(normal, p1) - dist;
-		t2 = DotProduct(normal, p2) - dist;
+		t1 = DotProduct(plane->normal, p1) - plane->dist;
+		t2 = DotProduct(plane->normal, p2) - plane->dist;
 	}
 
 #if 1
@@ -480,9 +449,9 @@ qboolean PM_RecursiveHullCheck( hull_t* hull, int num, float p1f, float p2f, vec
 		return PM_RecursiveHullCheck(hull, node->children[1], p1f, p2f, p1, p2, trace);
 #else
 	if ((t1 >= DIST_EPSILON && t2 >= DIST_EPSILON) || (t2 > t1 && t1 >= 0))
-		return PM_RecursiveHullCheck (hull, node->children[0], p1f, p2f, p1, p2, trace);
+		return PM_RecursiveHullCheck(hull, node->children[0], p1f, p2f, p1, p2, trace);
 	if ((t1 <= -DIST_EPSILON && t2 <= -DIST_EPSILON) || (t2 < t1 && t1 <= 0))
-		return PM_RecursiveHullCheck (hull, node->children[1], p1f, p2f, p1, p2, trace);
+		return PM_RecursiveHullCheck(hull, node->children[1], p1f, p2f, p1, p2, trace);
 #endif
 
 // put the crosspoint DIST_EPSILON pixels on the near side
@@ -501,25 +470,26 @@ qboolean PM_RecursiveHullCheck( hull_t* hull, int num, float p1f, float p2f, vec
 
 	side = (t1 < 0);
 
-// move up to the node
+	// move up to the node
 	if (!PM_RecursiveHullCheck(hull, node->children[side], p1f, midf, p1, mid, trace))
 		return FALSE;
 
 #ifdef PARANOID
-	if (PM_HullPointContents(pm_hullmodel, mid, node->children[side])
-		== CONTENTS_SOLID)
+	if (PM_HullPointContents(sv_hullmodel, mid, node->children[side])
+	== CONTENTS_SOLID)
 	{
 		Con_Printf("mid PointInHullSolid\n");
 		return FALSE;
 	}
 #endif
 
-	otherside = side ^ 1;
-
-	if (PM_HullPointContents(hull, node->children[otherside], mid)
-		!= CONTENTS_SOLID)
+	// NOTE: this recursion can not be optimized because mid would need to be duplicated on a stack
+	if ((hull->boxplanes ? PM_BoxPlaneContents(hull, node->children[side ^ 1], mid)
+	                     : PM_HullPointContents(hull, node->children[side ^ 1], mid)) != CONTENTS_SOLID)
+	{
 		// go past the node
-		return PM_RecursiveHullCheck(hull, node->children[otherside], midf, p2f, mid, p2, trace);
+		return PM_RecursiveHullCheck(hull, node->children[side ^ 1], midf, p2f, mid, p2, trace);
+	}
 
 	if (trace->allsolid)
 		return FALSE;		// never got out of the solid area
@@ -529,24 +499,24 @@ qboolean PM_RecursiveHullCheck( hull_t* hull, int num, float p1f, float p2f, vec
 //==================
 	if (!side)
 	{
-		VectorCopy(normal, trace->plane.normal);
-		trace->plane.dist = dist;
+		VectorCopy(plane->normal, trace->plane.normal);
+		trace->plane.dist = plane->dist;
 	}
 	else
 	{
-		VectorSubtract(vec3_origin, normal, trace->plane.normal);
-		trace->plane.dist = -dist;
+		VectorSubtract(vec3_origin, plane->normal, trace->plane.normal);
+		trace->plane.dist = -plane->dist;
 	}
 
-	while (PM_HullPointContents(hull, hull->firstclipnode, mid)
-		== CONTENTS_SOLID)
+	while ((hull->boxplanes ? PM_BoxPlaneContents(hull, hull->firstclipnode, mid)
+	                        : PM_HullPointContents(hull, hull->firstclipnode, mid))
+			== CONTENTS_SOLID)
 	{ // shouldn't really happen, but does occasionally
-		frac -= 0.05f;
+		frac -= 0.1f;
 		if (frac < 0)
 		{
 			trace->fraction = midf;
 			VectorCopy(mid, trace->endpos);
-			Con_DPrintf("Trace backed up past 0.0.\n");
 			return FALSE;
 		}
 		midf = p1f + (p2f - p1f) * frac;
@@ -562,19 +532,158 @@ qboolean PM_RecursiveHullCheck( hull_t* hull, int num, float p1f, float p2f, vec
 
 /*
 ==================
+PM_BoxPlaneHullCheck
+
+Same trace as PM_RecursiveHullCheck, for a hull whose planes come from the
+model's compact plane table.
+==================
+*/
+qboolean PM_BoxPlaneHullCheck( hull_t* hull, int num, float p1f, float p2f, vec_t* p1, vec_t* p2, pmtrace_t* trace )
+{
+	dclipnode_t* node;
+	mclipplane_t* plane;
+	float t1, t2;
+	float frac;
+	int i;
+	vec3_t mid;
+	int side;
+	float midf;
+
+	if (num < 0)
+	{
+		if (num != CONTENTS_SOLID)
+		{
+			trace->allsolid = FALSE;
+			if (num == CONTENTS_EMPTY)
+				trace->inopen = TRUE;
+			else if (num != CONTENTS_TRANSLUCENT)
+				trace->inwater = TRUE;
+		}
+		else
+		{
+			trace->startsolid = TRUE;
+		}
+
+		return TRUE;
+	}
+
+	if (num < hull->firstclipnode || num > hull->lastclipnode || !hull->boxplanes)
+		Sys_Error("PM_RecursiveHullCheck: bad node number");
+
+	node = hull->clipnodes + num;
+	plane = hull->boxplanes + node->planenum;
+
+	if (plane->type < 3)
+	{
+		t1 = p1[plane->type] - plane->dist;
+		t2 = p2[plane->type] - plane->dist;
+	}
+	else
+	{
+		t1 = DotProduct(g_planeNormalTable[plane->normalindex].normal, p1) - plane->dist;
+		t2 = DotProduct(g_planeNormalTable[plane->normalindex].normal, p2) - plane->dist;
+	}
+
+	if (t1 >= 0.0f && t2 >= 0.0f)
+		return PM_BoxPlaneHullCheck(hull, node->children[0], p1f, p2f, p1, p2, trace);
+	if (t1 < 0.0f && t2 < 0.0f)
+		return PM_BoxPlaneHullCheck(hull, node->children[1], p1f, p2f, p1, p2, trace);
+
+	if (t1 < 0.0f)
+		frac = (t1 + DIST_EPSILON) / (t1 - t2);
+	else
+		frac = (t1 - DIST_EPSILON) / (t1 - t2);
+	if (frac < 0.0f)
+		frac = 0.0f;
+	if (frac > 1.0f)
+		frac = 1.0f;
+
+	midf = p1f + (p2f - p1f) * frac;
+	for (i = 0; i < 3; i++)
+		mid[i] = p1[i] + frac * (p2[i] - p1[i]);
+
+	side = (t1 < 0.0f);
+
+	if (!PM_BoxPlaneHullCheck(hull, node->children[side], p1f, midf, p1, mid, trace))
+		return FALSE;
+
+	if ((hull->boxplanes ? PM_BoxPlaneContents(hull, node->children[side ^ 1], mid)
+	                     : PM_HullPointContents(hull, node->children[side ^ 1], mid)) != CONTENTS_SOLID)
+		return PM_BoxPlaneHullCheck(hull, node->children[side ^ 1], midf, p2f, mid, p2, trace);
+
+	if (trace->allsolid)
+		return FALSE;
+
+	if (!side)
+	{
+		VectorCopy(g_planeNormalTable[plane->normalindex].normal, trace->plane.normal);
+		trace->plane.dist = plane->dist;
+	}
+	else
+	{
+		VectorSubtract(vec3_origin, g_planeNormalTable[plane->normalindex].normal, trace->plane.normal);
+		trace->plane.dist = -plane->dist;
+	}
+
+	while ((hull->boxplanes ? PM_BoxPlaneContents(hull, hull->firstclipnode, mid)
+	                        : PM_HullPointContents(hull, hull->firstclipnode, mid)) == CONTENTS_SOLID)
+	{
+		frac -= 0.1f;
+		if (frac < 0.0f)
+		{
+			trace->fraction = midf;
+			VectorCopy(mid, trace->endpos);
+			Con_DPrintf("Trace backed up past 0.0.\n");
+			return FALSE;
+		}
+
+		midf = p1f + (p2f - p1f) * frac;
+		for (i = 0; i < 3; i++)
+			mid[i] = p1[i] + frac * (p2[i] - p1[i]);
+	}
+
+	trace->fraction = midf;
+	VectorCopy(mid, trace->endpos);
+
+	return FALSE;
+}
+
+/*
+==================
+PM_RecursiveHullTrace
+
+Pick the trace that matches whichever plane table this hull carries.
+==================
+*/
+void PM_RecursiveHullTrace( hull_t* hull, int num, float p1f, float p2f, vec_t* p1, vec_t* p2, pmtrace_t* trace )
+{
+	if (!hull->boxplanes)
+	{
+		if (!hull->planes)
+			Sys_Error("No valid planes in hull!");
+
+		PM_RecursiveHullCheck(hull, num, p1f, p2f, p1, p2, trace);
+	}
+	else
+	{
+		PM_BoxPlaneHullCheck(hull, num, p1f, p2f, p1, p2, trace);
+	}
+}
+
+/*
+==================
 PM_TraceModel
 
 Traces a line against a single entity's collision model, forcing the
 point hull so ladder detection isn't affected by the player's duck state.
 ==================
 */
-pmtrace_t PM_TraceModel( physent_t* pe, vec_t* start, vec_t* end )
+float PM_TraceModel( physent_t* pe, vec_t* start, vec_t* end, pmtrace_t* ptrace )
 {
 	int oldhull;
 	vec3_t offset;
 	vec3_t start_l, end_l;
 	hull_t* hull;
-	pmtrace_t trace;
 
 	oldhull = pmove.usehull;
 	pmove.usehull = 2;
@@ -584,19 +693,9 @@ pmtrace_t PM_TraceModel( physent_t* pe, vec_t* start, vec_t* end )
 	VectorSubtract(start, offset, start_l);
 	VectorSubtract(end, offset, end_l);
 
-	memset(&trace, 0, sizeof(trace));
-	trace.fraction = 1;
-	trace.allsolid = TRUE;
-	VectorCopy(end, trace.endpos);
+	PM_RecursiveHullTrace(hull, hull->firstclipnode, 0, 1, start_l, end_l, ptrace);
 
-	PM_RecursiveHullCheck(hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
-
-	if (trace.allsolid)
-		trace.startsolid = TRUE;
-	if (trace.startsolid)
-		trace.fraction = 0;
-
-	return trace;
+	return ptrace->fraction;
 }
 
 /*
@@ -645,27 +744,7 @@ int PM_TestPlayerPosition( float* pos )
 		// get the clipping hull
 		if (pe->model)
 		{
-			switch (pmove.usehull)
-			{
-			case 0:
-				// regular
-				hull = &pe->model->hulls[1];
-				break;
-			case 1:
-				// standing
-				hull = &pe->model->hulls[3];
-				break;
-			case 2:
-				// crouching
-				hull = &pe->model->hulls[0];
-				break;
-			default:
-				hull = &pe->model->hulls[1];
-				break;
-			}
-
-			VectorSubtract(hull->clip_mins, player_mins[pmove.usehull], offset);
-			VectorAdd(offset, pe->origin, offset);
+			hull = PM_HullOffsetForBsp(pe, offset);
 		}
 		else
 		{
@@ -702,7 +781,9 @@ int PM_TestPlayerPosition( float* pos )
 
 		if (numhulls == 1)
 		{
-			PM_global_testContents = PM_HullPointContents(hull, hull->firstclipnode, test);
+			PM_global_testContents = hull->boxplanes
+				? PM_BoxPlaneContents(hull, hull->firstclipnode, test)
+				: PM_HullPointContents(hull, hull->firstclipnode, test);
 			if (PM_global_testContents == CONTENTS_SOLID)
 				return i;
 		}
@@ -766,27 +847,7 @@ pmtrace_t PM_PlayerMove( vec_t* start, vec_t* end, int traceFlags )
 	// get the clipping hull
 		if (pe->model)
 		{
-			switch (pmove.usehull)
-			{
-			case 0:
-				// regular
-				hull = &pe->model->hulls[1];
-				break;
-			case 1:
-				// standing
-				hull = &pe->model->hulls[3];
-				break;
-			case 2:
-				// crouching
-				hull = &pe->model->hulls[0];
-				break;
-			default:
-				hull = &pe->model->hulls[1];
-				break;
-			}
-
-			VectorSubtract(hull->clip_mins, player_mins[pmove.usehull], offset);
-			VectorAdd(offset, pe->origin, offset);
+			hull = PM_HullOffsetForBsp(pe, offset);
 		}
 		else
 		{
@@ -846,7 +907,10 @@ pmtrace_t PM_PlayerMove( vec_t* start, vec_t* end, int traceFlags )
 		if (numhulls == 1)
 		{
 		// trace a line through the apropriate clipping hull
-			PM_RecursiveHullCheck(hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
+			if (hull->boxplanes)
+				PM_BoxPlaneHullCheck(hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
+			else
+				PM_RecursiveHullTrace(hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
 		}
 		else
 		{
@@ -860,7 +924,7 @@ pmtrace_t PM_PlayerMove( vec_t* start, vec_t* end, int traceFlags )
 				testtrace.allsolid = TRUE;
 				VectorCopy(end, testtrace.endpos);
 
-				PM_RecursiveHullCheck(&hull[j], hull[j].firstclipnode, 0, 1, start_l, end_l, &testtrace);
+				PM_RecursiveHullTrace(&hull[j], hull[j].firstclipnode, 0, 1, start_l, end_l, &testtrace);
 
 				if (j == 0 || testtrace.allsolid || testtrace.startsolid || testtrace.fraction < trace.fraction)
 				{
@@ -988,7 +1052,7 @@ pmtrace_t PM_Worldtrace( vec_t* start, vec_t* end )
 	VectorSubtract(end, offset, end_l);
 
 // trace a line through the apropriate clipping hull
-	PM_RecursiveHullCheck(hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
+	PM_RecursiveHullTrace(hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
 
 	if (trace.allsolid)
 		trace.startsolid = TRUE;
@@ -1054,27 +1118,7 @@ pmtrace_t PM_PlayerMove2( vec_t* start, vec_t* end )
 	// get the clipping hull
 		if (pe->model)
 		{
-			switch (pmove.usehull)
-			{
-			case 0:
-				// regular
-				hull = &pe->model->hulls[1];
-				break;
-			case 1:
-				// standing
-				hull = &pe->model->hulls[3];
-				break;
-			case 2:
-				// crouching
-				hull = &pe->model->hulls[0];
-				break;
-			default:
-				hull = &pe->model->hulls[1];
-				break;
-			}
-
-			VectorSubtract(hull->clip_mins, player_mins[pmove.usehull], offset);
-			VectorAdd(offset, pe->origin, offset);
+			hull = PM_HullOffsetForBsp(pe, offset);
 		}
 		else
 		{
@@ -1125,7 +1169,10 @@ pmtrace_t PM_PlayerMove2( vec_t* start, vec_t* end )
 		if (numhulls == 1)
 		{
 		// trace a line through the apropriate clipping hull
-			PM_RecursiveHullCheck(hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
+			if (hull->boxplanes)
+				PM_BoxPlaneHullCheck(hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
+			else
+				PM_RecursiveHullTrace(hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
 		}
 		else
 		{
@@ -1139,7 +1186,7 @@ pmtrace_t PM_PlayerMove2( vec_t* start, vec_t* end )
 				testtrace.allsolid = TRUE;
 				VectorCopy(end, testtrace.endpos);
 
-				PM_RecursiveHullCheck(&hull[j], hull[j].firstclipnode, 0, 1, start_l, end_l, &testtrace);
+				PM_RecursiveHullTrace(&hull[j], hull[j].firstclipnode, 0, 1, start_l, end_l, &testtrace);
 
 				if (j == 0 || testtrace.allsolid || testtrace.startsolid || testtrace.fraction < trace.fraction)
 				{

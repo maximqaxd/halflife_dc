@@ -4,6 +4,7 @@
 #define INFO_H
 
 #define MAX_INFO_STRING 196
+#define MAX_LOCALINFO 32768
 
 extern char serverinfo[MAX_INFO_STRING];
 

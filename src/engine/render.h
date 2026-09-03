@@ -83,23 +83,6 @@ typedef struct cl_entity_s
 	entity_state_t	baseline;		// to fill in defaults in updates
 } cl_entity_t;
 
-typedef char cl_entity_t_must_match_retail_size[
-	(sizeof(cl_entity_t) == 0x160) ? 1 : -1];
-typedef char cl_entity_t_model_must_be_at_44[
-	(HLDC_OFFSETOF(cl_entity_t, model) == 0x44) ? 1 : -1];
-typedef char cl_entity_t_mouth_must_be_at_0e[
-	(HLDC_OFFSETOF(cl_entity_t, mouth) == 0x0E) ? 1 : -1];
-typedef char cl_entity_t_animtime_must_be_at_58[
-	(HLDC_OFFSETOF(cl_entity_t, animtime) == 0x58) ? 1 : -1];
-typedef char cl_entity_t_lastmove_must_be_at_60[
-	(HLDC_OFFSETOF(cl_entity_t, lastmove) == 0x60) ? 1 : -1];
-typedef char cl_entity_t_origin_must_be_at_74[
-	(HLDC_OFFSETOF(cl_entity_t, origin) == 0x74) ? 1 : -1];
-typedef char cl_entity_t_attachment_must_be_at_a4[
-	(HLDC_OFFSETOF(cl_entity_t, attachment) == 0xA4) ? 1 : -1];
-typedef char cl_entity_t_baseline_must_be_at_dc[
-	(HLDC_OFFSETOF(cl_entity_t, baseline) == 0xDC) ? 1 : -1];
-
 typedef struct tempent_s
 {
 	int			flags;

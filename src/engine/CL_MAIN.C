@@ -11,6 +11,7 @@
 #include "cl_tent.h"
 #include "cl_servercache.h"
 #include "tmessage.h"
+#include "won.h"
 
 // Only send this many requests before timing out.
 #define CL_CONNECTION_RETRIES		4
@@ -413,23 +414,30 @@ Responses to broadcasts, etc
 */
 void CL_ConnectionlessPacket( void )
 {
-	int		c;
+	int		c, i;
+	char*	s;
 	byte	data[6];
 
 	MSG_BeginReading();
 	MSG_ReadLong();        // skip the -1 marker
 
 	c = MSG_ReadByte();
+	if (WON_IsValidAuthMessage(c))
+	{
+		CL_ParseAuthenticationMessage(c);
+		return;
+	}
 
 	switch (c)
 	{
 	case S2C_CONNECTION:
+		for (i = 0; i < 16; i++)
+			MSG_ReadByte();
+
+		WON_RemoveUser(&cl_authrequest);
+
 		// Already connected?
-		if (cls.state == ca_connected)
-		{
-			Con_Printf("Duplicate connect ack. received.  Ignored.\n");
-		}
-		else
+		if (cls.state != ca_connected)
 		{
 			// Initiate the network channel
 			Netchan_Setup(NS_CLIENT, &cls.netchan, net_from);
@@ -441,12 +449,6 @@ void CL_ConnectionlessPacket( void )
 			// Report connection success.
 			if (_stricmp("loopback", NET_AdrToString(net_from)))
 				Con_Printf("Connection accepted by %s\n", NET_AdrToString(net_from));
-			else
-				Con_DPrintf("Connection accepted.\n");
-
-			// Bump connection time to now so we don't resend a connection
-			// Request
-			cls.connect_time = realtime;
 
 			// Mark client as connected
 			cls.state = ca_connected;
@@ -456,17 +458,67 @@ void CL_ConnectionlessPacket( void )
 			// Need all the signon messages before playing ( or drawing first frame )
 			cls.signon = 0;
 
-			memset(cls.trueaddress, 0, sizeof(cls.trueaddress));
+			// Bump connection time to now so we don't resend a connection
+			// Request
+			cls.connect_time = realtime;
 		}
 		break;
 
 	case S2C_CHALLENGE:
+		if (cls.state == ca_disconnected)
+			break;
+
+		for (i = 0; i < 16; i++)
+			MSG_ReadByte();
+
 		cls.challenge = BigLong(MSG_ReadLong());
-		CL_SendConnectPacket();
+		cls.authprotocol = MSG_ReadByte();
+		if (cls.authprotocol == 0xFF)
+			cls.authprotocol = PROTOCOL_HASHEDCDKEY;
+
+		if (cls.authprotocol == PROTOCOL_AUTHCERTIFICATE)
+		{
+			COM_CheckAuthenticationType();
+			if (!gfUseLANAuthentication)
+				WON_RequestCertificate();
+			else
+			{
+				Con_Printf("The server requires that you be validated through WON.net.\n"
+					"Could not obtain WON authentication.\n");
+				CL_Disconnect_f();
+			}
+		}
+		else
+			CL_SendConnectPacket();
 		break;
 
 	case A2C_PRINT:
 		Con_Printf(MSG_ReadString());
+		break;
+
+	case S2C_BADPASSWORD:
+		if (cls.state != ca_connecting)
+			break;
+
+		s = MSG_ReadString();
+		if (!Q_strncasecmp(s, "BADPASSWORD", strlen("BADPASSWORD")))
+			s += strlen("BADPASSWORD");
+
+		Con_Printf(s);
+		COM_ExplainDisconnection(FALSE, "BADPASSWORD");
+		Con_Printf("Invalid server password.\n");
+		CL_Disconnect();
+		WON_RemoveUser(&cl_authrequest);
+		break;
+
+	case S2C_CONNREJECT:
+		if (cls.state != ca_connecting)
+			break;
+
+		s = MSG_ReadString();
+		COM_ExplainDisconnection(TRUE, s);
+		CL_Disconnect();
+		WON_RemoveUser(&cl_authrequest);
 		break;
 
 	// ping from somewhere
@@ -615,24 +667,30 @@ void CL_ClearClientState( void )
 	int i;
 	packet_entities_t* pClientPack;
 
-	for (i = 0; i < UPDATE_BACKUP; i++)
+	if (cl.frames)
 	{
-		pClientPack = &cl.frames[i].packet_entities;
-		if (pClientPack->entities)
-			free(pClientPack->entities);
+		for (i = 0; i < cl_update_backup; i++)
+		{
+			pClientPack = &cl.frames[i].packet_entities;
+			if (pClientPack->entities)
+				free(pClientPack->entities);
 
-		pClientPack->entities = NULL;
-		pClientPack->num_entities = 0;
+			pClientPack->entities = NULL;
+			pClientPack->num_entities = 0;
+		}
 	}
 
 	CL_ClearResourceLists();
+	if (cl.frames)
+		free(cl.frames);
+	cl.frames = NULL;
 
 	for (i = 0; i < MAX_CLIENTS; i++)
 	{
 		COM_ClearCustomizationList(&cl.players[i].customdata, FALSE);
 	}
 
-	Q_memset(&cl, 0, sizeof(client_state_t));
+	Q_memset(&cl, 0, (int)((byte*)&cl.frames - (byte*)&cl));
 
 	cl.resourcesneeded.pPrev = &cl.resourcesneeded;
 	cl.resourcesneeded.pNext = &cl.resourcesneeded;
@@ -640,6 +698,11 @@ void CL_ClearClientState( void )
 	cl.resourcesonhand.pNext = &cl.resourcesonhand;
 
 	CL_CreateResourceList();
+
+	cl.frames = (frame_t*)MnemoAllocDbg(sizeof(frame_t) * cl_update_backup, __FILE__, __LINE__);
+	if (!cl.frames)
+		Sys_Error("Unable to allocate %i client frames", cl_update_backup);
+	memset(cl.frames, 0, sizeof(frame_t) * cl_update_backup);
 }
 
 /*
@@ -765,10 +828,10 @@ A LAN server will know not to allows more then xxx users with the same CD Key
 */
 char* CL_GetCDKeyHash( void )
 {
-	char szKeyBuffer[256]; // Keys are about 13 chars long.	
-	static char szHashedKeyBuffer[256];
+	char szKeyBuffer[36] = "2534835307254"; // Keys are about 13 chars long.
+	static char szHashedKeyBuffer[36];
 	int nKeyLength = GUID_LEN;
-	int bDedicated = 0;
+	qboolean bDedicated = FALSE;
 	MD5Context_t ctx;
 	unsigned char digest[16]; // The MD5 Hash
 #if 0
@@ -814,9 +877,14 @@ If we are in ca_connecting state and we have gotten a challenge
 */
 void CL_SendConnectPacket( void )
 {
-	netadr_t adr;
-	char	data[2048];
-	char szServerName[128];
+	netadr_t	adr;
+	char		data[2048];
+	char		szServerName[MAX_OSPATH];
+	char		szRawCertificate[1024];
+	char		szModelCRC[32];
+	CRC32_t	modelCRC;
+	int		nUserID = -1;
+	int		nCDKeyLength = 0;
 
 	strncpy(szServerName, cls.servername, sizeof(szServerName));
 
@@ -840,32 +908,29 @@ void CL_SendConnectPacket( void )
 		adr.port = BigShort((unsigned short)atoi(PORT_SERVER));
 	}
 
-	if (strlen(cls.trueaddress) == 0)
-		strcpy(cls.trueaddress, "0");
+	if (cls.authprotocol != PROTOCOL_AUTHCERTIFICATE)
+	{
+		if (cls.authprotocol != PROTOCOL_HASHEDCDKEY)
+			cls.authprotocol = PROTOCOL_HASHEDCDKEY;
 
-	if (cls.spectator)
-	{
-		sprintf(data, "%c%c%c%cconnect %i %i \"%s\" %i %i \"%s\" \"%s\" \"%s\"", 255, 255, 255, 255,
-			PROTOCOL_VERSION,
-			cls.challenge,
-			cl_name.string,
-			2,
-			strlen(CL_GetCDKeyHash()),
-			CL_GetCDKeyHash(),
-			cls.trueaddress,
-			cl_spectator_password.string);  // Send protocol and challenge value
+		nCDKeyLength = strlen(CL_GetCDKeyHash());
+		strcpy(szRawCertificate, CL_GetCDKeyHash());
 	}
-	else
+
+	CRC32_Init(&modelCRC);
+	if (!CRC_File(&modelCRC, "models/player/gordon/gordon.mdl"))
 	{
-		sprintf(data, "%c%c%c%cconnect %i %i \"%s\" %i %i \"%s\" \"%s\"\n", 255, 255, 255, 255,
-			PROTOCOL_VERSION,
-			cls.challenge,
-			cl_name.string,
-			2,
-			strlen(CL_GetCDKeyHash()),
-			CL_GetCDKeyHash(),
-			cls.trueaddress);  // Send protocol and challenge value
+		CL_Disconnect_f();
+		Con_Printf("could not find models/player/gordon/gordon.mdl\n");
+		return;
 	}
+
+	sprintf(szModelCRC, "%d", modelCRC);
+	Info_SetValueForStarKey(cls.userinfo, "*modelcrc", szModelCRC, MAX_INFO_STRING);
+
+	sprintf(data, "%c%c%c%cconnect %i %i %i %i %i \"%s\" \"%s\"\n",
+		255, 255, 255, 255, PROTOCOL_VERSION, cls.challenge,
+		cls.authprotocol, nUserID, nCDKeyLength, szRawCertificate, cls.userinfo);
 
 	NET_SendPacket(NS_CLIENT, strlen(data), data, adr);
 }
@@ -897,10 +962,10 @@ void CL_CheckForResend( void )
 	if (cls.state != ca_connecting)
 		return;
 
-	if (cl_resend.value < 1.5)
-		Cvar_SetValue("cl_resend", 1.5);
-	else if (cl_resend.value > 20.0)
-		Cvar_SetValue("cl_resend", 20.0);
+	if (cl_resend.value < 1.5f)
+		Cvar_SetValue("cl_resend", 1.5f);
+	else if (cl_resend.value > 20.0f)
+		Cvar_SetValue("cl_resend", 20.0f);
 
 	// Wait at least the resend # of seconds.
 	if ((realtime - cls.connect_time) < cl_resend.value)
@@ -1582,35 +1647,35 @@ float CL_LerpPoint( void )
 	if (!f || cl_nolerp.value || sv.active && !fakelag.value)
 	{
 		cl.time = cl.mtime[0];
-		return 1;
+		return 1.0f;
 	}
 
-	if (f > 0.1)
+	if (f > 0.1f)
 	{	// dropped packet, or start of demo
-		cl.mtime[1] = cl.mtime[0] - 0.1;
-		f = 0.1;
+		cl.mtime[1] = cl.mtime[0] - 0.1f;
+		f = 0.1f;
 	}
 	frac = (cl.time - cl.mtime[1]) / f;
 //Con_Printf("frac: %f\n", frac);
-	if (frac < 0)
+	if (frac < 0.0f)
 	{
-		if (frac < -0.01)
+		if (frac < -0.01f)
 		{
 			SetPal(1);
 			cl.time = cl.mtime[1];
 //				Con_Printf("low frac\n");
 		}
-		frac = 0;
+		frac = 0.0f;
 	}
-	else if (frac > 1)
+	else if (frac > 1.0f)
 	{
-		if (frac > 1.01)
+		if (frac > 1.01f)
 		{
 			SetPal(2);
 			cl.time = cl.mtime[0];
 //				Con_Printf("high frac\n");
 		}
-		frac = 1;
+		frac = 1.0f;
 	}
 	else
 		SetPal(0);
@@ -1672,7 +1737,7 @@ void CL_SendCmd( void )
 
 	VectorCopy(cl.viewangles, cmd->angles);
 
-	cmd->msec = (int)(host_frametime * 1000.0);
+	cmd->msec = (int)(host_frametime * 1000.0f);
 	if (cmd->msec > 250)
 		cmd->msec = 100;
 

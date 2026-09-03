@@ -117,53 +117,53 @@ void CL_InitTEnts( void )
 	Cvar_RegisterVariable(&tracerBlue);
 	Cvar_RegisterVariable(&tracerAlpha);
 
-	cl_sfx_ric1 = S_PrecacheSound("weapons/ric1.wav");
-	cl_sfx_ric2 = S_PrecacheSound("weapons/ric2.wav");
-	cl_sfx_ric3 = S_PrecacheSound("weapons/ric3.wav");
-	cl_sfx_ric4 = S_PrecacheSound("weapons/ric4.wav");
-	cl_sfx_ric5 = S_PrecacheSound("weapons/ric5.wav");
+	cl_sfx_ric1 = S_FindName("weapons/ric1.wav");
+	cl_sfx_ric2 = S_FindName("weapons/ric2.wav");
+	cl_sfx_ric3 = S_FindName("weapons/ric3.wav");
+	cl_sfx_ric4 = S_FindName("weapons/ric4.wav");
+	cl_sfx_ric5 = S_FindName("weapons/ric5.wav");
 
-	cl_sfx_r_exp1 = S_PrecacheSound("weapons/explode3.wav");
-	cl_sfx_r_exp2 = S_PrecacheSound("weapons/explode4.wav");
-	cl_sfx_r_exp3 = S_PrecacheSound("weapons/explode5.wav");
+	cl_sfx_r_exp1 = S_FindName("weapons/explode3.wav");
+	cl_sfx_r_exp2 = S_FindName("weapons/explode4.wav");
+	cl_sfx_r_exp3 = S_FindName("weapons/explode5.wav");
 
-	cl_sfx_pl_shell1 = S_PrecacheSound("player/pl_shell1.wav");
-	cl_sfx_pl_shell2 = S_PrecacheSound("player/pl_shell2.wav");
-	cl_sfx_pl_shell3 = S_PrecacheSound("player/pl_shell3.wav");
+	cl_sfx_pl_shell1 = S_FindName("player/pl_shell1.wav");
+	cl_sfx_pl_shell2 = S_FindName("player/pl_shell2.wav");
+	cl_sfx_pl_shell3 = S_FindName("player/pl_shell3.wav");
 
-	cl_sfx_sshell1 = S_PrecacheSound("weapons/sshell1.wav");
-	cl_sfx_sshell2 = S_PrecacheSound("weapons/sshell2.wav");
-	cl_sfx_sshell3 = S_PrecacheSound("weapons/sshell3.wav");
+	cl_sfx_sshell1 = S_FindName("weapons/sshell1.wav");
+	cl_sfx_sshell2 = S_FindName("weapons/sshell2.wav");
+	cl_sfx_sshell3 = S_FindName("weapons/sshell3.wav");
 
-	cl_sfx_wood1 = S_PrecacheSound("debris/wood1.wav");
-	cl_sfx_wood2 = S_PrecacheSound("debris/wood2.wav");
-	cl_sfx_wood3 = S_PrecacheSound("debris/wood3.wav");
+	cl_sfx_wood1 = S_FindName("debris/wood1.wav");
+	cl_sfx_wood2 = S_FindName("debris/wood2.wav");
+	cl_sfx_wood3 = S_FindName("debris/wood3.wav");
 
-	cl_sfx_metal1 = S_PrecacheSound("debris/metal1.wav");
-	cl_sfx_metal2 = S_PrecacheSound("debris/metal2.wav");
-	cl_sfx_metal3 = S_PrecacheSound("debris/metal3.wav");
+	cl_sfx_metal1 = S_FindName("debris/metal1.wav");
+	cl_sfx_metal2 = S_FindName("debris/metal2.wav");
+	cl_sfx_metal3 = S_FindName("debris/metal3.wav");
 
-	cl_sfx_glass1 = S_PrecacheSound("debris/glass1.wav");
-	cl_sfx_glass2 = S_PrecacheSound("debris/glass2.wav");
-	cl_sfx_glass3 = S_PrecacheSound("debris/glass3.wav");
+	cl_sfx_glass1 = S_FindName("debris/glass1.wav");
+	cl_sfx_glass2 = S_FindName("debris/glass2.wav");
+	cl_sfx_glass3 = S_FindName("debris/glass3.wav");
 
-	cl_sfx_concrete1 = S_PrecacheSound("debris/concrete1.wav");
-	cl_sfx_concrete2 = S_PrecacheSound("debris/concrete2.wav");
-	cl_sfx_concrete3 = S_PrecacheSound("debris/concrete3.wav");
+	cl_sfx_concrete1 = S_FindName("debris/concrete1.wav");
+	cl_sfx_concrete2 = S_FindName("debris/concrete2.wav");
+	cl_sfx_concrete3 = S_FindName("debris/concrete3.wav");
 
-	cl_sfx_flesh1 = S_PrecacheSound("debris/flesh1.wav");
-	cl_sfx_flesh2 = S_PrecacheSound("debris/flesh2.wav");
-	cl_sfx_flesh3 = S_PrecacheSound("debris/flesh3.wav");
-	cl_sfx_flesh4 = S_PrecacheSound("debris/flesh5.wav");
-	cl_sfx_flesh5 = S_PrecacheSound("debris/flesh6.wav");
-	cl_sfx_flesh6 = S_PrecacheSound("debris/flesh7.wav");
+	cl_sfx_flesh1 = S_FindName("debris/flesh1.wav");
+	cl_sfx_flesh2 = S_FindName("debris/flesh2.wav");
+	cl_sfx_flesh3 = S_FindName("debris/flesh3.wav");
+	cl_sfx_flesh4 = S_FindName("debris/flesh5.wav");
+	cl_sfx_flesh5 = S_FindName("debris/flesh6.wav");
+	cl_sfx_flesh6 = S_FindName("debris/flesh7.wav");
 
-	cl_sfx_geiger1 = S_PrecacheSound("player/geiger1.wav");
-	cl_sfx_geiger2 = S_PrecacheSound("player/geiger2.wav");
-	cl_sfx_geiger3 = S_PrecacheSound("player/geiger3.wav");
-	cl_sfx_geiger4 = S_PrecacheSound("player/geiger4.wav");
-	cl_sfx_geiger5 = S_PrecacheSound("player/geiger5.wav");
-	cl_sfx_geiger6 = S_PrecacheSound("player/geiger6.wav");
+	cl_sfx_geiger1 = S_FindName("player/geiger1.wav");
+	cl_sfx_geiger2 = S_FindName("player/geiger2.wav");
+	cl_sfx_geiger3 = S_FindName("player/geiger3.wav");
+	cl_sfx_geiger4 = S_FindName("player/geiger4.wav");
+	cl_sfx_geiger5 = S_FindName("player/geiger5.wav");
+	cl_sfx_geiger6 = S_FindName("player/geiger6.wav");
 
 	cl_sprite_dot = CL_TentModel("sprites/dot.spr");
 	cl_sprite_lightning = CL_TentModel("sprites/lgtning.spr");

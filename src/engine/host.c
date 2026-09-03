@@ -101,6 +101,19 @@ cvar_t	mapcyclefile = { "mapcyclefile", "mapcycle.txt" };
 
 cvar_t	pausable = { "pausable", "1", FCVAR_SERVER };
 
+/*
+================
+COM_EntsForPlayerSlots
+
+Returns the appropriate size of the edicts array to allocate
+based on the stated # of max players
+================
+*/
+int COM_EntsForPlayerSlots( int nPlayers )
+{
+	return 15 * (nPlayers - 1) + 800;
+}
+
 
 /*
 ================
@@ -579,12 +592,12 @@ void SV_ClearClientStates( void )
 
 /*
 ================
-Host_DeallocateDynamicData
+Host_CheckDynamicStructures
 
 Release any per-client frame data still allocated across all client slots
 ================
 */
-void Host_DeallocateDynamicData( void )
+void Host_CheckDynamicStructures( void )
 {
 	int		i;
 	client_t* cl;
@@ -620,7 +633,7 @@ void Host_ClearMemory( qboolean bQuiet )
 
 	if (host_hunklevel)
 	{
-		Host_DeallocateDynamicData();
+		Host_CheckDynamicStructures();
 		Hunk_FreeToLowMark(host_hunklevel);
 	}
 
@@ -1582,6 +1595,87 @@ void CheckGore( void )
 	Cvar_SetValue("violence_agibs", 1.0);
 }
 
+void Log_PrintServerVars( void )
+{
+	cvar_t* var;
+
+	if (svs.log.active)
+	{
+		Log_Printf("server cvars start\n");
+		for (var = cvar_vars; var; var = var->next)
+		{
+			if (var->flags & FCVAR_SERVER)
+				Log_Printf("Server cvar \"%s\" = \"%s\"\n", var->name, var->string);
+		}
+		Log_Printf("server cvars end\n");
+	}
+}
+
+void Log_Printf( char* fmt, ... )
+{
+}
+
+void Log_Close( void )
+{
+	if (svs.log.file)
+	{
+		Log_Printf("Log closed.\n");
+		Sys_CloseHandle(svs.log.file);
+	}
+
+	svs.log.file = NULL;
+}
+
+void Log_Open( void )
+{
+	char szFileBase[MAX_PATH];
+	char szTestFile[MAX_PATH];
+	long ltime;
+	struct tm* today;
+	void* file;
+	int i;
+
+	file = NULL;
+	if (!svs.log.active)
+		return;
+
+	Log_Close();
+	time(&ltime);
+	today = localtime(&ltime);
+	sprintf(szFileBase, "%s/logs/L%02i%02i", com_gamedir, today->tm_mon + 1, today->tm_mday);
+
+	for (i = 0; i < 1000; i++)
+	{
+		sprintf(szTestFile, "%s%03i.log", szFileBase, i);
+		COM_FixSlashes(szTestFile);
+		COM_CreatePath(szTestFile);
+		file = Sys_OpenHandle(szTestFile, "r");
+		if (!file)
+		{
+			COM_CreatePath(szTestFile);
+			file = Sys_OpenHandle(szTestFile, "wt");
+			if (!file)
+				i = 1000;
+			else
+				Con_Printf("Server logging data to file %s\n", szTestFile);
+			break;
+		}
+		Sys_CloseHandle(file);
+	}
+
+	if (i == 1000)
+	{
+		Con_Printf("Unable to open logfiles under %s\nLogging disabled\n", szFileBase);
+		svs.log.active = FALSE;
+	}
+	else
+	{
+		if (file)
+			svs.log.file = file;
+		Log_Printf("Log file started.\n");
+	}
+}
+
 /*
 ==================
 Host_Version
@@ -1813,7 +1907,7 @@ void Host_Shutdown( void )
 	SV_ClearChannels(FALSE);
 
 	NET_Shutdown();
-	S_Shutdown();
+	S_ShutdownDevice();
 	IN_Shutdown();
 
 	Con_Shutdown();

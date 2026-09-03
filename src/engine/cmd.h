@@ -100,6 +100,7 @@ void	Cmd_ExecuteString( char* text, cmd_source_t src );
 // The text can come from the command buffer, a remote client, or stdin.
 
 void	Cmd_ForwardToServer( void );
+char*	CopyString( char* in );
 // adds the current command line as a clc_stringcmd to the client message.
 // things like godmode, noclip, etc, are commands directed to the server,
 // so when they are typed in at the console, they will need to be forwarded.

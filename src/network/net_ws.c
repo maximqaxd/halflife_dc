@@ -102,6 +102,16 @@ qboolean NET_CompareClassBAdr( netadr_t a, netadr_t b )
 	return TRUE;
 }
 
+qboolean NET_IsReservedAdr( netadr_t adr )
+{
+	return TRUE;
+}
+
+qboolean NET_CompareBaseAdr( netadr_t a, netadr_t b )
+{
+	return TRUE;
+}
+
 char* NET_AdrToString( netadr_t a )
 {
 	static char s[64];
@@ -137,7 +147,7 @@ qboolean NET_StringToAdr( char* s, netadr_t* a )
 
 qboolean NET_IsLocalAddress( netadr_t adr )
 {
-	return TRUE;
+	return adr.type == NA_LOOPBACK;
 }
 
 /*
@@ -926,4 +936,3 @@ void R_NetGraph( void )
 		}
 	}
 }
-

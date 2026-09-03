@@ -130,7 +130,8 @@ typedef struct
 
 	int			challenge;			// from the server to use for connecting
 
-	qboolean	spectator;			// TRUE if connected as spectator
+	byte		authprotocol;		// Authentication protocol requested by the server
+	byte		spectator;			// TRUE if connected as spectator
 
 	float		slist_time;
 
@@ -216,7 +217,7 @@ typedef struct
 	int			movetype;
 
 	int			modelindex;
-	int			frame;
+	float		frame;
 	int			skinnum;
 	int			effects;		// MUZZLE FLASH, e.g.
 
@@ -357,7 +358,7 @@ typedef struct
 	// Old Client clock
 	float		oldtime;
 
-	frame_t		frames[UPDATE_BACKUP];
+	frame_t		*frames;
 
 	//
 	// information that is static for the entire time connected to a server
@@ -483,6 +484,8 @@ extern	int	custombitcounts[32];
 
 extern	client_static_t	cls;
 extern	client_state_t	cl;
+extern	int				cl_update_backup;
+extern	int				cl_update_mask;
 
 // FIXME, allocate dynamically
 extern	efrag_t			cl_efrags[MAX_EFRAGS];
@@ -515,6 +518,7 @@ void CL_CreateResourceList( void );
 void CL_ClearResourceList( resource_t* pList );
 void CL_AddToResourceList( resource_t* pResource, resource_t* pList );
 void CL_RemoveFromResourceList( resource_t* pResource );
+int CL_CountResourceList( resource_t* pList );
 void CL_MoveToOnHandList( resource_t* pResource );
 void CL_SendResourceListBlock( void );
 qboolean CL_RequestMissingResources( void );

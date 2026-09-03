@@ -80,6 +80,8 @@ void		NET_Config( qboolean multiplayer );
 // Compare addresses
 qboolean	NET_CompareAdr( netadr_t a, netadr_t b );
 qboolean	NET_CompareClassBAdr( netadr_t a, netadr_t b );
+qboolean	NET_IsReservedAdr( netadr_t adr );
+qboolean	NET_CompareBaseAdr( netadr_t a, netadr_t b );
 // Address conversion
 char*		NET_AdrToString( netadr_t a );
 qboolean	NET_StringToAdr( char* s, netadr_t* a );
@@ -123,7 +125,11 @@ typedef struct netchan_s
 	int			drop_count;			// dropped packets, cleared each level
 	int			good_count;			// cleared each level
 
+#ifdef HLDC_MP
 	int			qport;
+#else
+	int			skipped_updates;
+#endif
 
 // bandwidth estimator
 	float		cleartime;			// if realtime > nc->cleartime, free to go

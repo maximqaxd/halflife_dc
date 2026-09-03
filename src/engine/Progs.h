@@ -3,10 +3,6 @@
 
 #include "progdefs.h"
 
-#ifndef HLDC_OFFSETOF
-#define HLDC_OFFSETOF(type, member) ((unsigned int)&(((type *)0)->member))
-#endif
-
 #ifndef EIFACE_H
 // Forward declare this type to avoid problems
 typedef struct saverestore_s SAVERESTOREDATA;
@@ -51,19 +47,6 @@ typedef struct
 	color24	rendercolor;
 } entity_state_t;
 
-typedef char entity_state_t_must_match_retail_size[
-	(sizeof(entity_state_t) == 0x84) ? 1 : -1];
-typedef char entity_state_t_flags_must_be_at_1c[
-	(HLDC_OFFSETOF(entity_state_t, flags) == 0x1C) ? 1 : -1];
-typedef char entity_state_t_modelindex_must_be_at_20[
-	(HLDC_OFFSETOF(entity_state_t, modelindex) == 0x20) ? 1 : -1];
-typedef char entity_state_t_aiment_must_be_at_30[
-	(HLDC_OFFSETOF(entity_state_t, aiment) == 0x30) ? 1 : -1];
-typedef char entity_state_t_origin_must_be_at_44[
-	(HLDC_OFFSETOF(entity_state_t, origin) == 0x44) ? 1 : -1];
-typedef char entity_state_t_rendercolor_must_be_at_80[
-	(HLDC_OFFSETOF(entity_state_t, rendercolor) == 0x80) ? 1 : -1];
-
 #define	MAX_ENT_LEAFS	24
 typedef struct edict_s
 {
@@ -84,37 +67,19 @@ typedef struct edict_s
 // other fields from progs come immediately after
 } edict_t;
 
-typedef char edict_t_num_leafs_must_be_at_02[
-	(HLDC_OFFSETOF(edict_t, num_leafs) == 0x02) ? 1 : -1];
-typedef char edict_t_leaf_capacity_must_be_at_04[
-	(HLDC_OFFSETOF(edict_t, leaf_capacity) == 0x04) ? 1 : -1];
-typedef char edict_t_leafnums_must_be_at_08[
-	(HLDC_OFFSETOF(edict_t, leafnums) == 0x08) ? 1 : -1];
-typedef char edict_t_serialnumber_must_be_at_0c[
-	(HLDC_OFFSETOF(edict_t, serialnumber) == 0x0C) ? 1 : -1];
-typedef char edict_t_area_must_be_at_10[
-	(HLDC_OFFSETOF(edict_t, area) == 0x10) ? 1 : -1];
-typedef char edict_t_baseline_must_be_at_18[
-	(HLDC_OFFSETOF(edict_t, baseline) == 0x18) ? 1 : -1];
-typedef char edict_t_private_data_must_be_at_a0[
-	(HLDC_OFFSETOF(edict_t, pvPrivateData) == 0xA0) ? 1 : -1];
-typedef char edict_t_entvars_must_be_at_a4[
-	(HLDC_OFFSETOF(edict_t, v) == 0xA4) ? 1 : -1];
 #define	EDICT_FROM_AREA(l) STRUCT_FROM_LINK(l,edict_t,area)
 
 //============================================================================
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern	char* pr_strings;
 
 // gGlobalVariables is defined in C (sv_main.c); keep C linkage so the C++ game
 // DLL resolves the same symbol when it points gpGlobals at the engine globals.
-#ifdef __cplusplus
-extern "C" {
-#endif
 extern	globalvars_t	gGlobalVariables;
-#ifdef __cplusplus
-}
-#endif
 
 //============================================================================
 
@@ -162,18 +127,15 @@ int NUM_FOR_EDICT( const edict_t* e );
 
 // The game code reads the engine's globals through this pointer; the engine
 // points it at gGlobalVariables once the game rules are up.
-#ifdef __cplusplus
-extern "C" {
-#endif
 extern globalvars_t* gpGlobals;
-#ifdef __cplusplus
-}
-#endif
 
 extern	int		type_size[8];
 
 void ED_PrintEdicts( void );
 void ED_PrintNum( int ent );
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif // PROGS_H

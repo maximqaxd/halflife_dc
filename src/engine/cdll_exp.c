@@ -127,7 +127,7 @@ void hudPlaySoundByName( char* szSound, float volume )
 
 	volume = clamp(volume, 0.0, 1.0);
 
-	sfx = S_PrecacheSound(szSound);
+	sfx = S_FindName(szSound);
 	if (!sfx)
 	{
 		Con_DPrintf("invalid sound %s\n", szSound);

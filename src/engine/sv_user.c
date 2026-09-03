@@ -532,9 +532,25 @@ void SV_ExecuteClientMessage( client_t* cl )
 	// make sure the reply sequence number matches the incoming
 	// sequence number
 	if (cl->netchan.incoming_sequence >= cl->netchan.outgoing_sequence)
+	{
+		cl->netchan.skipped_updates +=
+			cl->netchan.incoming_sequence - cl->netchan.outgoing_sequence;
+
+		while (cl->netchan.skipped_updates > 0)
+		{
+			cl->netchan.skipped_updates--;
+			MSG_WriteByte(&cl->netchan.message, svc_skippedupdate);
+			MSG_WriteByte(&cl->netchan.message,
+				cl->netchan.outgoing_sequence + cl->netchan.skipped_updates);
+		}
+
+		cl->netchan.skipped_updates = 0;
 		cl->netchan.outgoing_sequence = cl->netchan.incoming_sequence;
+	}
 	else
+	{
 		cl->send_message = FALSE;	// don't reply, sequences have slipped
+	}
 
 	// save time for ping calculations
 	cl->frames[cl->netchan.outgoing_sequence & SV_UPDATE_MASK].senttime = realtime;

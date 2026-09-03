@@ -31,6 +31,7 @@ typedef struct
 
 
 #define	MAX_PHYSENTS 600 		  // Must have room for all entities in the world.
+#define	MAX_MOVEENTS 16		  // Pushers the player can be standing on.
 typedef struct
 {
 	vec3_t			origin;               // Model's origin in world coordinates.
@@ -84,6 +85,10 @@ typedef struct
 	// Number of entities to clip against.
 	int			numphysent;
 	physent_t	physents[MAX_PHYSENTS];
+
+	// Entities moved by the pusher physics this frame.
+	int			nummoveent;
+	physent_t	moveents[MAX_MOVEENTS];
 
 	// input to run through physics.
 	usercmd_t	cmd;
@@ -155,9 +160,9 @@ pmtrace_t PM_PlayerMove( vec_t* start, vec_t* end, int traceFlags );
 pmtrace_t PM_PlayerMove2( vec_t* start, vec_t* end );
 
 hull_t* PM_HullOffsetForBsp( physent_t* pe, vec_t* offset );
-int PM_PointContentsWorld( hull_t* hull, vec_t* p );
+int PM_PointContentsWorld( hull_t* hull, int num, vec_t* p );
 physent_t* PM_FindLadder( void );
-pmtrace_t PM_TraceModel( physent_t* pe, vec_t* start, vec_t* end );
+float PM_TraceModel( physent_t* pe, vec_t* start, vec_t* end, pmtrace_t* ptrace );
 void PM_LadderMove( physent_t* ladder );
 
 #endif // PMOVE_H
