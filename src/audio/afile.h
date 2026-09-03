@@ -1,38 +1,66 @@
-// afile.h -- AFile: sound resources cached in DirectSound hardware buffers.
+// afile.h -- resources parked in audio RAM
 //
-// An AFile record holds a chain of DirectSound secondary buffers (audio RAM).
-// A resource is streamed into those buffers in chunks and copied back out on
-// demand. The cache system juggles sprite/model VQ data through this same audio
-// memory, so the cache-free path stages a resource out via AFile.
+// The Dreamcast has far more sound RAM than the cache system can spare in main
+// memory, so cache blocks that are not being touched get streamed out into a
+// chain of static DirectSound buffers and read back on demand. Each resource
+// parked this way is described by an afile_t.
 
 #ifndef AFILE_H
 #define AFILE_H
+
+// Slots in the AFile table.
+#define MAX_AFILES		64
+
+// A resource is split over this many DirectSound buffers, so the largest
+// resource that fits is AFILE_BLOCKS * AFILE_BLOCKSIZE bytes.
+#define AFILE_BLOCKS		12
+#define AFILE_BLOCKSIZE		50000
+
+// Never fill audio RAM completely -- leave this much for real sounds.
+#define AFILE_RESERVE		204800
+
+struct IDirectSoundBuffer;
+
+typedef struct afile_s
+{
+	int							id;		// serial number, for the afilelist report
+	int							size;		// bytes actually written into the blocks
+	int							usage;		// carried for the cache system
+	struct IDirectSoundBuffer*	blocks[AFILE_BLOCKS];
+	char						name[48];
+} afile_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct afile_s afile_t;
+void		AFile_Init( void );
 
-// Find a cached AFile by resource name, or NULL if not resident.
-afile_t* AFile_FindByName( const char* name );
+// Free audio RAM as reported by the driver, and whether a resource of the
+// given size still leaves the reserve intact.
+int			AFile_FreeSoundRam( void );
+qboolean	AFile_HasRoomFor( int size );
 
-// Total byte size of the resource.
-int AFile_GetSize( afile_t* af );
+// Total bytes of all resident resources.
+int			AFile_TotalCachedBytes( void );
 
-// Copy the resource into dest, walking its buffer chain. Returns bytes read.
-int AFile_Read( afile_t* af, void* dest, int size );
+afile_t*	AFile_FindByName( char* name );
+void		AFile_PrintList( int fileid );
 
-// Copy size bytes starting at offset into dest. Returns bytes read.
-int AFile_ReadOffset( afile_t* af, void* dest, int offset, int size );
+// Find the resource, or park a copy of it in audio RAM. Returns NULL if the
+// table is full or the buffers could not be created.
+afile_t*	AFile_LoadOrCreate( char* name, byte* data, int size, int usage );
 
-// Release the AFile and its DirectSound buffers.
-void AFile_Free( afile_t* af );
+// Read the resource back out. Returns the number of bytes copied.
+int			AFile_ReadBlocks( afile_t* af, byte* dest, int size );
+int			AFile_ReadBlocksOffset( afile_t* af, byte* dest, int offset, int size );
 
-// Find an AFile by name, or create one and stream size bytes of data into its
-// DirectSound buffers. Used to juggle cache data out of the arena. Returns the
-// AFile, or NULL if it could not be created.
-afile_t* AFile_FindOrCreate( const char* name, void* data, int size, int create );
+int			AFile_GetSize( afile_t* af );
+void		AFile_Free( afile_t* af );
+
+void		AFile_CopyWords( void* dest, void* src, int count );
+
+void		Cmd_afilelist_f( void );
 
 #ifdef __cplusplus
 }

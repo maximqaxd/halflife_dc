@@ -1297,7 +1297,7 @@ void SENTENCEG_Init()
 
 	
 	int filePos = 0, fileSize;
-	byte *pMemFile = g_engfuncs.pfnLoadFileForMe( "sound/sentences.txt", &fileSize );
+	byte *pMemFile = g_engfuncs.pfnLoadFileForMe( "sound/new_sentences.txt", &fileSize );
 	if ( !pMemFile )
 		return;
 
