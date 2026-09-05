@@ -4,6 +4,47 @@
 #include "world.h"
 #include "pr_edict.h"
 
+static int	ed_last_num_edicts;
+static int	ed_scientist_count_1;
+static int	ed_scientist_count_2;
+static int	ed_scientist_count_3;
+static int	ed_sitting_scientist_count;
+static char	ed_classname[32];
+
+static qboolean ED_ShouldSuppressEntity( int num_edicts, const char* classname, const char* mapname )
+{
+	int new_level;
+
+	new_level = num_edicts < ed_last_num_edicts;
+	ed_last_num_edicts = num_edicts;
+
+	if (new_level)
+		ed_scientist_count_1 = 0;
+	if (!strcmp(mapname, "c0a0") && !strcmp(classname, "monster_scientist") &&
+		ed_scientist_count_1++ == 2)
+		return TRUE;
+
+	if (new_level)
+		ed_scientist_count_2 = 0;
+	if (!strcmp(mapname, "c0a0") && !strcmp(classname, "monster_scientist") &&
+		ed_scientist_count_2++ == 3)
+		return TRUE;
+
+	if (new_level)
+		ed_scientist_count_3 = 0;
+	if (!strcmp(mapname, "c0a0") && !strcmp(classname, "monster_scientist") &&
+		ed_scientist_count_3++ == 5)
+		return TRUE;
+
+	if (new_level)
+		ed_sitting_scientist_count = 0;
+	if (!strcmp(mapname, "c0a0") && !strcmp(classname, "monster_sitting_scientist") &&
+		ed_sitting_scientist_count++ == 0)
+		return TRUE;
+
+	return FALSE;
+}
+
 /*
 =================
 ED_ClearEdict
@@ -15,7 +56,6 @@ void ED_ClearEdict( edict_t* e )
 {
 	memset(&e->v, 0, sizeof(e->v));
 	e->free = FALSE;
-	FreeEntLeafData(e);
 	ReleaseEntityDLLFields(e);
 	InitEntityDLLFields(e);
 }
@@ -78,7 +118,7 @@ void ED_Free( edict_t* ed )
 	SV_UnlinkEdict(ed);		// unlink from world bsp
 
 	// release the DLL entity that's attached to this edict, if any
-	FreeEntPrivateData(ed);
+	ReleaseEntityDLLFields(ed);
 
 	ed->free = TRUE;
 
@@ -353,10 +393,9 @@ to call ED_CallSpawnFunctions () to let the objects initialize themselves.
 void ED_LoadFromFile( char* data )
 {
 	edict_t* ent;
-	int			inhibit;
+	char* className;
 
 	ent = NULL;
-	inhibit = 0;
 	gGlobalVariables.time = sv.time;
 
 // parse ents
@@ -379,16 +418,37 @@ void ED_LoadFromFile( char* data )
 		{
 			ent = ED_Alloc();
 		}
+
+		className = strstr(data, "\"classname\"");
+		if (className)
+		{
+			strncpy(ed_classname, className + 12, sizeof(ed_classname));
+			className = strchr(ed_classname, '"');
+			if (className)
+				*className = 0;
+			else
+				ed_classname[sizeof(ed_classname) - 1] = 0;
+		}
+		else
+		{
+			strcpy(ed_classname, "???");
+		}
+
 		data = ED_ParseEdict(data, ent);
 
 		if (ent->free)
 			continue; // parse failed?
 
+		if (ED_ShouldSuppressEntity(sv.num_edicts, ed_classname, sv.name))
+		{
+			ED_Free(ent);
+			continue;
+		}
+
 // remove things from different skill levels or deathmatch
 		if (deathmatch.value && ((int)ent->v.spawnflags & SF_NOTINDEATHMATCH))
 		{
 			ED_Free(ent);
-			inhibit++;
 			continue;
 		}
 
@@ -409,7 +469,6 @@ void ED_LoadFromFile( char* data )
 		SV_FlushSignon();
 	}
 
-	Con_DPrintf("%i entities inhibited\n", inhibit);
 }
 
 /*
@@ -484,6 +543,7 @@ void SuckOutClassname( char* szInputStream, edict_t* pEdict )
 
 void ReleaseEntityDLLFields( edict_t* pEdict )
 {
+	FreeEntLeafData(pEdict);
 	FreeEntPrivateData(pEdict);
 }
 
@@ -499,13 +559,16 @@ void AllocEntLeafData( edict_t* pEdict, int leafCount )
 	short* newLeafNums;
 	int capacity;
 
-	capacity = (leafCount + 15) & ~15;
-	if (capacity < 16)
+	capacity = leafCount + 15;
+	if (capacity < 0)
+		capacity += 30;
+	capacity = (capacity >> 4) << 4;
+	if (capacity < 17)
 		capacity = 16;
 
 	if (!pEdict->leafnums)
 	{
-		pEdict->leafnums = (short*)calloc(capacity, sizeof(short));
+		pEdict->leafnums = (short*)calloc(1, capacity * sizeof(short));
 		if (!pEdict->leafnums)
 			Sys_Error("AllocEntLeafData: out of memory");
 
@@ -514,7 +577,7 @@ void AllocEntLeafData( edict_t* pEdict, int leafCount )
 	}
 	else if (pEdict->leaf_capacity < leafCount)
 	{
-		newLeafNums = (short*)calloc(capacity, sizeof(short));
+		newLeafNums = (short*)calloc(1, capacity * sizeof(short));
 		if (!newLeafNums)
 			Sys_Error("AllocEntLeafData: out of memory");
 
@@ -598,17 +661,17 @@ edict_t* PEntityOfEntIndex( int iEntIndex )
 {
 	edict_t* pEdict;
 
-	if (iEntIndex < 0 || iEntIndex >= sv.max_edicts)
-		return NULL;
-
-	pEdict = EDICT_NUM(iEntIndex);
-	if (pEdict->free || !pEdict->pvPrivateData)
+	if (iEntIndex >= 0 && iEntIndex < sv.max_edicts)
 	{
-		if (iEntIndex >= svs.maxclients || pEdict->free)
-			return NULL;
+		pEdict = EDICT_NUM(iEntIndex);
+		if (!pEdict->free && pEdict->pvPrivateData)
+			return pEdict;
+
+		if (iEntIndex < svs.maxclients && !pEdict->free)
+			return pEdict;
 	}
 
-	return pEdict;
+	return NULL;
 }
 
 char* SzFromIndex( int iString )

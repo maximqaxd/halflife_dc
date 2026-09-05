@@ -6,6 +6,7 @@
 #include "profile.h"
 #include "hashpak.h"
 #include "won.h"
+#include "ui.h"
 
 #ifdef _WIN32_WCE
 #pragma optimize("", off)
@@ -1842,6 +1843,8 @@ int Host_Init( quakeparms_t* parms )
 		IN_Init();
 
 		Host_UpdateScreenSaver(0);
+
+		UI_Init();
 	}
 
 	// Execute the startup configs
@@ -1915,6 +1918,8 @@ void Host_Shutdown( void )
 	if (cls.state != ca_dedicated)
 	{
 		VID_Shutdown();
+
+		UI_Shutdown();
 	}
 }
 

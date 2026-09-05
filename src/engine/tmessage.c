@@ -12,6 +12,30 @@
 client_textmessage_t	gMessageParms;
 client_textmessage_t*	gMessageTable = NULL;
 int						gMessageTableCount = 0;
+char					gNetworkTextMessageBuffer[MAX_NETMESSAGE][512];
+const char*				gNetworkMessageNames[MAX_NETMESSAGE] =
+{
+	NETWORK_MESSAGE1,
+	NETWORK_MESSAGE2,
+	NETWORK_MESSAGE3,
+	NETWORK_MESSAGE4
+};
+client_textmessage_t	gNetworkTextMessage[MAX_NETMESSAGE] =
+{
+	{
+		0,
+		255, 255, 255, 255,
+		255, 255, 255, 255,
+		-1.0f,
+		-1.0f,
+		0.0f,
+		0.0f,
+		0.0f,
+		0.0f,
+		NETWORK_MESSAGE1,
+		gNetworkTextMessageBuffer[0]
+	}
+};
 
 static void TextMessageParse( byte* pMemFile, int fileSize );
 
@@ -430,6 +454,15 @@ void TextMessageParse( byte* pMemFile, int fileSize )
 client_textmessage_t* TextMessageGet( const char* pName )
 {
 	int i;
+
+	if (!strcmp(pName, NETWORK_MESSAGE1))
+		return gNetworkTextMessage;
+	if (!strcmp(pName, NETWORK_MESSAGE2))
+		return gNetworkTextMessage + 1;
+	if (!strcmp(pName, NETWORK_MESSAGE3))
+		return gNetworkTextMessage + 2;
+	if (!strcmp(pName, NETWORK_MESSAGE4))
+		return gNetworkTextMessage + 3;
 
 	for (i = 0; i < gMessageTableCount; i++)
 	{

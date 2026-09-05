@@ -1,5 +1,5 @@
 //
-//  cdll_int.c
+//  eng_cdll_int.c
 //
 // 4-23-98  
 // JOHN:  implementation of interface between client-side DLL and game engine.
@@ -18,48 +18,16 @@
 
 client_sprite_t* SPR_GetList( char* psz, int* piCount );
 
-extern int Initialize( cl_enginefunc_t *pEnginefuncs, int iVersion );
 extern int HUD_VidInit( void );
 extern int HUD_Init( void );
 extern int HUD_Redraw( float flTime, int intermission );
 extern int HUD_UpdateClientData( client_data_t *cdata, float flTime );
-extern int HUD_Reset( void );
-
-// Global table of exported engine functions to client dll
-cl_enginefunc_t cl_enginefuncs =
-{
-	SPR_Load,
-	SPR_Frames,
-	SPR_Height,
-	SPR_Width,
-	SPR_Set,
-	SPR_Draw,
-	SPR_DrawHoles,
-	SPR_DrawAdditive,
-	SPR_EnableScissor,
-	SPR_DisableScissor,
-	SPR_GetList,
-	Draw_FillRGBA,
-	GetScreenInfo,
-	SetCrosshair,
-	hudRegisterVariable,
-	hudGetCvarFloat,
-	hudGetCvarString,
-	hudAddCommand,
-	hudHookUserMsg,
-	hudServerCmd,
-	hudClientCmd,
-	hudGetPlayerInfo,
-	hudPlaySoundByName,
-	hudPlaySoundByIndex,
-	AngleVectors,
-	TextMessageGet,
-	TextMessageDrawCharacter,
-	Draw_String,
-	hudDrawConsoleStringLen,
-	hudConsolePrint,
-	hudCenterPrint
-};
+extern void SPR_Shutdown( void );
+extern void Cvar_RemoveHudCvars( void );
+extern void Cmd_RemoveHudCmds( void );
+extern void CL_ClearUserMessages( void );
+extern int COM_ExpandFilename( char* filename );
+extern pfnUserMsgHook CL_HookUserMsg( char* pszName, pfnUserMsgHook pfn );
 
 // Pointers to the exported client functions themselves
 typedef struct
@@ -73,11 +41,7 @@ typedef struct
 } cldll_func_t;
 
 cldll_func_t cl_funcs;
-
-#define LOAD_IFACE_FUNC(func, hModule, pszName)							\
-	func = DECLTYPE(func)(GetProcAddress(hModule, pszName));			\
-	if (!func)												\
-		Sys_Error("could not link client.dll function " pszName "\n")
+static HMODULE cl_dllhandle;
 
 /*
 ==============
@@ -88,27 +52,44 @@ Loads the client .dll
 */
 void ClientDLL_Init( void )
 {
-	int		i;
-	HMODULE hModule;
 	char	szDllName[512];
-	char* pszGameDir;
 
-	i = COM_CheckParm("-game");
+	if (cl_dllhandle)
+	{
+		SPR_Shutdown();
+		FreeLibrary(cl_dllhandle);
+		cl_dllhandle = NULL;
+		cl_funcs.pHudResetFunc = NULL;
+		cl_funcs.pHudUpdateClientDataFunc = NULL;
+		cl_funcs.pHudRedrawFunc = NULL;
+		cl_funcs.pHudVidInitFunc = NULL;
+		cl_funcs.pHudInitFunc = NULL;
+		cl_funcs.pInitFunc = NULL;
+		Cvar_RemoveHudCvars();
+		Cmd_RemoveHudCmds();
+		CL_ClearUserMessages();
+	}
 
-	pszGameDir = com_argv[i + 1];
-	if (i && pszGameDir && pszGameDir[0])
-		sprintf(szDllName, "%s\\cl_dlls\\client.dll", pszGameDir);
-	else
-		sprintf(szDllName, "valve\\cl_dlls\\client.dll");
+	sprintf(szDllName, "cl_dlls\\client.dll");
+	COM_ExpandFilename(szDllName);
+	CL_HookUserMsg("ScreenShake", V_ScreenShake);
+	CL_HookUserMsg("ScreenFade", V_ScreenFade);
+}
 
-	cl_funcs.pInitFunc              = Initialize;
-	cl_funcs.pHudVidInitFunc        = HUD_VidInit;
-	cl_funcs.pHudInitFunc           = HUD_Init;
-	cl_funcs.pHudRedrawFunc         = HUD_Redraw;
-	cl_funcs.pHudUpdateClientDataFunc = HUD_UpdateClientData;
-	cl_funcs.pHudResetFunc          = HUD_Reset;
-
-	cl_funcs.pInitFunc(&cl_enginefuncs, CLDLL_INTERFACE_VERSION);
+void ClientDLL_Shutdown( void )
+{
+	SPR_Shutdown();
+	FreeLibrary(cl_dllhandle);
+	cl_dllhandle = NULL;
+	cl_funcs.pHudResetFunc = NULL;
+	cl_funcs.pHudUpdateClientDataFunc = NULL;
+	cl_funcs.pHudRedrawFunc = NULL;
+	cl_funcs.pHudVidInitFunc = NULL;
+	cl_funcs.pHudInitFunc = NULL;
+	cl_funcs.pInitFunc = NULL;
+	Cvar_RemoveHudCvars();
+	Cmd_RemoveHudCmds();
+	CL_ClearUserMessages();
 }
 
 /*
@@ -121,10 +102,8 @@ Called when the game initializes and whenever the vid_mode is changed
 */
 void ClientDLL_HudVidInit( void )
 {
-	if (!cl_funcs.pHudVidInitFunc)
-		Sys_Error(__FILE__ ", line %d: could not link client DLL for HUD Vid initialization", __LINE__);
-
-	cl_funcs.pHudVidInitFunc();
+	SPR_Init();
+	HUD_VidInit();
 }
 
 /*
@@ -137,10 +116,7 @@ This occurs after the engine has loaded the client and has initialized all other
 */
 void ClientDLL_HudInit( void )
 {
-	if (!cl_funcs.pHudInitFunc)
-		Sys_Error(__FILE__ ", line %d: could not link client DLL for HUD initialization", __LINE__);
-
-	cl_funcs.pHudInitFunc();
+	HUD_Init();
 }
 
 /*
@@ -152,7 +128,10 @@ Called to redraw the HUD
 */
 void ClientDLL_HudRedraw( int intermission )
 {
-	cl_funcs.pHudRedrawFunc(cl.time, intermission);
+	float time;
+
+	time = cl.time;
+	HUD_Redraw(time, intermission);
 }
 
 /*
@@ -184,7 +163,7 @@ void ClientDLL_UpdateClientData( void )
 		cdat.view_idlescale = v_idlescale;
 		cdat.mouse_sensitivity = sensitivity.value;
 
-		if (cl_funcs.pHudUpdateClientDataFunc(&cdat, cl.time))
+		if (HUD_UpdateClientData(&cdat, cl.time))
 		{
 			cl.viewheight = cdat.viewheight;
 			cl.maxspeed = cdat.maxspeed;
@@ -199,40 +178,6 @@ void ClientDLL_UpdateClientData( void )
 			CL_ResetButtonBits(cdat.iKeyBits);
 		}
 	}
-}
-
-/*
-==============
-ClientDLL_DemoUpdateClientData
-
-Updates client data for demo
-==============
-*/
-void ClientDLL_DemoUpdateClientData( client_data_t* cdat )
-{
-	if (cl_funcs.pHudUpdateClientDataFunc(cdat, cl.time))
-	{
-		cl.viewheight = cdat->viewheight;
-		cl.maxspeed = cdat->maxspeed;
-
-		VectorCopy(cdat->viewangles, cl.viewangles);
-		VectorCopy(cdat->punchangle, cl.punchangle);
-
-		scr_fov_value = cdat->fov;
-
-		CL_ResetButtonBits(cdat->iKeyBits);
-	}
-}
-
-/*
-==============
-ClientDLL_HudReset
-
-==============
-*/
-void ClientDLL_HudReset( void )
-{
-	cl_funcs.pHudResetFunc();
 }
 
 /*
@@ -251,14 +196,20 @@ client_sprite_t* SPR_GetList( char* psz, int* piCount )
 
 	pfile = (char*)COM_LoadFile(psz, 2, NULL);
 	if (!pfile)
+	{
+		COM_FreeFile();
 		return NULL;
+	}
 
 	pfile = COM_Parse(pfile);
 	iCount = atoi(com_token);
 	if (!iCount)
+	{
+		COM_FreeFile();
 		return NULL;
+	}
 	
-	pret = (client_sprite_t*)Hunk_Alloc(sizeof(client_sprite_t) * iCount);
+	pret = (client_sprite_t*)calloc(sizeof(client_sprite_t) * iCount, 1);
 	if (pret)
 	{
 		ps = pret;
@@ -287,6 +238,8 @@ client_sprite_t* SPR_GetList( char* psz, int* piCount )
 		if (piCount)
 			*piCount = iCount;
 	}
+
+	COM_FreeFile();
 
 	return pret;
 }

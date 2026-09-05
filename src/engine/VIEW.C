@@ -919,6 +919,48 @@ int V_ScreenShake( const char* pszName, int iSize, void* pbuf )
 }
 
 /*
+=================
+V_ScreenFade
+
+Message hook to parse ScreenFade messages
+=================
+*/
+int V_ScreenFade( const char* pszName, int iSize, void* pbuf )
+{
+	ScreenFade* pFade;
+
+	pFade = (ScreenFade*)pbuf;
+	cl.sf.fadeEnd = pFade->duration * (1.0f / 4096.0f);
+	cl.sf.fadeReset = pFade->holdTime * (1.0f / 4096.0f);
+	cl.sf.fader = pFade->r;
+	cl.sf.fadeg = pFade->g;
+	cl.sf.fadeb = pFade->b;
+	cl.sf.fadealpha = pFade->a;
+	cl.sf.fadeFlags = pFade->fadeFlags;
+	cl.sf.fadeSpeed = 0.0f;
+
+	if (pFade->duration)
+	{
+		if (pFade->fadeFlags & FFADE_OUT)
+		{
+			if (cl.sf.fadeEnd)
+				cl.sf.fadeSpeed = -_utos(cl.sf.fadealpha) / cl.sf.fadeEnd;
+			cl.sf.fadeEnd += cl.time;
+			cl.sf.fadeReset += cl.sf.fadeEnd;
+		}
+		else
+		{
+			if (cl.sf.fadeEnd)
+				cl.sf.fadeSpeed = _utos(cl.sf.fadealpha) / cl.sf.fadeEnd;
+			cl.sf.fadeReset += cl.time;
+			cl.sf.fadeEnd += cl.sf.fadeReset;
+		}
+	}
+
+	return 1;
+}
+
+/*
 =============
 V_FadeAlpha
 

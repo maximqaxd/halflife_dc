@@ -15,6 +15,7 @@ extern sfx_t* cl_sfx_geiger6;
 void CL_TempEntInit( void );
 
 TEMPENTITY* CL_TempEntAlloc( vec_t* org, model_t* model );
+TEMPENTITY* CL_TempEntAllocHigh( vec_t* org, model_t* model );
 
 void R_RicochetSprite( float* pos, model_t* pmodel, float duration, float scale );
 void R_RocketFlare( float* pos );

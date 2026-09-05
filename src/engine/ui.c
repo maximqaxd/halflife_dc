@@ -1,83 +1,197 @@
-// ui.c -- in-game user interface (menu) system
+// ui.c -- engine side of the front-end user interface
+//
+// The front end draws its own pages, but it leans on the engine for three
+// things, and they all live here:
+//
+//   - a border drawer, so a page can frame a rectangle without going through
+//     the picture cache;
+//   - a list of elements, each pairing a lump of the caller's data with
+//     whoever owns it. They go on the end of the list and come back off
+//     the front, so they are handled in the order they were added;
+//   - the keyboard hand-off. While a page is up the keys have to stop going
+//     to the game, so the page takes the keyboard on the way in and gives
+//     it back on the way out.
+//
+// None of this knows anything about the pages themselves; the front end
+// owns their artwork and their layout.
 
 #include "quakedef.h"
 #include "ui.h"
 
-int		gfDrawMenu;			// draw the menu instead of the 3D view this frame
-void*	gpActiveMenu;		// menu currently open, NULL if none
+// Elements the front end is showing, oldest first
+static uielement_t*	ui_elements;
 
-int		g_bScreenSaverActive;	// attract mode is running
+// Where the keys were going before the UI took the keyboard away
+static keydest_t	ui_savedkeydest;
 
 /*
-==================
-UI_OpenMenu
+==============
+UI_DrawOutlineRect
 
-Open a menu page by name. The cache is handed back first so the page has room
-for its own artwork.
-==================
+Frame the rectangle with a one pixel border.
+==============
 */
-void UI_OpenMenu( char* pszMenu )
+void UI_DrawOutlineRect( vrect_t* r, byte* color )
 {
-	if (cls.state == ca_active || cls.state == ca_disconnected)
+	vrect_t	rcFill;
+
+	rcFill.x = r->x;
+	rcFill.y = r->y;
+	rcFill.width = r->width;
+	rcFill.height = 1;
+	D_FillRect(&rcFill, color);			// top
+
+	rcFill.y = r->y + r->height;
+	D_FillRect(&rcFill, color);			// bottom
+
+	rcFill.x = r->x;
+	rcFill.y = r->y;
+	rcFill.width = 1;
+	rcFill.height = r->height;
+	D_FillRect(&rcFill, color);			// left
+
+	rcFill.x = r->x + r->width;
+	D_FillRect(&rcFill, color);			// right
+}
+
+/*
+==============
+UI_LinkElement
+==============
+*/
+void UI_LinkElement( uielement_t* element )
+{
+	uielement_t*	last;
+
+	for (last = ui_elements; last; last = last->next)
 	{
-		Cache_FlushToDisk();
-		Cache_FreeAll();
-
-		// TODO: build the named page and make it the active menu
-		gpActiveMenu = NULL;
+		if (!last->next)
+			break;
 	}
+
+	if (last)
+		last->next = element;
+	else
+		ui_elements = element;
 }
 
 /*
-==================
-M_EnableAllItems
+==============
+UI_AddElement
 
-Unlock every entry on the current page.
-==================
+Build an element around the caller's data and queue it up behind whatever is
+already on the list.
+==============
 */
-void M_EnableAllItems( void )
+void UI_AddElement( void* data, void* owner )
 {
-	// TODO: clear the disabled flag on the active menu's items
+	uielement_t*	element;
+
+	element = (uielement_t*)MnemoAllocDbg(sizeof(uielement_t), __FILE__, __LINE__);
+	memset(element, 0, sizeof(uielement_t));
+
+	element->flags |= UI_ELEM_ACTIVE;
+	element->state = 0;
+	element->data = data;
+	element->owner = owner;
+	element->next = NULL;
+
+	UI_LinkElement(element);
 }
 
 /*
-==================
-M_DecodeStateFlags
+==============
+UI_Activate
 
-==================
+A page is coming up, so take the keyboard away from the game. The frame count
+is reset so that nothing which waits on it fires while the page is opening.
+==============
 */
-void M_DecodeStateFlags( void )
+void UI_Activate( void )
 {
-	// TODO: resync menu/UI state on screen-saver wakeup
+	ui_savedkeydest = key_dest;
+	r_framecount = 0;
+	key_dest = key_ui;
 }
 
 /*
-==================
-UI_Draw
+==============
+UI_Deactivate
 
-Draw the open menu. Called from SCR_UpdateScreen when gfDrawMenu is set.
-==================
+The page is gone; give the keyboard back to whoever had it.
+==============
 */
-void UI_Draw( void )
+void UI_Deactivate( void )
 {
-	if (!gpActiveMenu)
-		return;
-
-	// TODO: draw the active menu's items
+	r_framecount = 0;
+	key_dest = ui_savedkeydest;
 }
 
 /*
-==================
-UI_Update
+==============
+UI_UnlinkElement
 
-Run menu input and tear the menu down once it has been closed.
-==================
+Take the oldest element off the list.
+==============
 */
-void UI_Update( void )
+uielement_t* UI_UnlinkElement( void )
 {
-	if (!gpActiveMenu)
-		return;
+	uielement_t*	element;
 
-	// TODO: dispatch controller input to the active menu; free it once
-	// gfDrawMenu has been cleared
+	if (!ui_elements)
+		return NULL;
+
+	element = ui_elements;
+	ui_elements = element->next;
+	return element;
+}
+
+/*
+==============
+UI_FreeElement
+==============
+*/
+void UI_FreeElement( uielement_t* element )
+{
+	free(element);
+}
+
+/*
+==============
+UI_KeyEvent
+
+A key the front end asked for. The pages read the keyboard themselves, so
+there is nothing left to do here.
+==============
+*/
+void UI_KeyEvent( int key )
+{
+}
+
+/*
+==============
+UI_Free
+==============
+*/
+void UI_Free( void* buffer )
+{
+	free(buffer);
+}
+
+/*
+==============
+UI_Init
+==============
+*/
+void UI_Init( void )
+{
+}
+
+/*
+==============
+UI_Shutdown
+==============
+*/
+void UI_Shutdown( void )
+{
 }

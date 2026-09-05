@@ -106,7 +106,7 @@ extern qboolean gfBackground;
 
 extern int giActive;
 extern int giStateInfo;
-extern short giSubState;	// 16-bit in the DC binary (Dispatch_Substate does a mov.w store)
+extern int giSubState;
 
 extern void	(VID_Update)( struct vrect_s* rects );
 extern void	(VID_Shutdown)( void );

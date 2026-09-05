@@ -212,8 +212,6 @@ typedef struct
 	vec3_t		origin;
 	vec3_t		viewangles;		// only for demos, not from server
 	vec3_t		velocity;
-	int			weaponframe;
-
 	int			movetype;
 
 	int			modelindex;
@@ -250,13 +248,19 @@ typedef struct
 
 	int			gaitsequence;
 	float		gaitframe;
+	int			reserved0;
 
 	// If standing on conveyor, e.g.
 	vec3_t		basevelocity;
 
 	// Friction, for prediction.
 	float		friction;
-} player_state_t;
+
+	vec3_t		view_ofs;
+	int			reserved1;
+	int			reserved2;
+	int			usehull;
+} player_state_t; // sizeof(player_state_t) = 0xF8
 
 typedef struct
 {
@@ -271,7 +275,14 @@ typedef struct
 
 	player_state_t	playerstate[MAX_CLIENTS];	// message received that reflects performing the usercmd
 	packet_entities_t	packet_entities;
-} frame_t;
+
+	unsigned short	playerinfo_bytes;
+	unsigned short	packet_entities_bytes;
+	unsigned short	temp_entity_bytes;
+	unsigned short	sound_bytes;
+	unsigned short	message_bytes;
+	unsigned short	reserved;
+} frame_t; // sizeof(frame_t) = 0x144
 
 //
 // the client_state_t structure is wiped completely at every
@@ -286,6 +297,8 @@ typedef struct
 	resource_t	resourcelist[MAX_RESOURCES];	// Resource download list
 
 	int			num_resources;
+
+	char		serverinfo[MAX_SERVERINFO_STRING];
 
 	int			servercount;	// server identification for prespawns, must match the svs.spawncount which
 								// is incremented on server spawning.  This supercedes svs.spawn_issued, in that
@@ -305,7 +318,9 @@ typedef struct
 	int			stats[MAX_CL_STATS];	// health, etc
 	int			weapons;
 
+	int			reserved0;
 	float		frame_lerp;
+	int			reserved1[6];
 
 	// the client maintains its own idea of view angles, which are
 	// sent to the server each frame.  The server sets punchangle when
@@ -357,6 +372,7 @@ typedef struct
 
 	// Old Client clock
 	float		oldtime;
+	int			reserved2;
 
 	frame_t		*frames;
 
@@ -408,8 +424,14 @@ typedef struct
 //
 // cvars
 //
-extern	cvar_t	cl_name;
-extern	cvar_t	cl_color;
+extern	cvar_t	password;
+extern	cvar_t	spectator;
+extern	cvar_t	name;
+extern	cvar_t	team;
+extern	cvar_t	skin;
+extern	cvar_t	model;
+extern	cvar_t	topcolor;
+extern	cvar_t	bottomcolor;
 
 extern	cvar_t	cl_timeout;
 extern	cvar_t	cl_shownet;
@@ -431,6 +453,9 @@ extern	cvar_t	cl_skyvec_y;
 extern	cvar_t	cl_skyvec_z;
 
 extern	cvar_t	cl_predict_players;
+extern	cvar_t	cl_pred_link;
+extern	cvar_t	cl_pred_maxtime;
+extern	cvar_t	cl_pred_fraction;
 extern	cvar_t	cl_solid_players;
 extern	cvar_t	cl_nodelta;
 extern	cvar_t	cl_printplayers;
@@ -476,7 +501,7 @@ extern	qboolean g_bSkipDownload;
 extern	qboolean g_bSkipUpload;
 
 extern	int	bitcounts[32 + 8];
-extern	int	playerbitcounts[MAX_CLIENTS];
+extern	int	playerbitcounts[32];
 extern	int	custombitcounts[32];
 
 #define MAX_TEMP_ENTITIES	350			// lightning bolts, etc
@@ -553,7 +578,7 @@ float CL_LerpPoint( void );
 void CL_SendCmd( void );
 void CL_BaseMove( usercmd_t* cmd );
 
-int CL_ButtonBits( int bResetState );
+int CL_ButtonBits( short bResetState );
 void CL_ResetButtonBits( int bits );
 
 void CAM_Init( void );
@@ -569,7 +594,9 @@ void CL_SendConnectPacket( void );  // Send the actual connection packet, after 
 void CL_CheckForResend( void );     // If we are in ca_connecting state and it has been cl_resend.value seconds, 
 									// request a challenge value again if we aren't yet connected. 
 void CL_PingServers_f( void );
-void CL_AddToServerCache( netadr_t adr, char* name, char* map, char* desc, int active, int maxplayers );
+void CL_AddToServerCache( netadr_t adr, char* name, char* map, char* desc, char* gamedir,
+	int active, int maxplayers, char type, char os, char password, short mod,
+	short secure, short dll, char* info_url, char* download_url, int version, int size, char* info );
 void CL_Connect_f( void );
 void CL_Spectate_f( void );
 void CL_Disconnect_f( void );
@@ -585,7 +612,7 @@ void CL_EmitEntities( void );
 void CL_ParsePacketEntities( qboolean delta );
 void CL_SetSolidEntities( void );
 void CL_ParsePlayerinfo( void );
-void CL_Particle( vec_t* origin, int color, float life, int zpos, int zvel );
+void CL_AllocParticle( vec_t* origin, int color, float life, int zpos, int zvel );
 void CL_PrintEntity( cl_entity_t* ent );
 
 //
@@ -593,7 +620,7 @@ void CL_PrintEntity( cl_entity_t* ent );
 //
 void CL_InitPrediction( void );
 void CL_PredictMove( void );
-void CL_PredictUsercmd( player_state_t* from, player_state_t* to, usercmd_t* u, qboolean spectator );
+void CL_PredictUsercmd( player_state_t* from, player_state_t* to, usercmd_t* u, qboolean spectator, float* time );
 
 //
 // cl_cam.c

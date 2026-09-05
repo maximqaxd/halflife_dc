@@ -1,6 +1,9 @@
 #include "quakedef.h"
 #include "winquake.h"
+#include <shintr.h>
 #include "pmove.h"
+
+#pragma intrinsic(sqrtf)
 
 cvar_t	cl_nopred = { "cl_nopred", "0" };
 cvar_t	cl_pushlatency = { "pushlatency", "-500" };
@@ -13,7 +16,8 @@ cvar_t	cl_showpred = { "cl_showpred", "0" };
 CL_PredictUsercmd
 ==============
 */
-void CL_PredictUsercmd( player_state_t* from, player_state_t* to, usercmd_t* u, qboolean spectator )
+#pragma optimize("", off)
+void CL_PredictUsercmd( player_state_t* from, player_state_t* to, usercmd_t* u, qboolean spectator, float* time )
 {
 	usercmd_t   cmd;
 	float		maxspeed;
@@ -27,25 +31,31 @@ void CL_PredictUsercmd( player_state_t* from, player_state_t* to, usercmd_t* u, 
 		split = *u;
 		split.msec /= 2;
 
-		CL_PredictUsercmd(from, &temp, &split, spectator);
-		CL_PredictUsercmd(&temp, to, &split, spectator);
+		CL_PredictUsercmd(from, &temp, &split, spectator, time);
+		CL_PredictUsercmd(&temp, to, &split, spectator, time);
 		return;
 	}
 
 	cmd = *u;
 	*to = *from;
+	*time += (float)cmd.msec;
+	pmove.time = *time;
+	VectorCopy(from->prevorigin, to->prevorigin);
 
 	VectorCopy(from->origin, pmove.origin);
 	VectorCopy(from->velocity, pmove.velocity);
 	VectorCopy(from->basevelocity, pmove.basevelocity);
+	VectorCopy(from->view_ofs, pmove.view_ofs);
+	pmove.field_54[0] = from->reserved1;
+	pmove.field_54[1] = from->reserved2;
 
 	VectorCopy(cmd.angles, pmove.angles);
 	// Player pitch is inverted
-	pmove.angles[PITCH] /= -3.0;
+	pmove.angles[PITCH] /= -3.0f;
 	// Adjust client view angles to match values used on server.
-	if (pmove.angles[YAW] > 180.0)
+	if (pmove.angles[YAW] > 180.0f)
 	{
-		pmove.angles[YAW] -= 360.0;
+		pmove.angles[YAW] -= 360.0f;
 	}
 	
 	pmove.usehull = 0;
@@ -55,7 +65,7 @@ void CL_PredictUsercmd( player_state_t* from, player_state_t* to, usercmd_t* u, 
 	pmove.spectator = spectator;
 	pmove.dead = cl.stats[STAT_HEALTH] <= 0;
 	pmove.movetype = from->movetype;
-	pmove.gravity = 1.0;
+	pmove.gravity = 1.0f;
 	pmove.flags = from->physflags;
 
 	if (pmove.flags & FL_DUCKING)
@@ -88,11 +98,22 @@ void CL_PredictUsercmd( player_state_t* from, player_state_t* to, usercmd_t* u, 
 		pmove.maxspeed = movevars.maxspeed;
 	}
 
+	maxspeed = sqrtf((cmd.forwardmove * cmd.forwardmove) +
+		(cmd.sidemove * cmd.sidemove) + (cmd.upmove * cmd.upmove));
+	if (maxspeed > pmove.maxspeed)
+	{
+		maxspeed = pmove.maxspeed / maxspeed;
+		cmd.forwardmove *= maxspeed;
+		cmd.sidemove *= maxspeed;
+		cmd.upmove *= maxspeed;
+	}
+
 	PlayerMove(FALSE);
 
 	VectorCopy(pmove.origin, to->origin);
 	VectorCopy(pmove.velocity, to->velocity);
 	VectorCopy(pmove.basevelocity, to->basevelocity);
+	VectorCopy(pmove.view_ofs, to->view_ofs);
 
 	to->waterjumptime = pmove.waterjumptime;
 	to->oldbuttons = pmove.cmd.buttons;
@@ -100,7 +121,11 @@ void CL_PredictUsercmd( player_state_t* from, player_state_t* to, usercmd_t* u, 
 	to->friction = pmove.friction;
 	to->movetype = pmove.movetype;
 	to->physflags = pmove.flags;
+	to->reserved1 = pmove.field_54[0];
+	to->reserved2 = pmove.field_54[1];
+	to->usehull = pmove.usehull;
 }
+#pragma optimize("", on)
 
 
 
@@ -115,14 +140,15 @@ void CL_PredictMove( void )
 	float		f;
 	frame_t* from, * to = NULL;
 	float       targettime;
+	float		time;
 	int			oldphysent;
 
 	if (cl_pushlatency.value > 0)
 		Cvar_Set("pushlatency", "0");
 
-	targettime = 0 - cls.latency - cl_pushlatency.value * 0.001;
-	if (targettime > 0)
-		targettime = 0;
+	targettime = 0.0f - cls.latency - cl_pushlatency.value * 0.001f;
+	if (targettime > 0.0f)
+		targettime = 0.0f;
 
 	targettime += realtime;
 
@@ -168,6 +194,7 @@ void CL_PredictMove( void )
 
 	// predict forward until cl.time <= to->senttime
 	oldphysent = pmove.numphysent;
+	time = 0.0f;
 	CL_SetSolidPlayers(cl.playernum);
 
 //	to = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK];
@@ -179,7 +206,7 @@ void CL_PredictMove( void )
 		j++;
 		to = &cl.frames[(cls.netchan.incoming_sequence + i) & UPDATE_MASK];
 		CL_PredictUsercmd(&from->playerstate[cl.playernum]
-			, &to->playerstate[cl.playernum], &to->cmd, cl.spectator);
+			, &to->playerstate[cl.playernum], &to->cmd, cl.spectator, &time);
 		if (to->senttime >= targettime)
 			break;
 		from = to;
@@ -195,18 +222,18 @@ void CL_PredictMove( void )
 
 	// now interpolate some fraction of the final frame
 	if (to->senttime == from->senttime)
-		f = 0;
+		f = 0.0f;
 	else
 	{
 		f = (targettime - from->senttime) / (to->senttime - from->senttime);
 
-		if (f < 0)
-			f = 0;
+		if (f < 0.0f)
+			f = 0.0f;
 	}
 
 	for (i = 0; i < 3; i++)
 	{
-		if (fabs(to->playerstate[cl.playernum].origin[i] - from->playerstate[cl.playernum].origin[i]) > 128)
+		if (fabs(to->playerstate[cl.playernum].origin[i] - from->playerstate[cl.playernum].origin[i]) > 128.0f)
 		{	// teleported, so don't lerp
 			VectorCopy(to->playerstate[cl.playernum].velocity, cl.simvel);
 			VectorCopy(to->playerstate[cl.playernum].origin, cl.simorg);
@@ -227,7 +254,7 @@ void CL_PredictMove( void )
 
 	if (cl_showpred.value)
 	{
-		CL_Particle(cl.simorg, 10, 15, 32, -1);
+		CL_AllocParticle(cl.simorg, 10, 15.0f, 32, -1);
 	}
 }
 

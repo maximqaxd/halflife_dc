@@ -167,7 +167,7 @@ void PM_ParticleLine( vec_t* start, vec_t* end, int pcolor, float life, float ve
 		for (i = 0; i < 3; i++)
 			curpos[i] = start[i] + curdist * diff[i];
 
-		CL_Particle(curpos, pcolor, life, 0, vert);
+		CL_AllocParticle(curpos, pcolor, life, 0, vert);
 		curdist += linestep;
 	}
 }

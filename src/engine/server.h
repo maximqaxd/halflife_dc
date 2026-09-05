@@ -370,7 +370,7 @@ extern qboolean bUnreliableOverflow;
 
 extern int num_servers;
 
-extern	qboolean	allow_cheats;
+C_EXTERN qboolean	allow_cheats;
 extern	userfilter_t userfilters[MAX_USERFILTERS];
 extern	int numuserfilters;
 
@@ -489,8 +489,8 @@ void Host_RemoteCommand( netadr_t* net_from );
 void SV_SetIdealPitch( void );
 void SV_ExecuteClientMessage( client_t* cl );
 void SV_PreRunCmd( void );
-void SV_RunCmd( usercmd_t* ucmd );
-void SV_PostRunCmd(	void );
+extern usercmd_t cmd;
+void SV_RunCmd( void );
 void SV_Drop_f( void );
 
 //
@@ -498,7 +498,6 @@ void SV_Drop_f( void );
 //
 void SV_Physics( void );
 trace_t SV_Trace_Toss( edict_t* ent, edict_t* ignore );
-qboolean SV_RunThink( edict_t* ent );
 void SV_Impact( edict_t* e1, edict_t* e2, trace_t* ptrace );
 void SV_SetMoveVars( void );
 

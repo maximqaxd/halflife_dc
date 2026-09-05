@@ -255,7 +255,7 @@ int DispatchDirectUserMsg( const char* pszName, int iSize, void* pBuf )
 	return fFound;
 }
 
-pfnUserMsgHook HookServerMsg( const char* pszName, pfnUserMsgHook pfn )
+pfnUserMsgHook CL_HookUserMsg( char* pszName, pfnUserMsgHook pfn )
 {
 	UserMsg* pList, * pLastMatch;
 	pfnUserMsgHook pfnRet;
@@ -291,6 +291,25 @@ pfnUserMsgHook HookServerMsg( const char* pszName, pfnUserMsgHook pfn )
 	gClientUserMsgs = pList;
 	
 	return NULL;
+}
+
+void CL_ClearUserMessages( void )
+{
+	UserMsg* pMsg;
+	UserMsg* pNext;
+
+	if (!gClientUserMsgs)
+		return;
+
+	pMsg = gClientUserMsgs;
+	while (pMsg)
+	{
+		pNext = pMsg->next;
+		free(pMsg);
+		pMsg = pNext;
+	}
+
+	gClientUserMsgs = NULL;
 }
 
 void CL_UserMsgs_f( void )
@@ -329,8 +348,7 @@ void CL_ParseStartSoundPacket( void )
 	sfx_t* sfx;
 	sfx_t sfxsentence;
 
-	// a sentence is played from a name built on the stack, so it has to start
-	// out as a blank record -- everything downstream keys off the buffer
+	// Sentences use a temporary sound record built from the sentence name.
 	memset(&sfxsentence, 0, sizeof(sfxsentence));
 
 	MSG_StartBitReading(&net_message);
@@ -365,32 +383,31 @@ void CL_ParseStartSoundPacket( void )
 
 	MSG_EndBitReading(&net_message);
 
-	// the whole message has been consumed by now, so a bad entity index can
-	// still be reported without leaving the stream half-read
-	if (ent >= cl.max_edicts)
+	if (ent < cl.max_edicts)
+	{
+		if (field_mask & SND_SENTENCE)
+		{
+			sfx = &sfxsentence;
+			strcpy(sfx->name, "!");
+			strcat(sfx->name, rgpszrawsentence[sound_num]);
+		}
+		else
+		{
+			sfx = S_GetSfxByIndex(sound_num);
+		}
+
+		if (channel == CHAN_STATIC)
+		{
+			S_StartStaticSound(ent, CHAN_STATIC, sfx, pos, volume, attenuation, field_mask, pitch);
+		}
+		else
+		{
+			S_StartDynamicSound(ent, channel, sfx, pos, volume, attenuation, field_mask, pitch);
+		}
+	}
+	else
 	{
 		Host_Error("CL_ParseStartSoundPacket: ent = %i", ent);
-		return;
-	}
-
-	if (field_mask & SND_SENTENCE)
-	{
-		sfx = &sfxsentence;
-		strcpy(sfx->name, "!");
-		strcat(sfx->name, rgpszrawsentence[sound_num]);
-	}
-	else
-	{
-		sfx = S_GetSfxByIndex(sound_num);
-	}
-
-	if (channel == CHAN_STATIC)
-	{
-		S_StartStaticSound(ent, CHAN_STATIC, sfx, pos, volume, attenuation, field_mask, pitch);
-	}
-	else
-	{
-		S_StartDynamicSound(ent, channel, sfx, pos, volume, attenuation, field_mask, pitch);
 	}
 }
 
@@ -607,12 +624,9 @@ void CL_MoveToOnHandList( resource_t* pResource )
 
 	if (!pResource)
 	{
-		Con_DPrintf("Null resource passed to CL_MoveToOnHandList\n");
 		return;
 	}
 
-	// Resource-list names in the target are canonicalized before lookup.
-	// Dreamcast media paths are lowercase and relative to the game directory.
 	name = pResource->szFileName;
 	if (*name == '/' || *name == '\\')
 	{
@@ -622,7 +636,11 @@ void CL_MoveToOnHandList( resource_t* pResource )
 			name++;
 		} while (*name);
 	}
-	COM_StringToLower(pResource->szFileName);
+	while (*name)
+	{
+		*name = tolower(*name);
+		name++;
+	}
 
 	switch (pResource->type)
 	{
@@ -633,12 +651,12 @@ void CL_MoveToOnHandList( resource_t* pResource )
 		}
 		else
 		{
-			S_BeginPrecaching();
-			cl.sound_precache[pResource->nIndex] = S_FindName(pResource->szFileName);
 			S_EndPrecaching();
+			cl.sound_precache[pResource->nIndex] = S_FindName(pResource->szFileName);
+			S_BeginPrecaching();
 			if (!cl.sound_precache[pResource->nIndex] && (pResource->ucFlags & RES_FATALIFMISSING))
 			{
-				Con_Printf("Cannot continue without sound %s, disconnecting\n", pResource->szFileName);
+				COM_ExplainDisconnection(TRUE, "Cannot continue without sound %s, disconnecting\n", pResource->szFileName);
 				CL_Disconnect();
 				return;
 			}
@@ -653,20 +671,14 @@ void CL_MoveToOnHandList( resource_t* pResource )
 			Con_Printf("Model %s not found\n", pResource->szFileName);
 			if (pResource->ucFlags & RES_FATALIFMISSING)
 			{
-				Con_Printf("Cannot continue without model, disconnecting\n");
+				COM_ExplainDisconnection(TRUE, "Cannot continue without model %s, disconnecting\n", pResource->szFileName);
 				CL_Disconnect();
 				return;
 			}
 		}
 		break;
 	case t_decal:
-		if (!(pResource->ucFlags & RES_CUSTOM))
-		{
-			Draw_DecalSetName(pResource->nIndex, pResource->szFileName);
-		}
-		break;
-	default:
-		Con_DPrintf("Unknown resource type\n");
+		Draw_DecalSetName(pResource->nIndex, pResource->szFileName);
 		break;
 	}
 
@@ -1081,8 +1093,11 @@ void CL_ReallocateDynamicData( int nMaxClients )
 	else
 		cl_update_backup = MULTIPLAYER_BACKUP;
 	cl_update_mask = cl_update_backup - 1;
-	cls.netchan.incoming_sequence &= cl_update_mask;
-	cls.netchan.outgoing_sequence &= cl_update_mask;
+
+	// the frame history just changed size, so the two cursors into it have to
+	// come back inside the new one
+	parsecountmod &= cl_update_mask;
+	oldparsecountmod &= cl_update_mask;
 
 	if (cl.frames)
 		free(cl.frames);
@@ -1166,7 +1181,7 @@ void CL_ParseServerInfo( void )
 
 	cl.maxclients = MSG_ReadByte();
 
-	if (cl.maxclients < 1 || cl.maxclients > MAX_CLIENTS)
+	if (cl.maxclients < 1 || cl.maxclients > 1)
 	{
 		Con_Printf("Bad maxclients (%u) from server\n", cl.maxclients);
 		return;
@@ -1507,6 +1522,7 @@ void CL_ParseRestoreDecals( char* fileName )
 	pFile = Sys_OpenHandle(fileName, "rb");
 	if (pFile)
 	{
+		DC_SetFileBuffering(pFile, NULL, _IOFBF, 0x1000);
 		DC_fread(&tag, sizeof(int), 1, pFile);
 		DC_fread(&temp, sizeof(int), 1, pFile);
 
@@ -1644,10 +1660,14 @@ CL_TransferMessageData
 void CL_TransferMessageData( void )
 {
 	int i;
+	int* pTotal;
 
-	for (i = 0; i < MAX_DATA_HISTORY; i++)
+	i = 0;
+	while (i < MAX_DATA_HISTORY)
 	{
-		total_data[i] += last_data[i];
+		pTotal = &total_data[i];
+		*pTotal += last_data[i];
+		i++;
 	}
 }
 
@@ -1809,13 +1829,6 @@ void CL_ParseServerMessage( void )
 			S_StopSound(i >> 3, i & 7);
 			break;
 
-		case svc_updatecolors:
-			i = MSG_ReadByte();
-			if (i >= cl.maxclients)
-				Host_Error("CL_ParseServerMessage: svc_updatecolors > MAX_SCOREBOARD");
-			cl.players[i].color = MSG_ReadByte();
-			break;
-
 		case svc_particle:
 			R_ParseParticleEffect();
 			break;
@@ -1825,9 +1838,6 @@ void CL_ParseServerMessage( void )
 
 		case svc_spawnstatic:
 			CL_ParseStatic();
-			break;
-
-		case 21:
 			break;
 
 		case svc_spawnbaseline:
@@ -1992,10 +2002,28 @@ void CL_ParseServerMessage( void )
 		// Mark end position
 		bufEnd = msg_readcount;
 		last_data[cmd] += bufEnd - bufStart;
+
+		if (cmd == svc_packetentities || cmd == svc_deltapacketentities)
+		{
+			cl.frames[parsecountmod].packet_entities_bytes += bufEnd - bufStart;
+		}
+		else if (cmd == svc_playerinfo)
+		{
+			cl.frames[parsecountmod].playerinfo_bytes += bufEnd - bufStart;
+		}
+		else if (cmd == svc_tempentity)
+		{
+			cl.frames[parsecountmod].temp_entity_bytes += bufEnd - bufStart;
+		}
+		else if (cmd == svc_sound)
+		{
+			cl.frames[parsecountmod].sound_bytes += bufEnd - bufStart;
+		}
 	}
 
 	// end of message
 	SHOWNET("END OF MESSAGE");
+	cl.frames[parsecountmod].message_bytes += net_message.cursize;
 
 	CL_TransferMessageData();
 

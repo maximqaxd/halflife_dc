@@ -2,6 +2,7 @@
 // 02/21/97 JCB Added extended DirectInput code to support external controllers.
 
 #include "quakedef.h"
+#include "ui.h"
 #include "vmu.h"
 #include "winquake.h"
 #include <dinput.h>
@@ -29,7 +30,6 @@ extern cvar_t cl_movespeedkey, cl_pitchdown, cl_pitchup, cl_forwardspeed, cl_sid
 	cl_yawspeed, cl_pitchspeed, cl_anglespeedkey, lookspring, lookstrafe;
 
 void GDROM_DoorReset( void );
-void M_DecodeStateFlags( void );
 
 #ifdef __cplusplus
 }
@@ -154,8 +154,15 @@ float		gMouseSensitivity;
 float		gJoySensitivity = 1.0f;
 
 // Which way the pad is pushing this frame, so the walk cycle can lean the
-// right way; zeroed every move and set to -1 or 1 as the sticks are read
-int			joy_forwarddir, joy_sidedir;
+// right way; zeroed every move and set to -1 or 1 as the sticks are read.
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern int	joy_forwarddir;
+extern int	joy_sidedir;
+#ifdef __cplusplus
+}
+#endif
 
 // Smoothed stick deflection carried between frames, one per axis
 float		joy_softvalue[JOY_MAX_AXES];
@@ -178,7 +185,7 @@ const int	joybuttonkeys[MAX_JOY_BUTTONS] =
 
 // What the menu sees as held this frame. The analogue stick drives the four
 // direction slots as well, so a stick and a d-pad navigate the same way.
-int			joymenubuttons[MAX_JOY_BUTTONS];
+int			joymenubuttons[MAX_MENU_BUTTONS];
 
 // Stick deflection last frame, so a push only counts once until it recentres
 int			joy_lastx, joy_lasty;

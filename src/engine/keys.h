@@ -97,15 +97,19 @@
 
 
 
-typedef enum { key_game, key_console, key_message, key_menu, key_ui } keydest_t;
+typedef enum { key_game, key_console, key_message, key_menu, key_ui, key_capture } keydest_t;
+
+// key presses collected while the keyboard is captured
+#define	KEY_CAPTURE_QUEUE	8
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 extern keydest_t	key_dest;
-#ifdef __cplusplus
-}
-#endif
+
+// The keyboard stands in for the controller while a menu page is up
+void	M_EncodeStateFlags( int key );
+void	M_DecodeStateFlags( void );
 extern char* keybindings[256];
 extern	int		key_repeats[256];
 extern	int		key_count;			// incremented every key event
@@ -117,13 +121,12 @@ DLL_EXPORT void Key_Event( int key, qboolean down );
 DLL_EXPORT void Key_ClearStates( void );
 
 void	Key_Init( void );
-void	Key_WriteBindings( FILE* f );
+void	Key_WriteBindings( void* f );
+void	Key_SetCaptureMode( int capture );
+int		Key_GetCapturedKey( void );
 void	Key_SetBinding( int keynum, char* binding );
-#ifdef __cplusplus
-extern "C" {
-#endif
 int		Key_StringToKeynum( char* str );
+char*	Key_KeynumToString( int keynum );
 #ifdef __cplusplus
 }
 #endif
-char*	Key_KeynumToString( int keynum );

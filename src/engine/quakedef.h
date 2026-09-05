@@ -105,7 +105,8 @@
 
 // Client dispatch function for usermessages
 typedef int (*pfnUserMsgHook)( const char* pszName, int iSize, void* pbuf );
-pfnUserMsgHook HookServerMsg( const char* pszName, pfnUserMsgHook pfn );
+pfnUserMsgHook CL_HookUserMsg( char* pszName, pfnUserMsgHook pfn );
+void CL_ClearUserMessages( void );
 
 int DispatchDirectUserMsg( const char* pszName, int iSize, void* pBuf );
 
@@ -278,7 +279,7 @@ void Host_Error( char* error, ... );
 void Host_EndGame( char* message, ... );
 void Host_ClientCommands( char* fmt, ... );
 void Host_ShutdownServer( qboolean crash );
-void Host_WriteConfiguration( void );
+C_EXTERN void Host_WriteConfiguration( void );
 void Host_DeallocateDynamicData( void );
 void Host_CheckDynamicStructures( void );
 

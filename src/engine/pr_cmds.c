@@ -4,6 +4,13 @@
 #include "decal.h"
 #include "pr_cmds.h"
 #include "info.h"
+#ifdef fmod
+#undef fmod
+#endif
+#ifdef fabs
+#undef fabs
+#endif
+#include <floatmathlib.h>
 
 /*
 ===============================================================================
@@ -275,14 +282,14 @@ Converts a direction vector to a yaw angle
 */
 float PF_vectoyaw_I( const float* rgflVector )
 {
-	float yaw = 0;
+	float yaw = 0.0f;
 
-	if (rgflVector[1] == 0 && rgflVector[0] == 0)
-		return 0;
+	if (rgflVector[1] == 0.0f && rgflVector[0] == 0.0f)
+		return 0.0f;
 
-	yaw = (int)(atan2(rgflVector[1], rgflVector[0]) * 180 / M_PI);
-	if (yaw < 0)
-		yaw += 360;
+	yaw = (float)(int)(atan2(rgflVector[1], rgflVector[0]) * 180.0f / 3.1415927f);
+	if (yaw < 0.0f)
+		yaw += 360.0f;
 
 	return yaw;
 }
@@ -440,17 +447,17 @@ void PF_traceline_DLL( const float* v1, const float* v2, int fNoMonsters, edict_
 }
 
 vec_t gHullMins[4][3] = {
-	{ 0.0, 0.0, 0.0 },
-	{ -16.0, -16.0, -36.0 },
-	{ -32.0, -32.0, -32.0 },
-	{ -16.0, -16.0, -18.0 },
+	{ 0.0f, 0.0f, 0.0f },
+	{ -16.0f, -16.0f, -36.0f },
+	{ -32.0f, -32.0f, -32.0f },
+	{ -16.0f, -16.0f, -18.0f },
 };
 
 vec_t gHullMaxs[4][3] = {
-	{ 0.0, 0.0, 0.0 },
-	{ 16.0, 16.0, 36.0 },
-	{ 32.0, 32.0, 32.0 },
-	{ 16.0, 16.0, 18.0 },
+	{ 0.0f, 0.0f, 0.0f },
+	{ 16.0f, 16.0f, 36.0f },
+	{ 32.0f, 32.0f, 32.0f },
+	{ 16.0f, 16.0f, 18.0f },
 };
 
 void TraceHull( const float* v1, const float* v2, int fNoMonsters, int hullNumber, edict_t* pentToSkip, TraceResult* ptr )
@@ -544,7 +551,7 @@ msurface_t* SurfaceAtPoint( model_t* pModel, mnode_t* node, vec_t* start, vec_t*
 
 	// If they're both on the same side of the plane, don't bother to split
 	// just check the appropriate child
-	if ((back < 0.0) == side)
+	if ((back < 0.0f) == side)
 		return SurfaceAtPoint(pModel, node->children[side], start, end);
 
 	// calculate mid point
@@ -559,7 +566,7 @@ msurface_t* SurfaceAtPoint( model_t* pModel, mnode_t* node, vec_t* start, vec_t*
 	if (surf)
 		return surf;
 
-	if ((back < 0.0) == side)
+	if ((back < 0.0f) == side)
 		return NULL;
 
 	// check for impact on this node
@@ -713,7 +720,7 @@ int TraceMonsterHull( edict_t* pEdict, const float* v1, const float* v2, int fNo
 		VectorCopy(trace.plane.normal, ptr->vecPlaneNormal);
 	}
 
-	if (trace.allsolid || trace.fraction != 1.0)
+	if (trace.allsolid || trace.fraction != 1.0f)
 		return TRUE;
 
 	return FALSE;
@@ -798,7 +805,7 @@ edict_t* PF_checkclient_I( edict_t* pEdict )
 	vec3_t	view;
 
 // find a new check if on a new frame
-	if (sv.time - sv.lastchecktime >= 0.1)
+	if (sv.time - sv.lastchecktime >= 0.1f)
 	{
 		sv.lastcheck = PF_newcheckclient(sv.lastcheck);
 		sv.lastchecktime = sv.time;
@@ -1044,7 +1051,7 @@ edict_t* FindEntityInSphere( edict_t* pEdictStartSearchAfter, const float* org, 
 		if (i <= svs.maxclients && !svs.clients[i - 1].active)
 			continue;
 
-		distSquared = 0.0;
+		distSquared = 0.0f;
 		for (j = 0; j < 3 && distSquared <= (rad * rad); j++)
 		{
 			if (org[j] < ent->v.absmin[j])
@@ -1052,7 +1059,7 @@ edict_t* FindEntityInSphere( edict_t* pEdictStartSearchAfter, const float* org, 
 			else if (org[j] > ent->v.absmax[j])
 				eorg = org[j] - ent->v.absmax[j];
 			else
-				eorg = 0.0;
+				eorg = 0.0f;
 
 			distSquared += eorg * eorg;
 		}
@@ -1376,25 +1383,18 @@ int PF_walkmove_I( edict_t* ent, float yaw, float dist, int iMode )
 	if (!(ent->v.flags & (FL_ONGROUND | FL_FLY | FL_SWIM)))
 		return FALSE;
 
-	yaw = yaw * M_PI * 2 / 360;
+	yaw = yaw * (float)M_PI * 2.0f / 360.0f;
 
 	move[0] = cos(yaw) * dist;
 	move[1] = sin(yaw) * dist;
 	move[2] = 0;
 
-	switch (iMode)
-	{
-	default:
-	case WALKMOVE_NORMAL:
-		returnValue = SV_movestep(ent, move, TRUE);
-		break;
-	case WALKMOVE_WORLDONLY:
+	if (iMode == WALKMOVE_WORLDONLY)
 		returnValue = SV_movetest(ent, move, TRUE);
-		break;
-	case WALKMOVE_CHECKONLY:
+	else if (iMode == WALKMOVE_CHECKONLY)
 		returnValue = SV_movestep(ent, move, FALSE);
-		break;
-	}
+	else
+		returnValue = SV_movestep(ent, move, TRUE);
 
 	return returnValue;
 }
@@ -1544,7 +1544,7 @@ void PF_aim_I( edict_t* ent, float speed, float* rgflReturn )
 			continue;	// don't aim at teammate
 		for (j = 0; j < 3; j++)
 			end[j] = check->v.origin[j]
-			+ 0.75 * (check->v.mins[j] + check->v.maxs[j]);
+			+ 0.75f * (check->v.mins[j] + check->v.maxs[j]);
 		VectorSubtract(end, start, dir);
 		VectorNormalize(dir);
 		dist = DotProduct(dir, gGlobalVariables.v_forward);
@@ -1695,8 +1695,8 @@ void PF_crosshairangle_I( const edict_t* clientent, float pitch, float yaw )
 		yaw += 360;
 
 	MSG_WriteByte(&client->netchan.message, svc_crosshairangle);
-	MSG_WriteChar(&client->netchan.message, pitch * 5.0);
-	MSG_WriteChar(&client->netchan.message, yaw * 5.0);
+	MSG_WriteChar(&client->netchan.message, pitch * 5.0f);
+	MSG_WriteChar(&client->netchan.message, yaw * 5.0f);
 }
 
 edict_t* PF_CreateFakeClient_I( const char* netname )
@@ -1738,25 +1738,26 @@ edict_t* PF_CreateFakeClient_I( const char* netname )
 
 void PF_RunPlayerMove_I( edict_t* fakeclient, const float* viewangles, float forwardmove, float sidemove, float upmove, unsigned short buttons, byte impulse, byte msec )
 {
-	usercmd_t cmd;
+	usercmd_t ucmd;
 	edict_t* oldclient;
 
-	VectorCopy(viewangles, cmd.angles);
+	VectorCopy(viewangles, ucmd.angles);
 
 	oldclient = sv_player;
 	sv_player = fakeclient;
 
-	cmd.forwardmove = forwardmove;
-	cmd.sidemove = sidemove;
-	cmd.buttons = buttons;
-	cmd.upmove = upmove;
-	cmd.impulse = impulse;
-	cmd.msec = msec;
-	cmd.lightlevel = 0;
+	ucmd.forwardmove = forwardmove;
+	ucmd.sidemove = sidemove;
+	ucmd.buttons = buttons;
+	ucmd.upmove = upmove;
+	ucmd.impulse = impulse;
+	ucmd.msec = msec;
+	ucmd.lightlevel = 0;
 
-	VectorCopy(cmd.angles, fakeclient->v.v_angle);
+	VectorCopy(ucmd.angles, fakeclient->v.v_angle);
 	SV_PreRunCmd();
-	SV_RunCmd(&cmd);
+	cmd = ucmd;
+	SV_RunCmd();
 	sv_player = oldclient;
 }
 
@@ -2122,9 +2123,9 @@ int32 ran1( void )
 	return iy;
 }
 
-#define AM (1.0/IM)
-#define EPS 1.2e-7
-#define RNMX (1.0-EPS)
+#define AM (1.0f/IM)
+#define EPS 1.2e-7f
+#define RNMX (1.0f-EPS)
 
 float fran1( void )
 {
@@ -2223,9 +2224,7 @@ void PF_SetClientMaxspeed( const edict_t* clientent, float fNewMaxspeed )
 	MSG_WriteFloat(&sv.datagram, fNewMaxspeed);
 }
 
-extern void Sys_FPrintf( int handle, const char* fmt, ... );
-
-void EngineFprintf( void* pfile, char* szFmt, ... )
+void EngineFprintf( FILE* pfile, char* szFmt, ... )
 {
 	va_list		argptr;
 	static char	string[1024];
@@ -2316,6 +2315,18 @@ void PF_SetClientKeyValue( int clientIndex, char* infobuffer, char* key, char* v
 
 void PF_StaticDecal( const float* origin, int decalIndex, int entityIndex, int modelIndex )
 {
+	MSG_WriteByte(&sv.signon, svc_tempentity);
+	MSG_WriteByte(&sv.signon, TE_BSPDECAL);
+	MSG_WriteCoord(&sv.signon, origin[0]);
+	MSG_WriteCoord(&sv.signon, origin[1]);
+	MSG_WriteCoord(&sv.signon, origin[2]);
+	MSG_WriteShort(&sv.signon, decalIndex);
+	MSG_WriteShort(&sv.signon, entityIndex);
+
+	if (entityIndex)
+		MSG_WriteShort(&sv.signon, modelIndex);
+
+	SV_FlushSignon();
 }
 
 int PF_precache_generic_I( char* s )
@@ -2352,11 +2363,34 @@ int PF_precache_generic_I( char* s )
 
 int PF_GetPlayerUserId( edict_t* e )
 {
+	int i;
+	client_t* client;
+
+	if (sv.active)
+		goto valid_server;
+
+	return -1;
+
+valid_server:
+	if (!e)
+	{
+		return -1;
+	}
+
+	for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
+	{
+		if (client->edict == e)
+			return client->userid;
+	}
+
 	return -1;
 }
 
 void PF_BuildSoundMsg( edict_t* entity, int channel, const char* sample, float volume, float attenuation, int fFlags, int pitch, int msg_dest, int msg_type, const float* pOrigin, edict_t* ed )
 {
+	PF_MessageBegin_I(msg_dest, msg_type, pOrigin, ed);
+	SV_BuildSoundMsg(entity, channel, sample, (int)volume, attenuation, fFlags, pitch, (vec_t*)pOrigin, &gMsgBuffer);
+	PF_MessageEnd_I();
 }
 
 // The Dreamcast client is always a listen server, never dedicated.

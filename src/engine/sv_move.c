@@ -3,6 +3,13 @@
 #include "quakedef.h"
 #include "server.h"
 #include "pr_cmds.h"
+#ifdef fmod
+#undef fmod
+#endif
+#ifdef fabs
+#undef fabs
+#endif
+#include <floatmathlib.h>
 
 /*
 =============
@@ -24,7 +31,7 @@ qboolean SV_CheckBottom( edict_t* ent )
 	qboolean monsterClip;
 
 	// Check for FL_MONSTERCLIP flag
-	monsterClip = (ent->v.flags & FL_MONSTERCLIP) ? TRUE : FALSE;
+	monsterClip = (ent->v.flags & FL_MONSTERCLIP) != 0;
 
 	VectorAdd(ent->v.origin, ent->v.mins, mins);
 	VectorAdd(ent->v.origin, ent->v.maxs, maxs);
@@ -176,16 +183,16 @@ pr_global_struct->trace_normal is set to the normal of the blocking wall
 */
 qboolean SV_movestep( edict_t* ent, vec_t* move, qboolean relink )
 {
-	float		dz;
 	vec3_t		oldorg, neworg, end;
 	trace_t		trace;
 	int			i;
 	edict_t*	enemy;
+	float		dz;
 
 	qboolean	monsterClip;
 
 	// Check for FL_MONSTERCLIP flag
-	monsterClip = (ent->v.flags & FL_MONSTERCLIP) ? TRUE : FALSE;
+	monsterClip = (ent->v.flags & FL_MONSTERCLIP) != 0;
 
 // try the move
 	VectorCopy(ent->v.origin, oldorg);
@@ -202,14 +209,14 @@ qboolean SV_movestep( edict_t* ent, vec_t* move, qboolean relink )
 			if (i == 0 && enemy != NULL)
 			{
 				dz = ent->v.origin[2] - enemy->v.origin[2];
-				if (dz > 40)
-					neworg[2] -= 8;
-				else if (dz < 30)
-					neworg[2] += 8;
+				if (dz > 40.0f)
+					neworg[2] -= 8.0f;
+				else if (dz < 30.0f)
+					neworg[2] += 8.0f;
 			}
 			trace = SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, neworg, MOVE_NORMAL, ent, monsterClip);
 
-			if (trace.fraction == 1)
+			if (trace.fraction == 1.0f)
 			{
 				if ((ent->v.flags & FL_SWIM) && SV_PointContents(trace.endpos) == CONTENTS_EMPTY)
 					return FALSE;	// swim monster left water
@@ -244,7 +251,7 @@ qboolean SV_movestep( edict_t* ent, vec_t* move, qboolean relink )
 		if (trace.allsolid || trace.startsolid)
 			return FALSE;
 	}
-	if (trace.fraction == 1)
+	if (trace.fraction == 1.0f)
 	{
 		// if monster had the ground pulled out, go ahead and fall
 		if (ent->v.flags & FL_PARTIALGROUND)
@@ -305,10 +312,10 @@ qboolean SV_StepDirection( edict_t* ent, float yaw, float dist )
 {
 	vec3_t		move, oldorigin;
 
-	yaw = yaw * M_PI * 2.0 / 360.0;
+	yaw = yaw * (float)M_PI * 2.0f / 360.0f;
 	move[0] = cos(yaw) * dist;
 	move[1] = sin(yaw) * dist;
-	move[2] = 0;
+	move[2] = 0.0f;
 
 	VectorCopy(ent->v.origin, oldorigin);
 	if (SV_movestep(ent, move, FALSE))

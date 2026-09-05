@@ -4,6 +4,13 @@
 #include "pmove.h"
 #include "view.h"
 #include "r_studio.h"
+#ifdef fmod
+#undef fmod
+#endif
+#ifdef fabs
+#undef fabs
+#endif
+#include <floatmathlib.h>
 
 edict_t* sv_player;
 
@@ -13,6 +20,8 @@ float* origin;
 float* velocity;
 
 usercmd_t	cmd;
+
+static void SV_PostRunCmd( void );
 
 cvar_t	sv_idealpitchscale = { "sv_idealpitchscale", "0.8" };
 cvar_t	sv_edgefriction = { "edgefriction", "2", FCVAR_SERVER };
@@ -37,7 +46,7 @@ void SV_SetIdealPitch( void )
 	if (!((int)sv_player->v.flags & FL_ONGROUND))
 		return;
 
-	angleval = sv_player->v.angles[YAW] * M_PI * 2 / 360;
+	angleval = sv_player->v.angles[YAW] * (float)M_PI * 2.0f / 360.0f;
 	sinval = sin(angleval);
 	cosval = cos(angleval);
 
@@ -55,7 +64,7 @@ void SV_SetIdealPitch( void )
 		if (tr.allsolid)
 			return;	// looking at a wall, leave ideal the way is was
 
-		if (tr.fraction == 1)
+		if (tr.fraction == 1.0f)
 			return;	// near a dropoff
 
 		z[i] = top[2] + tr.fraction * (bottom[2] - top[2]);
@@ -66,10 +75,10 @@ void SV_SetIdealPitch( void )
 	for (j = 1; j < i; j++)
 	{
 		step = z[j] - z[j - 1];
-		if (step > -ON_EPSILON && step < ON_EPSILON)
+		if (step > -(float)ON_EPSILON && step < (float)ON_EPSILON)
 			continue;
 
-		if (dir && (step - dir > ON_EPSILON || step - dir < -ON_EPSILON))
+		if (dir && (step - dir > (float)ON_EPSILON || step - dir < -(float)ON_EPSILON))
 			return;		// mixed changes
 
 		steps++;
@@ -78,7 +87,7 @@ void SV_SetIdealPitch( void )
 
 	if (!dir)
 	{
-		sv_player->v.idealpitch = 0;
+		sv_player->v.idealpitch = 0.0f;
 		return;
 	}
 
@@ -87,15 +96,15 @@ void SV_SetIdealPitch( void )
 	sv_player->v.idealpitch = -dir * sv_idealpitchscale.value;
 }
 
-void DropPunchAngle( void )
+void SV_UserFriction( float frametime )
 {
 	float	len;
 
 	len = VectorNormalize(sv_player->v.punchangle);
 
-	len -= (len * 0.5 + 10.0) * host_frametime;
-	if (len < 0)
-		len = 0;
+	len -= (len * 0.5f + 10.0f) * frametime;
+	if (len < 0.0f)
+		len = 0.0f;
 	VectorScale(sv_player->v.punchangle, len, sv_player->v.punchangle);
 }
 
@@ -128,6 +137,7 @@ void AddLinksToPmove( areanode_t* node )
 	edict_t* check;
 	int			i;
 	physent_t* pe;
+	model_t*	pModel;
 
 	// touch linked edicts
 	for (l = node->solid_edicts.next; l != &node->solid_edicts; l = next)
@@ -157,16 +167,21 @@ void AddLinksToPmove( areanode_t* node )
 				continue;
 
 			if (pmove.numphysent >= MAX_PHYSENTS)
-			{
-				Con_DPrintf("Too many physents on server playermove link adding...\n");
 				return;
+
+			if (check->v.solid == SOLID_NOT && check->v.skin == CONTENTS_LADDER)
+			{
+				if (pmove.nummoveent > MAX_MOVEENTS)
+					return;
+
+				pe = &pmove.moveents[pmove.nummoveent];
+				pmove.nummoveent++;
 			}
-
-			if (check->v.flags & FL_SPECTATOR)
-				continue;
-
-			pe = &pmove.physents[pmove.numphysent];
-			pmove.numphysent++;
+			else
+			{
+				pe = &pmove.physents[pmove.numphysent];
+				pmove.numphysent++;
+			}
 
 			VectorCopy(check->v.origin, pe->origin);
 			VectorCopy(check->v.angles, pe->angles);
@@ -183,8 +198,6 @@ void AddLinksToPmove( areanode_t* node )
 
 				if (check->v.solid == SOLID_BBOX)
 				{
-					model_t* pModel;
-
 					if (check->v.modelindex)
 						pModel = sv.models[(int)(check->v.modelindex)];
 					else
@@ -225,43 +238,77 @@ void AddLinksToPmove( areanode_t* node )
 }
 
 /*
+=============
+SV_RunThink
+
+Runs thinking code if time.  There is some play in the exact time the think
+function will be called, because it is called before any movement is done
+in a frame.  Not used for pushmove objects, because they must be exact.
+Returns false if the entity removed itself.
+=============
+*/
+static qboolean SV_RunThink( edict_t* ent, float frametime, float time )
+{
+	float	thinktime;
+
+	if (!(ent->v.flags & FL_KILLME))
+	{
+		thinktime = ent->v.nextthink;
+		if (thinktime <= 0)
+			return TRUE;
+		if (thinktime > time + frametime)
+			return TRUE;
+
+		if (thinktime < time)
+			thinktime = time;	// don't let things stay in the past.
+									// it is possible to start that way
+									// by a trigger with a local time.
+		ent->v.nextthink = 0;
+		gGlobalVariables.time = thinktime;
+
+		DispatchThink(ent);
+	}
+
+	if (ent->v.flags & FL_KILLME)
+		ED_Free(ent);
+
+	return (qboolean)(ent->free == FALSE);
+}
+
+/*
 ===========
 SV_RunCmd
 ===========
 */
-#pragma optimize("", off)
-void SV_RunCmd( usercmd_t* ucmd )
+void SV_RunCmd( void )
 {
 	edict_t* ent;
 	trace_t		trace;
 	pmtrace_t* touch;
 	int			i, n;
-	float		oldmsec;
-
-	cmd = *ucmd;
+	int			oldmsec;
 
 	// chop up very long commands
-	if (cmd.msec > 50)
+	while (cmd.msec > 50)
 	{
-		oldmsec = ucmd->msec;
+		oldmsec = cmd.msec;
 		cmd.msec = oldmsec / 2;
-		SV_RunCmd(&cmd);
+		SV_RunCmd();
 		cmd.msec = oldmsec / 2;
 		cmd.impulse = 0;
-		SV_RunCmd(&cmd);
-		return;
 	}
 
-	DropPunchAngle();
+	frametime = cmd.msec * 0.001f;
+	SV_UserFriction(frametime);
 
 	VectorCopy(vec3_origin, sv_player->v.clbasevelocity);
 
 	if (sv_player->v.fixangle == 0)
-		VectorCopy(ucmd->angles, sv_player->v.v_angle);
+		VectorCopy(cmd.angles, sv_player->v.v_angle);
 
-	sv_player->v.button = ucmd->buttons;
-	if (ucmd->impulse)
-		sv_player->v.impulse = ucmd->impulse;
+	sv_player->v.button = cmd.buttons;
+	if (cmd.impulse)
+		sv_player->v.impulse = cmd.impulse;
 
 	// Checks if an entity is standing on a moving entity to adjust the velocity
 	if (sv_player->v.flags & FL_ONGROUND)
@@ -286,14 +333,13 @@ void SV_RunCmd( usercmd_t* ucmd )
 		}
 	}
 
-	frametime = ucmd->msec * 0.001;
-	if (frametime > 0.1)
-		frametime = 0.1;
+	if (frametime > 0.1f)
+		frametime = 0.1f;
 
 	if (!(sv_player->v.flags & FL_BASEVELOCITY))
 	{
 		// Apply momentum (add in half of the previous frame of velocity first)
-		VectorMA(sv_player->v.velocity, 1.0 + (frametime * 0.5), sv_player->v.basevelocity, sv_player->v.velocity);
+		VectorMA(sv_player->v.velocity, 1.0f + (frametime * 0.5f), sv_player->v.basevelocity, sv_player->v.velocity);
 		VectorCopy(vec3_origin, sv_player->v.basevelocity);
 	}
 
@@ -301,11 +347,12 @@ void SV_RunCmd( usercmd_t* ucmd )
 
 	if (!host_client->spectator)
 	{
-		gGlobalVariables.time = sv.time;
+		gGlobalVariables.time = (float)host_client->svtimebase;
 		gEntityInterface.pfnPlayerPreThink(sv_player);
 
-		SV_RunThink(sv_player);
+		SV_RunThink(sv_player, host_frametime, (float)host_client->svtimebase);
 	}
+	host_client->svtimebase += frametime;
 
 	pmove.usehull = 0;
 
@@ -344,6 +391,14 @@ void SV_RunCmd( usercmd_t* ucmd )
 	VectorCopy(sv_player->v.basevelocity, pmove.basevelocity);
 	VectorCopy(sv_player->v.view_ofs, pmove.view_ofs);
 
+	for (i = 0; i < 3; i++)
+	{
+		pmove_mins[i] = pmove.origin[i] - 256;
+		pmove_maxs[i] = pmove.origin[i] + 256;
+	}
+
+	pmove.server = TRUE;
+	pmove.time = sv.time * 1000.0f;
 	pmove.gravity = sv_player->v.gravity;
 	pmove.friction = sv_player->v.friction;
 	pmove.spectator = host_client->spectator;
@@ -353,12 +408,6 @@ void SV_RunCmd( usercmd_t* ucmd )
 	pmove.oldbuttons = host_client->oldbuttons;
 	pmove.movetype = sv_player->v.movetype;
 	pmove.flags = sv_player->v.flags;
-
-	for (i = 0; i < 3; i++)
-	{
-		pmove_mins[i] = pmove.origin[i] - 256;
-		pmove_maxs[i] = pmove.origin[i] + 256;
-	}
 
 	if (host_client->maxspeed)
 	{
@@ -375,6 +424,7 @@ void SV_RunCmd( usercmd_t* ucmd )
 	}
 
 	pmove.numphysent = 1;
+	pmove.nummoveent = 0;
 	pmove.physents[0].model = sv.worldmodel;
 
 	AddLinksToPmove(sv_areanodes);
@@ -387,7 +437,7 @@ void SV_RunCmd( usercmd_t* ucmd )
 	PlayerMove(TRUE);
 
 	if (pmove.movetype == MOVETYPE_WALK)
-		pmove.friction = 1.0;
+		pmove.friction = 1.0f;
 
 	host_client->oldbuttons = pmove.oldbuttons;
 	sv_player->v.teleport_time = pmove.waterjumptime;
@@ -485,7 +535,7 @@ SV_PostRunCmd
 ===========
 Done after running a player command.
 */
-void SV_PostRunCmd( void )
+static void SV_PostRunCmd( void )
 {
 	// run post-think
 
@@ -501,8 +551,6 @@ void SV_PostRunCmd( void )
 	}
 }
 
-#pragma optimize("", on)
-
 /*
 ===================
 SV_ExecuteClientMessage
@@ -510,7 +558,6 @@ SV_ExecuteClientMessage
 The current net_message is parsed for the given client
 ===================
 */
-#pragma optimize("", off)
 void SV_ExecuteClientMessage( client_t* cl )
 {
 	int		c;
@@ -601,9 +648,9 @@ void SV_ExecuteClientMessage( client_t* cl )
 			checksumIndex = msg_readcount;
 			checksum = (byte)MSG_ReadByte();
 
-			MSG_ReadDeltaUsercmd(&oldest, &nullcmd);
-			MSG_ReadDeltaUsercmd(&oldcmd, &oldest);
-			MSG_ReadDeltaUsercmd(&newcmd, &oldcmd);
+			MSG_ReadUsercmd(&oldest, &nullcmd);
+			MSG_ReadUsercmd(&oldcmd, &oldest);
+			MSG_ReadUsercmd(&newcmd, &oldcmd);
 
 			if (!cl->active && !cl->spawned || !sv.active)
 				continue;
@@ -660,15 +707,23 @@ void SV_ExecuteClientMessage( client_t* cl )
 			{
 				while (net_drop > 2)
 				{
-					SV_RunCmd(&cl->lastcmd);
+					cmd = cl->lastcmd;
+					SV_RunCmd();
 					net_drop--;
 				}
 				if (net_drop > 1)
-					SV_RunCmd(&oldest);
+				{
+					cmd = oldest;
+					SV_RunCmd();
+				}
 				if (net_drop > 0)
-					SV_RunCmd(&oldcmd);
+				{
+					cmd = oldcmd;
+					SV_RunCmd();
+				}
 			}
-			SV_RunCmd(&newcmd);
+			cmd = newcmd;
+			SV_RunCmd();
 
 			cl->lastcmd = newcmd;
 			cl->lastcmd.buttons = 0; // avoid multiple fires on lag
@@ -683,14 +738,14 @@ void SV_ExecuteClientMessage( client_t* cl )
 
 			if (!Q_strncasecmp(s, "status", 6) ||
 				!Q_strncasecmp(s, "god", 3) ||
-				!Q_strncasecmp(s, "customrsrclist", 14) ||
+				!Q_strncasecmp(s, "customrsrclist", Q_strlen("customrsrclist")) ||
 				!Q_strncasecmp(s, "notarget", 8) ||
 				!Q_strncasecmp(s, "fly", 3) ||
 				!Q_strncasecmp(s, "name", 4) ||
 				!Q_strncasecmp(s, "noclip", 6) ||
 				!Q_strncasecmp(s, "tell", 4) ||
 				!Q_strncasecmp(s, "color", 5) ||
-				!Q_strncasecmp(s, "kill", 4) ||
+				(!Q_strncasecmp(s, "kill", 4) && Q_strncasecmp(s, "killserver", 10)) ||
 				!Q_strncasecmp(s, "pause", 5) ||
 				!Q_strncasecmp(s, "spawn", 5) ||
 				!Q_strncasecmp(s, "new", 3) ||
@@ -704,7 +759,9 @@ void SV_ExecuteClientMessage( client_t* cl )
 				!Q_strncasecmp(s, "nextdl", 6) ||
 				!Q_strncasecmp(s, "sv_print_custom", 15) ||
 				!Q_strncasecmp(s, "ban", 3) ||
-				!Q_strncasecmp(s, "ptrack", 6))
+				!Q_strncasecmp(s, "ptrack", 6) ||
+				!Q_strncasecmp(s, "setinfo", 7) ||
+				!Q_strncasecmp(s, "showinfo", 8))
 			{
 				commandstatus = COMMAND_STATUS_CLIENT;
 			}
@@ -750,8 +807,6 @@ void SV_ExecuteClientMessage( client_t* cl )
 		}
 	}
 }
-#pragma optimize("", on)
-
 /*
 =================
 SV_Drop_f
@@ -784,7 +839,7 @@ qboolean SV_SetPlayer( int userid )
 	client_t*	cl;
 	int			i;
 
-	for (i = 0, cl = svs.clients; i < svs.maxclients; i++, cl++)
+	for (i = 0, cl = svs.clients; i < 1; i++, cl++)
 	{
 		if (cl->spawned && cl->active && cl->connected && cl->userid == userid)
 		{
@@ -805,6 +860,7 @@ SV_Info_f
 Print one player's userinfo string.
 ==================
 */
+#pragma inline_depth(0)
 void SV_Info_f( void )
 {
 	if (Cmd_Argc() != 2)
@@ -816,3 +872,4 @@ void SV_Info_f( void )
 	if (SV_SetPlayer(atoi(Cmd_Argv(1))))
 		Info_Print(host_client->userinfo);
 }
+#pragma inline_depth(255)

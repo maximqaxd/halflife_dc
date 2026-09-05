@@ -681,28 +681,20 @@ void CL_ProcessEntityUpdate( cl_entity_t* ent, entity_state_t* state, qboolean s
 
 /*
 ==================
-CL_Particle
+CL_AllocParticle
 ==================
 */
-void CL_Particle( vec_t* origin, int color, float life, int zpos, int zvel )
+void CL_AllocParticle( vec_t* origin, int color, float life, int zpos, int zvel )
 {
 	particle_t* p;
 
-	if (!free_particles)
+	p = R_AllocParticle();
+	if (!p)
 		return;
-
-	p = free_particles;
-	free_particles = p->next;
-	p->next = active_particles;
-	active_particles = p;
 
 	p->die = cl.time + life;
 	p->color = color;
-#if defined ( GLQUAKE )
 	p->packedColor = 0;
-#else
-	p->packedColor = hlRGB(host_basepal, color);
-#endif
 	p->type = pt_static;
 
 	VectorCopy(vec3_origin, p->vel);
@@ -711,6 +703,27 @@ void CL_Particle( vec_t* origin, int color, float life, int zpos, int zvel )
 	VectorCopy(origin, p->org);
 	p->org[2] += zpos;
 }
+
+#pragma inline_depth(0)
+
+/*
+=========================
+CL_UpdateFollowEntities
+=========================
+*/
+static void CL_UpdateFollowEntities( void )
+{
+	int i;
+	cl_entity_t* ent;
+
+	for (i = 0, ent = cl_visedicts; i < cl_numvisedicts; i++, ent++)
+	{
+		if (ent->aiment && ent->movetype == MOVETYPE_FOLLOW)
+			VectorCopy(cl_entities[ent->aiment].origin, ent->origin);
+	}
+}
+
+#pragma inline_depth(255)
 
 /*
 ===============
@@ -849,8 +862,8 @@ void CL_LinkPacketEntities( void )
 
 		ent2 = &cl_entities[s1->number];
 
-		memcpy(ent, ent2, sizeof(cl_entity_t));
-		memcpy(&nullent, ent2, sizeof(cl_entity_t));
+		*ent = *ent2;
+		nullent = *ent2;
 
 		flags = packet_flags[ent->index >> 3] & (1 << (ent->index & 7));
 
@@ -869,7 +882,7 @@ void CL_LinkPacketEntities( void )
 			VectorCopy(ent->origin, ent->prevorigin);
 			VectorCopy(ent->angles, ent->prevangles);
 
-			memcpy(&cl_entities[ent->index], ent, sizeof(cl_entity_t));
+			cl_entities[ent->index] = *ent;
 			cl_numvisedicts--;
 			
 			if (cl_numbeamentities >= MAX_BEAMENTS)
@@ -979,7 +992,15 @@ void CL_LinkPacketEntities( void )
 
 		if (model)
 		{
-			if (ent->model->flags & EF_ROCKET)
+			if (ent->model->flags & EF_GIB)
+				R_RocketTrail(old_origin, ent->origin, 2);
+			else if (ent->model->flags & EF_ZOMGIB)
+				R_RocketTrail(old_origin, ent->origin, 4);
+			else if (ent->model->flags & EF_TRACER)
+				R_RocketTrail(old_origin, ent->origin, 3);
+			else if (ent->model->flags & EF_TRACER2)
+				R_RocketTrail(old_origin, ent->origin, 5);
+			else if (ent->model->flags & EF_ROCKET)
 			{
 				R_RocketTrail(old_origin, ent->origin, 0);
 
@@ -991,19 +1012,11 @@ void CL_LinkPacketEntities( void )
 			}
 			else if (ent->model->flags & EF_GRENADE)
 				R_RocketTrail(old_origin, ent->origin, 1);
-			else if (ent->model->flags & EF_GIB)
-				R_RocketTrail(old_origin, ent->origin, 2);
-			else if (ent->model->flags & EF_ZOMGIB)
-				R_RocketTrail(old_origin, ent->origin, 4);
-			else if (ent->model->flags & EF_TRACER)
-				R_RocketTrail(old_origin, ent->origin, 3);
-			else if (ent->model->flags & EF_TRACER2)
-				R_RocketTrail(old_origin, ent->origin, 5);
 			else if (ent->model->flags & EF_TRACER3)
 				R_RocketTrail(old_origin, ent->origin, 6);
 		}
 
-		memcpy(&cl_entities[ent->index], ent, sizeof(cl_entity_t));
+		cl_entities[ent->index] = *ent;
 	}
 }
 
@@ -1068,8 +1081,9 @@ void CL_ParsePlayerinfo( void )
 	if (physflags & g_PF_WATERJUMP)
 		state->physflags |= FL_WATERJUMP;
 
-	for (i = 0; i < 3; i++)
-		state->origin[i] = (int)MSG_ReadSignMagnitude32(18) / 32.0f;
+	state->origin[0] = (int)MSG_ReadSignMagnitude32(18) / 32.0f;
+	state->origin[1] = (int)MSG_ReadSignMagnitude32(18) / 32.0f;
+	state->origin[2] = (int)MSG_ReadSignMagnitude32(18) / 32.0f;
 
 	VectorSubtract(state->origin, state->prevorigin, state->predorigin);
 	state->frame = MSG_ReadBitField8(8);
@@ -1309,6 +1323,7 @@ void CL_LinkPlayers( void )
 	player_state_t* state;
 	player_state_t	exact;
 	float			playertime;
+	float			time;
 	cl_entity_t* ent;
 	int				msec;
 	frame_t* frame;
@@ -1357,14 +1372,18 @@ void CL_LinkPlayers( void )
 		ent = &cl_visedicts[cl_numvisedicts];
 		cl_numvisedicts++;
 
-		memcpy(ent, &cl_entities[j + 1], sizeof(cl_entity_t));
+		*ent = cl_entities[j + 1];
 		ent->index = j + 1;
 
 		flags = packet_flags[ent->index >> 3] & (1 << (ent->index & 7));
 		
-		// only predict half the move to minimize overruns
-		msec = 500 * (playertime - state->state_time);
-		if (cl.playernum == j || msec <= 0 || !cl_predict_players.value)
+		if (cl_pred_fraction.value < 0.0f)
+			Cvar_Set("cl_pred_fraction", "0");
+		else if (cl_pred_fraction.value > 1.0f)
+			Cvar_Set("cl_pred_fraction", "1");
+
+		msec = (int)(cl_pred_fraction.value * 1000.0f * (playertime - state->state_time));
+		if (cl.playernum == j || msec < 1 || !cl_predict_players.value || !cl_pred_link.value)
 		{
 			VectorCopy(state->origin, ent->origin);
 //Con_DPrintf("nopredict\n");
@@ -1372,14 +1391,15 @@ void CL_LinkPlayers( void )
 		else
 		{
 			// predict players movement
-			if (msec > 255)
-				msec = 255;
+			if (msec > (int)cl_pred_maxtime.value)
+				msec = (int)cl_pred_maxtime.value;
 			state->command.msec = msec;
+			time = 0.0f;
 //Con_DPrintf("predict: %i\n", msec);
 
 			oldphysent = pmove.numphysent;
 			CL_SetSolidPlayers(j);
-			CL_PredictUsercmd(state, &exact, &state->command, FALSE);
+			CL_PredictUsercmd(state, &exact, &state->command, FALSE, &time);
 			pmove.numphysent = oldphysent;
 			VectorCopy(exact.origin, ent->origin);
 		}
@@ -1417,10 +1437,6 @@ void CL_LinkPlayers( void )
 			}
 		}
 
-		if (cl_printplayers.value)
-		{
-			CL_PrintEntity(ent);
-		}
 	}
 
 	CL_PlayerFlashlight();
@@ -1448,6 +1464,7 @@ void CL_SetSolidEntities( void )
 	VectorCopy(vec3_origin, pmove.physents[0].origin);
 	pmove.physents[0].info = 0;
 	pmove.numphysent = 1;
+	pmove.nummoveent = 0;
 
 	frame = &cl.frames[parsecountmod];
 	pak = &frame->packet_entities;
@@ -1470,7 +1487,16 @@ void CL_SetSolidEntities( void )
 
 		if (model->hulls[1].firstclipnode || model->type == mod_studio)
 		{
-			pe = &pmove.physents[pmove.numphysent];
+			if (state->solid != SOLID_NOT || state->skin != CONTENTS_LADDER)
+			{
+				pe = &pmove.physents[pmove.numphysent];
+				pmove.numphysent++;
+			}
+			else
+			{
+				pe = &pmove.moveents[pmove.nummoveent];
+				pmove.nummoveent++;
+			}
 			if (model->type == mod_studio)
 			{
 				pe->model = NULL;
@@ -1497,7 +1523,6 @@ void CL_SetSolidEntities( void )
 			memcpy(pe->controller, state->controller, 4);
 			memcpy(pe->blending, state->blending, 2);
 
-			pmove.numphysent++;
 		}
 	}
 }
@@ -1547,6 +1572,7 @@ void CL_SetUpPlayerPrediction( qboolean dopred )
 	player_state_t* state;
 	player_state_t	exact;
 	float			playertime;
+	float			time;
 	int				msec;
 	frame_t* frame;
 	predicted_player* pplayer;
@@ -1589,8 +1615,12 @@ void CL_SetUpPlayerPrediction( qboolean dopred )
 		}
 		else
 		{
-			// only predict half the move to minimize overruns
-			msec = 500 * (playertime - state->state_time);
+			if (cl_pred_fraction.value < 0.0f)
+				Cvar_Set("cl_pred_fraction", "0");
+			else if (cl_pred_fraction.value > 1.0f)
+				Cvar_Set("cl_pred_fraction", "1");
+
+			msec = (int)(cl_pred_fraction.value * 1000.0f * (playertime - state->state_time));
 			if (msec <= 0 ||
 				!cl_predict_players.value ||
 				!dopred)
@@ -1601,12 +1631,13 @@ void CL_SetUpPlayerPrediction( qboolean dopred )
 			else
 			{
 				// predict players movement
-				if (msec > 255)
-					msec = 255;
+				if (msec > (int)cl_pred_maxtime.value)
+					msec = (int)cl_pred_maxtime.value;
 				state->command.msec = msec;
-	//Con_DPrintf("predict: %i\n", msec);
+				time = 0.0f;
+//Con_DPrintf("predict: %i\n", msec);
 
-				CL_PredictUsercmd(state, &exact, &state->command, FALSE);
+				CL_PredictUsercmd(state, &exact, &state->command, FALSE, &time);
 				VectorCopy(exact.origin, pplayer->origin);
 			}
 		}
@@ -1630,11 +1661,13 @@ void CL_SetSolidPlayers( int playernum )
 	extern	vec3_t	player_maxs[3];
 	predicted_player* pplayer;
 	physent_t *pent;
+	qboolean exclude_local_player;
 
 	if (!cl_solid_players.value)
 		return;
 
 	pent = pmove.physents + pmove.numphysent;
+	exclude_local_player = playernum == -1;
 
 	for (j = 0, pplayer = predicted_players; j < MAX_CLIENTS; j++, pplayer++)
 	{
@@ -1642,13 +1675,19 @@ void CL_SetSolidPlayers( int playernum )
 			continue;	// not present this frame
 
 		// the player object never gets added
-		if (j == playernum)
+		if (exclude_local_player)
+		{
+			if (j == cl.playernum)
+				continue;
+		}
+		else if (j == playernum)
 			continue;
 
 		if (pplayer->flags & PF_DEAD)
 			continue; // dead players aren't solid
 
 		pent->model = NULL;
+		pent->info = j + 1;
 		pent->skin = 0;
 		pent->solid = SOLID_BBOX;
 		VectorCopy(pplayer->origin, pent->origin);
@@ -1726,6 +1765,7 @@ void CL_EmitEntities( void )
 
 	CL_LinkPlayers();
 	CL_LinkPacketEntities();
+	CL_UpdateFollowEntities();
 
 	CL_TempEntUpdate();
 

@@ -13,21 +13,37 @@
 #include "tmessage.h"
 #include "won.h"
 
+#pragma optimize("", off)
+#pragma inline_depth(0)
+
 // Only send this many requests before timing out.
 #define CL_CONNECTION_RETRIES		4
 
 // Current long-running task, for the crash screen.
 static char g_szTaskName[64];
 
+void Cmd_fullserverinfo_f( void );
+
+void CL_HudMessage( const char* pMessage )
+{
+	DispatchDirectUserMsg("HudText", strlen(pMessage), (void*)pMessage);
+}
+
 void Sys_SetTaskName( char *name )
 {
+	CL_UpdateProgressBar();
 	strncpy(g_szTaskName, name, 63);
 	g_szTaskName[63] = 0;
 }
 
-// these two are not intended to be set directly
-cvar_t	cl_name = { "_cl_name", "player", TRUE };
-cvar_t	cl_color = { "_cl_color", "0", TRUE };
+cvar_t	password = { "password", "", FCVAR_USERINFO };
+cvar_t	spectator = { "spectator", "", FCVAR_USERINFO };
+cvar_t	name = { "name", "Player", FCVAR_USERINFO | FCVAR_PRINTABLEONLY };
+cvar_t	team = { "team", "", FCVAR_USERINFO };
+cvar_t	skin = { "skin", "", FCVAR_USERINFO };
+cvar_t	model = { "model", "", FCVAR_USERINFO };
+cvar_t	topcolor = { "topcolor", "0", FCVAR_USERINFO };
+cvar_t	bottomcolor = { "bottomcolor", "0", FCVAR_USERINFO };
 
 cvar_t	cl_timeout = { "cl_timeout", "305", TRUE };
 cvar_t	cl_shownet = { "cl_shownet", "0" };	// can be 0, 1, or 2
@@ -49,6 +65,9 @@ cvar_t	cl_skyvec_y = { "cl_skyvec_y", "0" };
 cvar_t	cl_skyvec_z = { "cl_skyvec_z", "0" };
 
 cvar_t	cl_predict_players = { "cl_predict_players", "1" };
+cvar_t	cl_pred_link = { "cl_pred_link", "1" };
+cvar_t	cl_pred_maxtime = { "cl_pred_maxtime", "255" };
+cvar_t	cl_pred_fraction = { "cl_pred_fraction", "0.5" };
 cvar_t	cl_solid_players = { "cl_solid_players", "1" };
 cvar_t	cl_nodelta = { "cl_nodelta", "0" };
 cvar_t	cl_printplayers = { "cl_printplayers", "0" };
@@ -76,7 +95,7 @@ cvar_t	cl_upload_max = { "cl_upload_max", "0" };
 cvar_t	cl_download_max = { "cl_download_max", "0" };
 cvar_t	cl_download_ingame = { "cl_download_ingame", "1" };
 
-cvar_t 	rate = { "rate", "2000" };
+cvar_t 	rate = { "rate", "2500", FCVAR_USERINFO };
 
 client_static_t	cls;
 client_state_t cl;
@@ -103,7 +122,7 @@ qboolean cl_inmovie;
 qboolean g_bSkipDownload = FALSE;
 qboolean g_bSkipUpload = FALSE;
 
-int playerbitcounts[MAX_CLIENTS];  // # of bytes of player data for this slot
+int playerbitcounts[32];  // # of bytes of player data for this slot
 
 /*
 =================
@@ -164,7 +183,7 @@ Parses MOTD from master server
 void CL_ParseMOTD( void )
 {
 	char line[40];
-	char* p, * string;
+	char* p, * string, * start;
 	qboolean isMasterServer = FALSE;
 
 	if (NET_StringToAdr(gszMasterAddress, &master_adr))
@@ -177,10 +196,11 @@ void CL_ParseMOTD( void )
 	while (1)
 	{
 		string = MSG_ReadString();
+		start = string;
 		p = line;
 		while (*string)
 		{
-			if (*string != '\r' || string >= (string - 1) || *(string - 1) == '\n')
+			if (*string != '\r' || start >= string - 1 || *(string - 1) == '\n')
 			{
 				*p++ = *string++;
 			}
@@ -208,13 +228,25 @@ CL_ParseServerInfoResponse
 
 =================
 */
-void CL_ParseServerInfoResponse( void )
+void CL_ParseServerData( qboolean detailed )
 {
 	char name[80];
 	char map[16];
 	char desc[256];
+	char gamedir[256];
+	char info[32];
+	char info_url[256];
+	char download_url[256];
 	int active;
 	int maxplayers;
+	int version;
+	int size;
+	char type;
+	char os;
+	char password;
+	short mod;
+	short secure;
+	short dll;
 
 	MSG_ReadString(); // address string
 
@@ -224,7 +256,8 @@ void CL_ParseServerInfoResponse( void )
 	strncpy(map, MSG_ReadString(), sizeof(map) - 1);
 	map[sizeof(map) - 1] = 0;
 
-	MSG_ReadString(); // gamedir
+	strncpy(gamedir, MSG_ReadString(), sizeof(gamedir) - 1);
+	gamedir[sizeof(gamedir) - 1] = 0;
 
 	strncpy(desc, MSG_ReadString(), sizeof(desc) - 1);
 	desc[sizeof(desc) - 1] = 0;
@@ -234,7 +267,51 @@ void CL_ParseServerInfoResponse( void )
 
 	MSG_ReadByte();
 
-	CL_AddToServerCache(net_from, name, map, desc, active, maxplayers);
+	if (!detailed)
+	{
+		type = '?';
+		os = '?';
+		password = FALSE;
+		mod = FALSE;
+		secure = FALSE;
+		dll = FALSE;
+		info[0] = 0;
+		info_url[0] = 0;
+		download_url[0] = 0;
+		version = 0;
+		size = 0;
+	}
+	else
+	{
+		type = (char)MSG_ReadByte();
+		os = (char)MSG_ReadByte();
+		password = (char)MSG_ReadByte();
+		mod = MSG_ReadByte() ? TRUE : FALSE;
+
+		if (mod)
+		{
+			strcpy(info_url, MSG_ReadString());
+			strcpy(download_url, MSG_ReadString());
+			strcpy(info, MSG_ReadString());
+			version = MSG_ReadLong();
+			size = MSG_ReadLong();
+			secure = MSG_ReadByte() ? TRUE : FALSE;
+			dll = MSG_ReadByte() ? TRUE : FALSE;
+		}
+		else
+		{
+			info[0] = 0;
+			info_url[0] = 0;
+			download_url[0] = 0;
+			version = 0;
+			size = 0;
+			secure = FALSE;
+			dll = FALSE;
+		}
+	}
+
+	CL_AddToServerCache(net_from, name, map, desc, gamedir, active, maxplayers,
+		type, os, password, mod, secure, dll, info_url, download_url, version, size, info);
 }
 
 /*
@@ -256,7 +333,7 @@ void CL_Slist_f( void )
 	for (i = 0; i < MAX_LOCAL_SERVERS; i++)
 	{
 		p = &cached_servers[i];
-		strcat(p->name, "emtpy slot");
+		strcpy(p->name, "empty slot");
 	}
 
 	// send out info packets
@@ -281,7 +358,7 @@ void CL_ClearCachedServers_f( void )
 	for (i = 0; i < MAX_LOCAL_SERVERS; i++)
 	{
 		p = &cached_servers[i];
-		strcat(p->name, "emtpy slot");
+		strcpy(p->name, "empty slot");
 	}
 
 	Con_Printf("Server list cleared.\n");
@@ -302,12 +379,16 @@ void CL_PingServers_f( void )
 	Con_Printf("Searching for local servers...\n");
 
 	cls.slist_time = Sys_FloatTime();
+	NET_Config(TRUE);
 
 	if (!noip)
 	{
 		adr.type = NA_BROADCAST;
 		adr.port = BigShort((unsigned short)atoi(PORT_SERVER));
-		Netchan_OutOfBandPrint(NS_CLIENT, adr, "info");
+		if (PROTOCOL_VERSION < PROTOCOL_VERSION_CURRENT)
+			Netchan_OutOfBandPrint(NS_CLIENT, adr, "info");
+		else
+			Netchan_OutOfBandPrint(NS_CLIENT, adr, "details");
 	}
 
 #ifdef _WIN32
@@ -315,7 +396,10 @@ void CL_PingServers_f( void )
 	{
 		adr.type = NA_BROADCAST_IPX;
 		adr.port = BigShort((unsigned short)atoi(PORT_SERVER));
-		Netchan_OutOfBandPrint(NS_CLIENT, adr, "info");
+		if (PROTOCOL_VERSION < PROTOCOL_VERSION_CURRENT)
+			Netchan_OutOfBandPrint(NS_CLIENT, adr, "info");
+		else
+			Netchan_OutOfBandPrint(NS_CLIENT, adr, "details");
 	}
 #endif
 }
@@ -327,7 +411,9 @@ CL_AddToServerCache
 Adds the address, name to the server cache
 =================
 */
-void CL_AddToServerCache( netadr_t adr, char* name, char* map, char* desc, int active, int maxplayers )
+void CL_AddToServerCache( netadr_t adr, char* name, char* map, char* desc, char* gamedir,
+	int active, int maxplayers, char type, char os, char password, short mod,
+	short secure, short dll, char* info_url, char* download_url, int version, int size, char* info )
 {
 	int i;
 	float fCurrentTime;
@@ -352,13 +438,14 @@ void CL_AddToServerCache( netadr_t adr, char* name, char* map, char* desc, int a
 	for (i = 0; i < num_servers; i++)
 	{
 		p = &cached_servers[i];
-		if (!strcmp(p->name, name))
+		if (NET_CompareAdr(p->adr, adr))
 			return;
 	}
 
 	// Display it.
 	Con_Printf("------------------\n");
-	Con_Printf("%i %s %s %i/%i:  %s\n%s\n", num_servers + 1, name, map, active, maxplayers, NET_AdrToString(adr), desc);
+	Con_Printf("%i %s %s %i/%i\nAdr:  %s - Dir:  %s\n%s\n", num_servers + 1, name, map,
+		active, maxplayers, NET_AdrToString(adr), gamedir, desc);
 
 	cached_servers[num_servers].adr = adr;
 
@@ -370,9 +457,49 @@ void CL_AddToServerCache( netadr_t adr, char* name, char* map, char* desc, int a
 
 	strncpy(cached_servers[num_servers].desc, desc, sizeof(cached_servers[num_servers].desc) - 1);
 	cached_servers[num_servers].desc[sizeof(cached_servers[num_servers].desc) - 1] = 0;
+	strncpy(cached_servers[num_servers].gamedir, gamedir, sizeof(cached_servers[num_servers].gamedir) - 1);
+	cached_servers[num_servers].gamedir[sizeof(cached_servers[num_servers].gamedir) - 1] = 0;
 
 	cached_servers[num_servers].inuse = active;
 	cached_servers[num_servers].maxplayers = maxplayers;
+	cached_servers[num_servers].type = type;
+	cached_servers[num_servers].os = os;
+	cached_servers[num_servers].password = password;
+	cached_servers[num_servers].mod = mod;
+	cached_servers[num_servers].secure = secure;
+	cached_servers[num_servers].dll = dll;
+	if (type == 'd')
+		Con_Printf("  dedicated - ");
+	else if (type == 'l')
+		Con_Printf("  listen - ");
+	else
+		Con_Printf("  type (%c) - ", type);
+
+	if (os == 'w')
+		Con_Printf("win32 - ");
+	else if (os == 'l')
+		Con_Printf("linux - ");
+	else
+		Con_Printf("os (%c) - ", os);
+
+	if (password == TRUE)
+		Con_Printf(" password ");
+	else if (password == FALSE)
+		Con_Printf(" nopasswd ");
+	else
+		Con_Printf("pw (%c) - ", password);
+
+	if (secure)
+		Con_Printf(" +serverside");
+	if (dll)
+		Con_Printf(" +client.dll");
+	Con_Printf("\n");
+	strcpy(cached_servers[num_servers].info_url, info_url);
+	strcpy(cached_servers[num_servers].download_url, download_url);
+	cached_servers[num_servers].version = version;
+	cached_servers[num_servers].size = size;
+	strncpy(cached_servers[num_servers].info, info, sizeof(cached_servers[num_servers].info) - 1);
+	cached_servers[num_servers].info[sizeof(cached_servers[num_servers].info) - 1] = 0;
 	num_servers++;
 }
 
@@ -396,13 +523,128 @@ void CL_ListCachedServers_f( void )
 	for (i = 0; i < num_servers; i++)
 	{
 		p = &cached_servers[i];
-		if (!_stricmp(p->name, "emtpy slot"))
+		if (!_stricmp(p->name, "empty slot"))
 			continue;
 
 		Con_Printf("------------------\n");
-		Con_Printf("%i %s %s %i/%i:  %s\n%s\n", i + 1, p->name, p->map, p->inuse, p->maxplayers,
-			NET_AdrToString(p->adr), p->desc);
+		Con_Printf("%i %s %s %i/%i\nAdr:  %s - Dir:  %s\n%s\n", i + 1, p->name, p->map,
+			p->inuse, p->maxplayers, NET_AdrToString(p->adr), p->gamedir, p->desc);
+		if (p->type == 'd')
+			Con_Printf("  dedicated - ");
+		else if (p->type == 'l')
+			Con_Printf("  listen - ");
+		else
+			Con_Printf("  type (%c) - ", p->type);
+		if (p->os == 'w')
+			Con_Printf("win32 - ");
+		else if (p->os == 'l')
+			Con_Printf("linux - ");
+		else
+			Con_Printf("os (%c) - ", p->os);
+		if (p->password == TRUE)
+			Con_Printf(" password ");
+		else if (p->password == FALSE)
+			Con_Printf(" nopasswd ");
+		else
+			Con_Printf("pw (%c) - ", p->password);
+		Con_Printf("\n");
+		if (p->mod)
+			Con_Printf("Mod info:\nInfo URL %s\nDL URL %s\nVer. %i, size %.2f MB\n",
+				p->info_url, p->download_url, p->version, (float)p->size / 1048576.0f);
 	}
+}
+
+void CL_ParseServerList( void )
+{
+	char address[128];
+	byte ip[4];
+	int i;
+	int j;
+	int count;
+	int port;
+
+	MSG_ReadByte();
+	count = (net_message.cursize - 6) / 6;
+	for (i = 0; i < count; i++)
+	{
+		memset(address, 0, sizeof(address));
+		for (j = 0; j < 4; j++)
+			ip[j] = MSG_ReadByte();
+		sprintf(address, "%i.%i.%i.%i", ip[0], ip[1], ip[2], ip[3]);
+		port = BigShort(MSG_ReadShort());
+		if (i + 1 <= 100)
+			Con_Printf("%4i:  %s:%i\n", i + 1, address, port);
+	}
+	Con_Printf("%i total servers\n", count + 1);
+}
+
+void CL_ParseMasterServerList( void )
+{
+	char address[128];
+	byte ip[4];
+	byte request[5];
+	int i;
+	int j;
+	int count;
+	int port;
+	int sequence;
+
+	MSG_ReadByte();
+	sequence = MSG_ReadLong();
+	count = (net_message.cursize - 6) / 6;
+	for (i = 0; i < count; i++)
+	{
+		memset(address, 0, sizeof(address));
+		for (j = 0; j < 4; j++)
+			ip[j] = MSG_ReadByte();
+		sprintf(address, "%i.%i.%i.%i", ip[0], ip[1], ip[2], ip[3]);
+		port = BigShort(MSG_ReadShort());
+	}
+	Con_Printf("%i servers\n", count + 1);
+
+	if (!sequence)
+	{
+		Con_Printf("Done.\n");
+		return;
+	}
+
+	NET_Config(TRUE);
+	request[0] = 'e';
+	*(int*)&request[1] = sequence;
+	NET_SendPacket(NS_CLIENT, sizeof(request), request, net_from);
+}
+
+void CL_ServerListInfo( void )
+{
+	char modname[128];
+	char request[260];
+	char* name;
+	int players;
+	int servers;
+	int count = 0;
+
+	MSG_ReadByte();
+	modname[0] = 0;
+	while (1)
+	{
+		name = MSG_ReadString();
+		if (!name || !name[0] || !Q_stricmp(name, "end-of-list") || !Q_stricmp(name, "more-in-list"))
+			break;
+		strcpy(modname, name);
+		players = atoi(MSG_ReadString());
+		servers = atoi(MSG_ReadString());
+		count++;
+		Con_Printf("%3i %5i %s\n", players, servers, modname);
+	}
+	Con_Printf("%i servers\n", count);
+
+	if (name && name[0] && !Q_stricmp(name, "more-in-list"))
+	{
+		sprintf(request, "%c%s", 'x', modname);
+		NET_SendPacket(NS_CLIENT, strlen(request) + 1, request, net_from);
+	}
+	else
+		Con_Printf("Done.\n");
 }
 
 /*
@@ -422,15 +664,8 @@ void CL_ConnectionlessPacket( void )
 	MSG_ReadLong();        // skip the -1 marker
 
 	c = MSG_ReadByte();
-	if (WON_IsValidAuthMessage(c))
+	if (c == S2C_CONNECTION)
 	{
-		CL_ParseAuthenticationMessage(c);
-		return;
-	}
-
-	switch (c)
-	{
-	case S2C_CONNECTION:
 		for (i = 0; i < 16; i++)
 			MSG_ReadByte();
 
@@ -447,7 +682,7 @@ void CL_ConnectionlessPacket( void )
 			MSG_WriteString(&cls.netchan.message, "new");
 
 			// Report connection success.
-			if (_stricmp("loopback", NET_AdrToString(net_from)))
+			if (Q_stricmp("loopback", NET_AdrToString(net_from)))
 				Con_Printf("Connection accepted by %s\n", NET_AdrToString(net_from));
 
 			// Mark client as connected
@@ -462,67 +697,70 @@ void CL_ConnectionlessPacket( void )
 			// Request
 			cls.connect_time = realtime;
 		}
-		break;
-
-	case S2C_CHALLENGE:
-		if (cls.state == ca_disconnected)
-			break;
-
-		for (i = 0; i < 16; i++)
-			MSG_ReadByte();
-
-		cls.challenge = BigLong(MSG_ReadLong());
-		cls.authprotocol = MSG_ReadByte();
-		if (cls.authprotocol == 0xFF)
-			cls.authprotocol = PROTOCOL_HASHEDCDKEY;
-
-		if (cls.authprotocol == PROTOCOL_AUTHCERTIFICATE)
+	}
+	else if (c == S2C_CHALLENGE)
+	{
+		if (cls.state != ca_disconnected)
 		{
-			COM_CheckAuthenticationType();
-			if (!gfUseLANAuthentication)
-				WON_RequestCertificate();
-			else
+			for (i = 0; i < 16; i++)
+				MSG_ReadByte();
+
+			cls.challenge = BigLong(MSG_ReadLong());
+			cls.authprotocol = MSG_ReadByte();
+			if (cls.authprotocol == 0xFF)
+				cls.authprotocol = PROTOCOL_HASHEDCDKEY;
+
+			if (cls.authprotocol == PROTOCOL_AUTHCERTIFICATE)
 			{
-				Con_Printf("The server requires that you be validated through WON.net.\n"
-					"Could not obtain WON authentication.\n");
-				CL_Disconnect_f();
+				COM_CheckAuthenticationType();
+				if (!gfUseLANAuthentication)
+					WON_RequestCertificate();
+				else
+				{
+					Con_Printf("The server requires that you be validated through WON.net.\n"
+						"Could not obtain WON authentication.\n");
+					CL_Disconnect_f();
+				}
 			}
+			else
+				CL_SendConnectPacket();
 		}
-		else
-			CL_SendConnectPacket();
-		break;
+	}
+	else
+	{
+		if (WON_IsValidAuthMessage(c))
+			CL_ParseAuthenticationMessage(c);
+		else if (c == A2C_PRINT)
+		{
+			Con_Printf(MSG_ReadString());
+		}
+		else if (c == S2C_BADPASSWORD)
+	{
+		if (cls.state == ca_connecting)
+		{
+			s = MSG_ReadString();
+			if (!Q_strncasecmp(s, "BADPASSWORD", strlen("BADPASSWORD")))
+				s += strlen("BADPASSWORD");
 
-	case A2C_PRINT:
-		Con_Printf(MSG_ReadString());
-		break;
-
-	case S2C_BADPASSWORD:
-		if (cls.state != ca_connecting)
-			break;
-
-		s = MSG_ReadString();
-		if (!Q_strncasecmp(s, "BADPASSWORD", strlen("BADPASSWORD")))
-			s += strlen("BADPASSWORD");
-
-		Con_Printf(s);
-		COM_ExplainDisconnection(FALSE, "BADPASSWORD");
-		Con_Printf("Invalid server password.\n");
-		CL_Disconnect();
-		WON_RemoveUser(&cl_authrequest);
-		break;
-
-	case S2C_CONNREJECT:
-		if (cls.state != ca_connecting)
-			break;
-
-		s = MSG_ReadString();
-		COM_ExplainDisconnection(TRUE, s);
-		CL_Disconnect();
-		WON_RemoveUser(&cl_authrequest);
-		break;
-
-	// ping from somewhere
-	case A2A_PING:
+			Con_Printf(s);
+			COM_ExplainDisconnection(FALSE, "BADPASSWORD");
+			Con_Printf("Invalid server password.\n");
+			CL_Disconnect();
+			WON_RemoveUser(&cl_authrequest);
+		}
+	}
+	else if (c == S2C_CONNREJECT)
+	{
+		if (cls.state == ca_connecting)
+		{
+			s = MSG_ReadString();
+			COM_ExplainDisconnection(TRUE, s);
+			CL_Disconnect();
+			WON_RemoveUser(&cl_authrequest);
+		}
+	}
+	else if (c == A2A_PING)
+	{
 		data[0] = 0xFF;
 		data[1] = 0xFF;
 		data[2] = 0xFF;
@@ -530,19 +768,43 @@ void CL_ConnectionlessPacket( void )
 		data[4] = A2A_ACK;
 		data[5] = 0;
 		NET_SendPacket(NS_CLIENT, sizeof(data), data, net_from);
-		break;
-
-	case S2A_INFO:
-		CL_ParseServerInfoResponse();
-		break;
-
-	case M2A_MOTD:
+	}
+	else if (c == A2A_ACK)
+	{
+		if (cls.slist_time != 0.0f)
+		{
+			Con_Printf("Ping took %.3f ms.\n", (realtime - cls.slist_time) * 1000.0f);
+			cls.slist_time = 0.0f;
+		}
+	}
+	else if (c == S2A_INFO)
+	{
+		CL_ParseServerData(FALSE);
+	}
+	else if (c == S2A_INFO_DETAILED)
+	{
+		CL_ParseServerData(TRUE);
+	}
+	else if (c == M2A_MOTD)
+	{
 		CL_ParseMOTD();
-		break;
-
-	default:
+	}
+	else if (c == M2A_SERVERS)
+	{
+		CL_ParseServerList();
+	}
+	else if (c == 'f')
+	{
+		CL_ParseMasterServerList();
+	}
+	else if (c == M2A_ACTIVEMODS)
+	{
+		CL_ServerListInfo();
+	}
+	else
+	{
 		Con_Printf("Unknown command:\n%c\n", c);
-		break;
+	}
 	}
 }
 
@@ -555,7 +817,10 @@ Handles recording and playback of demos, on top of NET_ code
 */
 qboolean CL_GetMessage( void )
 {
-	return NET_GetPacket(NS_CLIENT);
+	if (!NET_GetPacket(NS_CLIENT))
+		return FALSE;
+
+	return TRUE;
 }
 
 /*
@@ -613,7 +878,7 @@ void CL_ReadPackets( void )
 	if ((cls.state >= ca_connected) &&
 		((realtime - cls.netchan.last_received) > cl_timeout.value))
 	{
-		Con_Printf("\nServer connection timed out.\n");
+		Con_Printf("Server connection timed out.\n");
 		CL_Disconnect();
 		return;
 	}
@@ -633,7 +898,6 @@ void CL_PrintCustomizations_f( void )
 {
 	int	i, j;
 	customization_t* pCust;
-	player_info_t* pPlayer;
 
 	if (cls.state != ca_active)
 	{
@@ -641,13 +905,12 @@ void CL_PrintCustomizations_f( void )
 		return;
 	}
 
-	for (i = 0, pPlayer = cl.players; i < MAX_CLIENTS; i++, pPlayer++)
+	for (i = 0; i < 1; i++)
 	{
-		pCust = pPlayer->customdata.pNext;
+		pCust = cl.players[i].customdata.pNext;
 		if (pCust)
 		{
 			j = 1;
-			Con_DPrintf("CL Customizations:\nPlayer %i:%s\n", i + 1, pPlayer->name);
 			while (pCust)
 			{
 				if (pCust->bInUse)
@@ -657,7 +920,6 @@ void CL_PrintCustomizations_f( void )
 				}
 				pCust = pCust->pNext;
 			}
-			Con_DPrintf("-----------------\n\n");
 		}
 	}
 }
@@ -768,10 +1030,10 @@ void CL_Disconnect( void )
 
 			// Send a drop command.
 			final[0] = clc_stringcmd;
-			strcpy((char*)(final + 1), "dropclient");
-			Netchan_Transmit(&cls.netchan, 12, final);
-			Netchan_Transmit(&cls.netchan, 12, final);
-			Netchan_Transmit(&cls.netchan, 12, final);
+			strcpy((char*)(final + 1), "dropclient\n");
+			Netchan_Transmit(&cls.netchan, 13, final);
+			Netchan_Transmit(&cls.netchan, 13, final);
+			Netchan_Transmit(&cls.netchan, 13, final);
 		}
 
 		cls.state = ca_disconnected;
@@ -838,15 +1100,13 @@ char* CL_GetCDKeyHash( void )
 	// Get the cd key.
 	Launcher_GetCDKey(szKeyBuffer, &nKeyLength, &bDedicated);
 #endif
-	// A dedicated server
 	if (bDedicated)
 	{
 		Con_Printf("Key has no meaning on dedicated server...\n");
 		return "";
 	}
 
-	if (nKeyLength <= 0 ||
-		nKeyLength >= 256)
+	if (nKeyLength < 1 || nKeyLength > 35)
 	{
 		Con_Printf("Bogus key length on CD Key...\n");
 		return "";
@@ -1015,6 +1275,21 @@ void CL_CheckForResend( void )
 	NET_SendPacket(NS_CLIENT, strlen(data), data, adr);
 }
 
+void CL_Retry_f( void )
+{
+	char command[256];
+
+	if (!cls.trueaddress || !cls.trueaddress[0])
+	{
+		Con_Printf("Can't retry, no previous connection\n");
+		return;
+	}
+
+	sprintf(command, "connect %s\n", cls.trueaddress);
+	Cbuf_AddText(command);
+	Con_Printf("Commencing connection retry to %s\n", cls.trueaddress);
+}
+
 /*
 =====================
 CL_Connect_f
@@ -1025,14 +1300,12 @@ User command to connect to server
 void CL_Connect_f( void )
 {
 	char* server;
-	char name[128], * p;
+	char name[MAX_OSPATH];
 	int i, num;
-
-	cls.spectator = FALSE;
 
 	if (Cmd_Argc() < 2)
 	{
-		Con_Printf("usage: connect <server> [server password]\n");
+		Con_Printf("usage: connect <server>\n");
 		return;
 	}
 
@@ -1040,22 +1313,15 @@ void CL_Connect_f( void )
 	if (!server)
 		return;
 
+	strcpy(cls.trueaddress, server);
+
 	// Disconnect from current server
 	// Don't call Host_Disconnect, because we don't want to shutdown the listen server!
 	CL_Disconnect();
 
 	// Get new server name
-	memset(name, 0, sizeof(name));
+	memset(name + 4, 0, sizeof(name) - 4);
 	strncpy(name, server, sizeof(name));
-
-	p = name;
-	while (*p && *p != ' ')
-		p++;
-
-	if (p[0] && p[1])
-		strcpy(cls.trueaddress, p + 1);
-	else
-		strcpy(cls.trueaddress, "0");
 
 	num = atoi(server);  // In case it's an index.
 
@@ -1069,7 +1335,7 @@ void CL_Connect_f( void )
 		// Try to find server in cache
 		for (i = 0; i < num_servers; i++)
 		{
-			if (!_strnicmp(server, cached_servers[i].name, strlen(cached_servers[i].name)))
+		if (!Q_strnicmp(server, cached_servers[i].name, strlen(cached_servers[i].name)))
 			{
 				strncpy(name, NET_AdrToString(cached_servers[i].adr), sizeof(name));
 				break;
@@ -1085,9 +1351,13 @@ void CL_Connect_f( void )
 	// For the check for resend timer to fire a connection / getchallenge request.
 	cls.state = ca_connecting;
 	// Force connection request to fire.
-	cls.connect_time = -99999;
+	cls.connect_time = -99999.0f;
 
 	cls.connect_retry = 0;
+	gfExtendedError = FALSE;
+
+	if (Q_strnicmp(cls.servername, "local", 5))
+		NET_Config(TRUE);
 }
 
 /*
@@ -1176,29 +1446,25 @@ void CL_SignonReply( void )
 {
 	char 	str[8192];
 
-	Con_DPrintf("CL_SignonReply: %i\n", cls.signon);
-
 	switch (cls.signon)
 	{
 	case 1:
 		MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-		MSG_WriteString(&cls.netchan.message, va("name \"%s\"\n", cl_name.string));
-
-		MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-		MSG_WriteString(&cls.netchan.message, va("color %i %i\n", ((int)cl_color.value) >> 4, ((int)cl_color.value) & 15));
-
-		MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
 		sprintf(str, "spawn %i %s", cl.servercount, cls.spawnparms);
 		MSG_WriteString(&cls.netchan.message, str);
+		Sys_SetTaskName("CL_Signon 1");
 		break;
 
 	case 2:
 		MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
 		MSG_WriteString(&cls.netchan.message, "begin");
+		Cache_Report();
+		Sys_SetTaskName("CL_Signon 2");
 		break;
 
 	case 3:
 		SCR_EndLoadingPlaque();		// allow normal screen updates
+		Sys_SetTaskName("CL_Signon 3");
 		CL_StopProgressBar();
 		break;
 	}
@@ -1253,14 +1519,14 @@ void CL_PrintEntities_f( void )
 		Con_Printf("%3i:", i);
 
 		ent = &cl_entities[i];
-		if (!ent->model->name)
+		if (!ent->model)
 		{
 			Con_Printf("EMPTY\n");
 			continue;
 		}
 
 		Con_Printf("%s:%2i  (%5.1f,%5.1f,%5.1f) [%5.1f %5.1f %5.1f]\n",
-			ent->model->name,
+			ent->model,
 			ent->frame,
 			ent->origin[0], ent->origin[1], ent->origin[2],
 			ent->angles[0], ent->angles[1], ent->angles[2]);
@@ -1347,6 +1613,7 @@ CL_Rcon_f
 void CL_Rcon_f( void )
 {
 	char	message[1024];
+	char	command[256];
 	int		i;
 	netadr_t	to;
 	unsigned short nPort;
@@ -1356,6 +1623,8 @@ void CL_Rcon_f( void )
 		Con_Printf("You must set 'rcon_password' before\nissuing an rcon command.\n");
 		return;
 	}
+
+	NET_Config(TRUE);
 
 	if (cls.state >= ca_connected)
 		to = cls.netchan.remote_address;
@@ -1369,7 +1638,11 @@ void CL_Rcon_f( void )
 
 			return;
 		}
-		NET_StringToAdr(rcon_address.string, &to);
+		if (!NET_StringToAdr(rcon_address.string, &to))
+		{
+			Con_Printf("Unable to resolve rcon address %s\n", rcon_address.string);
+			return;
+		}
 	}
 
 	nPort = (unsigned short)rcon_port.value;  // ?? BigShort
@@ -1378,15 +1651,14 @@ void CL_Rcon_f( void )
 
 	to.port = BigShort(nPort);
 
-	sprintf(message, "rcon ");
-
-	strcat(message, rcon_password.string);
-	strcat(message, " ");
+	sprintf(message, "rcon \"%s\" ", rcon_password.string);
 
 	for (i = 1; i < Cmd_Argc(); i++)
 	{
-		strcat(message, Cmd_Argv(i));
-		strcat(message, " ");
+		sprintf(command, "\"%s\"", Cmd_Argv(i));
+		strcat(message, command);
+		if (i != Cmd_Argc() - 1)
+			strcat(message, " ");
 	}
 
 	Netchan_OutOfBandPrint(NS_CLIENT, to, "%s", message);
@@ -1697,10 +1969,11 @@ void CL_SendCmd( void )
 	int			checksumIndex;
 	int			seq_hash;
 
-	if (cls.state == ca_dedicated ||
-		cls.state == ca_disconnected ||
-		cls.state == ca_connecting)
-		return;
+	if (cls.state != ca_dedicated &&
+		cls.state != ca_disconnected &&
+		cls.state != ca_connecting &&
+		cl.frames)
+	{
 
 	// save this command off for prediction
 	i = cls.netchan.outgoing_sequence & UPDATE_MASK;
@@ -1735,13 +2008,22 @@ void CL_SendCmd( void )
 	checksumIndex = buf.cursize;
 	MSG_WriteByte(&buf, 0);
 
-	VectorCopy(cl.viewangles, cmd->angles);
+	for (i = 0; i < 3; i++)
+		cmd->angles[i] = cl.viewangles[i];
 
-	cmd->msec = (int)(host_frametime * 1000.0f);
-	if (cmd->msec > 250)
-		cmd->msec = 100;
+	i = (int)(host_frametime * 1000.0f);
+	if (i > 250)
+		i = 100;
+	cmd->msec = i;
 
 	cmd->buttons = CL_ButtonBits(1);
+	if (in_klook.state)
+	{
+		if (cmd->forwardmove > 0.0f)
+			cmd->buttons |= IN_FORWARD;
+		else if (cmd->forwardmove < 0.0f)
+			cmd->buttons |= IN_BACK;
+	}
 	cmd->impulse = in_impulse;
 
 	// if we are spectator, try autocam
@@ -1755,17 +2037,17 @@ void CL_SendCmd( void )
 
 	i = (cls.netchan.outgoing_sequence - 2) & UPDATE_MASK;
 	cmd = &cl.frames[i].cmd;
-	MSG_WriteDeltaUsercmd(&buf, cmd, &nullcmd);
+	MSG_WriteUsercmdByProtocol(&buf, cmd, &nullcmd);
 	oldcmd = cmd;
 
 	i = (cls.netchan.outgoing_sequence - 1) & UPDATE_MASK;
 	cmd = &cl.frames[i].cmd;
-	MSG_WriteDeltaUsercmd(&buf, cmd, oldcmd);
+	MSG_WriteUsercmdByProtocol(&buf, cmd, oldcmd);
 	oldcmd = cmd;
 
 	i = (cls.netchan.outgoing_sequence) & UPDATE_MASK;
 	cmd = &cl.frames[i].cmd;
-	MSG_WriteDeltaUsercmd(&buf, cmd, oldcmd);
+	MSG_WriteUsercmdByProtocol(&buf, cmd, oldcmd);
 
 	// calculate a checksum over the move commands
 	buf.data[checksumIndex] = COM_BlockSequenceCRCByte(
@@ -1794,6 +2076,7 @@ void CL_SendCmd( void )
 // deliver the message
 //
 	Netchan_Transmit(&cls.netchan, buf.cursize, buf.data);
+	}
 }
 
 /*
@@ -2083,6 +2366,78 @@ void CL_AllowUpload_f( void )
 
 cvar_t	cl_adaptive = { "cl_adaptive", "0" };
 
+typedef struct adaptive_sample_s
+{
+	short	valid;
+	short	pad;
+	float	time;
+	float	loss;
+	float	latency;
+	int		updates;
+	int		lost;
+	float	load;
+	int		bytes;
+	float	rate;
+	float	requested_rate;
+	float	fps;
+} adaptive_sample_t;
+
+#define ADAPTIVE_SAMPLES 16
+#define ADAPTIVE_MASK (ADAPTIVE_SAMPLES - 1)
+
+static adaptive_sample_t adaptive_samples[ADAPTIVE_SAMPLES];
+static int adaptive_sample_index;
+static float adaptive_lastupdate;
+
+extern cvar_t fps_lan;
+extern cvar_t fps_modem;
+
+void R_DrawAdaptiveGraph( void )
+{
+	int i;
+	int valid = 0;
+	int x = vid.width;
+	int y = vid.height - 10;
+	float average = 0.0f;
+	float height;
+	adaptive_sample_t* sample;
+
+	for (i = 0; i < ADAPTIVE_SAMPLES; i++)
+	{
+		sample = &adaptive_samples[(adaptive_sample_index - i) & ADAPTIVE_MASK];
+		if (sample->valid)
+		{
+			height = sample->load * 100.0f / 1024.0f;
+			average += height;
+			valid++;
+			Draw_FillRGBA(x - 6 - i, y - (int)(height * 2.0f), 1, (int)(height * 2.0f), 100, 100, 200, 128);
+		}
+	}
+
+	if (valid)
+	{
+		average /= (float)valid;
+		Draw_FillRGBA(x - 22, y - (int)(average * 2.0f), 16, 1, 255, 255, 255, 255);
+	}
+}
+
+void R_PrintNetStats( void )
+{
+	adaptive_sample_t* sample = &adaptive_samples[adaptive_sample_index];
+
+	if (!sample->valid)
+		return;
+
+	Con_Printf("--------------------------\n");
+	Con_Printf("Time %.3f\n", sample->time);
+	Con_Printf("Drop %.2f%%\n", sample->loss * 100.0f);
+	Con_Printf("Avg. Latency %.2f\n", sample->latency * 1000.0f);
+	Con_Printf("Load K/s %.2f\n", sample->load / 1024.0f);
+	Con_Printf("Upd/s %.2f\n", sample->rate);
+	Con_Printf("Rate %.2f\n", sample->requested_rate);
+	Con_Printf("cl fps %.1f\n", sample->fps);
+}
+
 /*
 ==================
 R_DrawAdaptive
@@ -2092,13 +2447,96 @@ Draw the adaptive frame-timing bars in the corner of the screen.
 */
 void R_DrawAdaptive( void )
 {
-	// TODO: draw per-frame timing bars from the recent frame history
+	vrect_t rect;
+	byte color[3];
+	int i;
+
+	if (!cl_adaptive.value)
+		return;
+
+	color[0] = 0;
+	color[1] = 0;
+	color[2] = 0;
+	rect.x = vid.width - 6;
+	rect.width = 5;
+	rect.height = 1;
+
+	for (i = 0; i < 10; i++)
+	{
+		rect.y = vid.height - 10 - i * 20;
+		if (rect.y > 10)
+			D_FillRect(&rect, color);
+	}
+
+	R_DrawAdaptiveGraph();
 }
 
-/* Updated once per host frame; the Dreamcast implementation maintains the
-   adaptive network-stat history consumed by R_DrawAdaptive. */
 void R_UpdateAdaptive( void )
 {
+	int i;
+	int samples = 0;
+	qboolean got_sample = FALSE;
+	frame_t* frame;
+	adaptive_sample_t* sample;
+
+	if (!cl_adaptive.value)
+		return;
+	if (sv.active && svs.maxclients <= 1)
+		return;
+	if (cl_update_backup > cls.netchan.incoming_sequence)
+		return;
+	if (realtime - adaptive_lastupdate < 1.0f)
+		return;
+
+	adaptive_lastupdate = realtime;
+	adaptive_sample_index = (adaptive_sample_index + 1) & ADAPTIVE_MASK;
+	sample = &adaptive_samples[adaptive_sample_index];
+	memset(sample, 0, sizeof(*sample));
+	sample->requested_rate = rate.value;
+	sample->fps = rate.value < 2000.0f ? fps_modem.value : fps_lan.value;
+
+	for (i = 0; i < cl_update_backup; i++)
+	{
+		frame = &cl.frames[(cls.netchan.incoming_sequence - i) & cl_update_mask];
+		samples++;
+		if (!got_sample && frame->receivedtime >= 0.0f)
+		{
+			got_sample = TRUE;
+			sample->time = frame->receivedtime;
+		}
+		else if (frame->receivedtime >= 0.0f)
+		{
+			sample->time = sample->time - frame->receivedtime;
+		}
+
+		if (frame->receivedtime < 0.0f)
+			sample->lost++;
+		else
+		{
+			sample->updates++;
+			sample->bytes += (unsigned short)frame->packet_entities.num_entities;
+			sample->latency += frame->receivedtime - frame->senttime;
+		}
+	}
+
+	if (sample->updates)
+		sample->latency /= (float)sample->updates;
+	else
+		sample->latency = 0.0f;
+
+	sample->loss = (float)sample->lost / (float)samples;
+	if (sample->time > 0.0f)
+	{
+		sample->load = (float)sample->bytes / sample->time;
+		sample->rate = (float)samples / sample->time;
+	}
+	else
+	{
+		sample->load = 0.0f;
+		sample->rate = 0.0f;
+	}
+	sample->valid = TRUE;
+	R_PrintNetStats();
 }
 
 char* CL_HashedClientID( unsigned char* hash, int size )
@@ -2190,19 +2628,33 @@ CL_Init
 */
 void CL_Init( void )
 {
+	Info_SetValueForKey(cls.userinfo, "name", "unnamed", MAX_INFO_STRING);
+	Info_SetValueForKey(cls.userinfo, "topcolor", "0", MAX_INFO_STRING);
+	Info_SetValueForKey(cls.userinfo, "bottomcolor", "0", MAX_INFO_STRING);
+	Info_SetValueForKey(cls.userinfo, "rate", "2500", MAX_INFO_STRING);
+
 	CL_InitInput();
 	CL_InitTEnts();
 
 	TextMessageInit();
 
+	ClientDLL_Init();
 	ClientDLL_HudInit();
-	ClientDLL_HudVidInit();
 
 //
 // register our commands
 //
-	Cvar_RegisterVariable(&cl_name);
-	Cvar_RegisterVariable(&cl_color);
+	Cvar_RegisterVariable(&name);
+	Cvar_RegisterVariable(&password);
+	Cvar_RegisterVariable(&spectator);
+	Cvar_RegisterVariable(&team);
+	Cvar_RegisterVariable(&model);
+	Cvar_RegisterVariable(&skin);
+	Cvar_RegisterVariable(&topcolor);
+	Cvar_RegisterVariable(&bottomcolor);
+	Cvar_RegisterVariable(&rate);
+	Cvar_RegisterVariable(&cl_himodels);
+	Cvar_RegisterVariable(&cl_gaitestimation);
 	Cvar_RegisterVariable(&cl_upspeed);
 	Cvar_RegisterVariable(&cl_forwardspeed);
 	Cvar_RegisterVariable(&cl_backspeed);
@@ -2222,7 +2674,6 @@ void CL_Init( void )
 	Cvar_RegisterVariable(&lookspring);
 	Cvar_RegisterVariable(&lookstrafe);
 	Cvar_RegisterVariable(&sensitivity);
-	Cvar_RegisterVariable(&cl_stats);
 
 	Cvar_RegisterVariable(&m_pitch);
 	Cvar_RegisterVariable(&m_yaw);
@@ -2238,12 +2689,10 @@ void CL_Init( void )
 	Cvar_RegisterVariable(&rcon_address);
 	Cvar_RegisterVariable(&rcon_port);
 	Cvar_RegisterVariable(&cl_spectator_password);
+	Cvar_RegisterVariable(&cl_pred_link);
 	Cvar_RegisterVariable(&cl_predict_players);
 	Cvar_RegisterVariable(&cl_solid_players);
 	Cvar_RegisterVariable(&cl_nodelta);
-	Cvar_RegisterVariable(&cl_printplayers);
-	Cvar_RegisterVariable(&cl_himodels);
-	Cvar_RegisterVariable(&cl_gaitestimation);
 	Cvar_RegisterVariable(&cl_slisttimeout);
 	Cvar_RegisterVariable(&cl_downloadinterval);
 	Cvar_RegisterVariable(&cl_upload_max);
@@ -2251,9 +2700,13 @@ void CL_Init( void )
 	Cvar_RegisterVariable(&cl_download_ingame);
 	Cvar_RegisterVariable(&cl_allowdownload);
 	Cvar_RegisterVariable(&cl_allowupload);
-	Cvar_RegisterVariable(&rate);
+	Cvar_RegisterVariable(&cl_pred_maxtime);
+	Cvar_RegisterVariable(&cl_pred_fraction);
+	Cvar_RegisterVariable(&cl_adaptive);
 
 	Cmd_AddCommand("cdkey", CL_PrintCDKey_f);
+	Cmd_AddCommand("fullserverinfo", Cmd_fullserverinfo_f);
+	Cmd_AddCommand("retry", CL_Retry_f);
 	Cmd_AddCommand("disconnect", CL_Disconnect_f);
 	Cmd_AddCommand("snapshot", CL_TakeSnapshot_f);
 	Cmd_AddCommand("startmovie", CL_StartMovie_f);
@@ -2278,7 +2731,6 @@ void CL_Init( void )
 	Cmd_AddCommand("cl_print_custom", CL_PrintCustomizations_f);
 	
 	CL_InitPrediction();
-
 	CL_InitCam();
 
 	Pmove_Init();
@@ -2291,6 +2743,11 @@ void CL_Init( void )
 
 	cl.resourcesneeded.pNext = cl.resourcesneeded.pPrev = &cl.resourcesneeded;
 	cl.resourcesonhand.pNext = cl.resourcesonhand.pPrev = &cl.resourcesonhand;
+
+	cl.frames = (frame_t*)MnemoAllocDbg(sizeof(frame_t) * cl_update_backup, __FILE__, __LINE__);
+	if (!cl.frames)
+		Sys_Error("Unable to allocate %i client frames", cl_update_backup);
+	memset(cl.frames, 0, sizeof(frame_t) * cl_update_backup);
 }
 // Realtime the current load began, so the bar can pace itself
 float	cl_progress_start;
@@ -2353,6 +2810,7 @@ qboolean CL_UpdateProgressBar( void )
 
 	if (sinceupdate > 0.1f)
 	{
+		S_ExtraUpdate();
 		DCV_SetProgress((int)(elapsed * 5.0f));
 		IN_Accumulate();
 	}
@@ -2387,5 +2845,38 @@ Dump the spray logos the client has seen this session.
 */
 void CL_PrintLogoList( void )
 {
-	// TODO: walk cl.players[] and print each one's logo name
+	int i;
+	char text[1024];
+	customization_t* customization;
+
+	Con_Printf("Client Rep. of Player Logos ===\n");
+	for (i = 0; i < cl.maxclients; i++)
+	{
+		customization = cl.players[i].customdata.pNext;
+
+		if (&cl.players[i] == &cl.players[cl.playernum])
+			Con_Printf("SELF =====================\n");
+
+		while (customization)
+		{
+			Con_Printf(text);
+			customization = customization->pNext;
+		}
+
+		if (&cl.players[i] == &cl.players[cl.playernum])
+			Con_Printf("SELF =====================\n");
+	}
+	Con_Printf("==========================\n");
+}
+
+void Cmd_fullserverinfo_f( void )
+{
+	if (Cmd_Argc() == 2)
+	{
+		strcpy(cl.serverinfo, Cmd_Argv(1));
+	}
+	else
+	{
+		Con_Printf("usage: fullserverinfo <complete info string>\n");
+	}
 }

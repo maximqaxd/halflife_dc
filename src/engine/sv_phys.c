@@ -122,7 +122,7 @@ in a frame.  Not used for pushmove objects, because they must be exact.
 Returns false if the entity removed itself.
 =============
 */
-qboolean SV_RunThink( edict_t* ent )
+static qboolean SV_RunThink( edict_t* ent, float frametime, float time )
 {
 	float	thinktime;
 
@@ -131,11 +131,11 @@ qboolean SV_RunThink( edict_t* ent )
 		thinktime = ent->v.nextthink;
 		if (thinktime <= 0)
 			return TRUE;
-		if (thinktime > sv.time + host_frametime)
+		if (thinktime > time + frametime)
 			return TRUE;
 
-		if (thinktime < sv.time)
-			thinktime = sv.time;	// don't let things stay in the past.
+		if (thinktime < time)
+			thinktime = time;	// don't let things stay in the past.
 									// it is possible to start that way
 									// by a trigger with a local time.
 		ent->v.nextthink = 0;
@@ -147,7 +147,7 @@ qboolean SV_RunThink( edict_t* ent )
 	if (ent->v.flags & FL_KILLME)
 		ED_Free(ent);
 
-	return ent->free == FALSE;
+	return (qboolean)(ent->free == FALSE);
 }
 
 /*
@@ -997,7 +997,7 @@ Non moving objects can only think
 void SV_Physics_None( edict_t* ent )
 {
 // regular thinking
-	SV_RunThink(ent);
+	SV_RunThink(ent, host_frametime, sv.time);
 }
 
 /*
@@ -1010,7 +1010,7 @@ Copy the angles and origin of the parent
 void SV_Physics_Follow( edict_t* ent )
 {
 // regular thinking
-	if (!SV_RunThink(ent))
+	if (!SV_RunThink(ent, host_frametime, sv.time))
 		return;
 	
 	if (!ent->v.aiment)
@@ -1038,7 +1038,7 @@ A moving object that doesn't obey physics
 void SV_Physics_Noclip( edict_t* ent )
 {
 // regular thinking
-	if (!SV_RunThink(ent))
+	if (!SV_RunThink(ent, host_frametime, sv.time))
 		return;
 
 	VectorMA(ent->v.angles, host_frametime, ent->v.avelocity, ent->v.angles);
@@ -1139,7 +1139,7 @@ void SV_Physics_Toss( edict_t* ent )
 	SV_CheckWater(ent);
 
 // regular thinking
-	if (!SV_RunThink(ent))
+	if (!SV_RunThink(ent, host_frametime, sv.time))
 		return;
 
 	if (ent->v.velocity[2] > 0.0f || !ent->v.groundentity || (ent->v.groundentity->v.flags & (FL_MONSTER | FL_CLIENT)))
@@ -1514,7 +1514,7 @@ void SV_Physics_Step( edict_t* ent )
 	}
 
 // regular thinking
-	SV_RunThink(ent);
+	SV_RunThink(ent, host_frametime, sv.time);
 
 	SV_CheckWaterTransition(ent);
 }

@@ -1,14 +1,44 @@
 // cl_tent.c -- client side temporary entities
 
 #include "quakedef.h"
+#include "pmove.h"
 #include "cl_tent.h"
 #include "pr_cmds.h"
 #include "decal.h"
 #include "r_studio.h"
 #include "r_trans.h"
 #include "r_efx.h"
+#include "tmessage.h"
+#ifdef fmod
+#undef fmod
+#endif
+#ifdef fabs
+#undef fabs
+#endif
+#include <floatmathlib.h>
 
 TEMPENTITY gTempEnts[MAX_TEMP_ENTITIES], * gpTempEntFree, * gpTempEntActive;
+
+static TEMPENTITY* CL_TempEntNext( TEMPENTITY* pTemp )
+{
+	if (pTemp->next == -1)
+		return NULL;
+
+	return &gTempEnts[pTemp->next];
+}
+
+static short CL_TempEntIndex( TEMPENTITY* pTemp )
+{
+	if (!pTemp)
+		return -1;
+
+	return (short)(pTemp - gTempEnts);
+}
+
+static void CL_TempEntAllocInit( TEMPENTITY* pTemp, model_t* model );
+static void (* volatile g_pTempEntAllocInit)(TEMPENTITY*, model_t*) = CL_TempEntAllocInit;
+
+extern void CL_HudMessage( const char* pMessage );
 
 
 sfx_t* cl_sfx_ric1;
@@ -175,7 +205,7 @@ void CL_InitTEnts( void )
 	cl_sprite_muzzleflash[2] = CL_TentModel("sprites/muzzleflash3.spr");
 
 	cl_sprite_ricochet = CL_TentModel("sprites/richo1.spr");
-	cl_sprite_shell = CL_TentModel("sprites/wallpuff.spr");
+	cl_sprite_shell = CL_TentModel("sprites/shellchrome.spr");
 
 	CL_TempEntInit();
 }
@@ -209,6 +239,34 @@ int ModelFrameCount( model_t* model )
 
 /*
 ===============
+R_RicochetSound
+
+===============
+*/
+void R_RicochetSound( vec_t* pos )
+{
+	switch (RandomLong(0, 4))
+	{
+	case 0:
+		S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric1, pos, 1.0f, 1.0f, 0, PITCH_NORM);
+		break;
+	case 1:
+		S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric2, pos, 1.0f, 1.0f, 0, PITCH_NORM);
+		break;
+	case 2:
+		S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric3, pos, 1.0f, 1.0f, 0, PITCH_NORM);
+		break;
+	case 3:
+		S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric4, pos, 1.0f, 1.0f, 0, PITCH_NORM);
+		break;
+	case 4:
+		S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric5, pos, 1.0f, 1.0f, 0, PITCH_NORM);
+		break;
+	}
+}
+
+/*
+===============
 R_TracerEffect
 
 ===============
@@ -224,7 +282,7 @@ void R_TracerEffect( vec_t* start, vec_t* end )
 	VectorSubtract(end, start, temp);
 	len = Length(temp);
 
-	VectorScale(temp, 1.0 / len, temp);
+	VectorScale(temp, 1.0f / len, temp);
 	VectorScale(temp, RandomLong(-10, 9) + tracerOffset.value, vel);
 	VectorAdd(start, vel, start);
 	VectorScale(temp, tracerSpeed.value, vel);
@@ -259,12 +317,12 @@ void R_FizzEffect( cl_entity_t* pent, int modelIndex, int density )
 	maxHeight = pent->model->maxs[2] - pent->model->mins[2];
 	width = pent->model->maxs[0] - pent->model->mins[0];
 	depth = pent->model->maxs[1] - pent->model->mins[1];
-	speed = (float)pent->rendercolor.r * 256.0 + (float)pent->rendercolor.g;
+	speed = (float)pent->rendercolor.r * 256.0f + (float)pent->rendercolor.g;
 	if (pent->rendercolor.b)
 		speed = -speed;
 
-	xspeed = cos(pent->angles[YAW] * M_PI / 180) * speed;
-	yspeed = sin(pent->angles[YAW] * M_PI / 180) * speed;
+	xspeed = cos(pent->angles[YAW] * (float)M_PI / 180) * speed;
+	yspeed = sin(pent->angles[YAW] * (float)M_PI / 180) * speed;
 
 	frameCount = ModelFrameCount(model);
 
@@ -286,10 +344,10 @@ void R_FizzEffect( cl_entity_t* pent, int modelIndex, int density )
 		pTemp->entity.baseline.origin[0] = xspeed;
 		pTemp->entity.baseline.origin[1] = yspeed;
 		pTemp->entity.baseline.origin[2] = zspeed;
-		pTemp->die = cl.time + (maxHeight / zspeed) - 0.1;
+		pTemp->die = cl.time + (maxHeight / zspeed) - 0.1f;
 		pTemp->entity.frame = RandomLong(0, frameCount - 1);
 		// Set sprite scale
-		pTemp->entity.scale = 1.0 / RandomFloat(2, 5);
+		pTemp->entity.scale = 1.0f / RandomFloat(2, 5);
 		pTemp->entity.rendermode = kRenderTransAlpha;
 		pTemp->entity.renderamt = 255;
 	}
@@ -338,11 +396,11 @@ void R_Bubbles( vec_t* mins, vec_t* maxs, float height, int modelIndex, int coun
 		pTemp->entity.baseline.origin[0] = cos(angle) * speed;
 		pTemp->entity.baseline.origin[1] = sin(angle) * speed;
 		pTemp->entity.baseline.origin[2] = RandomLong(80, 140);
-		pTemp->die = cl.time + ((height - (origin[2] - mins[2])) / pTemp->entity.baseline.origin[2]) - 0.1;
+		pTemp->die = cl.time + ((height - (origin[2] - mins[2])) / pTemp->entity.baseline.origin[2]) - 0.1f;
 		pTemp->entity.frame = RandomLong(0, frameCount - 1);
 
 		// Set sprite scale
-		pTemp->entity.scale = 1.0 / RandomFloat(2, 5);
+		pTemp->entity.scale = 1.0f / RandomFloat(2, 5);
 		pTemp->entity.rendermode = kRenderTransAlpha;
 		pTemp->entity.renderamt = 255;
 	}
@@ -374,7 +432,7 @@ void R_BubbleTrail( vec_t* start, vec_t* end, float height, int modelIndex, int 
 
 	for (i = 0; i < count; i++)
 	{
-		dist = RandomFloat(0, 1.0);
+		dist = RandomFloat(0, 1.0f);
 		origin[0] = start[0] + dist * (end[0] - start[0]);
 		origin[1] = start[1] + dist * (end[1] - start[1]);
 		origin[2] = start[2] + dist * (end[2] - start[2]);
@@ -392,13 +450,411 @@ void R_BubbleTrail( vec_t* start, vec_t* end, float height, int modelIndex, int 
 		pTemp->entity.baseline.origin[0] = speed * cos(angle);
 		pTemp->entity.baseline.origin[1] = speed * sin(angle);
 		pTemp->entity.baseline.origin[2] = zspeed;
-		pTemp->die = cl.time + ((height - (origin[2] - start[2])) / zspeed) - 0.1;
+		pTemp->die = cl.time + ((height - (origin[2] - start[2])) / zspeed) - 0.1f;
 		pTemp->entity.frame = RandomLong(0, frameCount - 1);
 
 		// Set sprite scale
-		pTemp->entity.scale = 1.0 / RandomFloat(2, 5);
+		pTemp->entity.scale = 1.0f / RandomFloat(2, 5);
 		pTemp->entity.rendermode = kRenderTransAlpha;
 		pTemp->entity.renderamt = 255;
+	}
+}
+
+/*
+===============
+R_Projectile
+
+===============
+*/
+void R_Projectile( vec_t* origin, vec_t* velocity, int modelIndex, int life, int owner )
+{
+	TEMPENTITY* pTemp;
+	model_t* model;
+	vec3_t angles;
+	int frameCount;
+
+	model = cl.model_precache[modelIndex];
+	if (!model)
+		return;
+
+	pTemp = CL_TempEntAllocHigh(origin, model);
+	if (!pTemp)
+	{
+		Con_Printf("Couldn't allocate temp ent in R_Projectile!\n");
+		return;
+	}
+
+	if (owner < 0 || owner > cl.maxclients)
+	{
+		Con_Printf("Bad ent in R_Projectile!\n");
+		return;
+	}
+
+	pTemp->flags |= FTENT_COLLIDEKILL | FTENT_PERSIST | FTENT_COLLIDEALL;
+	VectorCopy(velocity, pTemp->entity.baseline.origin);
+	pTemp->clientIndex = (short)owner;
+
+	if (pTemp->entity.model->type == mod_sprite)
+	{
+		frameCount = ModelFrameCount(model);
+		pTemp->frameMax = (float)frameCount;
+		pTemp->flags |= FTENT_SPRANIMATE;
+		if (frameCount < 10)
+		{
+			pTemp->entity.framerate = FloatToShort(10.0f);
+			pTemp->flags |= FTENT_SPRANIMATELOOP;
+		}
+		else
+		{
+			pTemp->entity.framerate = FloatToShort(pTemp->frameMax / (float)life);
+		}
+	}
+	else
+	{
+		pTemp->frameMax = 0.0f;
+		VectorNormalize(velocity);
+		VectorAngles(velocity, angles);
+		VectorCopy(angles, pTemp->entity.angles);
+	}
+
+	pTemp->entity.rendermode = kRenderNormal;
+	pTemp->entity.renderfx = kRenderFxNone;
+	pTemp->entity.renderamt = 255;
+	pTemp->entity.baseline.renderamt = 255;
+	pTemp->die = cl.time + (float)life;
+	pTemp->entity.frame = 0.0f;
+	pTemp->entity.body = 0;
+	pTemp->entity.scale = 1.0f;
+	pTemp->entity.rendercolor.r = 255;
+	pTemp->entity.rendercolor.g = 255;
+	pTemp->entity.rendercolor.b = 255;
+}
+
+/*
+===============
+R_Spray
+
+===============
+*/
+void R_Spray( vec_t* pos, vec_t* dir, int modelIndex, int count, int speed, int spread, int rendermode )
+{
+	TEMPENTITY* pTemp;
+	model_t* model;
+	int frameCount;
+	float noise;
+	float znoise;
+	int i;
+
+	noise = (float)spread / 100.0f;
+	znoise = min(noise * 1.5f, 1.0f);
+	model = cl.model_precache[modelIndex];
+	if (!model)
+	{
+		Con_Printf("No model %d!\n", modelIndex);
+		return;
+	}
+
+	frameCount = ModelFrameCount(model) - 1;
+	for (i = 0; i < count; i++)
+	{
+		pTemp = CL_TempEntAlloc(pos, model);
+		if (!pTemp)
+			return;
+
+		pTemp->entity.rendermode = rendermode;
+		pTemp->entity.renderamt = 255;
+		pTemp->entity.baseline.renderamt = 255;
+		pTemp->flags |= FTENT_COLLIDEWORLD | FTENT_SLOWGRAVITY;
+		pTemp->entity.renderfx = kRenderFxNoDissipation;
+		pTemp->entity.framerate = FloatToShort(1.0f);
+		if (frameCount < 2)
+		{
+			pTemp->die = cl.time + 0.35f;
+		}
+		else
+		{
+			pTemp->flags |= FTENT_SPRANIMATE;
+			pTemp->entity.framerate = FloatToShort(10.0f);
+			pTemp->die = cl.time + (float)frameCount * 0.1f;
+		}
+
+		pTemp->entity.baseline.origin[0] = dir[0] + RandomFloat(-noise, noise);
+		pTemp->entity.baseline.origin[1] = dir[1] + RandomFloat(-noise, noise);
+		pTemp->entity.baseline.origin[2] = dir[2] + RandomFloat(0.0f, znoise);
+		VectorScale(pTemp->entity.baseline.origin,
+			RandomFloat((float)speed * 0.8f, (float)speed * 1.2f), pTemp->entity.baseline.origin);
+		VectorCopy(pos, pTemp->entity.origin);
+		pTemp->entity.frame = 0.0f;
+		pTemp->frameMax = (float)frameCount;
+	}
+}
+
+/*
+===============
+R_PlayerSprites
+
+===============
+*/
+void R_PlayerSprites( int client, int modelIndex, int count, int size )
+{
+	TEMPENTITY* pTemp;
+	model_t* model;
+	int frameCount;
+	int i;
+	vec3_t position;
+	vec3_t direction;
+	float minScale;
+
+	minScale = 1.0f - (float)size / 100.0f;
+	if (client < 1 || client > cl.maxclients)
+	{
+		Con_Printf("Bad ent in R_PlayerSprites!\n");
+		return;
+	}
+
+	model = cl.model_precache[modelIndex];
+	if (!model)
+	{
+		Con_Printf("No model %d!\n", modelIndex);
+		return;
+	}
+
+	frameCount = ModelFrameCount(model) - 1;
+	for (i = 0; i < count; i++)
+	{
+		position[0] = cl_entities[client].origin[0] + RandomFloat(-10.0f, 10.0f);
+		position[1] = cl_entities[client].origin[1] + RandomFloat(-10.0f, 10.0f);
+		position[2] = cl_entities[client].origin[2] + RandomFloat(-20.0f, 36.0f);
+		pTemp = CL_TempEntAlloc(position, model);
+		if (!pTemp)
+			return;
+
+		VectorSubtract(pTemp->entity.origin, cl_entities[client].origin, pTemp->tentOffset);
+		if (i)
+		{
+			pTemp->flags |= FTENT_PLYRATTACHMENT;
+			pTemp->clientIndex = (short)client;
+		}
+		else
+		{
+			VectorSubtract(position, cl_entities[client].origin, direction);
+			VectorNormalize(direction);
+			VectorScale(direction, 60.0f, pTemp->entity.baseline.origin);
+			pTemp->entity.baseline.origin[2] = RandomFloat(20.0f, 60.0f);
+		}
+
+		pTemp->entity.rendermode = kRenderNormal;
+		pTemp->entity.renderamt = 255;
+		pTemp->entity.baseline.renderamt = 255;
+		pTemp->entity.renderfx = kRenderFxNoDissipation;
+		pTemp->entity.scale = RandomFloat(minScale, 1.0f);
+		if (frameCount < 2)
+		{
+			pTemp->die = cl.time + 0.35f;
+		}
+		else
+		{
+			pTemp->flags |= FTENT_SPRANIMATE;
+			pTemp->entity.framerate = FloatToShort(20.0f);
+			pTemp->die = cl.time + (float)frameCount * 0.05f;
+		}
+
+		pTemp->entity.frame = 0.0f;
+		pTemp->frameMax = (float)frameCount;
+	}
+}
+
+/*
+===============
+R_FireField
+
+===============
+*/
+void R_FireField( vec_t* origin, int radius, int modelIndex, int count, int flags, float life )
+{
+	TEMPENTITY* pTemp;
+	model_t* model;
+	int frameCount;
+	int i;
+	int j;
+	vec3_t position;
+	float tick;
+
+	model = cl.model_precache[modelIndex];
+	if (!model)
+	{
+		Con_Printf("No model %d!\n", modelIndex);
+		return;
+	}
+
+	frameCount = ModelFrameCount(model);
+	for (i = 0; i < count; i++)
+	{
+		for (j = 0; j < 3; j++)
+		{
+			if ((flags & TEFIRE_FLAG_PLANAR) && j == 2)
+				position[j] = origin[j];
+			else
+				position[j] = origin[j] + RandomFloat(-(float)radius, (float)radius);
+		}
+
+		pTemp = CL_TempEntAlloc(position, model);
+		if (!pTemp)
+			return;
+
+		if (flags & TEFIRE_FLAG_ALPHA)
+		{
+			pTemp->entity.rendermode = kRenderTransAlpha;
+			pTemp->entity.renderamt = 128;
+			pTemp->entity.baseline.renderamt = 128;
+			pTemp->entity.renderfx = kRenderFxNoDissipation;
+		}
+		else
+		{
+			pTemp->entity.rendermode = kRenderNormal;
+			pTemp->entity.renderamt = 255;
+			pTemp->entity.baseline.renderamt = 255;
+			pTemp->entity.renderfx = kRenderFxNoDissipation;
+		}
+
+		pTemp->entity.scale = RandomFloat(0.75f, 1.25f);
+		tick = life + RandomFloat(-0.25f, 0.5f);
+		pTemp->die = cl.time + tick;
+		if (frameCount - 1 > 1)
+		{
+			pTemp->flags |= FTENT_SPRANIMATE;
+			if (flags & TEFIRE_FLAG_LOOP)
+			{
+				pTemp->entity.framerate = FloatToShort(15.0f);
+				pTemp->flags |= FTENT_SPRANIMATELOOP;
+			}
+			else
+			{
+				pTemp->entity.framerate = FloatToShort((float)frameCount / tick);
+			}
+		}
+
+		pTemp->frameMax = (float)(frameCount - 1);
+		pTemp->entity.frame = 0.0f;
+		VectorClear(pTemp->entity.baseline.origin);
+		if ((flags & TEFIRE_FLAG_ALLFLOAT) ||
+			((flags & TEFIRE_FLAG_SOMEFLOAT) && !RandomLong(0, 1)))
+		{
+			pTemp->entity.baseline.origin[ROLL] = RandomFloat(10.0f, 30.0f);
+		}
+	}
+}
+
+/*
+===============
+R_AttachTentToPlayer
+
+===============
+*/
+void R_AttachTentToPlayer( int client, int modelIndex, float zoffset, float life )
+{
+	TEMPENTITY* pTemp;
+	model_t* model;
+	vec3_t position;
+
+	if (client < 0 || client > cl.maxclients)
+	{
+		Con_Printf("Bad client in AttachTentToPlayer()!\n");
+		return;
+	}
+
+	model = cl.model_precache[modelIndex];
+	if (!model)
+	{
+		Con_Printf("No model %d!\n", modelIndex);
+		return;
+	}
+
+	VectorCopy(cl_entities[client].origin, position);
+	position[ROLL] += zoffset;
+	pTemp = CL_TempEntAllocHigh(position, model);
+	if (!pTemp)
+	{
+		Con_Printf("No temp ent.\n");
+		return;
+	}
+
+	pTemp->entity.rendermode = kRenderNormal;
+	pTemp->entity.renderamt = 255;
+	pTemp->entity.baseline.renderamt = 255;
+	pTemp->entity.renderfx = kRenderFxNoDissipation;
+	pTemp->entity.scale = 1.0f;
+	pTemp->clientIndex = (short)client;
+	pTemp->tentOffset[0] = 0.0f;
+	pTemp->tentOffset[1] = 0.0f;
+	pTemp->tentOffset[2] = zoffset;
+	pTemp->die = cl.time + life;
+	pTemp->flags |= FTENT_PLYRATTACHMENT | FTENT_PERSIST;
+	if (pTemp->entity.model->type == mod_sprite)
+	{
+		pTemp->flags |= FTENT_SPRANIMATE | FTENT_SPRANIMATELOOP;
+		pTemp->entity.framerate = FloatToShort(10.0f);
+		pTemp->frameMax = (float)ModelFrameCount(model);
+	}
+	else
+	{
+		pTemp->frameMax = 0.0f;
+	}
+	pTemp->entity.frame = 0.0f;
+}
+
+/*
+===============
+R_MultiGunshot
+
+===============
+*/
+void R_MultiGunshot( vec_t* origin, vec_t* direction, vec_t* noise, int count, int decalCount, int* decalIndices )
+{
+	vec3_t shotDirection;
+	vec3_t end;
+	vec3_t spreadRight;
+	vec3_t spreadUp;
+	vec3_t right;
+	vec3_t up;
+	vec3_t angles;
+	pmtrace_t trace;
+	float x;
+	float y;
+	int i;
+	int j;
+	int decal;
+
+	VectorAngles(direction, angles);
+	AngleVectors(angles, NULL, right, up);
+	for (i = 0; i < count; i++)
+	{
+		do
+		{
+			x = RandomFloat(-0.5f, 0.5f) + RandomFloat(-0.5f, 0.5f);
+			y = RandomFloat(-0.5f, 0.5f) + RandomFloat(-0.5f, 0.5f);
+		} while (x * x + y * y > 1.0f);
+
+		decal = RandomLong(0, decalCount - 1);
+		VectorScale(right, x * noise[0], spreadRight);
+		VectorScale(up, y * noise[1], spreadUp);
+		for (j = 0; j < 3; j++)
+			shotDirection[j] = direction[j] + spreadRight[j] + spreadUp[j];
+		VectorScale(shotDirection, 4096.0f, end);
+		VectorAdd(end, origin, end);
+
+		pmove.usehull = 2;
+		trace = PM_PlayerMove(origin, end, PM_STUDIO_BOX);
+		if (trace.fraction == 1.0f)
+			continue;
+
+		if (i & 2)
+			R_RicochetSound(trace.endpos);
+		R_ParticleWallPuff(trace.endpos);
+		if (!r_decals.value)
+			continue;
+
+		R_DecalShoot(Draw_DecalIndex(decalIndices[decal]), pmove.physents[trace.ent].info, 0, trace.endpos, 0);
 	}
 }
 
@@ -426,7 +882,7 @@ void R_Sprite_Trail( int type, vec_t* start, vec_t* end, int modelIndex, int cou
 	VectorCopy(delta, dir);
 	VectorNormalize(dir);
 
-	amplitude /= 256.0;
+	amplitude /= 256.0f;
 
 	for (i = 0; i < count; i++)
 	{
@@ -437,7 +893,7 @@ void R_Sprite_Trail( int type, vec_t* start, vec_t* end, int modelIndex, int cou
 		}
 		else
 		{
-			float scale = (float)i / ((float)count - 1.0);
+			float scale = (float)i / ((float)count - 1.0f);
 			VectorMA(start, scale, delta, pos);
 		}
 
@@ -534,7 +990,7 @@ void R_TempSphereModel( float* pos, float speed, float life, int count, int mode
 	}
 }
 
-#define SHARD_VOLUME 12.0	// on shard ever n^3 units
+#define SHARD_VOLUME 12.0f	// on shard ever n^3 units
 
 /*
 ===============
@@ -571,9 +1027,9 @@ void R_BreakModel( float* pos, float* size, float* dir, float random, float life
 
 		// fill up the box with stuff
 		
-		vecSpot[0] = pos[0] + RandomFloat(-0.5, 0.5) * size[0];
-		vecSpot[1] = pos[1] + RandomFloat(-0.5, 0.5) * size[1];
-		vecSpot[2] = pos[2] + RandomFloat(-0.5, 0.5) * size[2];
+		vecSpot[0] = pos[0] + RandomFloat(-0.5f, 0.5f) * size[0];
+		vecSpot[1] = pos[1] + RandomFloat(-0.5f, 0.5f) * size[1];
+		vecSpot[2] = pos[2] + RandomFloat(-0.5f, 0.5f) * size[2];
 
 		pTemp = CL_TempEntAlloc(vecSpot, pModel);
 		if (!pTemp)
@@ -667,7 +1123,7 @@ TEMPENTITY* R_TempSprite( float* pos, float* dir, float scale, int modelIndex, i
 	if (life)
 		pTemp->die = cl.time + life;
 	else
-		pTemp->die = cl.time + (frameCount * 0.1) + 1;
+		pTemp->die = cl.time + (frameCount * 0.1f) + 1;
 
 	pTemp->entity.frame = 0;
 	return pTemp;
@@ -692,7 +1148,7 @@ void R_Sprite_Spray( vec_t* pos, vec_t* dir, int modelIndex, int count, int spee
 	noise = (float)iRand / 100;
 
 	// more vertical displacement
-	znoise = noise * 1.5;
+	znoise = noise * 1.5f;
 
 	if (znoise > 1)
 	{
@@ -718,19 +1174,19 @@ void R_Sprite_Spray( vec_t* pos, vec_t* dir, int modelIndex, int count, int spee
 		pTemp->entity.renderamt = 255;
 		pTemp->entity.baseline.renderamt = 255;
 		pTemp->entity.renderfx = kRenderFxNoDissipation;
-		pTemp->entity.scale = 0.5;
+		pTemp->entity.scale = 0.5f;
 		pTemp->flags |= FTENT_FADEOUT | FTENT_SLOWGRAVITY;
-		pTemp->fadeSpeed = 2.0;
+		pTemp->fadeSpeed = FloatToShort(2.0f);
 
 		// make the spittle fly the direction indicated, but mix in some noise.
 		pTemp->entity.baseline.origin[0] = dir[0] + RandomFloat(-noise, noise);
 		pTemp->entity.baseline.origin[1] = dir[1] + RandomFloat(-noise, noise);
 		pTemp->entity.baseline.origin[2] = dir[2] + RandomFloat(0, znoise);
-		VectorScale(pTemp->entity.baseline.origin, RandomFloat((speed * 0.8), (speed * 1.2)), pTemp->entity.baseline.origin);
+		VectorScale(pTemp->entity.baseline.origin, RandomFloat((speed * 0.8f), (speed * 1.2f)), pTemp->entity.baseline.origin);
 
 		VectorCopy(pos, pTemp->entity.origin);
 
-		pTemp->die = cl.time + 0.35;
+		pTemp->die = cl.time + 0.35f;
 
 		pTemp->entity.frame = RandomLong(0, frameCount);
 	}
@@ -739,7 +1195,7 @@ void R_Sprite_Spray( vec_t* pos, vec_t* dir, int modelIndex, int count, int spee
 void R_SparkEffect( float* pos, int count, int velocityMin, int velocityMax )
 {
 	R_SparkStreaks(pos, count, velocityMin, velocityMax);
-	R_RicochetSprite(pos, cl_sprite_ricochet, 0.1, RandomFloat(0.5, 1.0));
+	R_RicochetSprite(pos, cl_sprite_ricochet, 0.1f, RandomFloat(0.5f, 1.0f));
 }
 
 void R_FunnelSprite( float* org, int modelIndex, int reverse )
@@ -819,8 +1275,8 @@ void R_FunnelSprite( float* org, int modelIndex, int reverse )
 			vel += RandomFloat(64, 128);
 			VectorScale(dir, vel, pTemp->entity.baseline.origin);
 
-			pTemp->fadeSpeed = 2.0;
-			pTemp->die = cl.time + (flDist / vel) - 0.5;
+			pTemp->fadeSpeed = FloatToShort(2.0f);
+			pTemp->die = cl.time + (flDist / vel) - 0.5f;
 		}
 	}
 }
@@ -851,7 +1307,7 @@ void R_RicochetSprite( float* pos, model_t* pmodel, float duration, float scale 
 
 	VectorCopy(pos, pTemp->entity.origin);
 
-	pTemp->fadeSpeed = 8;
+	pTemp->fadeSpeed = FloatToShort(8.0f);
 	pTemp->die = cl.time;
 
 	pTemp->entity.frame = 0;
@@ -882,10 +1338,10 @@ void R_RocketFlare( float* pos )
 	pTemp->entity.rendermode = kRenderGlow;
 	pTemp->entity.renderfx = kRenderFxNoDissipation;
 	pTemp->entity.renderamt = 255;
-	pTemp->entity.scale = 1.0;
+	pTemp->entity.scale = 1.0f;
 	pTemp->entity.frame = RandomLong(0, frameCount - 1);
 	VectorCopy(pos, pTemp->entity.origin);
-	pTemp->die = cl.time + 0.01;
+	pTemp->die = cl.time + 0.01f;
 }
 
 /*
@@ -1020,7 +1476,7 @@ TEMPENTITY* R_DefaultSprite( float* pos, int spriteIndex, float framerate )
 	if (!pTemp)
 		return NULL;
 
-	pTemp->entity.scale = 1.0;
+	pTemp->entity.scale = 1.0f;
 	pTemp->frameMax = frameCount;
 	pTemp->flags |= FTENT_SPRANIMATE;
 	if (framerate == 0)
@@ -1068,26 +1524,30 @@ R_Sprite_Explode
 Create explosion sprite
 ===============
 */
-void R_Sprite_Explode( TEMPENTITY* pTemp, float scale )
+void R_Sprite_Explode( TEMPENTITY* pTemp, float scale, int flags )
 {
 	if (!pTemp)
 		return;
 
-	pTemp->entity.rendermode = kRenderTransAdd;
+	if (flags & TE_EXPLFLAG_NOADDITIVE)
+	{
+		// solid sprite
+		pTemp->entity.rendermode = kRenderNormal;
+		pTemp->entity.renderamt = 255;
+	}
+	else
+	{
+		pTemp->entity.rendermode = kRenderTransAdd;
+		pTemp->entity.renderamt = 180;
+	}
+
 	pTemp->entity.renderfx = kRenderFxNone;
+	pTemp->entity.baseline.origin[2] = 8.0f;
 	pTemp->entity.rendercolor.r = 0;
 	pTemp->entity.rendercolor.g = 0;
 	pTemp->entity.rendercolor.b = 0;
-	pTemp->entity.scale = scale;
 	pTemp->entity.origin[2] += 10;
-	pTemp->entity.renderamt = 180;
-
-	pTemp->entity.baseline.origin[2] = 8.0;
-
-	if (RandomLong(0, 1))
-	{
-		pTemp->entity.angles[ROLL] = 180.0;
-	}
+	pTemp->entity.scale = scale;
 }
 
 /*
@@ -1111,7 +1571,7 @@ void R_Sprite_WallPuff( TEMPENTITY* pTemp, float scale )
 	pTemp->entity.scale = scale;
 	pTemp->entity.frame = 0;
 	pTemp->entity.angles[ROLL] = RandomLong(0, 359);
-	pTemp->die = cl.time + 0.01;
+	pTemp->die = cl.time + 0.01f;
 }
 
 /*
@@ -1129,9 +1589,9 @@ void R_MuzzleFlash( float* pos1, int type )
 	int			frameCount;
 
 	index = (type % 10) % 3;
-	scale = (type / 10) * 0.1;
+	scale = (type / 10) * 0.1f;
 	if (scale == 0)
-		scale = 0.5;
+		scale = 0.5f;
 
 	frameCount = ModelFrameCount(cl_sprite_muzzleflash[index]);
 
@@ -1146,7 +1606,7 @@ void R_MuzzleFlash( float* pos1, int type )
 	pTemp->entity.rendercolor.g = 255;
 	pTemp->entity.rendercolor.b = 255;
 	VectorCopy(pos1, pTemp->entity.origin);
-	pTemp->die = cl.time + 0.01;
+	pTemp->die = cl.time + 0.01f;
 	pTemp->entity.frame = RandomLong(0, frameCount - 1);
 	pTemp->frameMax = frameCount;
 	VectorCopy(vec3_origin, pTemp->entity.angles);
@@ -1171,6 +1631,40 @@ void R_MuzzleFlash( float* pos1, int type )
 CL_ParseTEnt
 =================
 */
+void CL_ParseTextMessage( void )
+{
+	client_textmessage_t* pNetMessage;
+	int channel;
+
+	channel = MSG_ReadByte() % MAX_NETMESSAGE;
+	pNetMessage = &gNetworkTextMessage[channel];
+
+	pNetMessage->x = (float)MSG_ReadShort() / 8192.0f;
+	pNetMessage->y = (float)MSG_ReadShort() / 8192.0f;
+
+	pNetMessage->effect = MSG_ReadByte();
+	pNetMessage->r1 = MSG_ReadByte();
+	pNetMessage->g1 = MSG_ReadByte();
+	pNetMessage->b1 = MSG_ReadByte();
+	pNetMessage->a1 = MSG_ReadByte();
+	pNetMessage->r2 = MSG_ReadByte();
+	pNetMessage->g2 = MSG_ReadByte();
+	pNetMessage->b2 = MSG_ReadByte();
+	pNetMessage->a2 = MSG_ReadByte();
+
+	pNetMessage->fadein = (float)MSG_ReadWord() / 256.0f;
+	pNetMessage->fadeout = (float)MSG_ReadWord() / 256.0f;
+	pNetMessage->holdtime = (float)MSG_ReadWord() / 256.0f;
+
+	if (pNetMessage->effect == 2)
+		pNetMessage->fxtime = (float)MSG_ReadWord() / 256.0f;
+
+	pNetMessage->pName = gNetworkMessageNames[channel];
+	pNetMessage->pMessage = gNetworkTextMessageBuffer[channel];
+	strcpy((char*)pNetMessage->pMessage, MSG_ReadString());
+	CL_HudMessage(pNetMessage->pName);
+}
+
 void CL_ParseTEnt( void )
 {
 	char	c;
@@ -1200,6 +1694,10 @@ void CL_ParseTEnt( void )
 	type = MSG_ReadByte();
 	switch (type)
 	{
+	case TE_TEXTMESSAGE:
+		CL_ParseTextMessage();
+		break;
+
 	case TE_BEAMPOINTS:
 	case TE_BEAMENTPOINT:
 	case TE_BEAMENTS:
@@ -1271,19 +1769,19 @@ void CL_ParseTEnt( void )
 			switch (iRand % 5)
 			{
 			case 0:
-				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric1, pos, VOL_NORM, 1.0, 0, PITCH_NORM);
+				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric1, pos, VOL_NORM, 1.0f, 0, PITCH_NORM);
 				break;
 			case 1:
-				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric2, pos, VOL_NORM, 1.0, 0, PITCH_NORM);
+				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric2, pos, VOL_NORM, 1.0f, 0, PITCH_NORM);
 				break;
 			case 2:
-				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric3, pos, VOL_NORM, 1.0, 0, PITCH_NORM);
+				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric3, pos, VOL_NORM, 1.0f, 0, PITCH_NORM);
 				break;
 			case 3:
-				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric4, pos, VOL_NORM, 1.0, 0, PITCH_NORM);
+				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric4, pos, VOL_NORM, 1.0f, 0, PITCH_NORM);
 				break;
 			case 4:
-				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric5, pos, VOL_NORM, 1.0, 0, PITCH_NORM);
+				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric5, pos, VOL_NORM, 1.0f, 0, PITCH_NORM);
 				break;
 			}
 		}
@@ -1296,49 +1794,57 @@ void CL_ParseTEnt( void )
 
 		modelindex = MSG_ReadShort();
 
-		scale = MSG_ReadByte() * 0.1;
+		scale = MSG_ReadByte() * 0.1f;
 		frameRate = MSG_ReadByte();
+		flags = MSG_ReadByte();
 
 		if (scale != 0)
 		{
 			// sprite
-			R_Sprite_Explode(R_DefaultSprite(pos, modelindex, frameRate), scale);
+			R_Sprite_Explode(R_DefaultSprite(pos, modelindex, frameRate), scale, flags);
 
-			R_FlickerParticles(pos);
+			if (!(flags & TE_EXPLFLAG_NOPARTICLES))
+				R_FlickerParticles(pos);
 
-			// big flash
-			dl = CL_AllocDlight(0);
-			VectorCopy(pos, dl->origin);
-			dl->radius = 200;
-			dl->color.r = 250;
-			dl->color.g = 250;
-			dl->color.b = 150;
-			dl->die = cl.time + 0.01;
-			dl->decay = 800;
+			if (!(flags & TE_EXPLFLAG_NODLIGHTS))
+			{
+				// big flash
+				dl = CL_AllocDlight(0);
+				VectorCopy(pos, dl->origin);
+				dl->radius = 200;
+				dl->color.r = 250;
+				dl->color.g = 250;
+				dl->color.b = 150;
+				dl->die = cl.time + 0.01f;
+				dl->decay = 800;
 
 
-			// red glow
-			dl = CL_AllocDlight(0);
-			VectorCopy(pos, dl->origin);
-			dl->radius = 150;
-			dl->color.r = 255;
-			dl->color.g = 190;
-			dl->color.b = 40;
-			dl->die = cl.time + 1.0;
-			dl->decay = 200;
+				// red glow
+				dl = CL_AllocDlight(0);
+				VectorCopy(pos, dl->origin);
+				dl->radius = 150;
+				dl->color.r = 255;
+				dl->color.g = 190;
+				dl->color.b = 40;
+				dl->die = cl.time + 1.0f;
+				dl->decay = 200;
+			}
 		}
+
+		if (flags & TE_EXPLFLAG_NOSOUND)
+			break;
 
 		// sound
 		switch (RandomLong(0, 2))
 		{
 		case 0:
-			S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_r_exp1, pos, VOL_NORM, 0.3, 0, PITCH_NORM);
+				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_r_exp1, pos, VOL_NORM, 0.3f, 0, PITCH_NORM);
 			break;
 		case 1:
-			S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_r_exp2, pos, VOL_NORM, 0.3, 0, PITCH_NORM);
+				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_r_exp2, pos, VOL_NORM, 0.3f, 0, PITCH_NORM);
 			break;
 		case 2:
-			S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_r_exp3, pos, VOL_NORM, 0.3, 0, PITCH_NORM);
+				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_r_exp3, pos, VOL_NORM, 0.3f, 0, PITCH_NORM);
 			break;
 		}
 		break;
@@ -1348,7 +1854,7 @@ void CL_ParseTEnt( void )
 		pos[1] = MSG_ReadCoord();
 		pos[2] = MSG_ReadCoord();
 		R_BlobExplosion(pos);
-		S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_r_exp1, pos, VOL_NORM, 1.0, 0, PITCH_NORM);
+		S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_r_exp1, pos, VOL_NORM, 1.0f, 0, PITCH_NORM);
 		break;
 
 	case TE_SMOKE:		// alphablend sprite, move vertically 30 pps
@@ -1356,7 +1862,7 @@ void CL_ParseTEnt( void )
 		pos[1] = MSG_ReadCoord();
 		pos[2] = MSG_ReadCoord();
 		modelindex = MSG_ReadShort();
-		scale = MSG_ReadByte() * 0.1;
+		scale = MSG_ReadByte() * 0.1f;
 		frameRate = MSG_ReadByte();
 		R_Sprite_Smoke(R_DefaultSprite(pos, modelindex, frameRate), scale);
 		break;
@@ -1424,8 +1930,8 @@ void CL_ParseTEnt( void )
 		VectorCopy(pos, dl->origin);
 		dl->radius = 350;
 		dl->decay = 300;
-		dl->die = cl.time + 0.5;
-		S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_r_exp1, pos, 1.0, 0.6f, 0, 100);
+		dl->die = cl.time + 0.5f;
+		S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_r_exp1, pos, 1.0f, 0.6f, 0, 100);
 		break;
 
 	case TE_BSPDECAL:
@@ -1491,7 +1997,7 @@ void CL_ParseTEnt( void )
 		pos[2] = MSG_ReadCoord();
 		radius = MSG_ReadByte();
 		count = MSG_ReadByte();
-		life = MSG_ReadByte() / 10.0;
+		life = MSG_ReadByte() / 10.0f;
 		R_Implosion(pos, radius, count, life);
 		break;
 	}
@@ -1511,16 +2017,16 @@ void CL_ParseTEnt( void )
 		modelindex = MSG_ReadShort();
 		count = MSG_ReadByte();
 
-		life = MSG_ReadByte() * 0.1;
+		life = MSG_ReadByte() * 0.1f;
 
 		scale = MSG_ReadByte();
-		if (scale == 0.0)
-			scale = 1.0;
+		if (scale == 0.0f)
+			scale = 1.0f;
 		else
-			scale *= 0.1;
+			scale *= 0.1f;
 
-		amplitude = MSG_ReadByte() * 10.0;
-		flSpeed = MSG_ReadByte() * 10.0;
+		amplitude = MSG_ReadByte() * 10.0f;
+		flSpeed = MSG_ReadByte() * 10.0f;
 
 		R_Sprite_Trail(type, pos, endpos, modelindex, count, life, scale, amplitude, 255, flSpeed);
 		break;
@@ -1531,8 +2037,8 @@ void CL_ParseTEnt( void )
 		pos[1] = MSG_ReadCoord();
 		pos[2] = MSG_ReadCoord();
 		modelindex = MSG_ReadShort();
-		scale = MSG_ReadByte() * 0.1;
-		a = MSG_ReadByte() / 255.0;
+		scale = MSG_ReadByte() * 0.1f;
+		a = MSG_ReadByte() / 255.0f;
 		R_TempSprite(pos, vec3_origin, scale, modelindex, kRenderTransAdd, kRenderFxNone, a, 0, FTENT_SPRANIMATE);
 		break;
 
@@ -1559,7 +2065,7 @@ void CL_ParseTEnt( void )
 		beamInfo.g = 0.0f;
 		beamInfo.b = 0.0f;
 		R_BeamPoints(pos, endpos, &beamInfo);
-		R_TempSprite(endpos, vec3_origin, 0.1, modelindex2, kRenderTransAdd, kRenderFxNone, 0.35, 0.01, 0);
+		R_TempSprite(endpos, vec3_origin, 0.1f, modelindex2, kRenderTransAdd, kRenderFxNone, 0.35f, 0.01f, 0);
 		break;
 
 	case TE_BEAMTORUS:
@@ -1584,7 +2090,7 @@ void CL_ParseTEnt( void )
 		beamInfo.r = MSG_ReadByte() / 255.0f;
 		beamInfo.g = MSG_ReadByte() / 255.0f;
 		beamInfo.b = MSG_ReadByte() / 255.0f;
-		beamInfo.brightness = MSG_ReadByte() / 225.0f;
+		beamInfo.brightness = MSG_ReadByte() / 255.0f;
 
 		beamInfo.speed = MSG_ReadByte() * 0.1f;
 
@@ -1616,9 +2122,9 @@ void CL_ParseTEnt( void )
 		pos[2] = MSG_ReadCoord();
 
 		modelindex = MSG_ReadShort();
-		life = MSG_ReadByte() * 0.1;
-		scale = MSG_ReadByte() * 0.1;
-		a = MSG_ReadByte() / 255.0;
+		life = MSG_ReadByte() * 0.1f;
+		scale = MSG_ReadByte() * 0.1f;
+		a = MSG_ReadByte() / 255.0f;
 
 		R_TempSprite(pos, vec3_origin, scale, modelindex, kRenderGlow, kRenderFxNoDissipation, a, life, FTENT_FADEOUT);
 		break;
@@ -1669,12 +2175,12 @@ void CL_ParseTEnt( void )
 
 		dl = CL_AllocDlight(0);
 		VectorCopy(pos, dl->origin);
-		dl->radius = MSG_ReadByte() * 10.0;
+		dl->radius = MSG_ReadByte() * 10.0f;
 		dl->color.r = MSG_ReadByte();
 		dl->color.g = MSG_ReadByte();
 		dl->color.b = MSG_ReadByte();
-		dl->die = cl.time + MSG_ReadByte() * 0.1;
-		dl->decay = MSG_ReadByte() * 10.0;
+		dl->die = cl.time + MSG_ReadByte() * 0.1f;
+		dl->decay = MSG_ReadByte() * 10.0f;
 		break;
 
 	case TE_ELIGHT:
@@ -1690,7 +2196,7 @@ void CL_ParseTEnt( void )
 		dl->color.g = MSG_ReadByte();
 		dl->color.b = MSG_ReadByte();
 
-		life = MSG_ReadByte() * 0.1;
+		life = MSG_ReadByte() * 0.1f;
 		dl->die = cl.time + life;
 		flTime = MSG_ReadCoord();
 		if (life != 0)
@@ -1772,13 +2278,13 @@ void CL_ParseTEnt( void )
 		dir[1] = MSG_ReadCoord();
 		dir[2] = MSG_ReadCoord();
 
-		endpos[0] = 0.0;
+		endpos[0] = 0.0f;
 		endpos[1] = MSG_ReadAngle();
-		endpos[2] = 0.0;
+		endpos[2] = 0.0f;
 
 		modelindex = MSG_ReadShort();
 		soundtype = MSG_ReadByte();
-		life = MSG_ReadByte() * 0.1;
+		life = MSG_ReadByte() * 0.1f;
 
 		R_TempModel(pos, dir, endpos, life, modelindex, soundtype);
 		break;
@@ -1792,7 +2298,7 @@ void CL_ParseTEnt( void )
 
 		modelindex = MSG_ReadShort();
 		count = MSG_ReadShort();
-		life = MSG_ReadByte() * 0.1;
+		life = MSG_ReadByte() * 0.1f;
 
 		R_TempSphereModel(pos, flSpeed, life, count, modelindex);
 		break;
@@ -1813,10 +2319,10 @@ void CL_ParseTEnt( void )
 		dir[1] = MSG_ReadCoord();
 		dir[2] = MSG_ReadCoord();
 
-		frandom = MSG_ReadByte() * 10.0;
+		frandom = MSG_ReadByte() * 10.0f;
 		modelindex = MSG_ReadShort();
 		count = MSG_ReadByte();
-		life = MSG_ReadByte() * 0.1;
+		life = MSG_ReadByte() * 0.1f;
 		c = MSG_ReadByte();
 		R_BreakModel(pos, size, dir, frandom, life, count, modelindex, c);
 		break;
@@ -1841,19 +2347,19 @@ void CL_ParseTEnt( void )
 			switch (iRand % 5)
 			{
 			case 0:
-				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric1, pos, VOL_NORM, 1.0, 0, PITCH_NORM);
+				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric1, pos, VOL_NORM, 1.0f, 0, PITCH_NORM);
 				break;
 			case 1:
-				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric2, pos, VOL_NORM, 1.0, 0, PITCH_NORM);
+				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric2, pos, VOL_NORM, 1.0f, 0, PITCH_NORM);
 				break;
 			case 2:
-				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric3, pos, VOL_NORM, 1.0, 0, PITCH_NORM);
+				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric3, pos, VOL_NORM, 1.0f, 0, PITCH_NORM);
 				break;
 			case 3:
-				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric4, pos, VOL_NORM, 1.0, 0, PITCH_NORM);
+				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric4, pos, VOL_NORM, 1.0f, 0, PITCH_NORM);
 				break;
 			case 4:
-				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric5, pos, VOL_NORM, 1.0, 0, PITCH_NORM);
+				S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric5, pos, VOL_NORM, 1.0f, 0, PITCH_NORM);
 				break;
 			}
 		}
@@ -1886,25 +2392,25 @@ void CL_ParseTEnt( void )
 		pos[0] = MSG_ReadCoord();
 		pos[1] = MSG_ReadCoord();
 		pos[2] = MSG_ReadCoord();
-		scale = MSG_ReadByte() * 0.1;
-		R_RicochetSprite(pos, cl_sprite_ricochet, 0.1, scale);
+		scale = MSG_ReadByte() * 0.1f;
+		R_RicochetSprite(pos, cl_sprite_ricochet, 0.1f, scale);
 
 		switch (RandomLong(0, 4))
 		{
 		case 0:
-			S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric1, pos, VOL_NORM, 1.0, 0, PITCH_NORM);
+			S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric1, pos, VOL_NORM, 1.0f, 0, PITCH_NORM);
 			break;
 		case 1:
-			S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric2, pos, VOL_NORM, 1.0, 0, PITCH_NORM);
+			S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric2, pos, VOL_NORM, 1.0f, 0, PITCH_NORM);
 			break;
 		case 2:
-			S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric3, pos, VOL_NORM, 1.0, 0, PITCH_NORM);
+			S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric3, pos, VOL_NORM, 1.0f, 0, PITCH_NORM);
 			break;
 		case 3:
-			S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric4, pos, VOL_NORM, 1.0, 0, PITCH_NORM);
+			S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric4, pos, VOL_NORM, 1.0f, 0, PITCH_NORM);
 			break;
 		case 4:
-			S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric5, pos, VOL_NORM, 1.0, 0, PITCH_NORM);
+			S_StartDynamicSound(-1, CHAN_AUTO, cl_sfx_ric5, pos, VOL_NORM, 1.0f, 0, PITCH_NORM);
 			break;
 		}
 		break;
@@ -2025,6 +2531,100 @@ void CL_ParseTEnt( void )
 		color = MSG_ReadByte();
 		fsize = MSG_ReadByte();
 		R_BloodSprite(pos, color, modelindex, modelindex2, fsize);
+		break;
+	}
+
+	case TE_PROJECTILE:
+		pos[0] = MSG_ReadCoord();
+		pos[1] = MSG_ReadCoord();
+		pos[2] = MSG_ReadCoord();
+		dir[0] = MSG_ReadCoord();
+		dir[1] = MSG_ReadCoord();
+		dir[2] = MSG_ReadCoord();
+		modelindex = MSG_ReadShort();
+		life = (float)MSG_ReadByte();
+		entnumber = MSG_ReadByte();
+		R_Projectile(pos, dir, modelindex, (int)life, entnumber);
+		break;
+
+	case TE_SPRAY:
+		pos[0] = MSG_ReadCoord();
+		pos[1] = MSG_ReadCoord();
+		pos[2] = MSG_ReadCoord();
+		dir[0] = MSG_ReadCoord();
+		dir[1] = MSG_ReadCoord();
+		dir[2] = MSG_ReadCoord();
+		modelindex = MSG_ReadShort();
+		count = MSG_ReadByte();
+		speed = MSG_ReadByte();
+		iRand = MSG_ReadByte();
+		flags = MSG_ReadByte();
+		R_Spray(pos, dir, modelindex, count, speed, iRand, flags);
+		break;
+
+	case TE_PLAYERSPRITES:
+		entnumber = MSG_ReadShort();
+		modelindex = MSG_ReadShort();
+		count = MSG_ReadByte();
+		speed = MSG_ReadByte();
+		R_PlayerSprites(entnumber, modelindex, count, speed);
+		break;
+
+	case TE_FIREFIELD:
+		pos[0] = MSG_ReadCoord();
+		pos[1] = MSG_ReadCoord();
+		pos[2] = MSG_ReadCoord();
+		speed = MSG_ReadShort();
+		modelindex = MSG_ReadShort();
+		count = MSG_ReadByte();
+		flags = MSG_ReadByte();
+		life = (float)MSG_ReadByte() * 0.1f;
+		R_FireField(pos, speed, modelindex, count, flags, life);
+		break;
+
+	case TE_PLAYERATTACHMENT:
+		entnumber = MSG_ReadByte();
+		life = MSG_ReadCoord();
+		modelindex = MSG_ReadShort();
+		scale = (float)MSG_ReadShort() * 0.1f;
+		R_AttachTentToPlayer(entnumber, modelindex, life, scale);
+		break;
+
+	case TE_KILLPLAYERATTACHMENTS:
+	{
+		TEMPENTITY* pTemp;
+
+		entnumber = MSG_ReadByte();
+		if (entnumber < 0 || entnumber > cl.maxclients)
+		{
+			Sys_Error("Bad client in R_KillAttachedTents()!\n");
+			break;
+		}
+
+		for (pTemp = gpTempEntActive; pTemp; pTemp = CL_TempEntNext(pTemp))
+		{
+			if ((pTemp->flags & FTENT_PLYRATTACHMENT) && pTemp->clientIndex == entnumber)
+				pTemp->die = cl.time;
+		}
+		break;
+	}
+
+	case TE_MULTIGUNSHOT:
+	{
+		int decalIndex[1];
+
+		pos[0] = MSG_ReadCoord();
+		pos[1] = MSG_ReadCoord();
+		pos[2] = MSG_ReadCoord();
+		dir[0] = MSG_ReadCoord();
+		dir[1] = MSG_ReadCoord();
+		dir[2] = MSG_ReadCoord();
+		size[0] = MSG_ReadCoord() / 100.0f;
+		size[1] = MSG_ReadCoord() / 100.0f;
+		size[2] = 0.0f;
+		count = MSG_ReadByte();
+		decalIndex[0] = MSG_ReadByte();
+		R_MultiGunshot(pos, dir, size, count, 1, decalIndex);
 		break;
 	}
 
@@ -2158,9 +2758,9 @@ void CL_TempEntInit( void )
 
 	for (i = 0; i < MAX_TEMP_ENTITIES; i++)
 	{
-		gTempEnts[i].next = &gTempEnts[i + 1];
+		gTempEnts[i].next = (short)(i + 1);
 	}
-	gTempEnts[MAX_TEMP_ENTITIES - 1].next = NULL;
+	gTempEnts[MAX_TEMP_ENTITIES - 1].next = -1;
 	gpTempEntFree = gTempEnts;
 	gpTempEntActive = NULL;
 }
@@ -2172,6 +2772,22 @@ CL_TempEntAlloc
 Allocate temp entity
 =================
 */
+static void CL_TempEntAllocInit( TEMPENTITY* pTemp, model_t* model )
+{
+	memset(&pTemp->entity, 0, sizeof(pTemp->entity));
+
+	// Use these to set per-frame and termination conditions / actions
+	pTemp->flags = FTENT_NONE;
+	pTemp->die = cl.time + 0.75f;
+	pTemp->entity.model = model;
+	pTemp->entity.rendermode = kRenderNormal;
+	pTemp->entity.renderfx = kRenderFxNone;
+	pTemp->fadeSpeed = FloatToShort(0.5f);
+	pTemp->bounceFactor = FloatToShort(1.0f);
+	pTemp->hitSound = 0;
+	pTemp->clientIndex = -1;
+}
+
 TEMPENTITY* CL_TempEntAlloc( vec_t* org, model_t* model )
 {
 	TEMPENTITY* pTemp;
@@ -2183,23 +2799,54 @@ TEMPENTITY* CL_TempEntAlloc( vec_t* org, model_t* model )
 	}
 
 	pTemp = gpTempEntFree;
-	gpTempEntFree = pTemp->next;
+	gpTempEntFree = CL_TempEntNext(pTemp);
 
-	memset(&pTemp->entity, 0, sizeof(pTemp->entity));
-
-	// Use these to set per-frame and termination conditions / actions
-	pTemp->flags = FTENT_NONE;
-	pTemp->die = cl.time + 0.75;
-	pTemp->entity.model = model;
-	pTemp->entity.rendermode = kRenderNormal;
-	pTemp->entity.renderfx = kRenderFxNone;
-	pTemp->fadeSpeed = 0.5;
-	pTemp->hitSound = 0;
+	g_pTempEntAllocInit(pTemp, model);
 
 	VectorCopy(org, pTemp->entity.origin);
 
-	pTemp->next = gpTempEntActive;
+	pTemp->next = CL_TempEntIndex(gpTempEntActive);
 	gpTempEntActive = pTemp;
+
+	return pTemp;
+}
+
+/*
+=================
+CL_TempEntAllocHigh
+
+Allocate a high priority temp entity
+=================
+*/
+TEMPENTITY* CL_TempEntAllocHigh( vec_t* org, model_t* model )
+{
+	TEMPENTITY* pTemp;
+
+	if (!model)
+		return NULL;
+
+	if (!gpTempEntFree)
+	{
+		for (pTemp = gpTempEntActive; pTemp; pTemp = CL_TempEntNext(pTemp))
+		{
+			if (!(pTemp->flags & FTENT_HIGHPRIORITY))
+				break;
+		}
+
+		if (!pTemp)
+			return NULL;
+	}
+	else
+	{
+		pTemp = gpTempEntFree;
+		gpTempEntFree = CL_TempEntNext(pTemp);
+		pTemp->next = CL_TempEntIndex(gpTempEntActive);
+		gpTempEntActive = pTemp;
+	}
+
+	g_pTempEntAllocInit(pTemp, model);
+	pTemp->flags &= FTENT_HIGHPRIORITY;
+	VectorCopy(org, pTemp->entity.origin);
 
 	return pTemp;
 }
@@ -2320,11 +2967,11 @@ void CL_TempEntPlaySound( TEMPENTITY* pTemp, float damp )
 
 		if (fShell)
 		{
-			fvol *= min(1.0, ((float)zvel) / 350.0);
+			fvol *= min(1.0f, ((float)zvel) / 350.0f);
 		}
 		else
 		{
-			fvol *= min(1.0, ((float)zvel) / 450.0);
+			fvol *= min(1.0f, ((float)zvel) / 450.0f);
 		}
 
 		if (!RandomLong(0, 3) && !fShell)
@@ -2337,7 +2984,7 @@ void CL_TempEntPlaySound( TEMPENTITY* pTemp, float damp )
 		}
 
 		S_StartDynamicSound(-1, CHAN_AUTO, rgsfx[RandomLong(0, i - 1)], pTemp->entity.origin,
-			fvol, 1.0, 0, pitch);
+			fvol, 1.0f, 0, pitch);
 	}
 }
 
@@ -2392,7 +3039,7 @@ void CL_TempEntUpdate( void )
 	int			i;
 	TEMPENTITY* pTemp, * pnext, * pprev;
 	float		freq, gravity, gravitySlow, life, fastFreq;
-	double		frametime;
+	float		frametime;
 
 	// Nothing to simulate
 	if (!gpTempEntActive)
@@ -2402,6 +3049,9 @@ void CL_TempEntUpdate( void )
 	if (!cl.worldmodel)
 		return;
 
+	CL_SetUpPlayerPrediction(TRUE);
+	CL_SetSolidPlayers(-1);
+
 	// !!!BUGBUG	-- This needs to be time based
 	gTempEntFrame = (gTempEntFrame + 1) & 31;
 
@@ -2410,22 +3060,22 @@ void CL_TempEntUpdate( void )
 	pTemp = gpTempEntActive;
 
 	// !!! Don't simulate while paused....  This is sort of a hack, revisit.
-	if (frametime <= 0)
+	if (frametime == 0.0f)
 	{
 		while (pTemp)
 		{
 			CL_AddVisibleEntity(&pTemp->entity);
-			pTemp = pTemp->next;
+			pTemp = CL_TempEntNext(pTemp);
 		}
 
 		return;
 	}
 
 	pprev = NULL;
-	freq = cl.time * 0.01;
-	fastFreq = cl.time * 5.5;
+	freq = cl.time * 0.01f;
+	fastFreq = cl.time * 5.5f;
 	gravity = -frametime * sv_gravity.value;
-	gravitySlow = gravity * 0.5;
+	gravitySlow = gravity * 0.5f;
 
 	while (pTemp)
 	{
@@ -2434,7 +3084,7 @@ void CL_TempEntUpdate( void )
 		active = 1;
 
 		life = pTemp->die - cl.time;
-		pnext = pTemp->next;
+		pnext = CL_TempEntNext(pTemp);
 
 		if (life < 0)
 		{
@@ -2442,7 +3092,8 @@ void CL_TempEntUpdate( void )
 			{
 				if (pTemp->entity.rendermode == kRenderNormal)
 					pTemp->entity.rendermode = kRenderTransTexture;
-				pTemp->entity.renderamt = pTemp->entity.baseline.renderamt * (1 + life * pTemp->fadeSpeed);
+				pTemp->entity.renderamt = pTemp->entity.baseline.renderamt *
+					(1.0f + life * ShortToFloat(pTemp->fadeSpeed));
 				if (pTemp->entity.renderamt <= 0)
 					active = 0;
 
@@ -2452,12 +3103,12 @@ void CL_TempEntUpdate( void )
 		}
 		if (!active)		// Kill it
 		{
-			pTemp->next = gpTempEntFree;
+			pTemp->next = CL_TempEntIndex(gpTempEntFree);
 			gpTempEntFree = pTemp;
 			if (!pprev)	// Deleting at head of list
 				gpTempEntActive = pnext;
 			else
-				pprev->next = pnext;
+				pprev->next = CL_TempEntIndex(pnext);
 		}
 		else
 		{
@@ -2465,13 +3116,19 @@ void CL_TempEntUpdate( void )
 
 			VectorCopy(pTemp->entity.origin, pTemp->entity.prevorigin);
 
-			if (pTemp->flags & FTENT_SINEWAVE)
+			if (pTemp->flags & FTENT_PLYRATTACHMENT)
+			{
+				pTemp->entity.origin[0] = cl_entities[pTemp->clientIndex].origin[0] + pTemp->tentOffset[0];
+				pTemp->entity.origin[1] = cl_entities[pTemp->clientIndex].origin[1] + pTemp->tentOffset[1];
+				pTemp->entity.origin[2] = cl_entities[pTemp->clientIndex].origin[2] + pTemp->tentOffset[2];
+			}
+			else if (pTemp->flags & FTENT_SINEWAVE)
 			{
 				pTemp->x += pTemp->entity.baseline.origin[0] * frametime;
 				pTemp->y += pTemp->entity.baseline.origin[1] * frametime;
 
 				pTemp->entity.origin[0] = pTemp->x + sin(pTemp->entity.baseline.origin[2] + cl.time * pTemp->entity.prevframe) * (10 * pTemp->entity.scale);
-				pTemp->entity.origin[1] = pTemp->y + sin(pTemp->entity.baseline.origin[2] + fastFreq + 0.7) * (8 * pTemp->entity.scale);
+				pTemp->entity.origin[1] = pTemp->y + sin(pTemp->entity.baseline.origin[2] + fastFreq + 0.7f) * (8 * pTemp->entity.scale);
 				pTemp->entity.origin[2] += pTemp->entity.baseline.origin[2] * frametime;
 			}
 			else if (pTemp->flags & FTENT_SPIRAL)
@@ -2497,10 +3154,16 @@ void CL_TempEntUpdate( void )
 				{
 					pTemp->entity.frame = pTemp->entity.frame - (int)(pTemp->entity.frame);
 
-					// destroy it.
-					pTemp->die = cl.time;
-					pTemp = pnext;
-					continue;
+					if (pTemp->flags & FTENT_SPRANIMATELOOP)
+					{
+						pTemp->entity.frame = pTemp->entity.frame - (int)(pTemp->entity.frame);
+					}
+					else
+					{
+						pTemp->die = cl.time;
+						pTemp = pnext;
+						continue;
+					}
 				}
 			}
 			else if (pTemp->flags & FTENT_SPRCYCLE)
@@ -2525,27 +3188,37 @@ void CL_TempEntUpdate( void )
 				pTemp->entity.angles[2] += pTemp->entity.baseline.angles[2] * frametime;
 			}
 
-			if (pTemp->flags & FTENT_COLLIDEWORLD)
+			if (pTemp->flags & (FTENT_COLLIDEWORLD | FTENT_COLLIDEALL))
 			{
-				trace_t trace;
+				pmtrace_t trace;
 				memset(&trace, 0, sizeof(trace));
-				trace.fraction = 1.0;
+				trace.fraction = 1.0f;
 				trace.allsolid = TRUE;
-				SV_RecursiveHullTrace(cl.worldmodel->hulls, cl.worldmodel->hulls[0].firstclipnode, 0.0f, 1.0f,
-					pTemp->entity.prevorigin, pTemp->entity.origin, &trace);
+				if (pTemp->flags & FTENT_COLLIDEALL)
+				{
+					pmove.usehull = 2;
+					trace = PM_PlayerMove(pTemp->entity.prevorigin, pTemp->entity.origin, PM_STUDIO_BOX);
+					if (trace.fraction != 1.0f && trace.ent && pmove.physents[trace.ent].info == pTemp->clientIndex)
+						trace.fraction = 1.0f;
+				}
+				else
+				{
+					SV_RecursiveHullTrace(cl.worldmodel->hulls, cl.worldmodel->hulls[0].firstclipnode, 0.0f, 1.0f,
+						pTemp->entity.prevorigin, pTemp->entity.origin, (trace_t*)&trace);
+				}
 
-				if (trace.fraction != 1)	// Decent collision now, and damping works
+				if (trace.fraction != 1.0f)	// Decent collision now, and damping works
 				{
 					float damp, proj;
 
 					// Place at contact point
 					VectorMA(pTemp->entity.prevorigin, trace.fraction * frametime, pTemp->entity.baseline.origin, pTemp->entity.origin);
 					// Damp velocity
-					damp = 1.0;
+					damp = ShortToFloat(pTemp->bounceFactor);
 					if (pTemp->flags & (FTENT_GRAVITY | FTENT_SLOWGRAVITY))
 					{
-						damp = 0.5;
-						if (trace.plane.normal[2] > 0.9)		// Hit floor?
+						damp = 0.5f;
+						if (trace.plane.normal[2] > 0.9f)		// Hit floor?
 						{
 							if (pTemp->entity.baseline.origin[2] <= 0 && pTemp->entity.baseline.origin[2] >= gravity * 3)
 							{
@@ -2563,7 +3236,12 @@ void CL_TempEntUpdate( void )
 					}
 
 					// Reflect velocity
-					if (damp != 0)
+					if (pTemp->flags & FTENT_COLLIDEKILL)
+					{
+						pTemp->flags &= ~FTENT_FADEOUT;
+						pTemp->die = cl.time;
+					}
+					else if (damp != 0)
 					{
 						proj = DotProduct(pTemp->entity.baseline.origin, trace.plane.normal);
 						VectorMA(pTemp->entity.baseline.origin, -proj * 2, trace.plane.normal, pTemp->entity.baseline.origin);
@@ -2576,7 +3254,7 @@ void CL_TempEntUpdate( void )
 					{
 
 						VectorScale(pTemp->entity.baseline.origin, damp, pTemp->entity.baseline.origin);
-						VectorScale(pTemp->entity.angles, 0.9, pTemp->entity.angles);
+						VectorScale(pTemp->entity.angles, 0.9f, pTemp->entity.angles);
 					}
 				}
 			}
@@ -2590,7 +3268,7 @@ void CL_TempEntUpdate( void )
 				dl->color.g = 120;
 				dl->color.b = 0;
 				// die on next frame
-				dl->die = cl.time + 0.01;
+				dl->die = cl.time + 0.01f;
 			}
 
 			if (pTemp->flags & FTENT_SMOKETRAIL)
@@ -2604,7 +3282,7 @@ void CL_TempEntUpdate( void )
 				pTemp->entity.baseline.origin[2] += gravitySlow;
 
 			// Cull to PVS (not frustum cull, just PVS)
-			if (!CL_AddVisibleEntity(&pTemp->entity))
+			if (!CL_AddVisibleEntity(&pTemp->entity) && !(pTemp->flags & FTENT_PERSIST))
 			{
 				pTemp->die = cl.time; // If we can't draw it this frame, just dump it.
 				pTemp->flags &= ~FTENT_FADEOUT; // Don't fade out, just die
@@ -2625,21 +3303,21 @@ int CL_FxBlend( cl_entity_t* ent )
 	int blend = 0;
 	float offset;
 
-	offset = (int)ent * 363.0;
+	offset = (int)ent * 363.0f;
 
 	switch (ent->renderfx)
 	{
 	case kRenderFxPulseSlow:
-		blend = ent->renderamt + sin(cl.time * 2.0 + offset) * 16.0;
+		blend = ent->renderamt + sin(cl.time * 2.0f + offset) * 16.0f;
 		break;
 	case kRenderFxPulseFast:
-		blend = ent->renderamt + sin(cl.time * 8.0 + offset) * 16.0;
+		blend = ent->renderamt + sin(cl.time * 8.0f + offset) * 16.0f;
 		break;
 	case kRenderFxPulseSlowWide:
-		blend = ent->renderamt + sin(cl.time * 2.0 + offset) * 64.0;
+		blend = ent->renderamt + sin(cl.time * 2.0f + offset) * 64.0f;
 		break;
 	case kRenderFxPulseFastWide:
-		blend = ent->renderamt + sin(cl.time * 8.0 + offset) * 64.0;
+		blend = ent->renderamt + sin(cl.time * 8.0f + offset) * 64.0f;
 		break;
 	case kRenderFxFadeSlow:
 		if (ent->renderamt > 0)
@@ -2674,14 +3352,14 @@ int CL_FxBlend( cl_entity_t* ent )
 		blend = ent->renderamt;
 		break;
 	case kRenderFxStrobeSlow:
-		blend = sin(cl.time * 4.0 + offset) * 20.0;
+		blend = sin(cl.time * 4.0f + offset) * 20.0f;
 		if (blend < 0)
 			blend = 0;
 		else
 			blend = ent->renderamt;		
 		break;
 	case kRenderFxStrobeFast:
-		blend = sin(cl.time * 16.0 + offset) * 20.0;
+		blend = sin(cl.time * 16.0f + offset) * 20.0f;
 		if (blend < 0)
 			blend = 0;
 		else
@@ -2689,7 +3367,7 @@ int CL_FxBlend( cl_entity_t* ent )
 		break;
 
 	case kRenderFxStrobeFaster:
-		blend = sin(cl.time * 36.0 + offset) * 20.0;
+		blend = sin(cl.time * 36.0f + offset) * 20.0f;
 		if (blend < 0)
 			blend = 0;
 		else
@@ -2697,7 +3375,7 @@ int CL_FxBlend( cl_entity_t* ent )
 		break;
 
 	case kRenderFxFlickerSlow:
-		blend = sin(cl.time * 17.0 + offset) + sin(cl.time * 2.0) * 20.0;
+		blend = sin(cl.time * 17.0f + offset) + sin(cl.time * 2.0f) * 20.0f;
 		if (blend < 0)
 			blend = 0;
 		else
@@ -2705,7 +3383,7 @@ int CL_FxBlend( cl_entity_t* ent )
 		break;
 
 	case kRenderFxFlickerFast:
-		blend = sin(cl.time * 23.0 + offset) + sin(cl.time * 16.0) * 20.0;
+		blend = sin(cl.time * 23.0f + offset) + sin(cl.time * 16.0f) * 20.0f;
 		if (blend < 0)
 			blend = 0;
 		else
@@ -2720,15 +3398,15 @@ int CL_FxBlend( cl_entity_t* ent )
 
 			dist = DotProduct(vpn, tmp);
 			if (ent->renderfx == kRenderFxDistort)
-				dist = 1.0;
+				dist = 1.0f;
 
-			if (dist > 0.0)
+			if (dist > 0.0f)
 			{
 				ent->renderamt = 180;
 
 				if (dist > 100)
 				{
-					blend = RandomLong(-32, 31) + (1 - (dist - 100) * 0.0025) * 180;
+					blend = RandomLong(-32, 31) + (1 - (dist - 100) * 0.0025f) * 180;
 				}
 				else
 				{
@@ -2772,7 +3450,7 @@ void CL_FxTransform( cl_entity_t* ent, float* transform )
 				int axis = RandomLong(0, 1);
 				if (axis == 1) // Choose between x & z
 					axis = 2;
-				VectorScale(&transform[axis * 4], RandomFloat(1, 1.484), &transform[axis * 4]);
+				VectorScale(&transform[axis * 4], RandomFloat(1.0f, 1.484f), &transform[axis * 4]);
 			}
 			else if (RandomLong(0, 49) == 0)
 			{
@@ -2858,7 +3536,7 @@ void R_GetSpriteAxes( cl_entity_t* pEntity, int type, vec_t* forward, vec_t* rig
 			tvec[2] = -modelorg[2];
 			VectorNormalize(tvec);
 			dot = tvec[2];
-			if (dot > 0.999848 || dot < -0.999848)	// cos(1 degree) = 0.999848
+			if (dot > 0.999848f || dot < -0.999848f)	// cos(1 degree) = 0.999848
 				return;
 			up[0] = 0;
 			up[1] = 0;
@@ -2895,7 +3573,7 @@ void R_GetSpriteAxes( cl_entity_t* pEntity, int type, vec_t* forward, vec_t* rig
 			// vectors and starts to approach an undefined state, so we don't draw if
 			// the two vectors are less than 1 degree apart
 			dot = vpn[2];
-			if (dot > 0.999848 || dot < -0.999848)
+			if (dot > 0.999848f || dot < -0.999848f)
 				return;
 			up[0] = 0;
 			up[1] = 0;
@@ -2922,7 +3600,7 @@ void R_GetSpriteAxes( cl_entity_t* pEntity, int type, vec_t* forward, vec_t* rig
 			// generate the sprite's axes, parallel to the viewplane, but rotated in
 			// that plane around the center according to the sprite entity's roll
 			// angle. So vpn stays the same, but vright and vup rotate
-			angle = currententity->angles[ROLL] * (M_PI * 2 / 360.0);
+			angle = currententity->angles[ROLL] * ((float)M_PI * 2.0f / 360.0f);
 			sr = sin(angle);
 			cr = cos(angle);
 

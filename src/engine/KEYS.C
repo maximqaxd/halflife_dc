@@ -1,5 +1,9 @@
 #include "quakedef.h"
+#include "ui.h"
 #include "winquake.h"
+
+void GDROM_DoorReset( void );
+extern int joymenubuttons[];
 
 /*
 
@@ -18,6 +22,11 @@ int		edit_line = 0;
 int		history_line = 0;
 
 keydest_t	key_dest;
+keydest_t	key_capture_dest;	// what had the keyboard before it was captured
+int		giMenuKeys;			// pad buttons the keyboard has stood in for
+int		key_capture_keys[KEY_CAPTURE_QUEUE];
+int		key_capture_head;
+int		key_capture_tail;
 
 int		key_count;			// incremented every key event
 
@@ -136,12 +145,13 @@ qboolean CheckForCommand( void )
 	char* cmd, * s;
 	int i;
 
-	for (i = 0; i < sizeof(command) - 1; i++)
+	s = key_lines[edit_line] + 1;
+
+	for (i = 0; i < 127; i++)
 	{
-		s = key_lines[edit_line];
-		if (s[i + 1] <= ' ')
+		if (s[i] <= ' ')
 			break;
-		command[i] = s[i + 1];
+		command[i] = s[i];
 	}
 	command[i] = 0;
 
@@ -204,12 +214,13 @@ void Key_Console( int key )
 		{
 			Cbuf_AddText(key_lines[edit_line] + 2);
 		}
+		else if (CheckForCommand())
+		{
+			Cbuf_AddText(key_lines[edit_line] + 1);	// skip the >
+		}
 		else
 		{
-			if (!CheckForCommand() && cls.state >= ca_connected)
-			{
-				Cbuf_AddText("say ");
-			}
+			// not a command, and this build has nowhere to chat to
 			Cbuf_AddText(key_lines[edit_line] + 1);	// skip the >
 		}
 		Cbuf_AddText("\n");
@@ -355,11 +366,12 @@ void Key_Message( int key )
 {
 	if (key == K_ENTER)
 	{
-		Cbuf_AddText("say");
+		Cbuf_AddText(message_type);
 		Cbuf_AddText(" \"");
 		Cbuf_AddText(chat_buffer);
 		Cbuf_AddText("\"\n");
 
+		r_framecount = 0;
 		key_dest = key_game;
 		chat_bufferlen = 0;
 		chat_buffer[0] = 0;
@@ -369,6 +381,7 @@ void Key_Message( int key )
 
 	if (key == K_ESCAPE)
 	{
+		r_framecount = 0;
 		key_dest = key_game;
 		chat_bufferlen = 0;
 		chat_buffer[0] = 0;
@@ -393,6 +406,61 @@ void Key_Message( int key )
 
 	chat_buffer[chat_bufferlen++] = key;
 	chat_buffer[chat_bufferlen] = 0;
+}
+
+//============================================================================
+
+/*
+===================
+Key_SetCaptureMode
+
+Take the keyboard away from whatever had it and start collecting raw key
+presses for the caller, or give it back again.
+===================
+*/
+void Key_SetCaptureMode( int capture )
+{
+	if (capture)
+	{
+		if (key_dest != key_capture)
+		{
+			key_capture_dest = key_dest;
+			r_framecount = 0;
+			key_dest = key_capture;
+			key_capture_head = 0;
+			key_capture_tail = 0;
+		}
+	}
+	else
+	{
+		if (key_dest == key_capture)
+		{
+			r_framecount = 0;
+			key_dest = key_capture_dest;
+		}
+	}
+}
+
+/*
+===================
+Key_GetCapturedKey
+
+Next key press waiting in the capture queue, or 0 when nothing is there.
+===================
+*/
+int Key_GetCapturedKey( void )
+{
+	int		key;
+
+	if (key_capture_head == key_capture_tail)
+		return 0;
+
+	key = key_capture_keys[key_capture_head];
+
+	key_capture_head++;
+	key_capture_head %= KEY_CAPTURE_QUEUE;
+
+	return key;
 }
 
 //============================================================================
@@ -468,19 +536,88 @@ void Key_SetBinding( int keynum, char* binding )
 	if (keynum == -1)
 		return;
 
-// free old bindings
+// leave a key that already carries this command alone
 	if (keybindings[keynum])
 	{
+		if (!strcmp(keybindings[keynum], binding))
+			return;
+
 		Z_Free(keybindings[keynum]);
 		keybindings[keynum] = NULL;
 	}
-			
+
+
 // allocate memory for new binding
 	l = Q_strlen(binding);
 	new = Z_Malloc(l + 1);
 	Q_strcpy(new, binding);
 	new[l] = 0;
 	keybindings[keynum] = new;
+}
+
+/*
+===================
+M_EncodeStateFlags
+
+While a menu page is up the keyboard stands in for the controller: a key
+press is remembered as the pad button it doubles for, so the page never has
+to know which one the player actually used.
+===================
+*/
+void M_EncodeStateFlags( int key )
+{
+	if (key == K_ENTER || key == K_SPACE || key == K_MOUSE1)
+		giMenuKeys |= 0x01;
+
+	if (key == K_ESCAPE || key == K_BACKSPACE || key == K_MOUSE2)
+		giMenuKeys |= 0x02;
+
+	if (key == K_UPARROW || key == K_MWHEELUP)
+		giMenuKeys |= 0x80;
+
+	if (key == K_DOWNARROW || key == K_MWHEELDOWN)
+		giMenuKeys |= 0x40;
+
+	if (key == K_TAB || key == K_RIGHTARROW)
+		giMenuKeys |= 0x20;
+
+	if (key == K_LEFTARROW)
+		giMenuKeys |= 0x10;
+}
+
+/*
+===================
+M_DecodeStateFlags
+
+Hand the keys collected since the last frame to the menu as controller
+buttons, then start collecting again.
+===================
+*/
+void M_DecodeStateFlags( void )
+{
+	int		keys;
+
+	keys = giMenuKeys;
+
+	if (keys & 0x01)
+		joymenubuttons[0] = 1;
+
+	if (keys & 0x02)
+		joymenubuttons[1] = 1;
+
+	if (keys & 0x80)
+		joymenubuttons[7] = 1;
+
+	if (keys & 0x40)
+		joymenubuttons[6] = 1;
+
+	if (keys & 0x20)
+		joymenubuttons[5] = 1;
+
+	if (keys & 0x10)
+		joymenubuttons[4] = 1;
+
+	giMenuKeys = 0;
 }
 
 /*
@@ -505,6 +642,12 @@ void Key_Unbind_f( void )
 		return;
 	}
 
+	if (b == K_ESCAPE)
+	{
+		Con_Printf("Can't unbind ESCAPE key\n");
+		return;
+	}
+
 	Key_SetBinding(b, "");
 }
 
@@ -513,37 +656,21 @@ void Key_Unbindall_f( void )
 	int		i;
 
 	for (i = 0; i < 256; i++)
-		if (keybindings[i])
+		if (keybindings[i] && i != K_ESCAPE)
 			Key_SetBinding(i, "");
 }
 
 void Key_Escape_f( void )
 {
-	if (giSubState & 0x10)
+	if (key_ui == key_dest)
 	{
-		extern int giStateInfo;
-
-		Cbuf_AddText("disconnect\n");
-		giActive = DLL_PAUSED;
-		giStateInfo = 2;
-		giSubState = 1;
-		Cbuf_Execute();
+		UI_KeyEvent(K_ESCAPE);
 	}
-	else if (key_dest == key_game)
+	else if (r_framecount >= 15)
 	{
-		giActive = DLL_PAUSED;
-	}
-	else if (key_dest == key_console)
-	{
-		Con_ToggleConsole_f();
-	}
-	else if (key_dest == key_message)
-	{
-		Key_Message(K_ESCAPE);
-	}
-	else
-	{
-		Sys_Error("Bad key_dest");
+		// wait until the renderer has put a few frames up before the escape
+		// key is allowed to pull the main menu over them
+		Cbuf_AddText("menu main");
 	}
 }
 
@@ -608,14 +735,14 @@ Key_WriteBindings
 Writes lines containing "bind key value"
 ============
 */
-void Key_WriteBindings(FILE* f)
+void Key_WriteBindings( void* f )
 {
 	int		i;
 
 	for (i = 0; i < 256; i++)
 		if (keybindings[i])
 			if (*keybindings[i])
-				fprintf(f, "bind \"%s\" \"%s\"\n", Key_KeynumToString(i), keybindings[i]);
+				Sys_FPrintf((int)f, "bind \"%s\" \"%s\"\n", Key_KeynumToString(i), keybindings[i]);
 }
 
 /*
@@ -668,9 +795,12 @@ void Key_Init( void )
 	consolekeys[K_BACKSPACE] = TRUE;
 	consolekeys[K_PGUP] = TRUE;
 	consolekeys[K_PGDN] = TRUE;
+	consolekeys[K_HOME] = TRUE;
+	consolekeys[K_END] = TRUE;
 	consolekeys[K_SHIFT] = TRUE;
-	consolekeys[K_MWHEELUP] = TRUE;
-	consolekeys[K_MWHEELDOWN] = TRUE;
+	consolekeys[K_ALT] = TRUE;
+	consolekeys[K_SPACE] = TRUE;
+	consolekeys[K_CTRL] = TRUE;
 	consolekeys['`'] = FALSE;
 	consolekeys['~'] = FALSE;
 
@@ -725,6 +855,7 @@ void Key_Event( int key, qboolean down )
 {
 	char* kb;
 	char	cmd[1024];
+	int		next;
 
 	Host_UpdateScreenSaver(FALSE);
 
@@ -732,7 +863,12 @@ void Key_Event( int key, qboolean down )
 
 	if (keydown[K_CTRL] && keydown[K_ALT] && keydown[K_DEL])
 	{
-		Sys_Error("ctrl-alt-del pressed");
+		// the three finger salute drops back to the title screen, or resets
+		// the drive once the title screen itself has been up for a moment
+		if (cls.state == ca_active)
+			Cbuf_AddText("disconnect\nmenu splash");
+		else if (r_framecount >= 15)
+			GDROM_DoorReset();
 	}
 
 	if (!down)
@@ -808,33 +944,48 @@ void Key_Event( int key, qboolean down )
 			}
 			else
 			{
-				Cbuf_AddText(keybindings[key]);
+				Cbuf_AddText(kb);
 				Cbuf_AddText("\n");
 			}
 		}
-		return;
 	}
-
-	if (!down)
-		return;		// other systems only care about key down events
-
-	if (shift_down)
+	else
 	{
-		key = keyshift[key];
-	}
+		if (!down)
+			return;		// other systems only care about key down events
 
-	switch (key_dest)
-	{
-	case key_message:
-		Key_Message(key);
-		break;
+		if (shift_down)
+		{
+			key = keyshift[key];
+		}
 
-	case key_game:
-	case key_console:
-		Key_Console(key);
-		break;
-	default:
-		Sys_Error("Bad key_dest");
+		switch (key_dest)
+		{
+		case key_message:
+			Key_Message(key);
+			break;
+
+		case key_game:
+		case key_console:
+			Key_Console(key);
+			break;
+
+		case key_ui:
+			M_EncodeStateFlags(key);
+			break;
+
+		case key_capture:
+			next = (key_capture_tail + 1) % KEY_CAPTURE_QUEUE;
+			if (next != key_capture_head)
+			{
+				key_capture_keys[key_capture_tail] = key;
+				key_capture_tail = next;
+			}
+			break;
+
+		default:
+			Sys_Error("Bad key_dest");
+		}
 	}
 }
 

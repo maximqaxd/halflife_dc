@@ -29,7 +29,7 @@ int					gHasMMXTechnology;
 
 int giActive    = DLL_INACTIVE;
 int giStateInfo = 1;
-short giSubState = 0;
+int giSubState = 0;
 extern cvar_t sys_ticrate;
 // -----------------------------------------------------------------------------
 

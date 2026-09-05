@@ -6,17 +6,28 @@
 #endif
 
 // Server cache to replace slist command.
-#define MAX_LOCAL_SERVERS 8
+#define MAX_LOCAL_SERVERS 16
 
 typedef struct
 {
 	char		name[80];
 	char		desc[256];
+	char		gamedir[256];
 	char		map[16];
-	char		info[32];
-
 	int			inuse;
-	int			maxplayers;			// Maximum of possible players that can connect to this server
+	int			maxplayers;
+	char		type;
+	char		os;
+	char		password;
+	char		pad;
+	short		mod;
+	char		info_url[256];
+	char		download_url[256];
+	int			version;
+	int			size;
+	char		info[32];
+	short		secure;
+	short		dll;
 	netadr_t	adr;
 } server_cache_t;
 

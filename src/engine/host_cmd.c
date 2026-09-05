@@ -535,6 +535,67 @@ void Host_Fly_f( void )
 
 /*
 ==================
+The cheat page of the debug menu keeps its toggles where the menu can reach
+them; these hand the engine the address of each one as the page is built.
+==================
+*/
+void Host_BindCheatFly( int* pValue )
+{
+	gpCheatFly = pValue;
+}
+
+void Host_BindCheatNoclip( int* pValue )
+{
+	gpCheatNoclip = pValue;
+}
+
+void Host_BindCheatNotarget( int* pValue )
+{
+	gpCheatNotarget = pValue;
+}
+
+void Host_BindCheatGod( int* pValue )
+{
+	gpCheatGod = pValue;
+}
+
+void Host_BindCheatSlomo( int* pValue )
+{
+	gpCheatSlomo = pValue;
+}
+
+void Host_BindCheatAmmo( int* pValue )
+{
+	gpCheatAmmo = pValue;
+}
+
+void Host_BindCheatWeapons( int* pValue )
+{
+	gpCheatWeapons = pValue;
+}
+
+void Host_BindCheatEverything( int* pValue )
+{
+	gpCheatEverything = pValue;
+}
+
+void Host_BindCheatHealth( int* pValue )
+{
+	gpCheatHealth = pValue;
+}
+
+void Host_BindCheatGravity( int* pValue )
+{
+	gpCheatGravity = pValue;
+}
+
+void Host_BindCheatAllies( int* pValue )
+{
+	gpCheatAllies = pValue;
+}
+
+/*
+==================
 Host_ValidGame
 
 Keep the cheat page of the debug menu in step with the game: whenever a toggle
@@ -1158,6 +1219,7 @@ void Host_Reload_f( void )
 	S_StopAllSounds(TRUE);
 	S_ClearBuffer(TRUE);
 
+	Host_ClearSaveDirectory();
 	Host_ClearGameState();
 	SV_InactivateClients();
 
@@ -1168,9 +1230,25 @@ void Host_Reload_f( void )
 	if (pSaveName && Host_Load(pSaveName))
 		return;
 
+	CL_StartProgressBar();
+	SCR_BeginLoadingPlaque();
+
+	// Make room for the new level
+	Cache_FlushToDisk();
+	Cache_FreeAll();
+	Bshrink_all();
+	CompactAllHeaps();
+
 	SV_SpawnServer(FALSE, gHostMap.string, NULL);
 	SV_LoadEntities();
 	SV_ActivateServer(TRUE);
+
+	// And drop everything the old level left behind
+	Cache_FreeStale();
+	Cache_FlushToDisk();
+	Cache_FreeAll();
+	Cache_FlushUnlocked();
+	GL_UnloadTextures();
 }
 
 /*
@@ -1631,6 +1709,10 @@ BOOL SaveGameSlot( const char* pSaveName, const char* pSaveComment, int fake )
 	return TRUE;
 }
 
+// The save commands fire once, when the player asks for them, so there is no
+// reason to expand the validity check into every one of them.
+#pragma inline_depth( 0 )
+
 /*
 ==================
 Host_Savegame_f
@@ -1688,6 +1770,8 @@ void Host_AutoSave_f( void )
 	Host_SavegameComment(szComment);
 	SaveGameSlot("autosave", szComment, 0);
 }
+
+#pragma inline_depth()
 
 DLL_EXPORT BOOL SaveGame( char* pszSlot, char* pszComment )
 {
@@ -2351,6 +2435,9 @@ void ParseSaveTables( SAVERESTOREDATA* pSaveData, SAVE_HEADER* pHeader, int upda
 		pSaveData->pTable[i].pent = NULL;
 	}
 
+	// The entity table is padded out to a long boundary when it is written, so
+	// step over that before the header and the sections behind it are read
+	pSaveData->pCurrentData = (char *)(((unsigned int)pSaveData->pCurrentData + 3) & ~3);
 	pSaveData->pBaseData = pSaveData->pCurrentData;
 	pSaveData->size = 0;
 
@@ -3573,7 +3660,7 @@ void Host_Kick_f( void )
 			if (cls.state == ca_dedicated)
 				who = "Console";
 			else
-				who = cl_name.string;
+				who = name.string;
 		}
 		else
 			who = save->name;
@@ -4313,7 +4400,7 @@ Cmd_notify_f
 */
 void Cmd_notify_f( void )
 {
-	UI_OpenMenu("notify");
+	UI_Activate();
 }
 
 /*

@@ -2206,6 +2206,10 @@ int Cache_TotalUsed( void )
 	return g_mnemo.cache_bytes;
 }
 
+void Cache_Report( void )
+{
+}
+
 /*
 ==============
 Cache_Check

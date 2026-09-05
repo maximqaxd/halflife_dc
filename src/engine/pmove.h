@@ -2,7 +2,7 @@
 #if !defined( PMOVE_H )
 #define PMOVE_H
 
-#define PLAYER_DUCKING_MULTIPLIER 0.333
+#define PLAYER_DUCKING_MULTIPLIER 0.333f
 
 #define PM_NORMAL			0x00000000
 #define PM_STUDIO_IGNORE	0x00000001		// Skip studio models
@@ -57,7 +57,7 @@ typedef struct
 {
 	int			player_index;	// So we don't try to run the PM_CheckStuck nudging too quickly.
 	qboolean	server;			// For debugging, are we running physics code on server side?
-	int			field_08;		// binary-confirmed 4-byte gap before origin; identity not yet known.
+	float			time;
 
 	vec3_t		origin;			// Movement origin.
 	vec3_t		angles;			// Movement view angles.

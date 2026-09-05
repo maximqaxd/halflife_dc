@@ -7,6 +7,9 @@
 #define MAX_JOY_BUTTONS		22
 #define MAX_JOY_POVS		11
 
+// Pad buttons the front end tracks, which runs past the pad's own buttons
+#define MAX_MENU_BUTTONS	64
+
 // A usage slot that no object claimed
 #define JOY_USAGE_NONE		255
 
@@ -133,6 +136,16 @@ void		IN_ShutdownMouse( maplemouse_t *pMouse );
 
 void		IN_UpdateMapleDevices( void );
 void		IN_ReadMouse( void );
+qboolean	IN_KeyboardActive( void );
+qboolean	IN_JoystickActive( void );
+
+extern int		joykeys[10];
+
+// Which pad buttons the front end should treat as pressed this frame.
+// 0 A, 1 B, 3 Start, 4-7 d-pad left/right/down/up, 8 X, 9 Y,
+// 12-15 stick left/right/down/up.
+extern int		joymenubuttons[MAX_MENU_BUTTONS];
+
 
 #ifdef __cplusplus
 }

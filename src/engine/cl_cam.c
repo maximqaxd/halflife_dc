@@ -8,7 +8,12 @@
 
 #include "quakedef.h"
 #include "winquake.h"
+#include <shintr.h>
 #include "pmove.h"
+
+#pragma intrinsic(sqrtf)
+
+extern float atan2s( float y, float x );
 
 #define	PM_SPECTATORMAXSPEED	500
 #define	PM_STOPSPEED	100
@@ -30,7 +35,7 @@ cvar_t cl_hightrack = { "cl_hightrack", "0" };
 
 qboolean cam_forceview;
 vec3_t cam_viewangles;
-double cam_lastviewtime;
+float cam_lastviewtime;
 
 int spec_track = 0; // player# of who we are tracking
 int autocam = CAM_NONE;
@@ -42,34 +47,34 @@ static void vectoangles( vec_t* vec, vec_t* ang )
 	float	forward;
 	float	yaw, pitch;
 
-	if (vec[1] == 0 && vec[0] == 0)
+	if (vec[1] == 0.0f && vec[0] == 0.0f)
 	{
-		yaw = 0;
-		if (vec[2] > 0)
-			pitch = 90;
+		yaw = 0.0f;
+		if (vec[2] > 0.0f)
+			pitch = 90.0f;
 		else
-			pitch = 270;		
+			pitch = 270.0f;
 	}
 	else
 	{
-		yaw = (int)(atan2(vec[1], vec[0]) * 180 / M_PI);
-		if (yaw < 0)
-			yaw += 360;
+		yaw = (int)(atan2s(vec[1], vec[0]) * 180.0f / (float)M_PI);
+		if (yaw < 0.0f)
+			yaw += 360.0f;
 
-		forward = sqrt(vec[0] * vec[0] + vec[1] * vec[1]);
-		pitch = (int)(atan2(vec[2], forward) * 180 / M_PI);
-		if (pitch < 0)
-			pitch += 360;
+		forward = sqrtf(vec[0] * vec[0] + vec[1] * vec[1]);
+		pitch = (int)(atan2s(vec[2], forward) * 180.0f / (float)M_PI);
+		if (pitch < 0.0f)
+			pitch += 360.0f;
 	}
 
 	ang[0] = pitch;
 	ang[1] = yaw;
-	ang[2] = 0;
+	ang[2] = 0.0f;
 }
 
 static float vlen( vec_t* v )
 {
-	return sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+	return sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 }
 
 void Cam_Unlock( void )
@@ -116,9 +121,9 @@ static float Cam_TryFlyby( player_state_t* self, player_state_t* player, vec_t* 
 	float len, scale;
 
 	if (autocam == CAM_FIRSTPERSON)
-		scale = 32;
+		scale = 32.0f;
 	else
-		scale = 800;
+		scale = 800.0f;
 
 	vectoangles(vec, v);
 //	v[0] = -v[0];
@@ -132,17 +137,17 @@ static float Cam_TryFlyby( player_state_t* self, player_state_t* player, vec_t* 
 		return 9999;
 	VectorCopy(trace.endpos, vec);
 	VectorSubtract(trace.endpos, player->origin, v);
-	len = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-	if (len < 8 || len > scale)
-		return 9999;
+	len = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+	if (len < 8.0f || len > scale)
+		return 9999.0f;
 	if (checkvis)
 	{
 		VectorSubtract(trace.endpos, self->origin, v);
-		len = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+		len = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 
 		trace = Cam_DoTrace(self->origin, vec);
 		if (trace.fraction != 1 || trace.inwater)
-			return 9999;
+			return 9999.0f;
 	}
 	return len;
 }
@@ -160,7 +165,7 @@ static qboolean Cam_IsVisible( player_state_t* player, vec_t* vec )
 	// check distance, don't let the player get too far away or too close
 	VectorSubtract(player->origin, vec, v);
 	d = vlen(v);
-	if (d < 8)
+	if (d < 8.0f)
 		return FALSE;
 	return TRUE;
 }
@@ -297,14 +302,12 @@ static void Cam_CheckHighTarget( void )
 
 void Cam_GetPredictedTopDownOrigin( vec_t* v )
 {
-	float height;
-	vec3_t vec;
+	vec3_t vec, origin, target;
 
-	height = vec3_origin[2] + 800;
-
-	vec[0] = 0;
-	vec[1] = 0;
-	vec[2] = vec3_origin[2] - height;
+	VectorCopy(vec3_origin, origin);
+	VectorCopy(vec3_origin, target);
+	target[2] += 800.0f;
+	VectorSubtract(origin, target, vec);
 	vectoangles(vec, v);
 	v[0] = -v[0];
 }
@@ -320,17 +323,17 @@ void Cam_GetTopDownOrigin( vec_t* source, vec_t* dest )
 	// v is endpos
 	// fake a player move
 	trace = Cam_DoTrace(source, v);
-	if (trace.fraction < 1.0)
-		trace.endpos[2] -= 1;
+	if (trace.fraction < 1.0f)
+		trace.endpos[2] -= 1.0f;
 
 	VectorSubtract(trace.endpos, source, v);
-	VectorScale(v, 0.5, v);
+	VectorScale(v, 0.5f, v);
 	VectorAdd(source, v, dest);
-	len = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-	if (len < 32)
+	len = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+	if (len < 32.0f)
 	{
 		VectorCopy(source, dest);
-		dest[2] += 32;
+		dest[2] += 32.0f;
 	}
 }
 
@@ -353,6 +356,7 @@ void Cam_GetPredictedFirstPersonOrigin( vec_t* v )
 	if (ft == 0 || prevframe->receivedtime == -1 || frame->receivedtime == -1)
 	{
 		// can't interpolate
+		VectorCopy(state->viewangles, v);
 		VectorCopy(state->viewangles, v);
 		return;
 	}
@@ -390,7 +394,7 @@ void Cam_GetPredictedFirstPersonOrigin( vec_t* v )
 	VectorCopy(newAngles, v);
 }
 
-void Cam_TrackFirstPerson( void )
+void Cam_TrackFirstPerson( usercmd_t* cmd )
 {
 	player_state_t* player, * self;
 	frame_t* frame;
@@ -423,7 +427,7 @@ void Cam_TrackFirstPerson( void )
 	MSG_WriteCoord(&cls.netchan.message, desired_position[2]);
 }
 
-void Cam_TrackTopDown( void )
+void Cam_TrackTopDown( usercmd_t* cmd )
 {
 	player_state_t* player, * self;
 	frame_t* frame;
@@ -474,13 +478,13 @@ void Cam_Track( usercmd_t* cmd )
 
 	if (autocam == CAM_FIRSTPERSON)
 	{
-		Cam_TrackFirstPerson();
+		Cam_TrackFirstPerson(cmd);
 		return;
 	}
 
 	if (autocam == CAM_TOPDOWN)
 	{
-		Cam_TrackTopDown();
+		Cam_TrackTopDown(cmd);
 		return;
 	}
 
@@ -506,7 +510,7 @@ void Cam_Track( usercmd_t* cmd )
 
 	if (!locked || !Cam_IsVisible(player, desired_position))
 	{
-		if (!locked || realtime - cam_lastviewtime > 0.1)
+		if (!locked || realtime - cam_lastviewtime > 0.1f)
 		{
 			if (!InitFlyby(self, player, TRUE))
 				InitFlyby(self, player, FALSE);

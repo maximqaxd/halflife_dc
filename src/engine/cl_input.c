@@ -34,10 +34,13 @@ kbutton_t	in_left, in_right, in_forward, in_back;
 kbutton_t	in_lookup, in_lookdown, in_moveleft, in_moveright;
 kbutton_t	in_strafe, in_speed, in_use, in_jump, in_attack, in_attack2;
 kbutton_t	in_up, in_down;
-kbutton_t	in_duck, in_reload;
+kbutton_t	in_duck, in_reload, in_alt1, in_alt2;
 
 int			in_impulse;
 int			in_cancel;
+
+int			joy_forwarddir;
+int			joy_sidedir;
 
 /*
 ============
@@ -63,10 +66,7 @@ void KeyDown( kbutton_t* b )
 	else if (!b->down[1])
 		b->down[1] = k;
 	else
-	{
-		Con_DPrintf("Three keys down for a button '%c' '%c' '%c'!\n", b->down[0], b->down[1], c);
 		return;
-	}
 
 	if (b->state & 1)
 		return;		// still down
@@ -114,6 +114,8 @@ void KeyUp( kbutton_t* b )
 
 void IN_KLookDown( void ) { KeyDown(&in_klook); }
 void IN_KLookUp( void ) { KeyUp(&in_klook); }
+void IN_JLookButtonDown( void ) { KeyDown(&in_jlook); }
+void IN_JLookButtonUp( void ) { KeyUp(&in_jlook); }
 void IN_MLookDown( void ) { KeyDown(&in_mlook); }
 void IN_MLookUp( void )
 {
@@ -167,6 +169,26 @@ void IN_Cancel( void )
 void IN_Impulse( void ) { in_impulse = Q_atoi(Cmd_Argv(1)); }
 void IN_ReloadDown( void ) { KeyDown(&in_reload); }
 void IN_ReloadUp( void ) { KeyUp(&in_reload); }
+void IN_Alt1ButtonDown( void ) { KeyDown(&in_alt1); }
+void IN_Alt1ButtonUp( void ) { KeyUp(&in_alt1); }
+void IN_Alt2ButtonDown( void ) { KeyDown(&in_alt2); }
+void IN_Alt2ButtonUp( void ) { KeyUp(&in_alt2); }
+
+void IN_ToggleSpeed( void )
+{
+	if (in_speed.state & 1)
+		KeyUp(&in_speed);
+	else
+		KeyDown(&in_speed);
+}
+
+void IN_ToggleDuck( void )
+{
+	if (in_duck.state & 1)
+		KeyUp(&in_duck);
+	else
+		KeyDown(&in_duck);
+}
 
 /*
 ===============
@@ -180,30 +202,39 @@ Returns 0.25 if a key was pressed and released during the frame,
 */
 float CL_KeyState( kbutton_t* key )
 {
-	float		val;
-	int			impulsedown, impulseup, down;
+	register float	val;
+	short		impulsedown, impulseup, down;
 
 	impulsedown = key->state & 2;
 	impulseup = key->state & 4;
 	down = key->state & 1;
-	val = 0;
+	val = 0.0f;
 
 	if (impulsedown && !impulseup)
 	{
 		// pressed and held this frame?
-		val = down ? 0.5 : 0.0;
+		if (down)
+			val = 0.5f;
+		else
+			val = 0.0f;
 	}
 
 	if (impulseup && !impulsedown)
 	{
 		// released this frame?
-		val = down ? 0.0 : 0.0;
+		if (down)
+			val = 0.0f;
+		else
+			val = 0.0f;
 	}
 
 	if (!impulsedown && !impulseup)
 	{
 		// held the entire frame?
-		val = down ? 1.0 : 0.0;
+		if (down)
+			val = 1.0f;
+		else
+			val = 0.0f;
 	}
 
 	if (impulsedown && impulseup)
@@ -211,12 +242,12 @@ float CL_KeyState( kbutton_t* key )
 		if (down)
 		{
 			// released and re-pressed this frame
-			val = 0.75;
+			val = 0.75f;
 		}
 		else
 		{
 			// pressed and released this frame
-			val = 0.25;
+			val = 0.25f;
 		}
 	}
 
@@ -338,10 +369,10 @@ void CL_BaseMove( usercmd_t* cmd )
 	}
 
 	// clip to maxspeed
-	if (cl.maxspeed != 0.0)
+	if (cl.maxspeed)
 	{
 		// scale the 3 speeds so that the total velocity is not > cl.maxspeed
-		float fmov = sqrt((cmd->forwardmove * cmd->forwardmove) + (cmd->sidemove * cmd->sidemove) + (cmd->upmove * cmd->upmove));
+		float fmov = sqrtf((cmd->forwardmove * cmd->forwardmove) + (cmd->sidemove * cmd->sidemove) + (cmd->upmove * cmd->upmove));
 
 		if (fmov > cl.maxspeed)
 		{
@@ -363,7 +394,7 @@ Returns appropriate button info for keyboard and mouse state
 Set bResetState to 1 to clear old state info
 ============
 */
-int CL_ButtonBits( int bResetState )
+int CL_ButtonBits( short bResetState )
 {
 	int bits = 0;
 
@@ -390,6 +421,22 @@ int CL_ButtonBits( int bResetState )
 	if (in_back.state & 3)
 	{
 		bits |= IN_BACK;
+	}
+	if (joy_forwarddir > 0)
+	{
+		bits |= IN_FORWARD;
+	}
+	if (joy_forwarddir < 0)
+	{
+		bits |= IN_BACK;
+	}
+	if (joy_sidedir < 0)
+	{
+		bits |= IN_MOVELEFT;
+	}
+	if (joy_sidedir > 0)
+	{
+		bits |= IN_MOVERIGHT;
 	}
 
 	if (in_use.state & 3)
@@ -432,6 +479,16 @@ int CL_ButtonBits( int bResetState )
 		bits |= IN_RELOAD;
 	}
 
+	if (in_alt1.state & 3)
+	{
+		bits |= IN_ALT1;
+	}
+
+	if (in_alt2.state & 3)
+	{
+		bits |= IN_ALT2;
+	}
+
 	if (bResetState)
 	{
 		in_attack.state &= ~2;
@@ -446,6 +503,8 @@ int CL_ButtonBits( int bResetState )
 		in_moveright.state &= ~2;
 		in_attack2.state &= ~2;
 		in_reload.state &= ~2;
+		in_alt1.state &= ~2;
+		in_alt2.state &= ~2;
 	}
 
 	return bits;
@@ -508,6 +567,7 @@ void CL_InitInput( void )
 	Cmd_AddCommand("-moveright", IN_MoverightUp);
 	Cmd_AddCommand("+speed", IN_SpeedDown);
 	Cmd_AddCommand("-speed", IN_SpeedUp);
+	Cmd_AddCommand("tspeed", IN_ToggleSpeed);
 	Cmd_AddCommand("+attack", IN_AttackDown);
 	Cmd_AddCommand("-attack", IN_AttackUp);
 	Cmd_AddCommand("+attack2", IN_Attack2Down);
@@ -521,24 +581,31 @@ void CL_InitInput( void )
 	Cmd_AddCommand("-klook", IN_KLookUp);
 	Cmd_AddCommand("+mlook", IN_MLookDown);
 	Cmd_AddCommand("-mlook", IN_MLookUp);
+	Cmd_AddCommand("+jlook", IN_JLookButtonDown);
+	Cmd_AddCommand("-jlook", IN_JLookButtonUp);
 	Cmd_AddCommand("+duck", IN_DuckDown);
 	Cmd_AddCommand("-duck", IN_DuckUp);
+	Cmd_AddCommand("tduck", IN_ToggleDuck);
 	Cmd_AddCommand("+reload", IN_ReloadDown);
 	Cmd_AddCommand("-reload", IN_ReloadUp);
+	Cmd_AddCommand("+alt1", IN_Alt1ButtonDown);
+	Cmd_AddCommand("-alt1", IN_Alt1ButtonUp);
+	Cmd_AddCommand("+alt2", IN_Alt2ButtonDown);
+	Cmd_AddCommand("-alt2", IN_Alt2ButtonUp);
 
 	CAM_Init();
 }
 
-#define CAM_DIST_DELTA 1.0
-#define CAM_ANGLE_DELTA 2.5
-#define CAM_ANGLE_SPEED 2.5
-#define CAM_MIN_DIST 30.0
-#define CAM_ANGLE_MOVE .5
-#define MAX_ANGLE_DIFF 10.0
-#define PITCH_MAX 90.0
+#define CAM_DIST_DELTA 1.0f
+#define CAM_ANGLE_DELTA 2.5f
+#define CAM_ANGLE_SPEED 2.5f
+#define CAM_MIN_DIST 30.0f
+#define CAM_ANGLE_MOVE 0.5f
+#define MAX_ANGLE_DIFF 10.0f
+#define PITCH_MAX 90.0f
 #define PITCH_MIN 0
-#define YAW_MAX  135.0
-#define YAW_MIN	 -135.0
+#define YAW_MAX  135.0f
+#define YAW_MIN	 -135.0f
 
 enum ECAM_Command
 {
@@ -586,25 +653,25 @@ float MoveToward( float cur, float goal, float maxspeed )
 {
 	if (cur != goal)
 	{
-		if (fabs(cur - goal) > 180.0)
+		if (fabsf(cur - goal) > 180.0f)
 		{
 			if (cur < goal)
-				cur += 360.0;
+				cur += 360.0f;
 			else
-				cur -= 360.0;
+				cur -= 360.0f;
 		}
 
 		if (cur < goal)
 		{
-			if (cur < goal - 1.0)
-				cur += (goal - cur) / 4.0;
+			if (cur < goal - 1.0f)
+				cur += (goal - cur) / 4.0f;
 			else
 				cur = goal;
 		}
 		else
 		{
-			if (cur > goal + 1.0)
-				cur -= (cur - goal) / 4.0;
+			if (cur > goal + 1.0f)
+				cur -= (cur - goal) / 4.0f;
 			else
 				cur = goal;
 		}
@@ -613,9 +680,9 @@ float MoveToward( float cur, float goal, float maxspeed )
 
 	// bring cur back into range
 	if (cur < 0)
-		cur += 360.0;
-	else if (cur >= 360)
-		cur -= 360;
+		cur += 360.0f;
+	else if (cur >= 360.0f)
+		cur -= 360.0f;
 
 	return cur;
 }
@@ -814,7 +881,7 @@ void CAM_Think( void )
 		// check line from r_refdef.vieworg to pnt
 		memset(&clip, 0, sizeof(moveclip_t));
 		clip.trace = SV_ClipMoveToEntity(sv.edicts, r_refdef.vieworg, ext, ext, pnt);
-		if (clip.trace.fraction == 1.0)
+		if (clip.trace.fraction == 1.0f)
 		{
 			// update ideal
 			cam_idealpitch.value = camAngles[PITCH];
@@ -847,10 +914,10 @@ void CAM_Think( void )
 		if (camAngles[PITCH] - cl.viewangles[PITCH] != cam_idealpitch.value)
 			camAngles[PITCH] = MoveToward(camAngles[PITCH], cam_idealpitch.value + cl.viewangles[PITCH], CAM_ANGLE_SPEED);
 
-		if (abs(camAngles[2] - cam_idealdist.value) < 2.0)
+		if (abs(camAngles[2] - cam_idealdist.value) < 2.0f)
 			camAngles[2] = cam_idealdist.value;
 		else
-			camAngles[2] += (cam_idealdist.value - camAngles[2]) / 4.0;
+			camAngles[2] += (cam_idealdist.value - camAngles[2]) / 4.0f;
 	}
 	if (cam_contain.value)
 	{
@@ -867,7 +934,7 @@ void CAM_Think( void )
 		memset(&clip, 0, sizeof(clip));
 		ext[0] = ext[1] = ext[2] = 0.0;
 		clip.trace = SV_ClipMoveToEntity(sv.edicts, r_refdef.vieworg, ext, ext, pnt);
-		if (clip.trace.fraction != 1.0)
+		if (clip.trace.fraction != 1.0f)
 			return;
 	}
 	cam_ofs[0] = camAngles[0];
@@ -928,7 +995,6 @@ void CAM_Init( void )
 	Cmd_AddCommand("-camin", CAM_InUp);
 	Cmd_AddCommand("+camout", CAM_OutDown);
 	Cmd_AddCommand("-camout", CAM_OutUp);
-	Cmd_AddCommand("thirdperson", CAM_ToThirdPerson);
 	Cmd_AddCommand("firstperson", CAM_ToFirstPerson);
 	Cmd_AddCommand("+cammousemove", CAM_StartMouseMove);
 	Cmd_AddCommand("-cammousemove", CAM_EndMouseMove);
