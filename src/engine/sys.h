@@ -18,10 +18,8 @@ int Sys_FileOpenWrite( char* path );
 void Sys_FileClose( int hFile );
 void Sys_FileSeek( int hFile, int position );
 int Sys_FileRead( int hFile, void* dest, int count );
-int Sys_FileWrite( int handle, void* data, int count );
 int	Sys_FileTime( char* path );
 void Sys_mkdir( char* path );
-int Sys_FileTell( int i );
 
 //
 // Dreamcast / WinCE asynchronous file helpers.
@@ -41,7 +39,6 @@ void Sys_Error( char* error, ... );
 void Sys_ErrorColor( int wColor, char* fmt, ... );
 // like Sys_Error, but paints the fatal screen in the given color
 
-void Sys_Printf( char* fmt, ... );
 // send text to the console
 
 void Sys_Quit( void );
@@ -90,6 +87,7 @@ void Sys_SetTaskName( char* pszName );
 
 // Lock the drive door so a save can span discs
 void GDROM_ConfigureDoorBehavior( void );
+void GDROM_DoorReset( void );
 
 typedef long LONG;
 
@@ -106,7 +104,7 @@ extern qboolean gfBackground;
 
 extern int giActive;
 extern int giStateInfo;
-extern int giSubState;
+extern short giSubState;
 
 extern void	(VID_Update)( struct vrect_s* rects );
 extern void	(VID_Shutdown)( void );

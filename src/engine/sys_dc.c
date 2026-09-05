@@ -29,7 +29,7 @@ int					gHasMMXTechnology;
 
 int giActive    = DLL_INACTIVE;
 int giStateInfo = 1;
-int giSubState = 0;
+short giSubState = 0;
 extern cvar_t sys_ticrate;
 // -----------------------------------------------------------------------------
 
@@ -41,8 +41,6 @@ static DWORD g_dwSmallestPolygon           = 0;
 
 
 qboolean GameInit( void );
-qboolean Sys_InitDisplayAndWindow( void );
-void     GDROM_ConfigureDoorBehavior( void );
 void     Sys_InitFloatTime( void );
 
 // -----------------------------------------------------------------------------
@@ -78,6 +76,15 @@ extern int  Btell( void *hFile );
 extern int  Beof( void *hFile );
 
 
+// On-screen open/close counters ("%d opened %d closed", profilemeter overlay).
+void DC_PrintFileCounts( void )
+{
+	char szText[68];
+
+	sprintf(szText, "%d opened %d closed", g_filesOpened, g_filesClosed);
+	DCV_MeterText(0x8000ff00, 0, (g_filesOpened - g_filesClosed) + 1, szText);
+}
+
 void Sys_RegisterFileHandle( const char *path, int hFile );
 unsigned int DC_fwrite( void *buffer, unsigned int size, unsigned int count, void *hFile );
 
@@ -91,15 +98,6 @@ static BYTE  g_gdOpenFlag;
 static int  g_fprintfFile;
 static char g_fprintfBuffer[0x400 + 4];
 static int  g_fprintfLen;
-
-// On-screen open/close counters ("%d opened %d closed", profilemeter overlay).
-void DC_PrintFileCounts( void )
-{
-	char szText[68];
-
-	sprintf(szText, "%d opened %d closed", g_filesOpened, g_filesClosed);
-	DCV_MeterText(0x8000ff00, 0, (g_filesOpened - g_filesClosed) + 1, szText);
-}
 
 void Host_ExecConfig( void )
 {
@@ -312,8 +310,6 @@ int DC_ftell( void *hFile )
 	return SetFilePointer(hFile, 0, NULL, FILE_CURRENT);
 }
 
-// Shadow an open HANDLE with a second read handle for async I/O: find a free
-// slot (nId == -1) and open a duplicate of path into it.
 // GD-aware feof of an open handle.
 int DC_feof( void *hFile )
 {
@@ -323,6 +319,15 @@ int DC_feof( void *hFile )
 	return DC_fsize(hFile) <= (DWORD)DC_ftell(hFile);
 }
 
+// Reports an engine entry point this port never brought up.
+int Sys_Unimplemented( char *pszFunction )
+{
+	Sys_Error("Function not yet implemented: %s - see sys.h and sys_null.c", pszFunction);
+	return 0;
+}
+
+// Shadow an open HANDLE with a second read handle for async I/O: find a free
+// slot (nId == -1) and open a duplicate of path into it.
 void Sys_RegisterFileHandle( const char *path, int hFile )
 {
 	HANDLE hDup;
@@ -346,6 +351,64 @@ void Sys_RegisterFileHandle( const char *path, int hFile )
 			}
 		}
 	}
+}
+
+qboolean Sys_AsyncBusy( int id, LPOVERLAPPED pov )
+{
+	dc_syncslot_t *slot = NULL;
+	DWORD          bytes = 0;
+	int            i;
+
+	for (i = 0; i < MAX_ASYNC; i++)
+	{
+		if (g_AsyncHandles[i].nId == id)
+		{
+			slot = &g_AsyncHandles[i];
+			break;
+		}
+	}
+
+	if (slot == NULL)
+		Sys_Error("Sys_AsyncBusy on unregistered sync handle\n");
+
+	if (pov == NULL)
+		pov = &slot->ov;
+
+	return GetOverlappedResult(slot->pFile, pov, &bytes, FALSE) == 0;
+}
+
+int Sys_FileReadAsync( void *hFile, void *buffer, int count, struct _OVERLAPPED *pov )
+{
+	dc_syncslot_t *slot = NULL;
+	DWORD          bytes = 0;
+	DWORD          pos;
+	void          *hRealFile;
+	int            i;
+
+	pos = SetFilePointer(hFile, 0, NULL, FILE_CURRENT);
+
+	for (i = 0; i < MAX_ASYNC; i++)
+	{
+		if ((void *)g_AsyncHandles[i].nId == hFile)
+		{
+			slot = &g_AsyncHandles[i];
+			break;
+		}
+	}
+
+	if (slot == NULL)
+		Sys_Error("Sys_FileReadAsync on unregistered sync handle\n");
+
+	hRealFile = slot->pFile;
+	if (pov == NULL)
+		pov = &slot->ov;
+
+	GetOverlappedResult(hRealFile, pov, &bytes, TRUE);
+	pov->hEvent     = NULL;
+	pov->Offset     = pos;
+	pov->OffsetHigh = 0;
+	ReadFile(hRealFile, buffer, count, &bytes, pov);
+	return count;
 }
 
 // Opens path for reading (GD-ROM or CreateFileW),
@@ -393,13 +456,6 @@ int Sys_FileOpenRead( char *path, int *pHandle, int bRegisterAsync )
 		size = GetFileSize(hFile, NULL);
 
 	return size;
-}
-
-int Sys_FileOpenWrite( char *path )
-{
-	(void)path;
-	Sys_Error("File write not supported on Dreamcast");
-	return -1;
 }
 
 void Sys_FileClose( int hFile )
@@ -486,75 +542,13 @@ int Sys_FileTime( char *path )
 	return ftime;
 }
 
-void Sys_mkdir( char *path )
-{
-}
-
 // -----------------------------------------------------------------------------
 // ASYNC HELPERS (Sys_AsyncBusy / Sys_FileReadAsync)
 // -----------------------------------------------------------------------------
 
-qboolean Sys_AsyncBusy( int id, LPOVERLAPPED pov )
+void Sys_mkdir( char *path )
 {
-	dc_syncslot_t *slot = NULL;
-	DWORD          bytes = 0;
-	int            i;
-
-	for (i = 0; i < MAX_ASYNC; i++)
-	{
-		if (g_AsyncHandles[i].nId == id)
-		{
-			slot = &g_AsyncHandles[i];
-			break;
-		}
-	}
-
-	if (slot == NULL)
-		Sys_Error("Sys_AsyncBusy on unregistered sync handle\n");
-
-	if (pov == NULL)
-		pov = &slot->ov;
-
-	return GetOverlappedResult(slot->pFile, pov, &bytes, FALSE) == 0;
 }
-
-int Sys_FileReadAsync( void *hFile, void *buffer, int count, struct _OVERLAPPED *pov )
-{
-	dc_syncslot_t *slot = NULL;
-	DWORD          bytes = 0;
-	DWORD          pos;
-	void          *hRealFile;
-	int            i;
-
-	pos = SetFilePointer(hFile, 0, NULL, FILE_CURRENT);
-
-	for (i = 0; i < MAX_ASYNC; i++)
-	{
-		if ((void *)g_AsyncHandles[i].nId == hFile)
-		{
-			slot = &g_AsyncHandles[i];
-			break;
-		}
-	}
-
-	if (slot == NULL)
-		Sys_Error("Sys_FileReadAsync on unregistered sync handle\n");
-
-	hRealFile = slot->pFile;
-	if (pov == NULL)
-		pov = &slot->ov;
-
-	GetOverlappedResult(hRealFile, pov, &bytes, TRUE);
-	pov->hEvent     = NULL;
-	pov->Offset     = pos;
-	pov->OffsetHigh = 0;
-	ReadFile(hRealFile, buffer, count, &bytes, pov);
-	return count;
-}
-
-// -----------------------------------------------------------------------------
-// MEMORY PROTECTION
-// -----------------------------------------------------------------------------
 
 void Sys_MakeCodeWriteable( unsigned long startaddr, unsigned long length )
 {
@@ -562,7 +556,7 @@ void Sys_MakeCodeWriteable( unsigned long startaddr, unsigned long length )
 }
 
 // -----------------------------------------------------------------------------
-// ERROR/PRINT/QUIT
+// MEMORY PROTECTION
 // -----------------------------------------------------------------------------
 
 // Fatal error with a caller-chosen RGB565 background bar.  C89 varargs can't
@@ -588,6 +582,10 @@ void Sys_ErrorColor( int wColor, char *error, ... )
 	{
 	}
 }
+
+// -----------------------------------------------------------------------------
+// ERROR/PRINT/QUIT
+// -----------------------------------------------------------------------------
 
 void Sys_Error( char *error, ... )
 {
@@ -620,19 +618,6 @@ void Sys_WinError( void )
 	("%s", text);
 }
 
-void Sys_Warning( char *fmt, ... )
-{
-	va_list argptr;
-	char    text[1024];
-
-	va_start(argptr, fmt);
-	vsprintf(text, fmt, argptr);
-	va_end(argptr);
-
-	Con_Printf("WARNING: %s\n", text);
-	giActive = DLL_PAUSED;
-}
-
 void Sys_Quit( void )
 {
 	Sys_Error("Sys_Quit");
@@ -646,20 +631,6 @@ static float  g_pfreq       = 0.0f;
 static float  g_curtime     = 0.0f;
 static float  g_lastcurtime = 0.0f;
 static int    g_lowshift    = 0;
-
-DLL_EXPORT float Sys_FloatTime( void )
-{
-	static DWORD s_base = 0;
-	DWORD        base = s_base;
-
-	if (base == 0)
-	{
-		s_base = GetTickCount();
-		return 0.0f;
-	}
-
-	return (GetTickCount() - base) * 0.001f;
-}
 
 void Sys_InitFloatTime( void )
 {
@@ -714,8 +685,29 @@ void Sys_Init( void )
 	}
 }
 
-void Sys_ShutdownFloatTime( void )
+DLL_EXPORT float Sys_FloatTime( void )
 {
+	static DWORD s_base = 0;
+	DWORD        base = s_base;
+
+	if (base == 0)
+	{
+		s_base = GetTickCount();
+		return 0.0f;
+	}
+
+	return (GetTickCount() - base) * 0.001f;
+}
+
+void Sys_SendKeyEvents( void )
+{
+}
+
+int Sys_FileOpenWrite( char *path )
+{
+	(void)path;
+	Sys_Error("File write not supported on Dreamcast");
+	return -1;
 }
 
 // -----------------------------------------------------------------------------
@@ -732,63 +724,6 @@ void Sys_ShutdownFloatTime( void )
 // -----------------------------------------------------------------------------
 
 extern void Sys_RegisterExport( char *pName, unsigned int function );	// cbase.cpp
-
-void Sys_RegisterExportA( char *pName, unsigned int function )
-{
-	Sys_RegisterExport(pName, function);
-}
-
-void Sys_RegisterExportB( char *pName, unsigned int function )
-{
-	Sys_RegisterExport(pName, function);
-}
-
-void Sys_RegisterExportC( char *pName, unsigned int function )
-{
-	Sys_RegisterExport(pName, function);
-}
-
-void Sys_RegisterExportD( char *pName, unsigned int function )
-{
-	Sys_RegisterExport(pName, function);
-}
-
-void Sys_RegisterExportE( char *pName, unsigned int function )
-{
-	Sys_RegisterExport(pName, function);
-}
-
-void LoadThisDll( char *szDllFilename )
-{
-}
-
-extern void Sys_NotifyState( int iState );
-
-// Activate the engine and queue a console command from the system shell.
-void Sys_ExecCmd( int iState, char *fmt, ... )
-{
-	va_list argptr;
-	char    text[1024];
-
-	Sys_NotifyState(1);
-
-	if (fmt && *fmt)
-	{
-		va_start(argptr, fmt);
-		vsprintf(text, fmt, argptr);
-		va_end(argptr);
-
-		strcat(text, "\n");
-		if (giActive != DLL_CLOSE)
-			Cbuf_AddText(text);
-	}
-}
-
-// Returns entity initialization functions, generated by LINK_ENTITY_TO_CLASS
-ENTITYINIT GetEntityInit( char *pClassName )
-{
-	return (ENTITYINIT)GetDispatch(pClassName);
-}
 
 int COM_CompareFileTime( int *ft1, int *ft2 )
 {
@@ -808,8 +743,12 @@ int COM_CompareFileTime( int *ft1, int *ft2 )
 void GameSetSubState( int iSubState )
 {
 	if (iSubState & 2)
+	{
 		giStateInfo = 1;
-	else if (iSubState != 1)
+		return;
+	}
+
+	if (iSubState != 1)
 		giStateInfo = iSubState;
 }
 
@@ -843,58 +782,62 @@ void Dispatch_Substate( int iSubState )
 	giSubState = iSubState;
 }
 
-
-/*
-==================
-GDROM_ConfigureDoorBehavior
-
-Sys_Init‑time GD‑ROM setup:
- - opens "\\Device\\CDROM0"
- - issues IOCTL to configure door / media behaviour
- - on failure, calls Sys_Error with the GD‑ROM error string.
-==================
-*/
-// Door state from the low-level driver.
-int g_gdDoorOpened;
-int g_gdDoorPending;
-
-extern void GDROM_DoorReset( void );
-
-void GDROM_ConfigureDoorBehavior( void )
+void Sys_RegisterExportA( char *pName, unsigned int function )
 {
-	HANDLE hGDROM;
-	DWORD  dwBehavior;
-	DWORD  dwReturned;
-
-	hGDROM = CreateFile(TEXT("\\Device\\CDROM0"),
-	                    GENERIC_READ,
-	                    0,
-	                    NULL,
-	                    OPEN_EXISTING,
-	                    0,
-	                    NULL);
-	if (hGDROM != INVALID_HANDLE_VALUE)
-	{
-		// Request "notify app" behavior instead of reboot on door open. A
-		// missing disc is fine here; the door flow below deals with it.
-		dwBehavior = 0;
-		if (!DeviceIoControl(hGDROM,
-		                     IOCTL_SEGACD_SET_DOOR_BEHAVIOR,
-		                     &dwBehavior,
-		                     sizeof(dwBehavior),
-		                     NULL,
-		                     0,
-		                     &dwReturned,
-		                     NULL)
-			&& GetLastError() != ERROR_NO_MEDIA_IN_DRIVE)
-		{
-			Sys_Error("Error setting GD-ROM door behavior (0x%08x).\n", GetLastError());
-		}
-
-		CloseHandle(hGDROM);
-	}
-
-	g_gdDoorPending = 0;
-	if (g_gdDoorOpened)
-		GDROM_DoorReset();
+	Sys_RegisterExport(pName, function);
 }
+
+extern void Sys_NotifyState( int iState );
+
+void Sys_RegisterExportB( char *pName, unsigned int function )
+{
+	Sys_RegisterExport(pName, function);
+}
+
+void Sys_RegisterExportC( char *pName, unsigned int function )
+{
+	Sys_RegisterExport(pName, function);
+}
+
+void Sys_RegisterExportD( char *pName, unsigned int function )
+{
+	Sys_RegisterExport(pName, function);
+}
+
+void Sys_RegisterExportE( char *pName, unsigned int function )
+{
+	Sys_RegisterExport(pName, function);
+}
+
+void LoadThisDll( char *szDllFilename )
+{
+}
+
+
+// Activate the engine and queue a console command from the system shell.
+void Sys_ExecCmd( int iState, char *fmt, ... )
+{
+	va_list argptr;
+	char    text[1024];
+
+	Sys_NotifyState(1);
+
+	if (fmt && *fmt)
+	{
+		va_start(argptr, fmt);
+		vsprintf(text, fmt, argptr);
+		va_end(argptr);
+
+		strcat(text, "\n");
+		if (giActive != DLL_CLOSE)
+			Cbuf_AddText(text);
+	}
+}
+
+// Returns entity initialization functions, generated by LINK_ENTITY_TO_CLASS
+ENTITYINIT GetEntityInit( char *pClassName )
+{
+	return (ENTITYINIT)GetDispatch(pClassName);
+}
+
+

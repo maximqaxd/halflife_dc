@@ -1682,7 +1682,7 @@ BOOL SaveGameSlot( const char* pSaveName, const char* pSaveComment, int fake )
 	if (!Zip_CompressFile(name, 9))
 	{
 		// Out of room - send the player back to the memory card screen
-		VMU_SetCurrentDevice(4);
+		VMU_SetSaveResult(VMU_SAVE_QUIET);
 	}
 	else
 	{
@@ -2064,8 +2064,8 @@ int Host_Load( const char* pName )
 	Sys_CloseHandle(pFile);
 	Bremove_path(UNZIP_TEMP_FILE);
 
-	// Bring the memory card's copy of the level set in behind it
-	VMU_LoadGameHL4_Thunk(name);
+	// The card holds the copy now, so drop the one on disc
+	VMU_RemoveSave(name);
 
 	Cvar_SetValue("deathmatch", 0.0);
 	Cvar_SetValue("coop", 0.0);

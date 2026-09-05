@@ -61,9 +61,9 @@ static int	mouseshowtoggle = 1;
 
 // Holding a shift button moves the pad onto one of two alternate key ranges,
 // and holding both moves it onto a third
-#define K_JOYSHIFT1			160
-#define K_JOYSHIFT2			171
-#define K_JOYSHIFT12		182
+#define K_JOYSHIFT1			K_S1JOY1
+#define K_JOYSHIFT2			K_S2JOY1
+#define K_JOYSHIFT12		K_S3JOY1
 
 enum _ControlList
 {

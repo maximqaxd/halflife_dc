@@ -210,9 +210,7 @@ int COM_BuildFileList( char* filename, FileList_t** ppList );
 void COM_CloseUnusedFiles( FileList_t* list );
 void COM_DestroyMultipleFileList( FileList_t** ppList );
 
-void COM_WriteFile( char* filename, void* data, int len );
 void COM_CreatePath( char* path );
-void COM_CopyFileChunk( FILE* dst, FILE* src, int nSize );
 int COM_OpenFile( char* filename, int* hndl );
 void COM_LoadFileChunk( char* path, byte* dest, int offset, int length );
 int COM_OpenFileByName( char* gamedir, char* filename, int* hndl );
@@ -231,7 +229,6 @@ byte* COM_LoadCacheFile( char* path, struct cache_user_s* cu );
 byte* COM_LoadFileForMe( char* path, int* pLength );
 
 void COM_FileSeek( int filepos, int filelen, int handle, int pos );
-int COM_FileTell( int filepos, int filelen, int handle );
 
 int COM_CompareFileTime( int* ft1, int* ft2 );
 
@@ -245,7 +242,6 @@ void COM_ChangeGameDir( char* pszDir );
 
 void COM_GetGameDir( char* szGameDir );
 
-void LoadBMP8( int* h, byte** pPalette, int* nPalette, byte** pImage );
 byte* LoadBMP16( FILE* fin, qboolean is15bit );
 
 

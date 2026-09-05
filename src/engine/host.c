@@ -1388,7 +1388,7 @@ void _Host_Frame( float time )
 		cls.state = ca_active;
 	}
 
-	Sys_ShutdownFloatTime();
+	Sys_SendKeyEvents();
 
 	if (g_bInactive)
 		return;

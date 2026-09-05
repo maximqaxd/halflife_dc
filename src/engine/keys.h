@@ -36,6 +36,45 @@
 #define	K_HOME			151
 #define	K_END			152
 
+//
+// shifted Dreamcast controller buttons
+//
+#define	K_S1JOY1		160
+#define	K_S1JOY2		161
+#define	K_S1JOY3		162
+#define	K_S1JOY4		163
+#define	K_S1AUX1		164
+#define	K_S1AUX2		165
+#define	K_S1AUX3		166
+#define	K_S1AUX4		167
+#define	K_S1AUX5		168
+#define	K_S1AUX6		169
+#define	K_S1AUX7		170
+
+#define	K_S2JOY1		171
+#define	K_S2JOY2		172
+#define	K_S2JOY3		173
+#define	K_S2JOY4		174
+#define	K_S2AUX1		175
+#define	K_S2AUX2		176
+#define	K_S2AUX3		177
+#define	K_S2AUX4		178
+#define	K_S2AUX5		179
+#define	K_S2AUX6		180
+#define	K_S2AUX7		181
+
+#define	K_S3JOY1		182
+#define	K_S3JOY2		183
+#define	K_S3JOY3		184
+#define	K_S3JOY4		185
+#define	K_S3AUX1		186
+#define	K_S3AUX2		187
+#define	K_S3AUX3		188
+#define	K_S3AUX4		189
+#define	K_S3AUX5		190
+#define	K_S3AUX6		191
+#define	K_S3AUX7		192
+
 #define K_PAUSE			255
 
 //

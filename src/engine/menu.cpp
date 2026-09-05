@@ -11,6 +11,7 @@
 #include "dc_draw.h"
 #include "text_draw.h"
 #include "hud_handlers.h"
+#include "../util/vmu.h"
 #include <platutil.h>
 #ifdef fmod
 #undef fmod
@@ -33,6 +34,7 @@ int  DCV_AddVertex( float x, float y, float z, float tu, float tv );
 void DCV_AddPolyIndices( int base, int count );
 qboolean IN_KeyboardActive( void );
 qboolean IN_JoystickActive( void );
+cvar_t joyshift1;
 }
 
 
@@ -47,6 +49,157 @@ int		g_iCreditsCodePos;
 int		g_iSecretCodePos;
 int		g_iControlPreset;
 int		g_iInvertPad;
+
+#define MAX_MENU_SAVE_FILES	100
+#define MENU_LOAD_SLOT		0xe7
+#define MENU_SAVE_SLOT		0xe8
+#define MENU_OPTION_VALUE_X	404
+
+typedef struct menusave_s
+{
+	char	*pszName;
+	char	*pszDescription;
+	int		character;
+} menusave_t;
+
+static menusave_t	g_MenuSaves[MAX_MENU_SAVE_FILES];
+static int			g_nMenuSaves;
+static char			g_szMenuSaveSpace[128];
+static char			g_szMenuLoadCommand[128];
+
+static void M_InitSaveList( qboolean bSaving )
+{
+	int		i;
+
+	g_nMenuSaves = 0;
+	for (i = 0; i < MAX_MENU_SAVE_FILES; i++)
+	{
+		g_MenuSaves[i].pszDescription = NULL;
+		g_MenuSaves[i].pszName = NULL;
+		g_MenuSaves[i].character = 1;
+	}
+
+	if (bSaving)
+	{
+		g_MenuSaves[g_nMenuSaves].pszName = "________.___";
+		g_MenuSaves[g_nMenuSaves].pszDescription = "%newsavedgame";
+		g_MenuSaves[g_nMenuSaves].character = 1;
+		g_nMenuSaves++;
+	}
+}
+
+static int M_AddSaveFile( char* pszName, char* pszDescription, int character, void* pUserData )
+{
+	CMenuSaveSlotItem	*pSaveItem;
+
+	pSaveItem = (CMenuSaveSlotItem *)pUserData;
+	if (pSaveItem->m_noSpace)
+	{
+		if (pSaveItem->m_mode == MENU_SAVE_SLOT)
+		{
+			if (character == 16)
+			{
+				if (character == 2)
+					goto add_file;
+				if (character != 4)
+					return 1;
+			}
+		}
+	}
+
+add_file:
+	g_MenuSaves[g_nMenuSaves].pszName = pszName;
+	g_MenuSaves[g_nMenuSaves].pszDescription = pszDescription;
+	g_MenuSaves[g_nMenuSaves].character = character;
+	g_nMenuSaves++;
+	return 1;
+}
+
+static int M_BuildSaveFilename( qboolean bSaving, qboolean bNoSpace )
+{
+	int		slot;
+	int		i;
+	int		result;
+	char	*text;
+
+	slot = 0;
+	result = 0;
+	if (!bSaving)
+	{
+		if (!g_nMenuSaves)
+		{
+			g_MenuSaves[0].pszName = "________.___";
+			g_MenuSaves[0].pszDescription = "%nofiles";
+			g_MenuSaves[0].character = 1;
+			result = 1;
+		}
+	}
+	else if (!bNoSpace)
+	{
+		for (;;)
+		{
+			int	nextSlot;
+
+			nextSlot = slot + 1;
+			sprintf(g_MenuSaves[0].pszName, "HALFLIFE.%03d", slot);
+			for (i = 1; i < g_nMenuSaves; i++)
+			{
+				if (!strcmp(g_MenuSaves[0].pszName, g_MenuSaves[i].pszName))
+				{
+					slot = nextSlot;
+					break;
+				}
+			}
+
+			if (i == g_nMenuSaves)
+				break;
+		}
+
+		result = 1;
+	}
+	else
+	{
+		g_MenuSaves[0].pszName = "________.___";
+		text = "%lowspace";
+		for (i = 0; i < g_nLangTags; i++)
+		{
+			if (!strcmp(text, g_pLangTags[i].tag))
+			{
+				text = g_pLangTags[i].string;
+				break;
+			}
+		}
+
+		{
+			char	*at;
+			char	*output;
+
+			at = strchr(text, '@');
+			if (!at)
+			{
+				strcpy(g_szMenuSaveSpace, text);
+			}
+			else
+			{
+				output = g_szMenuSaveSpace;
+				while (*text != '@')
+				{
+					*output++ = *text++;
+				}
+
+				sprintf(output, "%d",
+					(Host_SaveGameSize() + 511) >> 9);
+				strcat(output, text + 1);
+			}
+		}
+
+		g_MenuSaves[0].pszDescription = g_szMenuSaveSpace;
+		g_MenuSaves[0].character = 1;
+		result = 1;
+	}
+
+	return result;
+}
 
 static float	g_flAccessCodeStartTime;
 static float	g_flAccessCodeTime;
@@ -130,9 +283,12 @@ static int M_BuildControlList( qboolean bKeyboard, qboolean bJoystick )
 	int				count;
 	int				control;
 	int				found;
+	qboolean			add;
 
 	count = 0;
 	control = 0;
+	if (!keybindings)
+		return count;
 
 	for (pAction = g_ControlActions; pAction->pszCommand; pAction++, control++)
 	{
@@ -145,43 +301,37 @@ static int M_BuildControlList( qboolean bKeyboard, qboolean bJoystick )
 			if (!keybindings[key] || strcmp(pAction->pszCommand, keybindings[key]))
 				continue;
 
+			add = 0;
 			if (bKeyboard)
 			{
-				if (key < 160 || 192 < key)
-				{
-					if (key < K_MOUSE1 || K_MOUSE3 < key)
-					{
-						if (key < K_JOY1 || K_AUX32 < key)
-						{
-							if (key != K_MWHEELUP && key != K_MWHEELDOWN)
-								goto add_key;
-						}
-					}
-				}
+				if ((key < 160 || 192 < key)
+					&& (key < K_MOUSE1 || K_MOUSE3 < key)
+					&& (key < K_JOY1 || K_AUX32 < key)
+					&& key != K_MWHEELUP && key != K_MWHEELDOWN)
+					add = 1;
 			}
 
-			if (bJoystick)
+			if (!add && bJoystick)
 			{
-				if (key < K_MOUSE1 || K_MOUSE3 < key)
-				{
-					if (key == K_MWHEELUP || key == K_MWHEELDOWN)
-						goto add_key;
-				}
-				else
-					goto add_key;
+				if ((K_MOUSE1 <= key && key <= K_MOUSE3)
+					|| key == K_MWHEELUP || key == K_MWHEELDOWN)
+					add = 1;
 			}
 
-			if (key < 160 || 192 < key)
+			if (!add)
 			{
-				if (key < K_JOY1 || K_AUX32 < key)
-					continue;
+				if ((160 <= key && key <= 192)
+					|| (K_JOY1 <= key && key <= K_AUX32))
+					add = 1;
 			}
 
-		add_key:
+			if (add)
+			{
 			g_ControlKeys[count].control = control;
 			g_ControlKeys[count].key = key;
 			count++;
 			found++;
+			}
 		}
 
 		if (!found)
@@ -963,7 +1113,7 @@ void CMenuTextItem::Draw( float flFade, qboolean bSelected )
 		}
 
 		psz = m_pszLabel;
-		if (psz && *psz == '%' && g_nLangTags > 0)
+		if (psz && g_nLangTags > 0)
 		{
 			for (ch = 0; ch < g_nLangTags; ch++)
 			{
@@ -1032,7 +1182,8 @@ void CMenuTextItem::Draw( float flFade, qboolean bSelected )
 			g_flTextScaleY *= 0.83f;
 		}
 
-		Text_DrawStringShadow(m_pszLabel, m_labelX, m_labelY, (int)(flFade * 255.0f), m_align);
+		Text_DrawStringShadow(m_pszLabel, m_labelX, m_labelY,
+			(int)(flFade * (bSelected ? 255.0f : 128.0f)), m_align);
 	}
 
 	if (bSelected && m_pszDescription)
@@ -1182,9 +1333,9 @@ CMenuTitleItem::CMenuTitleItem( CMenu* pMenu )
 
 	m_widthPeriod[0] = 1.3f;
 	m_widthPeriod[1] = 2.3f;
-	m_xPeriod[0] = 2.3f;
+	m_xPeriod[0] = 2.1f;
 	m_xPeriod[1] = 1.5f;
-	m_alphaPeriod[0] = 2.3f;
+	m_alphaPeriod[0] = 2.1f;
 	m_alphaPeriod[1] = 1.1f;
 
 	m_widthPulse[0] = 0.0f;
@@ -1192,7 +1343,7 @@ CMenuTitleItem::CMenuTitleItem( CMenu* pMenu )
 	m_width[0] = 700.0f;
 	m_width[1] = 512.0f;
 	m_xPulse[0] = 30.0f;
-	m_xPulse[1] = 15.0f;
+	m_xPulse[1] = 16.0f;
 	m_x[0] = -30.0f;
 	m_x[1] = 64.0f;
 	m_y[0] = 14.0f;
@@ -2418,7 +2569,7 @@ void CMenuStereoItem::Draw( float flFade, qboolean bSelected )
 
 	DCV_SetHudDepth(2.0f);
 	DCV_TexState_Blend();
-	DCV_SetColor(255, 144, 200, (int)(flFade * 128.0f));
+	DCV_SetColor(255, 144, 0, 200);
 
 	m_pMenu->m_state.iElementTexture =
 		M_LoadMenuTexture(m_pMenu, "gfx/menu_elements_alpha.pvr");
@@ -2426,9 +2577,9 @@ void CMenuStereoItem::Draw( float flFade, qboolean bSelected )
 	DCV_FlushIfLarge();
 	DCV_AddPolyIndices(DCV_GetVertCount(), 4);
 
-	x1 = (float)(pValue->x + 200);
+	x1 = (float)(pValue->x + 290);
 	x2 = x1 + 30.0f;
-	y1 = (float)(pValue->y + 30);
+	y1 = (float)pValue->y;
 	y2 = y1 + 30.0f;
 	DCV_AddVertex(x1, y1, dc_depthhud.value, 0.552f, 0.568f);
 	DCV_AddVertex(x2, y1, dc_depthhud.value, 0.943f, 0.568f);
@@ -2438,12 +2589,12 @@ void CMenuStereoItem::Draw( float flFade, qboolean bSelected )
 	if (*m_piIndex)
 	{
 		DCV_TexState_Additive();
-		DCV_SetColor(255, 255, 144, (int)(flFade * 255.0f));
+		DCV_SetColor(255, 144, 0, 255);
 		DCV_FlushIfLarge();
 		DCV_AddPolyIndices(DCV_GetVertCount(), 4);
 
-		x1 = (float)(pValue->x + 300);
-		x2 = x1 + 15.0f;
+		x1 = (float)(pValue->x + 295);
+		x2 = x1 + 20.0f;
 		y1 = (float)(pValue->y + 5);
 		y2 = y1 + 20.0f;
 		DCV_AddVertex(x1, y1, dc_depthhud.value, 0.059f, 0.559f);
@@ -2837,8 +2988,8 @@ void CMenuToggleItem::Draw( float flFade, qboolean bSelected )
 		DCV_FlushIfLarge();
 		DCV_AddPolyIndices(DCV_GetVertCount(), 4);
 
-		x1 = (float)(pValue->x - 15);
-		x2 = (float)(pValue->x + width + 15);
+		x1 = (float)(MENU_OPTION_VALUE_X - 15);
+		x2 = (float)(MENU_OPTION_VALUE_X + width + 15);
 		y1 = (float)(pValue->y - 14);
 		y2 = (float)(pValue->y + 40);
 
@@ -2863,7 +3014,7 @@ void CMenuToggleItem::Draw( float flFade, qboolean bSelected )
 			g_flTextScaleY *= 0.83f;
 		}
 
-		Text_DrawStringShadow(pValue->pszText, pValue->x, pValue->y,
+		Text_DrawStringShadow(pValue->pszText, MENU_OPTION_VALUE_X, pValue->y,
 			(int)(flFade * (bSelected ? 255.0f : 128.0f)), 0);
 	}
 
@@ -2878,7 +3029,7 @@ void CMenuToggleItem::Draw( float flFade, qboolean bSelected )
 			g_flTextScaleY *= 0.83f;
 		}
 
-		Text_DrawStringShadow(m_pszDescription, m_descX, m_descY,
+		Text_DrawStringShadow(m_pszDescription, pValue->x, pValue->y,
 			(int)(flFade * (bSelected ? 192.0f : 128.0f)), 0);
 	}
 }
@@ -3030,6 +3181,8 @@ void CMenuWordItem::Draw( float flFade, qboolean bSelected )
 	float		x1, x2, y1, y2;
 
 	DCV_TexState_Blend();
+	DCV_SetHudDepth(2.0f);
+	DCV_SetColor(255, 144, 0, (int)(flFade * 128.0f));
 
 	if (g_bAccessCodeResult)
 	{
@@ -3041,6 +3194,22 @@ void CMenuWordItem::Draw( float flFade, qboolean bSelected )
 			g_bAccessCodeResult = 0;
 		}
 	}
+
+	if (bSelected)
+	{
+		pValue = &m_pValues[*m_piIndex];
+		M_DrawMenuElementQuad(m_pMenu, 3,
+			(float)(pValue->x - 35), 118.0f,
+			(float)(pValue->x + 35), 148.0f);
+		M_DrawMenuElementQuad(m_pMenu, 4,
+			(float)(pValue->x - 35), 388.0f,
+			(float)(pValue->x + 35), 418.0f);
+	}
+
+	pValue = &m_pValues[*m_piIndex];
+	M_DrawMenuElementBox(m_pMenu,
+		(float)(pValue->x - 87), 152.0f,
+		(float)(pValue->x + 87), 384.0f);
 
 	for (offset = -2; offset <= 0; offset++)
 	{
@@ -3107,7 +3276,7 @@ void CMenuWordItem::Draw( float flFade, qboolean bSelected )
 		}
 
 		Text_DrawStringShadow(pValue->pszText, pValue->x - width / 2,
-			pValue->y + (offset + 2) * 40, brightness, 0);
+			pValue->y + offset * 40, brightness, 0);
 	}
 
 	if (g_bAccessCodeResult && g_pszAccessCodeResult)
@@ -3226,34 +3395,472 @@ int CMenuWordItem::IsActive( void )
 CMenuSaveSlotItem::CMenuSaveSlotItem
 ==================
 */
-CMenuSaveSlotItem::CMenuSaveSlotItem( CMenu* pMenu, menuoption_t* pOption, int y, int iSlot, int id )
-	: CMenuOptionItem(pMenu, pOption, 0, y, NULL)
+CMenuSaveSlotItem::CMenuSaveSlotItem( CMenu* pMenu, menuoption_t* pOption, int x, int iSlot, int id )
+	: CMenuOptionItem(pMenu, pOption, x, 320, NULL)
 {
+	m_slot = iSlot;
+	m_loaded = 0;
+	m_visibleRow = 0;
+	m_scrollTop = 0;
+	m_selectedFile = 0;
+	m_fileCount = 0;
+	m_scanPending = 0;
+	m_savePending = 0;
+	m_frame = 0;
+	m_noSpace = 0;
+	m_saved = 0;
+	m_mode = id;
+	m_ready = 0;
 }
 
 void CMenuSaveSlotItem::Draw( float flFade, qboolean bSelected )
 {
+	menuvalue_t	*pValue;
+	int			alpha;
+	int			dimAlpha;
+	int			i;
+	int			y;
+	int			iconY;
+	int			device;
+	qboolean		anyDevice;
+	char			label[32];
+	char			*text;
+	char			*status;
+	float			textScaleX;
+	float			textScaleY;
+
+	DCV_TexState_Blend();
+
+	if (m_scanPending)
+	{
+		m_frame++;
+		if (m_frame == 4)
+		{
+			m_noSpace = VMU_GetFreeBlocks() < Host_SaveGameSize();
+			M_InitSaveList(m_mode == MENU_SAVE_SLOT);
+			VMU_SelectDeviceIfPresent(m_slot * 2 + *m_piIndex);
+			VMU_EnumFiles((vmuenumproc_t)M_AddSaveFile, this);
+			M_BuildSaveFilename(m_mode == MENU_SAVE_SLOT, m_noSpace);
+
+			m_fileCount = 0;
+			for (i = 0; i < MAX_MENU_SAVE_FILES; i++)
+			{
+				if (g_MenuSaves[i].pszDescription)
+					m_fileCount++;
+			}
+		}
+
+		if (m_frame == 6)
+		{
+			m_scanPending = 0;
+			m_frame = 0;
+		}
+	}
+
+	if (m_savePending && !m_ready)
+	{
+		m_frame++;
+		if (m_frame == 3)
+		{
+			GDROM_SetDoorBehavior();
+			if (m_selectedFile < m_fileCount)
+			{
+				char command[32];
+				sprintf(command, "save %s\n", g_MenuSaves[m_selectedFile].pszName);
+				Cbuf_AddText(command);
+			}
+		}
+
+		if (m_frame == 6)
+		{
+			m_savePending = 0;
+			m_saved = 1;
+			m_loaded = 0;
+		}
+	}
+
+	anyDevice = 0;
+	for (i = 0; i < 8; i++)
+	{
+		if (VMU_IsDevicePresent(i))
+		{
+			anyDevice = 1;
+			break;
+		}
+	}
+
+	if (!anyDevice)
+	{
+		Text_DrawCenteredStatus(1.0f, 1.3333f,
+			(byte *)(m_mode == MENU_LOAD_SLOT ? "%novmuload1" : "%novmusave1"),
+			(int)(flFade * 255.0f));
+		return;
+	}
+
+	pValue = &m_pValues[*m_piIndex];
+	alpha = bSelected ? (int)(flFade * 255.0f) : (int)(flFade * 128.0f);
+	dimAlpha = (int)(flFade * 128.0f);
+
+	DCV_SetHudDepth(3.0f);
+	DCV_SetColor(255, 255, 255, alpha);
+	M_DrawControllerIcon(m_pMenu, (float)(pValue->x - 32), 130.0f,
+		(float)(pValue->x + 32), 194.0f);
+
+	for (device = 0; device < 2; device++)
+	{
+		DCV_SetHudDepth(2.0f);
+		DCV_SetColor(255, 144, 0,
+			(int)(flFade * (bSelected && device == *m_piIndex ? 255.0f : 128.0f)));
+		M_DrawMenuElementBox(m_pMenu, (float)(pValue->x - 20),
+			200.0f + (float)(device * 64), (float)(pValue->x + 20),
+			260.0f + (float)(device * 65));
+
+		if (!VMU_IsDevicePresent(m_slot * 2 + device))
+			continue;
+
+		DCV_SetHudDepth(3.0f);
+		DCV_SetColor(255, 255, 255, alpha);
+		m_pMenu->m_state.iVMUTexture = M_LoadMenuTexture(m_pMenu, "gfx/menu_vmu.pvr");
+		GL_BindStage(m_pMenu->m_state.iVMUTexture, 0);
+		DCV_FlushIfLarge();
+		DCV_AddPolyIndices(DCV_GetVertCount(), 4);
+		DCV_AddVertex((float)(pValue->x - 12), 207.0f + (float)(device * 64), dc_depthhud.value, 0.0f, 0.0f);
+		DCV_AddVertex((float)(pValue->x + 12), 207.0f + (float)(device * 64), dc_depthhud.value, 1.0f, 0.0f);
+		DCV_AddVertex((float)(pValue->x - 12), 255.0f + (float)(device * 64), dc_depthhud.value, 0.0f, 1.0f);
+		DCV_AddVertex((float)(pValue->x + 12), 255.0f + (float)(device * 64), dc_depthhud.value, 1.0f, 1.0f);
+	}
+
+	if (VMU_IsDevicePresent(m_slot * 2 + *m_piIndex))
+	{
+		text = Text_FindString("%port");
+		sprintf(label, "%s %c", text, m_slot + 'A');
+		textScaleX = sv_language.value ? 0.664f : 0.8f;
+		textScaleY = sv_language.value ? 0.88531f : 1.06664f;
+		g_flTextScaleX = textScaleX;
+		g_flTextScaleY = textScaleY;
+		Text_DrawStringShadow(label, 54,
+			cls.state == ca_active ? 160 : 176, alpha, 0);
+
+		text = Text_FindString("%slot");
+		sprintf(label, "%s %c", text, *m_piIndex + '1');
+		Text_DrawStringShadow(label, cls.state == ca_active ? 54 : 62,
+			cls.state == ca_active ? 200 : 216, alpha, 0);
+	}
+
+	DCV_SetHudDepth(2.0f);
+	if (m_visibleRow == 0 && m_loaded && !m_scanPending)
+		DCV_SetColor(255, 144, 0, (int)(flFade * 255.0f));
+	else
+		DCV_SetColor(255, 144, 0, dimAlpha);
+	M_DrawMenuElementBox(m_pMenu, 150.0f, 344.0f, 580.0f, 374.0f);
+
+	if (m_visibleRow == 1 && m_loaded && !m_scanPending)
+		DCV_SetColor(255, 144, 0, (int)(flFade * 255.0f));
+	else
+		DCV_SetColor(255, 144, 0, dimAlpha);
+	M_DrawMenuElementBox(m_pMenu, 150.0f, 378.0f, 580.0f, 408.0f);
+
+	if (m_scrollTop < 1)
+		DCV_SetColor(255, 144, 0, (int)(flFade * 64.0f));
+	else
+		DCV_SetColor(255, 144, 0, dimAlpha);
+	M_DrawMenuElementQuad(m_pMenu, 3, 590.0f, 344.0f, 620.0f, 372.0f);
+
+	if (m_scrollTop + 2 < m_fileCount)
+		DCV_SetColor(255, 144, 0, dimAlpha);
+	else
+		DCV_SetColor(255, 144, 0, (int)(flFade * 64.0f));
+	M_DrawMenuElementQuad(m_pMenu, 4, 590.0f, 380.0f, 620.0f, 408.0f);
+
+	if (m_loaded)
+	{
+		for (i = 0; i < m_fileCount; i++)
+		{
+			if (i - m_scrollTop < 0 || i - m_scrollTop > 1)
+				continue;
+
+			y = i - m_scrollTop;
+			if (y == 0)
+			{
+				y = 348;
+				iconY = 347;
+			}
+			else
+			{
+				y = 383;
+				iconY = 381;
+			}
+
+			DCV_SetHudDepth(3.0f);
+			DCV_SetColor(255, 255, 255, alpha);
+
+			if (g_MenuSaves[i].character == 2)
+				M_DrawGordonIcon(m_pMenu, 151.0f, (float)iconY, 175.0f, (float)(iconY + 24));
+			else if (g_MenuSaves[i].character == 4)
+				M_DrawBarneyIcon(m_pMenu, 151.0f, (float)iconY, 175.0f, (float)(iconY + 24));
+
+			Font_FitScale(m_flDescScale * 0.65f, m_flDescAspect * 0.65f, 390.0f,
+				(byte *)g_MenuSaves[i].pszDescription, &textScaleX, &textScaleY);
+			if (sv_language.value)
+			{
+				textScaleX *= 0.83f;
+				textScaleY *= 0.83f;
+			}
+			g_flTextScaleX = textScaleX;
+			g_flTextScaleY = textScaleY;
+			Text_DrawStringShadow(g_MenuSaves[i].pszDescription,
+				176, y, alpha, 0);
+		}
+
+	}
+
+	if (bSelected && m_pszDescription)
+	{
+		status = "%overwrite";
+		if (!m_ready)
+		{
+			if (m_savePending)
+			{
+				VMU_SetDeviceIconState(m_slot * 2 + *m_piIndex, 2, 0);
+				status = "%saving";
+			}
+			else if (m_scanPending)
+			{
+				status = "%scanning";
+			}
+			else if (m_mode == MENU_LOAD_SLOT)
+			{
+				status = m_loaded ? "%gameloadselect" : "%vmuloadselect";
+			}
+			else if (!m_loaded)
+			{
+				status = "%vmusaveselect";
+				if (m_saved)
+				{
+					status = VMU_MarkSlotSaved();
+					if (!VMU_GetCurrentDevice())
+					{
+						m_pMenu->m_state.iSoundBlocked =
+							strstr(m_pMenu->m_state.pszCommand, "menu") != NULL;
+						Cbuf_AddText(m_pMenu->m_state.pszCommand);
+						Cbuf_AddText("\n");
+					}
+				}
+			}
+			else
+			{
+				status = m_noSpace ? "%gamedeleteselect" : "%gamesaveselect";
+			}
+		}
+
+		Text_DrawCenteredStatus(m_flDescScale, m_flDescAspect, (byte *)status, alpha);
+	}
 }
 
 void CMenuSaveSlotItem::Select( void )
 {
+	if (m_ready)
+	{
+		m_ready = 0;
+		m_fileCount = 0;
+		return;
+	}
+
+	if (!VMU_SelectDeviceIfPresent(m_slot * 2 + *m_piIndex))
+		return;
+
+	if (!m_loaded)
+	{
+		if (!m_scanPending)
+		{
+			m_visibleRow = 0;
+			m_scrollTop = 0;
+			m_selectedFile = 0;
+			m_scanPending = 1;
+			m_frame = 0;
+			m_loaded = 1;
+		}
+		return;
+	}
+
+	if (m_scanPending || m_selectedFile >= m_fileCount)
+		return;
+
+	if (m_mode == MENU_SAVE_SLOT)
+	{
+		if (m_noSpace && m_selectedFile > 0)
+		{
+			VMU_DeleteFile(g_MenuSaves[m_selectedFile].pszName);
+			m_visibleRow = 0;
+			m_scrollTop = 0;
+			m_selectedFile = 0;
+			m_loaded = 1;
+			m_scanPending = 1;
+			m_frame = 0;
+		}
+		else
+		{
+			if (m_selectedFile)
+				m_ready = 1;
+
+			m_savePending = 1;
+			m_frame = 0;
+			VMU_SetDeviceIconState(m_slot * 2 + *m_piIndex, 2, 0);
+		}
+	}
+	else if (g_MenuSaves[m_selectedFile].character == VMU_FILE_HALFLIFE)
+	{
+		sprintf(g_szMenuLoadCommand, "startgame valve\nload %s\n",
+			g_MenuSaves[m_selectedFile].pszName);
+		strcpy(m_pMenu->m_szCommand, g_szMenuLoadCommand);
+		m_pMenu->m_state.flAnimating = 1.0f;
+		m_pMenu->m_state.flFade = 1.0f;
+		m_pMenu->m_state.flFadeFrom = 1.0f;
+		m_pMenu->m_state.flFadeTo = 0.0f;
+		m_pMenu->m_state.flAnimStart = Sys_FloatTime();
+	}
+	else if (g_MenuSaves[m_selectedFile].character == VMU_FILE_BARNEY)
+	{
+		sprintf(g_szMenuLoadCommand, "startgame barney\nload %s\n",
+			g_MenuSaves[m_selectedFile].pszName);
+		strcpy(m_pMenu->m_szCommand, g_szMenuLoadCommand);
+		m_pMenu->m_state.flAnimating = 1.0f;
+		m_pMenu->m_state.flFade = 1.0f;
+		m_pMenu->m_state.flFadeFrom = 1.0f;
+		m_pMenu->m_state.flFadeTo = 0.0f;
+		m_pMenu->m_state.flAnimStart = Sys_FloatTime();
+	}
 }
 
 void CMenuSaveSlotItem::Cancel( void )
 {
+	CMenu	*pMenu;
+
+	if (m_ready)
+	{
+		m_ready = 0;
+		m_scrollTop = 0;
+		m_selectedFile = 0;
+		m_visibleRow = 0;
+		m_frame = 0;
+		m_loaded = 1;
+		m_scanPending = 1;
+		m_savePending = 0;
+	}
+	else if (m_loaded)
+	{
+		m_loaded = 0;
+		m_fileCount = 0;
+	}
+	else
+	{
+		pMenu = m_pMenu;
+		gfDrawMenu = 0;
+
+		if (strstr(pMenu->m_state.pszCommand, "menu"))
+			pMenu->m_state.iSoundBlocked = 1;
+		else
+			pMenu->m_state.iSoundBlocked = 0;
+
+		Cbuf_AddText(pMenu->m_state.pszCommand);
+		Cbuf_AddText("\n");
+	}
 }
 
 void CMenuSaveSlotItem::Up( void )
 {
+	if (m_ready)
+		return;
+
+	if (!m_loaded)
+	{
+		*m_piIndex += m_nValues - 1;
+		*m_piIndex %= m_nValues;
+
+		if (m_piValue)
+			*m_piValue = *m_piIndex;
+
+		return;
+	}
+
+	if (m_selectedFile > 0)
+	{
+		if (m_selectedFile == m_scrollTop)
+			m_scrollTop--;
+
+		m_selectedFile--;
+		m_visibleRow = m_selectedFile - m_scrollTop;
+	}
 }
 
 void CMenuSaveSlotItem::Down( void )
 {
+	if (m_ready)
+		return;
+
+	if (!m_loaded)
+	{
+		(*m_piIndex)++;
+		*m_piIndex %= m_nValues;
+
+		if (m_piValue)
+			*m_piValue = *m_piIndex;
+
+		return;
+	}
+
+	if (m_selectedFile + 1 < m_fileCount)
+	{
+		if ((m_scrollTop + 1) % m_fileCount == m_selectedFile)
+			m_scrollTop++;
+
+		m_selectedFile++;
+		m_visibleRow = m_selectedFile - m_scrollTop;
+	}
 }
 
-int CMenuSaveSlotItem::IsActive( void )
+void CMenuSaveSlotItem::Left( void )
 {
-	return 1;
+	CMenu	*pMenu;
+	int		start;
+
+	if (m_ready || m_loaded)
+		return;
+
+	*m_piIndex = 0;
+	pMenu = m_pMenu;
+	start = pMenu->m_state.iSelected;
+
+	do
+	{
+		pMenu->m_state.iSelected--;
+		if (pMenu->m_state.iSelected < 0)
+			pMenu->m_state.iSelected = MAX_MENU_ITEMS - 1;
+	} while ((!pMenu->m_pItems[pMenu->m_state.iSelected]
+		|| !pMenu->m_pItems[pMenu->m_state.iSelected]->IsActive())
+		&& pMenu->m_state.iSelected != start);
+}
+
+void CMenuSaveSlotItem::Right( void )
+{
+	CMenu	*pMenu;
+	int		start;
+
+	if (m_ready || m_loaded)
+		return;
+
+	*m_piIndex = 0;
+	pMenu = m_pMenu;
+	start = pMenu->m_state.iSelected;
+
+	do
+	{
+		pMenu->m_state.iSelected++;
+		if (pMenu->m_state.iSelected > MAX_MENU_ITEMS - 1)
+			pMenu->m_state.iSelected = 0;
+	} while ((!pMenu->m_pItems[pMenu->m_state.iSelected]
+		|| !pMenu->m_pItems[pMenu->m_state.iSelected]->IsActive())
+		&& pMenu->m_state.iSelected != start);
 }
 
 CMenuVolumeSlider::CMenuVolumeSlider( CMenu* pMenu, menuslider_t* pSlider, int x, int y, int id, int align )
@@ -3374,7 +3981,7 @@ void CMenuVolumeSlider::Draw( float flFade, qboolean bSelected )
 			(byte *)m_pszDescription, (int)(flFade * 192.0f));
 
 	DCV_SetHudDepth(2.0f);
-	DCV_SetColor(255, 144, 128, (int)(flFade * 128.0f));
+	DCV_SetColor(255, 144, 0, (int)(flFade * 128.0f));
 	DCV_TexState_Blend();
 
 	barY = (float)(m_y + 40);
@@ -3391,7 +3998,7 @@ void CMenuVolumeSlider::Draw( float flFade, qboolean bSelected )
 	x = (float)(m_x + 390);
 	M_DrawMenuElementQuad2(m_pMenu, 2, x, barY, x + 30.0f, barBottom);
 
-	DCV_SetColor(255, 144, 192, (int)(flFade * 128.0f));
+	DCV_SetColor(255, 144, 0, (int)(flFade * 192.0f));
 	DCV_SetHudDepth(3.0f);
 	x = (float)(m_x + *m_piValue * 40);
 	M_DrawMenuElementBox(m_pMenu, x, barY, x + 30.0f, barBottom);
@@ -3497,11 +4104,17 @@ void CMenuVolumeSlider::Select( void )
 void CMenuVolumeSlider::Cancel( void )
 {
 	CMenu*	pMenu;
+	char	command[80];
 
 	pMenu = m_pMenu;
 	if (m_id == 0xeb || m_id == 0xec || m_id == 0xed)
 	{
-		Cbuf_AddText("joyadvancedupdate");
+		sprintf(command, "joyadvancedupdate");
+		if (strstr(command, "menu"))
+			pMenu->m_state.iSoundBlocked = 1;
+		else
+			pMenu->m_state.iSoundBlocked = 0;
+		Cbuf_AddText(command);
 		Cbuf_AddText("\n");
 		Host_WriteConfiguration();
 	}
@@ -3822,14 +4435,14 @@ void CMenuSensitivitySlider::Draw( float flFade, qboolean bSelected )
 	}
 
 	Text_DrawStringShadow(m_pszLabel, m_x, m_y,
-		(int)(flFade * (bSelected ? 120.0f : 128.0f)), 0);
+		(int)(flFade * (bSelected ? 255.0f : 128.0f)), 0);
 
 	if (bSelected && m_pszDescription)
 		Text_DrawCenteredStatus(m_flDescScale, m_flDescAspect,
 			(byte *)m_pszDescription, (int)(flFade * 192.0f));
 
 	DCV_SetHudDepth(2.0f);
-	DCV_SetColor(255, 144, 128, (int)(flFade * 128.0f));
+	DCV_SetColor(255, 144, 0, (int)(flFade * 128.0f));
 	DCV_TexState_Blend();
 
 	barY = (float)m_y;
@@ -3846,7 +4459,7 @@ void CMenuSensitivitySlider::Draw( float flFade, qboolean bSelected )
 	x = (float)(m_x + 330);
 	M_DrawMenuElementQuad2(m_pMenu, 2, x, barY, x + 30.0f, barBottom);
 
-	DCV_SetColor(255, 144, 192, (int)(flFade * 128.0f));
+	DCV_SetColor(255, 144, 0, (int)(flFade * 192.0f));
 	DCV_SetHudDepth(3.0f);
 	x = (float)(m_x + 24 + *m_piValue * 15);
 	M_DrawMenuElementBox(m_pMenu, x, barY - 4.0f, x + 12.0f, barY + 32.0f);
@@ -3854,6 +4467,7 @@ void CMenuSensitivitySlider::Draw( float flFade, qboolean bSelected )
 
 void CMenuSensitivitySlider::Left( void )
 {
+	char	command[64];
 	float	value;
 
 	(*m_piValue)--;
@@ -3863,19 +4477,27 @@ void CMenuSensitivitySlider::Left( void )
 	if (m_sensitivityId == 0xee)
 	{
 		value = (float)*m_piValue * 0.1f + 0.5f;
-		Cvar_SetValue("joyyawsensitivity", value);
+		sprintf(command, "joyyawsensitivity -%f\njoyadvancedupdate", value);
 	}
-	else if (m_sensitivityId == 0xef)
+	else
 	{
 		value = (float)*m_piValue * 0.05f + 0.2f;
-		if (g_iInvertPad)
-			value = -value;
-		Cvar_SetValue("joypitchsensitivity", value);
+		sprintf(command, "joypitchsensitivity %c%f\njoyadvancedupdate",
+			g_iInvertPad ? '-' : ' ', value);
 	}
+
+	if (strstr(command, "menu"))
+		m_pMenu->m_state.iSoundBlocked = 1;
+	else
+		m_pMenu->m_state.iSoundBlocked = 0;
+
+	Cbuf_AddText(command);
+	Host_WriteConfiguration();
 }
 
 void CMenuSensitivitySlider::Right( void )
 {
+	char	command[64];
 	float	value;
 
 	(*m_piValue)++;
@@ -3885,15 +4507,22 @@ void CMenuSensitivitySlider::Right( void )
 	if (m_sensitivityId == 0xee)
 	{
 		value = (float)*m_piValue * 0.1f + 0.5f;
-		Cvar_SetValue("joyyawsensitivity", value);
+		sprintf(command, "joyyawsensitivity -%f\njoyadvancedupdate", value);
 	}
-	else if (m_sensitivityId == 0xef)
+	else
 	{
 		value = (float)*m_piValue * 0.05f + 0.2f;
-		if (g_iInvertPad)
-			value = -value;
-		Cvar_SetValue("joypitchsensitivity", value);
+		sprintf(command, "joypitchsensitivity %c%f\njoyadvancedupdate",
+			g_iInvertPad ? '-' : ' ', value);
 	}
+
+	if (strstr(command, "menu"))
+		m_pMenu->m_state.iSoundBlocked = 1;
+	else
+		m_pMenu->m_state.iSoundBlocked = 0;
+
+	Cbuf_AddText(command);
+	Host_WriteConfiguration();
 }
 
 CMenuPresetItem::CMenuPresetItem( CMenu* pMenu, int preset, int x, int y )
@@ -3952,7 +4581,26 @@ void CMenuPresetItem::Select( void )
 
 void CMenuPresetItem::Cancel( void )
 {
-	CMenuTextItem::Cancel();
+	CMenu	*pMenu;
+	char	command[64];
+
+	sprintf(command, "joyadvancedupdate");
+	pMenu = m_pMenu;
+	if (strstr(command, "menu"))
+		pMenu->m_state.iSoundBlocked = 1;
+	else
+		pMenu->m_state.iSoundBlocked = 0;
+	Cbuf_AddText(command);
+	Cbuf_AddText("\n");
+	Host_WriteConfiguration();
+
+	gfDrawMenu = 0;
+	if (strstr(pMenu->m_state.pszCommand, "menu"))
+		pMenu->m_state.iSoundBlocked = 1;
+	else
+		pMenu->m_state.iSoundBlocked = 0;
+	Cbuf_AddText(pMenu->m_state.pszCommand);
+	Cbuf_AddText("\n");
 }
 
 void CMenuPresetItem::Up( void )
@@ -4013,10 +4661,10 @@ CMenuBindItem::CMenuBindItem( CMenu* pMenu )
 
 void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 {
-	qboolean	keyboard;
-	qboolean	joystick;
-	qboolean	oldKeyboard;
-	qboolean	oldJoystick;
+	int			keyboard;
+	int			joystick;
+	int			oldKeyboard;
+	int			oldJoystick;
 	int			alpha;
 	int			row;
 	int			slot;
@@ -4024,6 +4672,7 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 	int			control;
 	int			key;
 	int			capturedKey;
+	int			tag;
 	char		*pszKey;
 	char		*pszCommand;
 	char		bindCommand[64];
@@ -4055,13 +4704,14 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 	DCV_TexState_Blend();
 
 	alpha = (int)(flFade * 255.0f);
+	DCV_SetColor(255, 144, 0, alpha);
 	Text_DrawStringLeft(0.7f, 0.93331f, "%custom_action", 170, 134,
 		alpha, 0, 190);
 	Text_DrawStringLeft(0.7f, 0.93331f, "%keybutton", 370, 134,
 		alpha, 0, 230);
 
 	y = 164;
-	for (slot = 0; slot < 9; slot++, y += 30)
+	for (slot = 0; slot < 8; slot++, y += 30)
 	{
 		row = m_selection + slot;
 		if (row == m_mode && m_capturing)
@@ -4069,8 +4719,14 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 			DCV_SetColor(255, 144, 0, (int)(flFade * 240.0f));
 			M_DrawMenuElementBox(m_pMenu, 348.0f, (float)(y - 4),
 				604.0f, (float)(y + 24));
-			DCV_SetHudDepth(2.0f);
 		}
+
+		if (row == m_mode)
+			DCV_SetColor(255, 144, 0, (int)(flFade * 198.0f));
+
+		DCV_SetHudDepth(2.0f);
+		M_DrawMenuElementBox(m_pMenu, 160.0f, (float)(y - 4),
+			604.0f, (float)(y + 24));
 
 		if (row == 0)
 		{
@@ -4093,19 +4749,30 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 		}
 		else if (row == 3)
 		{
-			Text_DrawStringCentered(0.7f, 0.93331f, "%key_bindings", 385, y,
+			Text_DrawStringCentered(0.7f, 0.93331f, "%shift_things", 385, y,
 				alpha, 0, 400);
 		}
 		else if (row == 4)
 		{
 			Text_DrawStringLeft(0.7f, 0.93331f, "%shift", 170, y,
 				alpha, 0, 190);
-			Text_DrawStringLeft(0.7f, 0.93331f,
-				Cvar_VariableString("joyshift1"), 370, y, alpha, 0, 230);
+
+			pszKey = joyshift1.string;
+			for (tag = 0; tag < g_nLangTags; tag++)
+			{
+				if (!strcmp(pszKey, g_pLangTags[tag].tag))
+				{
+					pszKey = g_pLangTags[tag].string;
+					break;
+				}
+			}
+
+			Text_DrawStringLeft(0.7f, 0.93331f, pszKey, 370, y,
+				alpha, 0, 230);
 		}
 		else if (row == 5)
 		{
-			Text_DrawStringCentered(0.7f, 0.93331f, "%shift_things", 385, y,
+			Text_DrawStringCentered(0.7f, 0.93331f, "%key_bindings", 385, y,
 				alpha, 0, 400);
 		}
 		else if (row - 6 < m_nEntries)
@@ -4122,7 +4789,17 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 			if (key < 0)
 				pszKey = "---";
 			else
+			{
 				pszKey = Key_KeynumToString(key);
+				for (tag = 0; tag < g_nLangTags; tag++)
+				{
+					if (!strcmp(pszKey, g_pLangTags[tag].tag))
+					{
+						pszKey = g_pLangTags[tag].string;
+						break;
+					}
+				}
+			}
 
 			Text_DrawStringLeft(0.7f, 0.93331f, pszKey, 370, y,
 				alpha, 0, 230);
@@ -4144,10 +4821,11 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 			sprintf(bindCommand, "bind \"%s\" \"%s\"\n",
 				Key_KeynumToString(capturedKey), pszCommand);
 			Cbuf_AddText(bindCommand);
+			key_dest = key_menu;
 		}
 	}
 
-	if (m_mode > 5)
+	if (m_mode < 5)
 	{
 		Text_DrawCenteredStatus(1.0f, 1.3333f,
 			(byte *)(m_capturing ? "%lr_choose_function" : "%a_change_function"), 190);
@@ -4934,7 +5612,7 @@ void M_BuildMenu( CMenu* pMenu, char* pszMenu )
 	int				wordY;
 	int				codeY;
 	int				nCodes;
-	int				slotY;
+	int				slotX;
 	int				nSlots;
 	int				start;
 	int				i;
@@ -4998,7 +5676,7 @@ void M_BuildMenu( CMenu* pMenu, char* pszMenu )
 
 		if (page->items[0] != MI_END)
 		{
-			slotY = nSlots * 104 + 220;
+			slotX = nSlots * 104 + 220;
 
 			for (pId = page->items; *pId != MI_END; pId++, ppItem++)
 			{
@@ -5188,9 +5866,9 @@ void M_BuildMenu( CMenu* pMenu, char* pszMenu )
 							}
 						}
 
-						*ppItem = new CMenuSaveSlotItem(pMenu, pOption, slotY, nSlots, id);
+						*ppItem = new CMenuSaveSlotItem(pMenu, pOption, slotX, nSlots, id);
 						nSlots++;
-						slotY += 104;
+						slotX += 104;
 					}
 					else if (id < 0xf0)
 					{
@@ -5447,10 +6125,10 @@ void UI_MenuInput( CMenu* pMenu )
 		return;
 	}
 
-	// start backs out of every page but the in-game one, which it confirms
+	// start backs out of the in-game page and confirms everywhere else
 	if (joymenubuttons[3])
 	{
-		if (strcmp(pMenu->m_szName, "gamemenu"))
+		if (!strcmp(pMenu->m_szName, "gamemenu"))
 			joymenubuttons[1] = 1;
 		else
 			joymenubuttons[0] = 1;

@@ -484,7 +484,7 @@ public:
 	virtual void Left( void );
 	virtual void Right( void );
 
-	int			m_reserved;
+	int			m_reserved0;
 };
 
 // One unlocked cheat on the codes page. It hands the game side a pointer to
@@ -554,16 +554,30 @@ public:
 class CMenuSaveSlotItem : public CMenuOptionItem
 {
 public:
-	CMenuSaveSlotItem( CMenu* pMenu, menuoption_t* pOption, int y, int iSlot, int id );
+	CMenuSaveSlotItem( CMenu* pMenu, menuoption_t* pOption, int x, int iSlot, int id );
 
 	virtual void Draw( float flFade, qboolean bSelected );
 	virtual void Select( void );
 	virtual void Cancel( void );
 	virtual void Up( void );
 	virtual void Down( void );
-	virtual int  IsActive( void );
+	virtual void Left( void );
+	virtual void Right( void );
 
-	byte		m_reserved[56];
+	int			m_reserved;
+	int			m_slot;
+	int			m_loaded;
+	int			m_visibleRow;
+	int			m_scrollTop;
+	int			m_selectedFile;
+	int			m_fileCount;
+	int			m_scanPending;
+	int			m_savePending;
+	int			m_frame;
+	int			m_noSpace;
+	int			m_saved;
+	int			m_mode;
+	int			m_ready;
 };
 
 // A volume bar.
