@@ -45,7 +45,7 @@ CFG=halflife_dc - Win32 (WCE SH4) Debug
 # PROP Target_Dir ""
 CPP=shcl.exe
 # ADD BASE CPP /nologo /MC /W3 /Zi /Ox /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "NDEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /YX /Qsh4r7 /Qs /Qfast /Qgvp /c
-# ADD CPP /nologo /MC /W3 /Zi /Oa /O2 /Ob2 /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/util/zlib" /I "../src/network" /I "../src/audio" /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "NDEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D "GLQUAKE" /YX /Qsh4r7 /Qs /Qfast /Qgvp /c
+# ADD CPP /nologo /MC /W3 /Zi /O2 /Ob2 /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/util/zlib" /I "../src/network" /I "../src/audio" /I "../src/halflife" /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "NDEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D "GLQUAKE" /YX /Qsh4r7 /Qs /Qfast /Qgvp /c
 RSC=rc.exe
 # ADD BASE RSC /l 0x419 /r /d "SHx" /d "SH4" /d "_SH4_" /d UNDER_CE=$(CEVersion) /d _WIN32_WCE=$(CEVersion) /d "$(CEConfigName)" /d "UNICODE" /d "NDEBUG"
 # ADD RSC /l 0x419 /r /d "SHx" /d "SH4" /d "_SH4_" /d UNDER_CE=$(CEVersion) /d _WIN32_WCE=$(CEVersion) /d "$(CEConfigName)" /d "UNICODE" /d "NDEBUG"
@@ -57,7 +57,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 coredll.lib /nologo /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /subsystem:$(CESubsystem) /STACK:65536,4096
-# ADD LINK32 coredll.lib winsock.lib d3dim.lib ddraw.lib DSOUND.lib wdm.lib mapledev.lib platutil.lib dxguid.lib dinput.lib FloatMath.lib shintr.lib zlib.lib client.lib halflife.lib /force:multiple /nologo /map /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /nodefaultlib:"libc.lib" /libpath:"../obj/WCESH4Rel/" /subsystem:$(CESubsystem) /STACK:65536,4096
+# ADD LINK32 coredll.lib winsock.lib d3dim.lib ddraw.lib DSOUND.lib wdm.lib mapledev.lib platutil.lib dxguid.lib dinput.lib FloatMath.lib shintr.lib zlib.lib client.lib halflife.lib /nologo /map /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /nodefaultlib:"libc.lib" /libpath:"../obj/WCESH4Rel/" /force:multiple /subsystem:$(CESubsystem) /STACK:65536,4096
 # Begin Custom Build
 OutDir=.\../obj/WCESH4Rel
 InputPath=\Dev\Dreamcast\halflife_dc\obj\WCESH4Rel\halflife_dc.exe
@@ -83,7 +83,7 @@ SOURCE="$(InputPath)"
 # PROP Target_Dir ""
 CPP=shcl.exe
 # ADD BASE CPP /nologo /MC /W3 /Zi /Od /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "DEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /YX /Qsh4r7 /Qs /Qfast /c
-# ADD CPP /nologo /MC /W3 /Zi /Od /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/util/zlib" /I "../src/network" /I "../src/audio" /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "_DEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D "GLQUAKE" /D "_CRTIMP=" /YX /Qsh4r7 /Qs /Qfast /c
+# ADD CPP /nologo /MC /W3 /Zi /Od /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/util/zlib" /I "../src/network" /I "../src/audio" /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "_DEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D "GLQUAKE" /D _CRTIMP= /YX /Qsh4r7 /Qs /Qfast /c
 RSC=rc.exe
 # ADD BASE RSC /l 0x419 /r /d "SHx" /d "SH4" /d "_SH4_" /d UNDER_CE=$(CEVersion) /d _WIN32_WCE=$(CEVersion) /d "$(CEConfigName)" /d "UNICODE" /d "DEBUG"
 # ADD RSC /l 0x419 /r /d "SHx" /d "SH4" /d "_SH4_" /d UNDER_CE=$(CEVersion) /d _WIN32_WCE=$(CEVersion) /d "$(CEConfigName)" /d "UNICODE" /d "DEBUG"
@@ -95,7 +95,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 coredll.lib /nologo /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /subsystem:$(CESubsystem) /STACK:65536,4096
-# ADD LINK32 coredll.lib winsock.lib d3dim.lib ddraw.lib DSOUND.lib wdm.lib mapledev.lib platutil.lib dxguid.lib dinput.lib FloatMath.lib shintr.lib zlib.lib client.lib halflife.lib /force:multiple /nologo /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /nodefaultlib:"libc.lib" /libpath:"../obj/WCESH4Dbg/" /subsystem:$(CESubsystem) /STACK:65536,4096
+# ADD LINK32 coredll.lib winsock.lib d3dim.lib ddraw.lib DSOUND.lib wdm.lib mapledev.lib platutil.lib dxguid.lib dinput.lib FloatMath.lib shintr.lib zlib.lib client.lib halflife.lib /nologo /debug /machine:SH4 /nodefaultlib:"$(CENoDefaultLib)" /nodefaultlib:"libc.lib" /libpath:"../obj/WCESH4Dbg/" /force:multiple /subsystem:$(CESubsystem) /STACK:65536,4096
 # Begin Custom Build
 OutDir=.\../obj/WCESH4Dbg
 InputPath=\Dev\Dreamcast\halflife_dc\obj\WCESH4Dbg\halflife_dc.exe
@@ -165,6 +165,912 @@ LINK32=link.exe
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
+SOURCE=..\src\audio\afile.cpp
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_AFILE=\
+	"..\src\audio\afile.h"\
+	"..\src\audio\audio.h"\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_AFILE=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_AFILE=\
+	"..\src\audio\afile.h"\
+	"..\src\audio\audio.h"\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_AFILE=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\audio\audio.cpp
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_AUDIO=\
+	"..\src\audio\audio.h"\
+	"..\src\audio\audio_mgr.h"\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\halflife\vector.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_AUDIO=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_AUDIO=\
+	"..\src\audio\audio.h"\
+	"..\src\audio\audio_mgr.h"\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_AUDIO=\
+	"..\src\audio\vector.h"\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\audio\audio_cd.cpp
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_AUDIO_=\
+	"..\src\audio\audio.h"\
+	"..\src\audio\audio_cd.h"\
+	"..\src\audio\audio_mgr.h"\
+	"..\src\audio\audio_stream.h"\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_AUDIO_=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_AUDIO_=\
+	"..\src\audio\audio.h"\
+	"..\src\audio\audio_cd.h"\
+	"..\src\audio\audio_mgr.h"\
+	"..\src\audio\audio_stream.h"\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_AUDIO_=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\audio\audio_mgr.cpp
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_AUDIO_M=\
+	"..\src\audio\afile.h"\
+	"..\src\audio\audio.h"\
+	"..\src\audio\audio_cd.h"\
+	"..\src\audio\audio_mgr.h"\
+	"..\src\audio\audio_static.h"\
+	"..\src\audio\audio_stream.h"\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"netinfo.h"\
+	{$(INCLUDE)}"platutil.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_AUDIO_M=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_AUDIO_M=\
+	"..\src\audio\afile.h"\
+	"..\src\audio\audio.h"\
+	"..\src\audio\audio_cd.h"\
+	"..\src\audio\audio_mgr.h"\
+	"..\src\audio\audio_static.h"\
+	"..\src\audio\audio_stream.h"\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"netinfo.h"\
+	{$(INCLUDE)}"platutil.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_AUDIO_M=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\audio\audio_static.cpp
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_AUDIO_S=\
+	"..\src\audio\audio.h"\
+	"..\src\audio\audio_mgr.h"\
+	"..\src\audio\audio_static.h"\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_AUDIO_S=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_AUDIO_S=\
+	"..\src\audio\audio.h"\
+	"..\src\audio\audio_mgr.h"\
+	"..\src\audio\audio_static.h"\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_AUDIO_S=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\audio\audio_stream.cpp
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_AUDIO_ST=\
+	"..\src\audio\audio.h"\
+	"..\src\audio\audio_mgr.h"\
+	"..\src\audio\audio_static.h"\
+	"..\src\audio\audio_stream.h"\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_AUDIO_ST=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_AUDIO_ST=\
+	"..\src\audio\audio.h"\
+	"..\src\audio\audio_mgr.h"\
+	"..\src\audio\audio_static.h"\
+	"..\src\audio\audio_stream.h"\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_AUDIO_ST=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\engine\buildnum.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
@@ -190,8 +1096,11 @@ DEP_CPP_BUILD=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -219,6 +1128,7 @@ DEP_CPP_BUILD=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_BUILD=\
 	"..\src\engine\cmdlib.h"\
@@ -282,282 +1192,6 @@ DEP_CPP_BUILD=\
 	"..\src\util\dreamcast_crt.h"\
 	
 NODEP_CPP_BUILD=\
-	"..\src\engine\cmdlib.h"\
-	"..\src\engine\lbmlib.h"\
-	"..\src\engine\r_shared.h"\
-	"..\src\engine\scriplib.h"\
-	"..\src\engine\trilib.h"\
-	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
-!ENDIF 
-
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\engine\cdll_exp.c
-
-!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
-
-DEP_CPP_CDLL_=\
-	"..\src\common\dll_state.h"\
-	"..\src\common\platform.h"\
-	"..\src\common\qfont.h"\
-	"..\src\engine\beamdef.h"\
-	"..\src\engine\bothdefs.h"\
-	"..\src\engine\bspfile.h"\
-	"..\src\engine\cdll_int.h"\
-	"..\src\engine\client.h"\
-	"..\src\engine\cmd.h"\
-	"..\src\engine\color.h"\
-	"..\src\engine\common.h"\
-	"..\src\engine\console.h"\
-	"..\src\engine\const.h"\
-	"..\src\engine\crc.h"\
-	"..\src\engine\cshift.h"\
-	"..\src\engine\custom.h"\
-	"..\src\engine\cvar.h"\
-	"..\src\engine\cvardef.h"\
-	"..\src\engine\draw.h"\
-	"..\src\engine\eiface.h"\
-	"..\src\engine\glquake.h"\
-	"..\src\engine\host_cmd.h"\
-	"..\src\engine\input.h"\
-	"..\src\engine\keys.h"\
-	"..\src\engine\mathlib.h"\
-	"..\src\engine\modelgen.h"\
-	"..\src\engine\pr_dlls.h"\
-	"..\src\engine\progdefs.h"\
-	"..\src\engine\progs.h"\
-	"..\src\engine\quakedef.h"\
-	"..\src\engine\render.h"\
-	"..\src\engine\save.h"\
-	"..\src\engine\sbar.h"\
-	"..\src\engine\screen.h"\
-	"..\src\engine\server.h"\
-	"..\src\engine\sound.h"\
-	"..\src\engine\spritegn.h"\
-	"..\src\engine\studio.h"\
-	"..\src\engine\sys.h"\
-	"..\src\engine\vid.h"\
-	"..\src\engine\view.h"\
-	"..\src\engine\vmodes.h"\
-	"..\src\engine\wad.h"\
-	"..\src\engine\world.h"\
-	"..\src\engine\wrect.h"\
-	"..\src\engine\zone.h"\
-	"..\src\network\net.h"\
-	"..\src\render\dc_model.h"\
-	"..\src\util\dreamcast_crt.h"\
-	
-NODEP_CPP_CDLL_=\
-	"..\src\engine\cmdlib.h"\
-	"..\src\engine\lbmlib.h"\
-	"..\src\engine\r_shared.h"\
-	"..\src\engine\scriplib.h"\
-	"..\src\engine\trilib.h"\
-	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
-
-DEP_CPP_CDLL_=\
-	"..\src\common\dll_state.h"\
-	"..\src\common\platform.h"\
-	"..\src\common\qfont.h"\
-	"..\src\engine\beamdef.h"\
-	"..\src\engine\bothdefs.h"\
-	"..\src\engine\bspfile.h"\
-	"..\src\engine\cdll_int.h"\
-	"..\src\engine\client.h"\
-	"..\src\engine\cmd.h"\
-	"..\src\engine\color.h"\
-	"..\src\engine\common.h"\
-	"..\src\engine\console.h"\
-	"..\src\engine\const.h"\
-	"..\src\engine\crc.h"\
-	"..\src\engine\cshift.h"\
-	"..\src\engine\custom.h"\
-	"..\src\engine\cvar.h"\
-	"..\src\engine\cvardef.h"\
-	"..\src\engine\draw.h"\
-	"..\src\engine\eiface.h"\
-	"..\src\engine\glquake.h"\
-	"..\src\engine\host_cmd.h"\
-	"..\src\engine\input.h"\
-	"..\src\engine\keys.h"\
-	"..\src\engine\mathlib.h"\
-	"..\src\engine\modelgen.h"\
-	"..\src\engine\pr_dlls.h"\
-	"..\src\engine\progdefs.h"\
-	"..\src\engine\progs.h"\
-	"..\src\engine\quakedef.h"\
-	"..\src\engine\render.h"\
-	"..\src\engine\save.h"\
-	"..\src\engine\sbar.h"\
-	"..\src\engine\screen.h"\
-	"..\src\engine\server.h"\
-	"..\src\engine\sound.h"\
-	"..\src\engine\spritegn.h"\
-	"..\src\engine\studio.h"\
-	"..\src\engine\sys.h"\
-	"..\src\engine\vid.h"\
-	"..\src\engine\view.h"\
-	"..\src\engine\vmodes.h"\
-	"..\src\engine\wad.h"\
-	"..\src\engine\world.h"\
-	"..\src\engine\wrect.h"\
-	"..\src\engine\zone.h"\
-	"..\src\network\net.h"\
-	"..\src\render\dc_model.h"\
-	"..\src\util\dreamcast_crt.h"\
-	
-NODEP_CPP_CDLL_=\
-	"..\src\engine\cmdlib.h"\
-	"..\src\engine\lbmlib.h"\
-	"..\src\engine\r_shared.h"\
-	"..\src\engine\scriplib.h"\
-	"..\src\engine\trilib.h"\
-	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
-!ENDIF 
-
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\engine\cdll_int.c
-
-!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
-
-DEP_CPP_CDLL_I=\
-	"..\src\common\dll_state.h"\
-	"..\src\common\platform.h"\
-	"..\src\common\qfont.h"\
-	"..\src\engine\beamdef.h"\
-	"..\src\engine\bothdefs.h"\
-	"..\src\engine\bspfile.h"\
-	"..\src\engine\cdll_int.h"\
-	"..\src\engine\cl_demo.h"\
-	"..\src\engine\client.h"\
-	"..\src\engine\cmd.h"\
-	"..\src\engine\color.h"\
-	"..\src\engine\common.h"\
-	"..\src\engine\console.h"\
-	"..\src\engine\const.h"\
-	"..\src\engine\crc.h"\
-	"..\src\engine\cshift.h"\
-	"..\src\engine\custom.h"\
-	"..\src\engine\cvar.h"\
-	"..\src\engine\cvardef.h"\
-	"..\src\engine\draw.h"\
-	"..\src\engine\eiface.h"\
-	"..\src\engine\glquake.h"\
-	"..\src\engine\host_cmd.h"\
-	"..\src\engine\hud_handlers.h"\
-	"..\src\engine\input.h"\
-	"..\src\engine\keys.h"\
-	"..\src\engine\mathlib.h"\
-	"..\src\engine\modelgen.h"\
-	"..\src\engine\pr_dlls.h"\
-	"..\src\engine\progdefs.h"\
-	"..\src\engine\progs.h"\
-	"..\src\engine\quakedef.h"\
-	"..\src\engine\render.h"\
-	"..\src\engine\save.h"\
-	"..\src\engine\sbar.h"\
-	"..\src\engine\screen.h"\
-	"..\src\engine\server.h"\
-	"..\src\engine\sound.h"\
-	"..\src\engine\spritegn.h"\
-	"..\src\engine\studio.h"\
-	"..\src\engine\sys.h"\
-	"..\src\engine\tmessage.h"\
-	"..\src\engine\vid.h"\
-	"..\src\engine\view.h"\
-	"..\src\engine\vmodes.h"\
-	"..\src\engine\wad.h"\
-	"..\src\engine\winquake.h"\
-	"..\src\engine\world.h"\
-	"..\src\engine\wrect.h"\
-	"..\src\engine\zone.h"\
-	"..\src\network\net.h"\
-	"..\src\render\cl_draw.h"\
-	"..\src\render\dc_model.h"\
-	"..\src\util\dreamcast_crt.h"\
-	
-NODEP_CPP_CDLL_I=\
-	"..\src\engine\cmdlib.h"\
-	"..\src\engine\lbmlib.h"\
-	"..\src\engine\r_shared.h"\
-	"..\src\engine\scriplib.h"\
-	"..\src\engine\trilib.h"\
-	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
-
-DEP_CPP_CDLL_I=\
-	"..\src\common\dll_state.h"\
-	"..\src\common\platform.h"\
-	"..\src\common\qfont.h"\
-	"..\src\engine\beamdef.h"\
-	"..\src\engine\bothdefs.h"\
-	"..\src\engine\bspfile.h"\
-	"..\src\engine\cdll_int.h"\
-	"..\src\engine\cl_demo.h"\
-	"..\src\engine\client.h"\
-	"..\src\engine\cmd.h"\
-	"..\src\engine\color.h"\
-	"..\src\engine\common.h"\
-	"..\src\engine\console.h"\
-	"..\src\engine\const.h"\
-	"..\src\engine\crc.h"\
-	"..\src\engine\cshift.h"\
-	"..\src\engine\custom.h"\
-	"..\src\engine\cvar.h"\
-	"..\src\engine\cvardef.h"\
-	"..\src\engine\draw.h"\
-	"..\src\engine\eiface.h"\
-	"..\src\engine\glquake.h"\
-	"..\src\engine\host_cmd.h"\
-	"..\src\engine\hud_handlers.h"\
-	"..\src\engine\input.h"\
-	"..\src\engine\keys.h"\
-	"..\src\engine\mathlib.h"\
-	"..\src\engine\modelgen.h"\
-	"..\src\engine\pr_dlls.h"\
-	"..\src\engine\progdefs.h"\
-	"..\src\engine\progs.h"\
-	"..\src\engine\quakedef.h"\
-	"..\src\engine\render.h"\
-	"..\src\engine\save.h"\
-	"..\src\engine\sbar.h"\
-	"..\src\engine\screen.h"\
-	"..\src\engine\server.h"\
-	"..\src\engine\sound.h"\
-	"..\src\engine\spritegn.h"\
-	"..\src\engine\studio.h"\
-	"..\src\engine\sys.h"\
-	"..\src\engine\tmessage.h"\
-	"..\src\engine\vid.h"\
-	"..\src\engine\view.h"\
-	"..\src\engine\vmodes.h"\
-	"..\src\engine\wad.h"\
-	"..\src\engine\winquake.h"\
-	"..\src\engine\world.h"\
-	"..\src\engine\wrect.h"\
-	"..\src\engine\zone.h"\
-	"..\src\network\net.h"\
-	"..\src\render\cl_draw.h"\
-	"..\src\render\dc_model.h"\
-	"..\src\util\dreamcast_crt.h"\
-	
-NODEP_CPP_CDLL_I=\
 	"..\src\engine\cmdlib.h"\
 	"..\src\engine\lbmlib.h"\
 	"..\src\engine\r_shared.h"\
@@ -599,8 +1233,11 @@ DEP_CPP_CHASE=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -628,6 +1265,8 @@ DEP_CPP_CHASE=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_CHASE=\
 	"..\src\engine\cmdlib.h"\
@@ -732,8 +1371,11 @@ DEP_CPP_CL_CA=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -763,6 +1405,7 @@ DEP_CPP_CL_CA=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_CL_CA=\
 	"..\src\engine\cmdlib.h"\
@@ -847,68 +1490,6 @@ NODEP_CPP_CL_CA=\
 SOURCE=..\src\engine\CL_DEMO.C
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
-
-DEP_CPP_CL_DE=\
-	"..\src\common\dll_state.h"\
-	"..\src\common\platform.h"\
-	"..\src\common\qfont.h"\
-	"..\src\engine\beamdef.h"\
-	"..\src\engine\bothdefs.h"\
-	"..\src\engine\bspfile.h"\
-	"..\src\engine\cdll_int.h"\
-	"..\src\engine\cl_demo.h"\
-	"..\src\engine\client.h"\
-	"..\src\engine\cmd.h"\
-	"..\src\engine\color.h"\
-	"..\src\engine\common.h"\
-	"..\src\engine\console.h"\
-	"..\src\engine\const.h"\
-	"..\src\engine\crc.h"\
-	"..\src\engine\cshift.h"\
-	"..\src\engine\custom.h"\
-	"..\src\engine\cvar.h"\
-	"..\src\engine\cvardef.h"\
-	"..\src\engine\draw.h"\
-	"..\src\engine\eiface.h"\
-	"..\src\engine\glquake.h"\
-	"..\src\engine\host_cmd.h"\
-	"..\src\engine\input.h"\
-	"..\src\engine\keys.h"\
-	"..\src\engine\mathlib.h"\
-	"..\src\engine\modelgen.h"\
-	"..\src\engine\pr_dlls.h"\
-	"..\src\engine\progdefs.h"\
-	"..\src\engine\progs.h"\
-	"..\src\engine\quakedef.h"\
-	"..\src\engine\render.h"\
-	"..\src\engine\save.h"\
-	"..\src\engine\sbar.h"\
-	"..\src\engine\screen.h"\
-	"..\src\engine\server.h"\
-	"..\src\engine\shake.h"\
-	"..\src\engine\sound.h"\
-	"..\src\engine\spritegn.h"\
-	"..\src\engine\studio.h"\
-	"..\src\engine\sys.h"\
-	"..\src\engine\tmessage.h"\
-	"..\src\engine\vid.h"\
-	"..\src\engine\view.h"\
-	"..\src\engine\vmodes.h"\
-	"..\src\engine\wad.h"\
-	"..\src\engine\world.h"\
-	"..\src\engine\wrect.h"\
-	"..\src\engine\zone.h"\
-	"..\src\network\net.h"\
-	"..\src\render\dc_model.h"\
-	"..\src\util\dreamcast_crt.h"\
-	
-NODEP_CPP_CL_DE=\
-	"..\src\engine\cmdlib.h"\
-	"..\src\engine\lbmlib.h"\
-	"..\src\engine\r_shared.h"\
-	"..\src\engine\scriplib.h"\
-	"..\src\engine\trilib.h"\
-	
 
 !ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
 
@@ -1008,8 +1589,11 @@ DEP_CPP_CL_DR=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -1036,8 +1620,10 @@ DEP_CPP_CL_DR=\
 	"..\src\engine\zone.h"\
 	"..\src\network\net.h"\
 	"..\src\render\cl_draw.h"\
+	"..\src\render\dc_accum.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_CL_DR=\
 	"..\src\engine\cmdlib.h"\
@@ -1146,8 +1732,11 @@ DEP_CPP_CL_EN=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -1171,12 +1760,14 @@ DEP_CPP_CL_EN=\
 	"..\src\engine\view.h"\
 	"..\src\engine\vmodes.h"\
 	"..\src\engine\wad.h"\
+	"..\src\engine\won.h"\
 	"..\src\engine\world.h"\
 	"..\src\engine\wrect.h"\
 	"..\src\engine\zone.h"\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_CL_EN=\
 	"..\src\engine\cmdlib.h"\
@@ -1286,8 +1877,11 @@ DEP_CPP_CL_IN=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -1316,6 +1910,7 @@ DEP_CPP_CL_IN=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_CL_IN=\
 	"..\src\engine\cmdlib.h"\
@@ -1426,9 +2021,12 @@ DEP_CPP_CL_MA=\
 	"..\src\engine\decal.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
 	"..\src\engine\hashpak.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -1453,12 +2051,14 @@ DEP_CPP_CL_MA=\
 	"..\src\engine\vmodes.h"\
 	"..\src\engine\wad.h"\
 	"..\src\engine\winquake.h"\
+	"..\src\engine\won.h"\
 	"..\src\engine\world.h"\
 	"..\src\engine\wrect.h"\
 	"..\src\engine\zone.h"\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_CL_MA=\
 	"..\src\engine\cmdlib.h"\
@@ -1574,9 +2174,12 @@ DEP_CPP_CL_PA=\
 	"..\src\engine\decal.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
 	"..\src\engine\hashpak.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -1595,6 +2198,7 @@ DEP_CPP_CL_PA=\
 	"..\src\engine\spritegn.h"\
 	"..\src\engine\studio.h"\
 	"..\src\engine\sys.h"\
+	"..\src\engine\tmessage.h"\
 	"..\src\engine\vid.h"\
 	"..\src\engine\view.h"\
 	"..\src\engine\vmodes.h"\
@@ -1607,6 +2211,8 @@ DEP_CPP_CL_PA=\
 	"..\src\render\dc_model.h"\
 	"..\src\render\r_trans.h"\
 	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\vmu.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_CL_PA=\
 	"..\src\engine\cmdlib.h"\
@@ -1717,8 +2323,11 @@ DEP_CPP_CL_PR=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -1748,6 +2357,7 @@ DEP_CPP_CL_PR=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_CL_PR=\
 	"..\src\engine\cmdlib.h"\
@@ -1857,8 +2467,11 @@ DEP_CPP_CL_TE=\
 	"..\src\engine\decal.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -1889,6 +2502,7 @@ DEP_CPP_CL_TE=\
 	"..\src\render\r_studio.h"\
 	"..\src\render\r_trans.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_CL_TE=\
 	"..\src\engine\cmdlib.h"\
@@ -2000,8 +2614,11 @@ DEP_CPP_CMD_C=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -2030,6 +2647,7 @@ DEP_CPP_CMD_C=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_CMD_C=\
 	"..\src\engine\cmdlib.h"\
@@ -2136,8 +2754,11 @@ DEP_CPP_CMODE=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -2166,6 +2787,7 @@ DEP_CPP_CMODE=\
 	"..\src\render\cmodel.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_CMODE=\
 	"..\src\engine\cmdlib.h"\
@@ -2246,10 +2868,6 @@ NODEP_CPP_CMODE=\
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\engine\info.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\src\engine\common.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
@@ -2276,8 +2894,11 @@ DEP_CPP_COMMO=\
 	"..\src\engine\decal.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -2307,6 +2928,7 @@ DEP_CPP_COMMO=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_COMMO=\
 	"..\src\engine\cmdlib.h"\
@@ -2414,8 +3036,11 @@ DEP_CPP_CONSO=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -2444,6 +3069,7 @@ DEP_CPP_CONSO=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_CONSO=\
 	"..\src\engine\cmdlib.h"\
@@ -2549,8 +3175,11 @@ DEP_CPP_CRC_C=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -2578,6 +3207,10 @@ DEP_CPP_CRC_C=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\kzap.h"\
+	"..\src\util\zlib\zconf.h"\
+	"..\src\util\zlib\zlib.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_CRC_C=\
 	"..\src\engine\cmdlib.h"\
@@ -2682,8 +3315,11 @@ DEP_CPP_CVAR_=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -2712,6 +3348,7 @@ DEP_CPP_CVAR_=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_CVAR_=\
 	"..\src\engine\cmdlib.h"\
@@ -2792,19 +3429,150 @@ NODEP_CPP_CVAR_=\
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\render\dc_d3d.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\src\render\d3dmath.c
-# End Source File
-# Begin Source File
 
-SOURCE=..\src\render\decals.c
-# End Source File
-# Begin Source File
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
-SOURCE=..\src\render\text_draw.cpp
+DEP_CPP_D3DMA=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_accum.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_D3DMA=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_D3DMA=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_accum.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_D3DMA=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 
@@ -2833,8 +3601,11 @@ DEP_CPP_DC_AC=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -2863,6 +3634,7 @@ DEP_CPP_DC_AC=\
 	"..\src\render\dc_accum.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_DC_AC=\
 	"..\src\engine\cmdlib.h"\
@@ -2943,8 +3715,294 @@ NODEP_CPP_DC_AC=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\render\dc_d3d.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_DC_D3=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_accum.h"\
+	"..\src\render\dc_debug.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_DC_D3=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_DC_D3=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_accum.h"\
+	"..\src\render\dc_debug.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_DC_D3=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\render\dc_debug.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_DC_DE=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_debug.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_DC_DE=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_DC_DE=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	
+NODEP_CPP_DC_DE=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\render\dc_draw.c
-# ADD CPP /TP
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -2970,8 +4028,11 @@ DEP_CPP_DC_DR=\
 	"..\src\engine\decal.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -2980,6 +4041,7 @@ DEP_CPP_DC_DR=\
 	"..\src\engine\pr_dlls.h"\
 	"..\src\engine\progdefs.h"\
 	"..\src\engine\progs.h"\
+	"..\src\engine\qgl.h"\
 	"..\src\engine\quakedef.h"\
 	"..\src\engine\render.h"\
 	"..\src\engine\save.h"\
@@ -3003,6 +4065,8 @@ DEP_CPP_DC_DR=\
 	"..\src\render\dc_accum.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_DC_DR=\
 	"..\src\engine\cmdlib.h"\
@@ -3011,6 +4075,7 @@ NODEP_CPP_DC_DR=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
+# ADD CPP /TP
 
 !ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
 
@@ -3076,145 +4141,15 @@ NODEP_CPP_DC_DR=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
+# ADD CPP /TP
 
 !ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
-!ENDIF 
-
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\render\dc_debug.c
-
-!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
-
-DEP_CPP_DC_FR=\
-	"..\src\common\dll_state.h"\
-	"..\src\common\platform.h"\
-	"..\src\common\qfont.h"\
-	"..\src\engine\beamdef.h"\
-	"..\src\engine\bothdefs.h"\
-	"..\src\engine\bspfile.h"\
-	"..\src\engine\cdll_int.h"\
-	"..\src\engine\client.h"\
-	"..\src\engine\cmd.h"\
-	"..\src\engine\color.h"\
-	"..\src\engine\common.h"\
-	"..\src\engine\console.h"\
-	"..\src\engine\const.h"\
-	"..\src\engine\crc.h"\
-	"..\src\engine\cshift.h"\
-	"..\src\engine\custom.h"\
-	"..\src\engine\cvar.h"\
-	"..\src\engine\cvardef.h"\
-	"..\src\engine\draw.h"\
-	"..\src\engine\eiface.h"\
-	"..\src\engine\glquake.h"\
-	"..\src\engine\host_cmd.h"\
-	"..\src\engine\input.h"\
-	"..\src\engine\keys.h"\
-	"..\src\engine\mathlib.h"\
-	"..\src\engine\modelgen.h"\
-	"..\src\engine\pr_dlls.h"\
-	"..\src\engine\progdefs.h"\
-	"..\src\engine\progs.h"\
-	"..\src\engine\quakedef.h"\
-	"..\src\engine\render.h"\
-	"..\src\engine\save.h"\
-	"..\src\engine\sbar.h"\
-	"..\src\engine\screen.h"\
-	"..\src\engine\server.h"\
-	"..\src\engine\sound.h"\
-	"..\src\engine\spritegn.h"\
-	"..\src\engine\studio.h"\
-	"..\src\engine\sys.h"\
-	"..\src\engine\vid.h"\
-	"..\src\engine\view.h"\
-	"..\src\engine\vmodes.h"\
-	"..\src\engine\wad.h"\
-	"..\src\engine\winquake.h"\
-	"..\src\engine\world.h"\
-	"..\src\engine\wrect.h"\
-	"..\src\engine\zone.h"\
-	"..\src\network\net.h"\
-	"..\src\render\dc_model.h"\
-	"..\src\util\dreamcast_crt.h"\
-	
-NODEP_CPP_DC_FR=\
-	"..\src\engine\cmdlib.h"\
-	"..\src\engine\lbmlib.h"\
-	"..\src\engine\r_shared.h"\
-	"..\src\engine\scriplib.h"\
-	"..\src\engine\trilib.h"\
-	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
-
-DEP_CPP_DC_FR=\
-	"..\src\common\dll_state.h"\
-	"..\src\common\platform.h"\
-	"..\src\common\qfont.h"\
-	"..\src\engine\beamdef.h"\
-	"..\src\engine\bothdefs.h"\
-	"..\src\engine\bspfile.h"\
-	"..\src\engine\cdll_int.h"\
-	"..\src\engine\client.h"\
-	"..\src\engine\cmd.h"\
-	"..\src\engine\color.h"\
-	"..\src\engine\common.h"\
-	"..\src\engine\console.h"\
-	"..\src\engine\const.h"\
-	"..\src\engine\crc.h"\
-	"..\src\engine\cshift.h"\
-	"..\src\engine\custom.h"\
-	"..\src\engine\cvar.h"\
-	"..\src\engine\cvardef.h"\
-	"..\src\engine\draw.h"\
-	"..\src\engine\eiface.h"\
-	"..\src\engine\glquake.h"\
-	"..\src\engine\host_cmd.h"\
-	"..\src\engine\input.h"\
-	"..\src\engine\keys.h"\
-	"..\src\engine\mathlib.h"\
-	"..\src\engine\modelgen.h"\
-	"..\src\engine\pr_dlls.h"\
-	"..\src\engine\progdefs.h"\
-	"..\src\engine\progs.h"\
-	"..\src\engine\quakedef.h"\
-	"..\src\engine\render.h"\
-	"..\src\engine\save.h"\
-	"..\src\engine\sbar.h"\
-	"..\src\engine\screen.h"\
-	"..\src\engine\server.h"\
-	"..\src\engine\sound.h"\
-	"..\src\engine\spritegn.h"\
-	"..\src\engine\studio.h"\
-	"..\src\engine\sys.h"\
-	"..\src\engine\vid.h"\
-	"..\src\engine\view.h"\
-	"..\src\engine\vmodes.h"\
-	"..\src\engine\wad.h"\
-	"..\src\engine\winquake.h"\
-	"..\src\engine\world.h"\
-	"..\src\engine\wrect.h"\
-	"..\src\engine\zone.h"\
-	"..\src\network\net.h"\
-	"..\src\render\dc_model.h"\
-	"..\src\util\dreamcast_crt.h"\
-	
-NODEP_CPP_DC_FR=\
-	"..\src\engine\cmdlib.h"\
-	"..\src\engine\lbmlib.h"\
-	"..\src\engine\r_shared.h"\
-	"..\src\engine\scriplib.h"\
-	"..\src\engine\trilib.h"\
-	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+# ADD CPP /TP
 
 !ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+# ADD CPP /TP
 
 !ENDIF 
 
@@ -3247,8 +4182,11 @@ DEP_CPP_DC_MO=\
 	"..\src\engine\decal.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -3256,6 +4194,7 @@ DEP_CPP_DC_MO=\
 	"..\src\engine\pr_dlls.h"\
 	"..\src\engine\progdefs.h"\
 	"..\src\engine\progs.h"\
+	"..\src\engine\qgl.h"\
 	"..\src\engine\quakedef.h"\
 	"..\src\engine\render.h"\
 	"..\src\engine\save.h"\
@@ -3274,10 +4213,14 @@ DEP_CPP_DC_MO=\
 	"..\src\engine\wrect.h"\
 	"..\src\engine\zone.h"\
 	"..\src\network\net.h"\
+	"..\src\render\dc_draw.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\render\gl_water.h"\
 	"..\src\render\textures.h"\
 	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\kzap.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_DC_MO=\
 	"..\src\engine\cmdlib.h"\
@@ -3385,8 +4328,11 @@ DEP_CPP_DC_RE=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -3414,6 +4360,7 @@ DEP_CPP_DC_RE=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_DC_RE=\
 	"..\src\engine\cmdlib.h"\
@@ -3518,8 +4465,11 @@ DEP_CPP_DC_RL=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -3527,6 +4477,7 @@ DEP_CPP_DC_RL=\
 	"..\src\engine\pr_dlls.h"\
 	"..\src\engine\progdefs.h"\
 	"..\src\engine\progs.h"\
+	"..\src\engine\qgl.h"\
 	"..\src\engine\quakedef.h"\
 	"..\src\engine\render.h"\
 	"..\src\engine\save.h"\
@@ -3547,6 +4498,8 @@ DEP_CPP_DC_RL=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_DC_RL=\
 	"..\src\engine\cmdlib.h"\
@@ -3653,8 +4606,11 @@ DEP_CPP_DC_RM=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -3681,11 +4637,14 @@ DEP_CPP_DC_RM=\
 	"..\src\engine\wrect.h"\
 	"..\src\engine\zone.h"\
 	"..\src\network\net.h"\
+	"..\src\render\dc_accum.h"\
 	"..\src\render\dc_draw.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\render\r_studio.h"\
 	"..\src\render\r_trans.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_DC_RM=\
 	"..\src\engine\cmdlib.h"\
@@ -3796,12 +4755,16 @@ DEP_CPP_DC_RMI=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
 	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_cmds.h"\
 	"..\src\engine\pr_dlls.h"\
 	"..\src\engine\progdefs.h"\
 	"..\src\engine\progs.h"\
@@ -3825,6 +4788,7 @@ DEP_CPP_DC_RMI=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_DC_RMI=\
 	"..\src\engine\cmdlib.h"\
@@ -3930,8 +4894,11 @@ DEP_CPP_DC_RS=\
 	"..\src\engine\decal.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -3964,6 +4931,8 @@ DEP_CPP_DC_RS=\
 	"..\src\render\dc_model.h"\
 	"..\src\render\gl_water.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_DC_RS=\
 	"..\src\engine\cmdlib.h"\
@@ -4074,8 +5043,11 @@ DEP_CPP_DC_SC=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -4103,6 +5075,7 @@ DEP_CPP_DC_SC=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_DC_SC=\
 	"..\src\engine\cmdlib.h"\
@@ -4182,145 +5155,6 @@ NODEP_CPP_DC_SC=\
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\render\dc_warp.c
-
-!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
-
-DEP_CPP_DC_VA=\
-	"..\src\common\dll_state.h"\
-	"..\src\common\platform.h"\
-	"..\src\common\qfont.h"\
-	"..\src\engine\beamdef.h"\
-	"..\src\engine\bothdefs.h"\
-	"..\src\engine\bspfile.h"\
-	"..\src\engine\cdll_int.h"\
-	"..\src\engine\client.h"\
-	"..\src\engine\cmd.h"\
-	"..\src\engine\color.h"\
-	"..\src\engine\common.h"\
-	"..\src\engine\console.h"\
-	"..\src\engine\const.h"\
-	"..\src\engine\crc.h"\
-	"..\src\engine\cshift.h"\
-	"..\src\engine\custom.h"\
-	"..\src\engine\cvar.h"\
-	"..\src\engine\cvardef.h"\
-	"..\src\engine\draw.h"\
-	"..\src\engine\eiface.h"\
-	"..\src\engine\glquake.h"\
-	"..\src\engine\host_cmd.h"\
-	"..\src\engine\input.h"\
-	"..\src\engine\keys.h"\
-	"..\src\engine\mathlib.h"\
-	"..\src\engine\modelgen.h"\
-	"..\src\engine\pr_cmds.h"\
-	"..\src\engine\pr_dlls.h"\
-	"..\src\engine\progdefs.h"\
-	"..\src\engine\progs.h"\
-	"..\src\engine\quakedef.h"\
-	"..\src\engine\render.h"\
-	"..\src\engine\save.h"\
-	"..\src\engine\sbar.h"\
-	"..\src\engine\screen.h"\
-	"..\src\engine\server.h"\
-	"..\src\engine\sound.h"\
-	"..\src\engine\spritegn.h"\
-	"..\src\engine\studio.h"\
-	"..\src\engine\sys.h"\
-	"..\src\engine\vid.h"\
-	"..\src\engine\view.h"\
-	"..\src\engine\vmodes.h"\
-	"..\src\engine\wad.h"\
-	"..\src\engine\world.h"\
-	"..\src\engine\wrect.h"\
-	"..\src\engine\zone.h"\
-	"..\src\network\net.h"\
-	"..\src\render\dc_model.h"\
-	"..\src\render\gl_warp_sin.h"\
-	"..\src\render\gl_water.h"\
-	"..\src\util\dreamcast_crt.h"\
-	
-NODEP_CPP_DC_VA=\
-	"..\src\engine\cmdlib.h"\
-	"..\src\engine\lbmlib.h"\
-	"..\src\engine\r_shared.h"\
-	"..\src\engine\scriplib.h"\
-	"..\src\engine\trilib.h"\
-	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
-
-DEP_CPP_DC_VA=\
-	"..\src\common\dll_state.h"\
-	"..\src\common\platform.h"\
-	"..\src\common\qfont.h"\
-	"..\src\engine\beamdef.h"\
-	"..\src\engine\bothdefs.h"\
-	"..\src\engine\bspfile.h"\
-	"..\src\engine\cdll_int.h"\
-	"..\src\engine\client.h"\
-	"..\src\engine\cmd.h"\
-	"..\src\engine\color.h"\
-	"..\src\engine\common.h"\
-	"..\src\engine\console.h"\
-	"..\src\engine\const.h"\
-	"..\src\engine\crc.h"\
-	"..\src\engine\cshift.h"\
-	"..\src\engine\custom.h"\
-	"..\src\engine\cvar.h"\
-	"..\src\engine\cvardef.h"\
-	"..\src\engine\draw.h"\
-	"..\src\engine\eiface.h"\
-	"..\src\engine\glquake.h"\
-	"..\src\engine\host_cmd.h"\
-	"..\src\engine\input.h"\
-	"..\src\engine\keys.h"\
-	"..\src\engine\mathlib.h"\
-	"..\src\engine\modelgen.h"\
-	"..\src\engine\pr_cmds.h"\
-	"..\src\engine\pr_dlls.h"\
-	"..\src\engine\progdefs.h"\
-	"..\src\engine\progs.h"\
-	"..\src\engine\quakedef.h"\
-	"..\src\engine\render.h"\
-	"..\src\engine\save.h"\
-	"..\src\engine\sbar.h"\
-	"..\src\engine\screen.h"\
-	"..\src\engine\server.h"\
-	"..\src\engine\sound.h"\
-	"..\src\engine\spritegn.h"\
-	"..\src\engine\studio.h"\
-	"..\src\engine\sys.h"\
-	"..\src\engine\vid.h"\
-	"..\src\engine\view.h"\
-	"..\src\engine\vmodes.h"\
-	"..\src\engine\wad.h"\
-	"..\src\engine\world.h"\
-	"..\src\engine\wrect.h"\
-	"..\src\engine\zone.h"\
-	"..\src\network\net.h"\
-	"..\src\render\dc_model.h"\
-	"..\src\render\gl_warp_sin.h"\
-	"..\src\render\gl_water.h"\
-	"..\src\util\dreamcast_crt.h"\
-	
-NODEP_CPP_DC_VA=\
-	"..\src\engine\cmdlib.h"\
-	"..\src\engine\lbmlib.h"\
-	"..\src\engine\r_shared.h"\
-	"..\src\engine\scriplib.h"\
-	"..\src\engine\trilib.h"\
-	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
-!ENDIF 
-
-# End Source File
-# Begin Source File
-
 SOURCE=..\src\render\dc_vidnt.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
@@ -4346,8 +5180,11 @@ DEP_CPP_DC_VI=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -4374,8 +5211,10 @@ DEP_CPP_DC_VI=\
 	"..\src\engine\wrect.h"\
 	"..\src\engine\zone.h"\
 	"..\src\network\net.h"\
+	"..\src\render\dc_accum.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_DC_VI=\
 	"..\src\engine\cmdlib.h"\
@@ -4456,11 +5295,743 @@ NODEP_CPP_DC_VI=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\render\dc_warp.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_DC_WA=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_cmds.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_accum.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\render\gl_warp_sin.h"\
+	"..\src\render\gl_water.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_DC_WA=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_DC_WA=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_cmds.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\render\gl_warp_sin.h"\
+	"..\src\render\gl_water.h"\
+	"..\src\util\dreamcast_crt.h"\
+	
+NODEP_CPP_DC_WA=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\render\decals.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_DECAL=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\decal.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\cl_draw.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_DECAL=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_DECAL=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\decal.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\cl_draw.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_DECAL=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\util\dreamcast_crt.cpp
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
+DEP_CPP_DREAM=\
+	"..\src\util\dreamcast_crt.h"\
+	
+
 !ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_DREAM=\
+	"..\src\util\dreamcast_crt.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\engine\eng_cdll_exp.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_ENG_C=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_ENG_C=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_ENG_C=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_ENG_C=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\engine\eng_cdll_int.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_ENG_CD=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\cl_demo.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\hud_handlers.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\tmessage.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\cl_draw.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_ENG_CD=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_ENG_CD=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\cl_demo.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\hud_handlers.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\tmessage.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\cl_draw.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_ENG_CD=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\engine\entityclass.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_ENTIT=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_ENTIT=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_ENTIT=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_ENTIT=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
 
 !ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
 
@@ -4496,8 +6067,11 @@ DEP_CPP_GLHUD=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -4524,9 +6098,9 @@ DEP_CPP_GLHUD=\
 	"..\src\engine\zone.h"\
 	"..\src\network\net.h"\
 	"..\src\render\dc_accum.h"\
-	"..\src\render\dc_draw.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_GLHUD=\
 	"..\src\engine\cmdlib.h"\
@@ -4619,7 +6193,6 @@ DEP_CPP_HASHP=\
 	"..\src\engine\bothdefs.h"\
 	"..\src\engine\bspfile.h"\
 	"..\src\engine\cdll_int.h"\
-	"..\src\engine\cl_demo.h"\
 	"..\src\engine\client.h"\
 	"..\src\engine\cmd.h"\
 	"..\src\engine\color.h"\
@@ -4633,9 +6206,12 @@ DEP_CPP_HASHP=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
 	"..\src\engine\hashpak.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -4663,6 +6239,7 @@ DEP_CPP_HASHP=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_HASHP=\
 	"..\src\engine\cmdlib.h"\
@@ -4744,10 +6321,6 @@ NODEP_CPP_HASHP=\
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\engine\won.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\src\engine\host.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
@@ -4773,8 +6346,12 @@ DEP_CPP_HOST_=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hashpak.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -4798,6 +6375,7 @@ DEP_CPP_HOST_=\
 	"..\src\engine\vmodes.h"\
 	"..\src\engine\wad.h"\
 	"..\src\engine\winquake.h"\
+	"..\src\engine\won.h"\
 	"..\src\engine\world.h"\
 	"..\src\engine\wrect.h"\
 	"..\src\engine\zone.h"\
@@ -4805,6 +6383,7 @@ DEP_CPP_HOST_=\
 	"..\src\render\cmodel.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_HOST_=\
 	"..\src\engine\cmdlib.h"\
@@ -4914,9 +6493,12 @@ DEP_CPP_HOST_C=\
 	"..\src\engine\decal.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
 	"..\src\engine\hashpak.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -4936,6 +6518,7 @@ DEP_CPP_HOST_C=\
 	"..\src\engine\spritegn.h"\
 	"..\src\engine\studio.h"\
 	"..\src\engine\sys.h"\
+	"..\src\engine\ui.h"\
 	"..\src\engine\vid.h"\
 	"..\src\engine\view.h"\
 	"..\src\engine\vmodes.h"\
@@ -4947,7 +6530,11 @@ DEP_CPP_HOST_C=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\render\r_studio.h"\
+	"..\src\render\text_draw.h"\
 	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\kzap.h"\
+	"..\src\util\vmu.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_HOST_C=\
 	"..\src\engine\cmdlib.h"\
@@ -5060,8 +6647,11 @@ DEP_CPP_HUD_C=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -5090,6 +6680,7 @@ DEP_CPP_HUD_C=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_HUD_C=\
 	"..\src\engine\cmdlib.h"\
@@ -5172,7 +6763,6 @@ NODEP_CPP_HUD_C=\
 # Begin Source File
 
 SOURCE=..\src\engine\in_dc.c
-# ADD CPP /TP
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -5197,8 +6787,12 @@ DEP_CPP_IN_DC=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\in_dc.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -5227,6 +6821,9 @@ DEP_CPP_IN_DC=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\vmu.h"\
+	{$(INCLUDE)}"maplusag.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_IN_DC=\
 	"..\src\engine\cmdlib.h"\
@@ -5234,8 +6831,8 @@ NODEP_CPP_IN_DC=\
 	"..\src\engine\r_shared.h"\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
-	".\aplusag.h"\
 	
+# ADD CPP /TP
 
 !ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
 
@@ -5299,10 +6896,15 @@ NODEP_CPP_IN_DC=\
 	"..\src\engine\trilib.h"\
 	".\aplusag.h"\
 	
+# ADD CPP /TP
 
 !ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
 
+# ADD CPP /TP
+
 !ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+# ADD CPP /TP
 
 !ENDIF 
 
@@ -5310,17 +6912,608 @@ NODEP_CPP_IN_DC=\
 # Begin Source File
 
 SOURCE=..\src\engine\in_joy.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_IN_JO=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\in_dc.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\vmu.h"\
+	{$(INCLUDE)}"maplusag.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_IN_JO=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
 # ADD CPP /TP
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_IN_JO=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\in_dc.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\vmu.h"\
+	{$(INCLUDE)}"maplusag.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_IN_JO=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+# ADD CPP /TP
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+# ADD CPP /TP
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+# ADD CPP /TP
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 
 SOURCE=..\src\engine\in_kbd.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_IN_KB=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\in_dc.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\vmu.h"\
+	{$(INCLUDE)}"maplusag.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_IN_KB=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
 # ADD CPP /TP
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_IN_KB=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\in_dc.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\vmu.h"\
+	{$(INCLUDE)}"maplusag.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_IN_KB=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+# ADD CPP /TP
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+# ADD CPP /TP
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+# ADD CPP /TP
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 
 SOURCE=..\src\engine\in_mouse.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_IN_MO=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\in_dc.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\vmu.h"\
+	{$(INCLUDE)}"maplusag.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_IN_MO=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
 # ADD CPP /TP
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_IN_MO=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\in_dc.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\vmu.h"\
+	{$(INCLUDE)}"maplusag.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_IN_MO=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+# ADD CPP /TP
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+# ADD CPP /TP
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+# ADD CPP /TP
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\engine\info.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_INFO_=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_INFO_=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_INFO_=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_INFO_=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 
@@ -5349,8 +7542,11 @@ DEP_CPP_KEYS_=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -5379,6 +7575,7 @@ DEP_CPP_KEYS_=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_KEYS_=\
 	"..\src\engine\cmdlib.h"\
@@ -5443,6 +7640,149 @@ DEP_CPP_KEYS_=\
 	"..\src\util\dreamcast_crt.h"\
 	
 NODEP_CPP_KEYS_=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\util\kzap.cpp
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_KZAP_=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\kzap.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_KZAP_=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_KZAP_=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\kzap.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_KZAP_=\
 	"..\src\engine\cmdlib.h"\
 	"..\src\engine\lbmlib.h"\
 	"..\src\engine\r_shared.h"\
@@ -5484,8 +7824,11 @@ DEP_CPP_L_STU=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -5513,6 +7856,7 @@ DEP_CPP_L_STU=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_L_STU=\
 	"..\src\engine\cmdlib.h"\
@@ -5640,8 +7984,11 @@ DEP_CPP_MATHL=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -5669,6 +8016,9 @@ DEP_CPP_MATHL=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
+	{$(INCLUDE)}"shsgintr.h"\
 	
 NODEP_CPP_MATHL=\
 	"..\src\engine\cmdlib.h"\
@@ -5748,6 +8098,161 @@ NODEP_CPP_MATHL=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\engine\mnemo.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_MNEMO=\
+	"..\src\audio\afile.h"\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\dc_precache_data.inc"\
+	"..\src\engine\decal.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_cmds.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\render\r_studio.h"\
+	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\kzap.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_MNEMO=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_MNEMO=\
+	"..\src\audio\afile.h"\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\dc_precache_data.inc"\
+	"..\src\engine\decal.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_cmds.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\render\r_studio.h"\
+	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\kzap.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_MNEMO=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\network\net_chan.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
@@ -5773,8 +8278,11 @@ DEP_CPP_NET_C=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -5803,6 +8311,7 @@ DEP_CPP_NET_C=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_NET_C=\
 	"..\src\engine\cmdlib.h"\
@@ -5908,8 +8417,11 @@ DEP_CPP_NET_W=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -5938,6 +8450,7 @@ DEP_CPP_NET_W=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_NET_W=\
 	"..\src\engine\cmdlib.h"\
@@ -6043,8 +8556,11 @@ DEP_CPP_PHYSI=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -6072,6 +8588,7 @@ DEP_CPP_PHYSI=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_PHYSI=\
 	"..\src\engine\cmdlib.h"\
@@ -6176,8 +8693,11 @@ DEP_CPP_PMOVE=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -6208,6 +8728,7 @@ DEP_CPP_PMOVE=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_PMOVE=\
 	"..\src\engine\cmdlib.h"\
@@ -6315,8 +8836,11 @@ DEP_CPP_PMOVET=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -6346,6 +8870,7 @@ DEP_CPP_PMOVET=\
 	"..\src\render\dc_model.h"\
 	"..\src\render\r_studio.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_PMOVET=\
 	"..\src\engine\cmdlib.h"\
@@ -6453,8 +8978,11 @@ DEP_CPP_PR_CM=\
 	"..\src\engine\decal.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -6485,6 +9013,7 @@ DEP_CPP_PR_CM=\
 	"..\src\render\cmodel.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_PR_CM=\
 	"..\src\engine\cmdlib.h"\
@@ -6593,8 +9122,11 @@ DEP_CPP_PR_ED=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -6623,6 +9155,7 @@ DEP_CPP_PR_ED=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_PR_ED=\
 	"..\src\engine\cmdlib.h"\
@@ -6703,6 +9236,149 @@ NODEP_CPP_PR_ED=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\engine\qgl.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_QGL_C=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\qgl.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_QGL_C=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_QGL_C=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\qgl.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_QGL_C=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\render\R_PART.C
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
@@ -6729,8 +9405,11 @@ DEP_CPP_R_PAR=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -6757,9 +9436,12 @@ DEP_CPP_R_PAR=\
 	"..\src\engine\wrect.h"\
 	"..\src\engine\zone.h"\
 	"..\src\network\net.h"\
+	"..\src\render\dc_accum.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\render\r_triangle.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_R_PAR=\
 	"..\src\engine\cmdlib.h"\
@@ -6869,8 +9551,11 @@ DEP_CPP_R_STU=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -6903,6 +9588,8 @@ DEP_CPP_R_STU=\
 	"..\src\render\r_studio.h"\
 	"..\src\render\r_triangle.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_R_STU=\
 	"..\src\engine\cmdlib.h"\
@@ -6990,6 +9677,149 @@ NODEP_CPP_R_STU=\
 # Begin Source File
 
 SOURCE=..\src\render\r_studio_neo.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_R_STUD=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\CL_TENT.H"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_accum.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\render\r_studio.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_R_STUD=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_R_STUD=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\CL_TENT.H"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_accum.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\render\r_studio.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_R_STUD=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 
@@ -7019,8 +9849,11 @@ DEP_CPP_R_TRA=\
 	"..\src\engine\d_local.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -7047,10 +9880,12 @@ DEP_CPP_R_TRA=\
 	"..\src\engine\wrect.h"\
 	"..\src\engine\zone.h"\
 	"..\src\network\net.h"\
+	"..\src\render\dc_accum.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\render\r_studio.h"\
 	"..\src\render\r_trans.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_R_TRA=\
 	"..\src\engine\cmdlib.h"\
@@ -7157,11 +9992,13 @@ DEP_CPP_R_TRI=\
 	"..\src\engine\custom.h"\
 	"..\src\engine\cvar.h"\
 	"..\src\engine\cvardef.h"\
-	"..\src\engine\d_local.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -7187,9 +10024,11 @@ DEP_CPP_R_TRI=\
 	"..\src\engine\wrect.h"\
 	"..\src\engine\zone.h"\
 	"..\src\network\net.h"\
+	"..\src\render\dc_accum.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\render\r_triangle.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_R_TRI=\
 	"..\src\engine\cmdlib.h"\
@@ -7271,31 +10110,17 @@ NODEP_CPP_R_TRI=\
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\audio\audio.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\audio\audio_cd.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\audio\audio_mgr.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\audio\audio_static.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\audio\audio_stream.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=..\src\audio\snd_null.cpp
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
 DEP_CPP_SND_N=\
+	"..\src\audio\afile.h"\
+	"..\src\audio\audio.h"\
+	"..\src\audio\audio_cd.h"\
+	"..\src\audio\audio_mgr.h"\
+	"..\src\audio\audio_static.h"\
+	"..\src\audio\audio_stream.h"\
 	"..\src\common\dll_state.h"\
 	"..\src\common\platform.h"\
 	"..\src\common\qfont.h"\
@@ -7316,13 +10141,15 @@ DEP_CPP_SND_N=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
 	"..\src\engine\modelgen.h"\
-	"..\src\engine\pr_cmds.h"\
 	"..\src\engine\pr_dlls.h"\
 	"..\src\engine\progdefs.h"\
 	"..\src\engine\progs.h"\
@@ -7340,13 +10167,14 @@ DEP_CPP_SND_N=\
 	"..\src\engine\view.h"\
 	"..\src\engine\vmodes.h"\
 	"..\src\engine\wad.h"\
-	"..\src\engine\winquake.h"\
 	"..\src\engine\world.h"\
 	"..\src\engine\wrect.h"\
 	"..\src\engine\zone.h"\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_SND_N=\
 	"..\src\engine\cmdlib.h"\
@@ -7428,19 +10256,6 @@ NODEP_CPP_SND_N=\
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\audio\afile.cpp
-
-!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
-!ENDIF 
-
-# End Source File
-# Begin Source File
-
 SOURCE=..\src\engine\SV_MAIN.C
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
@@ -7468,8 +10283,11 @@ DEP_CPP_SV_MA=\
 	"..\src\engine\decal.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -7494,6 +10312,7 @@ DEP_CPP_SV_MA=\
 	"..\src\engine\view.h"\
 	"..\src\engine\vmodes.h"\
 	"..\src\engine\wad.h"\
+	"..\src\engine\won.h"\
 	"..\src\engine\world.h"\
 	"..\src\engine\wrect.h"\
 	"..\src\engine\zone.h"\
@@ -7501,6 +10320,7 @@ DEP_CPP_SV_MA=\
 	"..\src\render\cmodel.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_SV_MA=\
 	"..\src\engine\cmdlib.h"\
@@ -7611,8 +10431,11 @@ DEP_CPP_SV_MO=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -7641,6 +10464,7 @@ DEP_CPP_SV_MO=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_SV_MO=\
 	"..\src\engine\cmdlib.h"\
@@ -7746,8 +10570,11 @@ DEP_CPP_SV_PH=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -7778,6 +10605,7 @@ DEP_CPP_SV_PH=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_SV_PH=\
 	"..\src\engine\cmdlib.h"\
@@ -7886,9 +10714,12 @@ DEP_CPP_SV_UP=\
 	"..\src\engine\decal.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
 	"..\src\engine\hashpak.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -7916,6 +10747,7 @@ DEP_CPP_SV_UP=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_SV_UP=\
 	"..\src\engine\cmdlib.h"\
@@ -8022,8 +10854,11 @@ DEP_CPP_SV_US=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -8053,6 +10888,7 @@ DEP_CPP_SV_US=\
 	"..\src\render\dc_model.h"\
 	"..\src\render\r_studio.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_SV_US=\
 	"..\src\engine\cmdlib.h"\
@@ -8134,34 +10970,6 @@ NODEP_CPP_SV_US=\
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\util\Zap.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\util\kzap.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\util\zapsave.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\engine\mnemo.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\util\vmu.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\engine\entityclass.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\engine\sys_engine.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\src\engine\sys_dc.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
@@ -8185,11 +10993,13 @@ DEP_CPP_SYS_D=\
 	"..\src\engine\custom.h"\
 	"..\src\engine\cvar.h"\
 	"..\src\engine\cvardef.h"\
-	"..\src\render\dc_debug.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -8218,9 +11028,15 @@ DEP_CPP_SYS_D=\
 	"..\src\engine\wrect.h"\
 	"..\src\engine\zone.h"\
 	"..\src\network\net.h"\
+	"..\src\render\dc_debug.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\render\r_studio.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
+	{$(INCLUDE)}"shintr.h"\
+	{$(INCLUDE)}"wdm.h"\
 	
 NODEP_CPP_SYS_D=\
 	"..\src\engine\cmdlib.h"\
@@ -8228,10 +11044,6 @@ NODEP_CPP_SYS_D=\
 	"..\src\engine\r_shared.h"\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
-	".\dm.h"\
-	".\eddcdrm.h"\
-	".\eddstor.h"\
-	".\egagdrm.h"\
 	
 
 !ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
@@ -8255,7 +11067,6 @@ DEP_CPP_SYS_D=\
 	"..\src\engine\custom.h"\
 	"..\src\engine\cvar.h"\
 	"..\src\engine\cvardef.h"\
-	"..\src\render\dc_debug.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\glquake.h"\
@@ -8288,6 +11099,7 @@ DEP_CPP_SYS_D=\
 	"..\src\engine\wrect.h"\
 	"..\src\engine\zone.h"\
 	"..\src\network\net.h"\
+	"..\src\render\dc_debug.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\render\r_studio.h"\
 	"..\src\util\dreamcast_crt.h"\
@@ -8302,6 +11114,304 @@ NODEP_CPP_SYS_D=\
 	".\eddcdrm.h"\
 	".\eddstor.h"\
 	".\egagdrm.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\engine\sys_engine.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_SYS_E=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
+	{$(INCLUDE)}"shintr.h"\
+	{$(INCLUDE)}"wdm.h"\
+	
+NODEP_CPP_SYS_E=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_SYS_E=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
+	{$(INCLUDE)}"shintr.h"\
+	{$(INCLUDE)}"wdm.h"\
+	
+NODEP_CPP_SYS_E=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\render\text_draw.cpp
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_TEXT_=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_accum.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\render\text_draw.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_TEXT_=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_TEXT_=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\winquake.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_accum.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\render\text_draw.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_TEXT_=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
 	
 
 !ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
@@ -8338,8 +11448,11 @@ DEP_CPP_TEXTU=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -8368,6 +11481,8 @@ DEP_CPP_TEXTU=\
 	"..\src\render\dc_model.h"\
 	"..\src\render\textures.h"\
 	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\kzap.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_TEXTU=\
 	"..\src\engine\cmdlib.h"\
@@ -8474,8 +11589,11 @@ DEP_CPP_TMESS=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -8504,6 +11622,7 @@ DEP_CPP_TMESS=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_TMESS=\
 	"..\src\engine\cmdlib.h"\
@@ -8585,7 +11704,150 @@ NODEP_CPP_TMESS=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\engine\menu.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\engine\ui.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_UI_C9a=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\ui.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_UI_C9a=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_UI_C9a=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\ui.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_UI_C9a=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 
@@ -8614,8 +11876,11 @@ DEP_CPP_VIEW_=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -8646,6 +11911,8 @@ DEP_CPP_VIEW_=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"floatmathlib.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_VIEW_=\
 	"..\src\engine\cmdlib.h"\
@@ -8712,6 +11979,147 @@ DEP_CPP_VIEW_=\
 	"..\src\util\dreamcast_crt.h"\
 	
 NODEP_CPP_VIEW_=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\util\vmu.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_VMU_C=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_VMU_C=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_VMU_C=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_VMU_C=\
 	"..\src\engine\cmdlib.h"\
 	"..\src\engine\lbmlib.h"\
 	"..\src\engine\r_shared.h"\
@@ -8753,8 +12161,11 @@ DEP_CPP_WAD_C=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -8782,6 +12193,7 @@ DEP_CPP_WAD_C=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_WAD_C=\
 	"..\src\engine\cmdlib.h"\
@@ -8861,6 +12273,149 @@ NODEP_CPP_WAD_C=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\engine\won.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_WON_C=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\won.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_WON_C=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_WON_C=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\won.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_WON_C=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\engine\world.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
@@ -8886,13 +12441,17 @@ DEP_CPP_WORLD=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
 	"..\src\engine\modelgen.h"\
 	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\pr_edict.h"\
 	"..\src\engine\progdefs.h"\
 	"..\src\engine\progs.h"\
 	"..\src\engine\quakedef.h"\
@@ -8917,6 +12476,7 @@ DEP_CPP_WORLD=\
 	"..\src\render\dc_model.h"\
 	"..\src\render\r_studio.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_WORLD=\
 	"..\src\engine\cmdlib.h"\
@@ -8998,7 +12558,289 @@ NODEP_CPP_WORLD=\
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\engine\qgl.c
+SOURCE=..\src\util\Zap.cpp
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_ZAP_C=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\kzap.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_ZAP_C=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_ZAP_C=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\kzap.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_ZAP_C=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\util\zapsave.c
+
+!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+DEP_CPP_ZAPSA=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\kzap.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_ZAPSA=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
+
+DEP_CPP_ZAPSA=\
+	"..\src\common\dll_state.h"\
+	"..\src\common\platform.h"\
+	"..\src\common\qfont.h"\
+	"..\src\engine\beamdef.h"\
+	"..\src\engine\bothdefs.h"\
+	"..\src\engine\bspfile.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\engine\client.h"\
+	"..\src\engine\cmd.h"\
+	"..\src\engine\color.h"\
+	"..\src\engine\common.h"\
+	"..\src\engine\console.h"\
+	"..\src\engine\const.h"\
+	"..\src\engine\crc.h"\
+	"..\src\engine\cshift.h"\
+	"..\src\engine\custom.h"\
+	"..\src\engine\cvar.h"\
+	"..\src\engine\cvardef.h"\
+	"..\src\engine\draw.h"\
+	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
+	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
+	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
+	"..\src\engine\input.h"\
+	"..\src\engine\keys.h"\
+	"..\src\engine\mathlib.h"\
+	"..\src\engine\modelgen.h"\
+	"..\src\engine\pr_dlls.h"\
+	"..\src\engine\progdefs.h"\
+	"..\src\engine\progs.h"\
+	"..\src\engine\quakedef.h"\
+	"..\src\engine\render.h"\
+	"..\src\engine\save.h"\
+	"..\src\engine\sbar.h"\
+	"..\src\engine\screen.h"\
+	"..\src\engine\server.h"\
+	"..\src\engine\sound.h"\
+	"..\src\engine\spritegn.h"\
+	"..\src\engine\studio.h"\
+	"..\src\engine\sys.h"\
+	"..\src\engine\vid.h"\
+	"..\src\engine\view.h"\
+	"..\src\engine\vmodes.h"\
+	"..\src\engine\wad.h"\
+	"..\src\engine\world.h"\
+	"..\src\engine\wrect.h"\
+	"..\src\engine\zone.h"\
+	"..\src\network\net.h"\
+	"..\src\render\dc_model.h"\
+	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\kzap.h"\
+	{$(INCLUDE)}"shintr.h"\
+	
+NODEP_CPP_ZAPSA=\
+	"..\src\engine\cmdlib.h"\
+	"..\src\engine\lbmlib.h"\
+	"..\src\engine\r_shared.h"\
+	"..\src\engine\scriplib.h"\
+	"..\src\engine\trilib.h"\
+	
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 
@@ -9027,8 +12869,11 @@ DEP_CPP_ZONE_=\
 	"..\src\engine\cvardef.h"\
 	"..\src\engine\draw.h"\
 	"..\src\engine\eiface.h"\
+	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
+	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
+	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
 	"..\src\engine\keys.h"\
 	"..\src\engine\mathlib.h"\
@@ -9057,6 +12902,7 @@ DEP_CPP_ZONE_=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_ZONE_=\
 	"..\src\engine\cmdlib.h"\

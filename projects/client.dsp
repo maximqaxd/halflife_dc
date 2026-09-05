@@ -43,8 +43,8 @@ CFG=client - Win32 (WCE SH4) Debug
 # PROP Intermediate_Dir "../obj/WCESH4Rel/client"
 # PROP Target_Dir ""
 CPP=shcl.exe
-# ADD BASE CPP /nologo /MC /W3 /Zi /Ox /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "NDEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D "_CRTIMP=" /YX /Qsh4r7 /Qs /Qfast /Qgvp /c
-# ADD CPP /nologo /MC /W3 /Zi /O2 /Ob2 /I "../src/client" /I "../src/common" /I "../src/engine" /I "../src/render" /I "../src/util" /I "../src/network" /I "../src/halflife" /I "../src/audio" /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "NDEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D "_CRTIMP=" /YX /Qsh4r7 /Qs /Qfast /Qgvp /c
+# ADD BASE CPP /nologo /MC /W3 /Zi /Ox /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "NDEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D _CRTIMP= /YX /Qsh4r7 /Qs /Qfast /Qgvp /c
+# ADD CPP /nologo /MC /W3 /Zi /O2 /Ob2 /I "../src/client" /I "../src/common" /I "../src/engine" /I "../src/render" /I "../src/util" /I "../src/network" /I "../src/halflife" /I "../src/audio" /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "NDEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D "GLQUAKE" /D _CRTIMP= /YX /Qsh4r7 /Qs /Qfast /Qgvp /c
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
@@ -65,8 +65,8 @@ LIB32=link.exe -lib
 # PROP Intermediate_Dir "../obj/WCESH4Dbg/client"
 # PROP Target_Dir ""
 CPP=shcl.exe
-# ADD BASE CPP /nologo /MC /W3 /Zi /Od /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "DEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D "_CRTIMP=" /YX /Qsh4r7 /Qs /Qfast /c
-# ADD CPP /nologo /MC /W3 /Zi /O2 /Ob2 /I "../src/client" /I "../src/common" /I "../src/engine" /I "../src/render" /I "../src/util" /I "../src/network" /I "../src/halflife" /I "../src/audio" /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "DEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D "_CRTIMP=" /YX /Qsh4r7 /Qs /Qfast /c
+# ADD BASE CPP /nologo /MC /W3 /Zi /Od /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "DEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D _CRTIMP= /YX /Qsh4r7 /Qs /Qfast /c
+# ADD CPP /nologo /MC /W3 /Zi /O2 /Ob2 /I "../src/client" /I "../src/common" /I "../src/engine" /I "../src/render" /I "../src/util" /I "../src/network" /I "../src/halflife" /I "../src/audio" /D _WIN32_WCE=$(CEVersion) /D "$(CEConfigName)" /D "DEBUG" /D "SHx" /D "SH4" /D "_SH4_" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_MBCS" /D "_UNICODE" /D _CRTIMP= /YX /Qsh4r7 /Qs /Qfast /c
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
@@ -147,8 +147,10 @@ DEP_CPP_AMMO_=\
 	"..\src\client\hud.h"\
 	"..\src\client\parsemsg.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
 	
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
@@ -174,6 +176,47 @@ DEP_CPP_AMMO_=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\client\ammo_secondary.cpp
+
+!IF  "$(CFG)" == "client - Win32 (WCE SH4) Release"
+
+DEP_CPP_AMMO_S=\
+	"..\src\client\ammo.h"\
+	"..\src\client\cl_dll.h"\
+	"..\src\client\health.h"\
+	"..\src\client\hud.h"\
+	"..\src\client\parsemsg.h"\
+	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
+	
+
+!ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
+
+DEP_CPP_AMMO_S=\
+	"..\src\client\ammo.h"\
+	"..\src\client\cl_dll.h"\
+	"..\src\client\health.h"\
+	"..\src\client\hud.h"\
+	"..\src\client\parsemsg.h"\
+	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
+	
+
+!ELSEIF  "$(CFG)" == "client - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "client - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\client\ammohistory.cpp
 
 !IF  "$(CFG)" == "client - Win32 (WCE SH4) Release"
@@ -186,8 +229,10 @@ DEP_CPP_AMMOH=\
 	"..\src\client\hud.h"\
 	"..\src\client\parsemsg.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
 	
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
@@ -224,8 +269,10 @@ DEP_CPP_BATTE=\
 	"..\src\client\hud.h"\
 	"..\src\client\parsemsg.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
 	
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
@@ -260,8 +307,10 @@ DEP_CPP_CDLL_=\
 	"..\src\client\health.h"\
 	"..\src\client\hud.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
 	
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
@@ -296,8 +345,10 @@ DEP_CPP_DEATH=\
 	"..\src\client\hud.h"\
 	"..\src\client\parsemsg.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
 	
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
@@ -326,7 +377,15 @@ SOURCE=..\src\util\dreamcast_crt.cpp
 
 !IF  "$(CFG)" == "client - Win32 (WCE SH4) Release"
 
+DEP_CPP_DREAM=\
+	"..\src\util\dreamcast_crt.h"\
+	
+
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
+
+DEP_CPP_DREAM=\
+	"..\src\util\dreamcast_crt.h"\
+	
 
 !ELSEIF  "$(CFG)" == "client - Win32 Release"
 
@@ -348,8 +407,10 @@ DEP_CPP_FLASH=\
 	"..\src\client\hud.h"\
 	"..\src\client\parsemsg.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
 	
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
@@ -385,6 +446,7 @@ DEP_CPP_GEIGE=\
 	"..\src\client\hud.h"\
 	"..\src\client\parsemsg.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
 	"..\src\util\dreamcast_crt.h"\
@@ -424,8 +486,10 @@ DEP_CPP_HEALT=\
 	"..\src\client\hud.h"\
 	"..\src\client\parsemsg.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
 	
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
@@ -461,8 +525,10 @@ DEP_CPP_HUD_C=\
 	"..\src\client\hud.h"\
 	"..\src\client\parsemsg.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
 	
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
@@ -498,8 +564,10 @@ DEP_CPP_HUD_M=\
 	"..\src\client\hud.h"\
 	"..\src\client\parsemsg.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
 	
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
@@ -534,8 +602,10 @@ DEP_CPP_HUD_R=\
 	"..\src\client\health.h"\
 	"..\src\client\hud.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
 	
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
@@ -569,8 +639,10 @@ DEP_CPP_HUD_U=\
 	"..\src\client\health.h"\
 	"..\src\client\hud.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
 	
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
@@ -594,6 +666,47 @@ DEP_CPP_HUD_U=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\client\menu.cpp
+
+!IF  "$(CFG)" == "client - Win32 (WCE SH4) Release"
+
+DEP_CPP_MENU_=\
+	"..\src\client\ammo.h"\
+	"..\src\client\cl_dll.h"\
+	"..\src\client\health.h"\
+	"..\src\client\hud.h"\
+	"..\src\client\parsemsg.h"\
+	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
+	
+
+!ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
+
+DEP_CPP_MENU_=\
+	"..\src\client\ammo.h"\
+	"..\src\client\cl_dll.h"\
+	"..\src\client\health.h"\
+	"..\src\client\hud.h"\
+	"..\src\client\parsemsg.h"\
+	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
+	
+
+!ELSEIF  "$(CFG)" == "client - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "client - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\client\message.cpp
 
 !IF  "$(CFG)" == "client - Win32 (WCE SH4) Release"
@@ -605,8 +718,10 @@ DEP_CPP_MESSA=\
 	"..\src\client\hud.h"\
 	"..\src\client\parsemsg.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
 	
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
@@ -642,8 +757,10 @@ DEP_CPP_MOTD_=\
 	"..\src\client\hud.h"\
 	"..\src\client\parsemsg.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
 	
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
@@ -694,8 +811,10 @@ DEP_CPP_SAYTE=\
 	"..\src\client\hud.h"\
 	"..\src\client\parsemsg.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
 	
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
@@ -731,8 +850,10 @@ DEP_CPP_SCORE=\
 	"..\src\client\hud.h"\
 	"..\src\client\parsemsg.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
 	
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
@@ -757,6 +878,129 @@ DEP_CPP_SCORE=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\client\status_icons.cpp
+
+!IF  "$(CFG)" == "client - Win32 (WCE SH4) Release"
+
+DEP_CPP_STATU=\
+	"..\src\client\ammo.h"\
+	"..\src\client\cl_dll.h"\
+	"..\src\client\health.h"\
+	"..\src\client\hud.h"\
+	"..\src\client\parsemsg.h"\
+	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
+	
+
+!ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
+
+DEP_CPP_STATU=\
+	"..\src\client\ammo.h"\
+	"..\src\client\cl_dll.h"\
+	"..\src\client\health.h"\
+	"..\src\client\hud.h"\
+	"..\src\client\parsemsg.h"\
+	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
+	
+
+!ELSEIF  "$(CFG)" == "client - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "client - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\client\statusbar.cpp
+
+!IF  "$(CFG)" == "client - Win32 (WCE SH4) Release"
+
+DEP_CPP_STATUS=\
+	"..\src\client\ammo.h"\
+	"..\src\client\cl_dll.h"\
+	"..\src\client\health.h"\
+	"..\src\client\hud.h"\
+	"..\src\client\parsemsg.h"\
+	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
+	
+
+!ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
+
+DEP_CPP_STATUS=\
+	"..\src\client\ammo.h"\
+	"..\src\client\cl_dll.h"\
+	"..\src\client\health.h"\
+	"..\src\client\hud.h"\
+	"..\src\client\parsemsg.h"\
+	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
+	
+
+!ELSEIF  "$(CFG)" == "client - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "client - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\client\text_message.cpp
+
+!IF  "$(CFG)" == "client - Win32 (WCE SH4) Release"
+
+DEP_CPP_TEXT_=\
+	"..\src\client\ammo.h"\
+	"..\src\client\cl_dll.h"\
+	"..\src\client\health.h"\
+	"..\src\client\hud.h"\
+	"..\src\client\parsemsg.h"\
+	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
+	
+
+!ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
+
+DEP_CPP_TEXT_=\
+	"..\src\client\ammo.h"\
+	"..\src\client\cl_dll.h"\
+	"..\src\client\health.h"\
+	"..\src\client\hud.h"\
+	"..\src\client\parsemsg.h"\
+	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
+	"..\src\engine\cdll_int.h"\
+	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
+	
+
+!ELSEIF  "$(CFG)" == "client - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "client - Win32 Debug"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\client\train.cpp
 
 !IF  "$(CFG)" == "client - Win32 (WCE SH4) Release"
@@ -768,8 +1012,10 @@ DEP_CPP_TRAIN=\
 	"..\src\client\hud.h"\
 	"..\src\client\parsemsg.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
 	
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
@@ -804,8 +1050,10 @@ DEP_CPP_UTIL_=\
 	"..\src\client\health.h"\
 	"..\src\client\hud.h"\
 	"..\src\client\util_vector.h"\
+	"..\src\common\platform.h"\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
+	"..\src\util\dreamcast_crt.h"\
 	
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
@@ -826,26 +1074,6 @@ DEP_CPP_UTIL_=\
 
 !ENDIF 
 
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\client\ammo_secondary.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\client\menu.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\client\status_icons.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\client\statusbar.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\client\text_message.cpp
 # End Source File
 # End Group
 # Begin Group "Header Files"
