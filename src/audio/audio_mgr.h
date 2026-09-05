@@ -18,7 +18,7 @@ extern int	s_servercount;
 sfx_t	*S_PrecacheSound (CAudioMgr *mgr, char *name, qboolean fromserver);
 sfx_t	*S_CacheSoundRecord (CAudioMgr *mgr, char *path, byte *data, int size);
 void	S_LoadSound (CAudioMgr *mgr, sfx_t *sfx);
-void	S_LoadDSoundBuffer (sfx_t *sfx, byte *wav, int size);
+void	S_LoadDSoundBuffer (CAudioMgr *mgr, sfx_t *sfx, byte *wav);
 
 
 

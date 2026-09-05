@@ -540,7 +540,7 @@ sfx_t *S_CacheSoundRecord (CAudioMgr *mgr, char *path, byte *data, int size)
 			strcpy (sfx->name, name);
 			sfx->servercount = (short)s_servercount;
 
-			S_LoadDSoundBuffer (sfx, data, size);
+			S_LoadDSoundBuffer (mgr, sfx, data);
 			return sfx;
 		}
 
@@ -550,7 +550,7 @@ sfx_t *S_CacheSoundRecord (CAudioMgr *mgr, char *path, byte *data, int size)
 	sfx->servercount = (short)s_servercount;
 
 	if (!sfx->buffer)
-		S_LoadDSoundBuffer (sfx, data, size);
+		S_LoadDSoundBuffer (mgr, sfx, data);
 
 	return sfx;
 }
@@ -600,7 +600,7 @@ void S_LoadSound (CAudioMgr *mgr, sfx_t *sfx)
 	if (data)
 	{
 		if (size > 0 && size <= MAX_SOUNDFILE)
-			S_LoadDSoundBuffer (sfx, data, size);
+			S_LoadDSoundBuffer (mgr, sfx, data);
 
 		CL_PollProgressBar ();
 	}
@@ -663,7 +663,7 @@ Walk the wav chunks, then build a hardware buffer holding the samples. A smpl
 chunk means the sound loops.
 ==================
 */
-void S_LoadDSoundBuffer (sfx_t *sfx, byte *wav, int size)
+void S_LoadDSoundBuffer (CAudioMgr *mgr, sfx_t *sfx, byte *wav)
 {
 	int		*fmt;
 	byte		*chunk;
@@ -675,7 +675,9 @@ void S_LoadDSoundBuffer (sfx_t *sfx, byte *wav, int size)
 	DSBUFFERDESC	desc;
 	void		*ptr1, *ptr2;
 	DWORD		bytes1, bytes2;
-	int		*in, *out;
+	byte		*in;
+	int		*out;
+	int		word;
 	unsigned	words, left;
 	HRESULT		hr;
 
@@ -757,7 +759,7 @@ void S_LoadDSoundBuffer (sfx_t *sfx, byte *wav, int size)
 	{
 		// audio RAM only takes whole words, and the buffer the driver
 		// gave us may be longer than the data chunk
-		in = (int *)(wav + dataofs);
+		in = wav + dataofs;
 		out = (int *)ptr1;
 
 		words = datasize >> 2;
@@ -765,7 +767,9 @@ void S_LoadDSoundBuffer (sfx_t *sfx, byte *wav, int size)
 
 		while (words && left)
 		{
-			*out++ = *in++;
+			memcpy (&word, in, sizeof(word));
+			*out++ = word;
+			in += sizeof(word);
 			words--;
 			left--;
 		}
