@@ -52,6 +52,8 @@ int isprint( int c );
 char* _strdup( const char *s );
 char* strrchr( const char *s, int c );
 
+int DC_SetFileBuffering( void* stream, char* buffer, int mode, int size );
+
 long time( long* t );
 
 #ifndef _TM_DEFINED

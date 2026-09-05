@@ -14,9 +14,16 @@
 static bfile_t g_bfiles[MAX_BFILES];
 
 #define BFILE_MIN_GROW 2048
+#define BFILE_FETCH_CHUNK 16384
 
 static int  g_bBfileAlloc;      // set while a Bfile owns a Mnemo allocation
+static int  g_bFetchActive;     // set while a disc fetch is in flight
 static char g_bfileName[64];    // scratch for the Mnemo tag
+
+// Wildcard search state shared by Bfind_first/Bfind_next.
+static char g_findPattern[256]; // pattern, normalized once by Bfind_first
+static char g_findName[256];    // basename of the slot the search is sitting on
+static int  g_findSlot;         // that slot, -1 once the search has been reset
 
 // Build a Mnemo allocation tag from the file's basename.
 char *Bmakename( char *path, unsigned int type )
@@ -219,7 +226,7 @@ int Bclose( bfile_t *h )
 	bfile_t *e = g_bfiles;
 	int i = 0;
 
-	while (e != h || e->open == 0)
+	while (e != h || e->used == 0)
 	{
 		i++;
 		e++;
@@ -364,89 +371,431 @@ int Beof( bfile_t *h )
 }
 
 // Zero one Bfile slot's bookkeeping fields.
-void Bclear_slot( bfile_t *h )
+void Bclear_slot( int slot )
 {
+	bfile_t *e = &g_bfiles[slot];
+
+	e->data     = NULL;
+	e->capacity = 0;
+	e->position = 0;
+	e->size     = 0;
+	e->path[0]  = '\0';
+	e->mode[0]  = '\0';
+	e->used     = 0;
+	e->open     = 0;
+	e->flags    = 0;
 }
 
 // Shrink every open Bfile's buffer down to its current size.
 void Bshrink_all( void )
 {
+	bfile_t *e;
+	byte    *buf;
+	int      i, keep;
+
+	if (g_bBfileAlloc)
+		return;
+
+	g_bBfileAlloc = 1;
+
+	for (i = 0; i < MAX_BFILES; i++)
+	{
+		e = &g_bfiles[i];
+		if (!e->used)
+			continue;
+
+		keep = e->capacity;
+		if (e->size <= e->capacity)
+			keep = e->size;
+
+		// The replacement must not be reclaimed out from under the copy
+		buf = (byte *)MnemoAlloc(keep, MNEMO_FLAG_MALLOC | MNEMO_FLAG_NO_RECLAIM, 0,
+			Bmakename(e->path, 0));
+		if (!buf)
+			return;
+
+		memcpy(buf, e->data, keep);
+		MnemoFree(e->data);
+		e->data = buf;
+		e->capacity = keep;
+	}
+
+	g_bBfileAlloc = 0;
 }
 
 // Remove the in-memory Bfile with the given path.
 int Bremove_path( char *path )
 {
-	return 0;
+	int i;
+
+	for (i = 0; i < MAX_BFILES; i++)
+	{
+		if (Bpathcmp(path, g_bfiles[i].path) != 0)
+			continue;
+
+		if (g_bfiles[i].data)
+			MnemoFree(g_bfiles[i].data);
+
+		Bclear_slot(i);
+		return 0;
+	}
+
+	return -1;
 }
 
 // Return the size of the in-memory Bfile with the given path.
 int Bfilesize_path( char *path )
 {
+	int i;
+
+	for (i = 0; i < MAX_BFILES; i++)
+	{
+		if (!g_bfiles[i].used)
+			continue;
+
+		if (Bpathcmp(path, g_bfiles[i].path) == 0)
+			return g_bfiles[i].size;
+	}
+
 	return 0;
 }
 
 // Grow a Bfile's buffer so it can hold at least the requested size.
-int Bensure_capacity( bfile_t *h, int needed )
+void Bensure_capacity( bfile_t *h, int needed )
 {
-	return 0;
+	needed -= h->capacity;
+	if (needed > 0)
+		Bgrow(h, needed);
 }
 
 // Fetch a file from the disc image into an in-memory Bfile.
 int Bfetch_disc( char *path )
 {
-	return 0;
+	char      block[BFILE_FETCH_CHUNK];
+	void     *pFile;
+	bfile_t  *h;
+	int       i, resident, size, chunk, grow, ok;
+
+	ok = 1;
+
+	pFile = Sys_OpenHandle(path, "rb");
+	if (!pFile)
+		return 0;
+
+	// The file table is searched ahead of the disc, so a file that is already
+	// resident comes back as one of our own entries and needs no fetching
+	resident = 0;
+	if ((char *)pFile >= (char *)g_bfiles &&
+		(char *)pFile <= (char *)g_bfiles + sizeof(g_bfiles))
+	{
+		for (i = 0; i < MAX_BFILES; i++)
+		{
+			if (pFile == &g_bfiles[i])
+			{
+				resident = g_bfiles[i].open;
+				break;
+			}
+		}
+	}
+
+	if (resident)
+		return 1;
+
+	size = DC_fsize(pFile);
+
+	h = (bfile_t *)Bopen(path, "wb");
+	if (!h)
+		return 0;
+
+	grow = size - h->capacity;
+	if (grow > 0)
+		Bgrow(h, grow);
+
+	while (size)
+	{
+		chunk = (size < BFILE_FETCH_CHUNK) ? size : BFILE_FETCH_CHUNK;
+
+		if (DC_fread(block, chunk, 1, pFile) != 1)
+		{
+			ok = 0;
+			break;
+		}
+
+		if (Bwrite(block, chunk, 1, h) != 1)
+		{
+			ok = 0;
+			break;
+		}
+
+		size -= chunk;
+	}
+
+	Bclose(h);
+	Sys_CloseHandle(pFile);
+
+	// A short read leaves a truncated file behind, so drop it again
+	if (!ok)
+	{
+		for (i = 0; i < MAX_BFILES; i++)
+		{
+			if (Bpathcmp(path, g_bfiles[i].path) != 0)
+				continue;
+
+			if (g_bfiles[i].data)
+				MnemoFree(g_bfiles[i].data);
+
+			Bclear_slot(i);
+			break;
+		}
+	}
+
+	g_bFetchActive = 0;
+	return ok;
 }
 
 // Match a name against a wildcard pattern ('*' and '?').
 int Bwild_match( char *pattern, char *text )
 {
-	return 0;
+	for (; *pattern; pattern++)
+	{
+		if (*pattern == '*')
+		{
+			if (pattern[1] == '\0')
+				return 1;
+
+			// Try every tail the star could stand for
+			while (*text)
+			{
+				if (Bwild_match(pattern + 1, text))
+					return 1;
+				text++;
+			}
+
+			return Bwild_match(pattern + 1, text);
+		}
+
+		if (*pattern == '?')
+		{
+			if (*text == '\0')
+				return 0;
+		}
+		else if (*text != *pattern)
+		{
+			return 0;
+		}
+
+		text++;
+	}
+
+	return (*text == '\0');
 }
 
 // Begin a wildcard search over the open Bfiles; returns the first basename.
+// Begin a wildcard search over the open Bfiles; returns the first basename.
 char *Bfind_first( char *pattern, char *nameOut )
 {
-	return NULL;
+	char *p, *q;
+
+	if (nameOut)
+		*nameOut = '\0';
+
+	p = g_findPattern;
+	for (q = pattern; *q != '\0'; q++)
+		*p++ = (*q == '\\') ? '/' : (char)tolower(*q);
+	*p = '\0';
+
+	g_findSlot = 0;
+
+	while (!Bwild_match(g_findPattern, g_bfiles[g_findSlot].path))
+	{
+		g_findSlot++;
+		if (g_findSlot >= MAX_BFILES)
+			return NULL;
+	}
+
+	{
+		q = strrchr(g_bfiles[g_findSlot].path, '/');
+		if (q)
+			q = q + 1;
+		else
+			q = g_bfiles[g_findSlot].path;
+		p = g_findName;
+		for (; *q != '\0'; q++)
+			*p++ = (*q == '\\') ? '/' : (char)tolower(*q);
+		*p = '\0';
+
+		if (nameOut)
+			COM_FileBase(g_findName, nameOut);
+
+		return g_findName;
+	}
 }
 
 // Continue a wildcard search started by Bfind_first.
 char *Bfind_next( char *nameOut )
 {
+	char *p, *q;
+
+	if (nameOut)
+		*nameOut = '\0';
+
+	g_findSlot++;
+
+	while (g_findSlot < MAX_BFILES)
+	{
+		if (Bwild_match(g_findPattern, g_bfiles[g_findSlot].path))
+		{
+			q = strrchr(g_bfiles[g_findSlot].path, '/');
+			if (q)
+				q = q + 1;
+			else
+			q = g_bfiles[g_findSlot].path;
+			p = g_findName;
+			for (; *q != '\0'; q++)
+				*p++ = (*q == '\\') ? '/' : (char)tolower(*q);
+			*p = '\0';
+			if (nameOut)
+				COM_FileBase(g_findName, nameOut);
+			return g_findName;
+		}
+
+		g_findSlot++;
+	}
+
 	return NULL;
 }
 
 // Reset the wildcard search cursor.
 void Bfind_reset( void )
 {
+	g_findSlot = -1;
 }
 
 // Rename an in-memory Bfile, failing if the destination already exists.
 int Brename_path( char *oldpath, char *newpath )
 {
-	return 0;
+	char  normalized[256];
+	char *p, *q;
+	int   i;
+
+	// Nothing may be renamed on top of a file that is already resident
+	p = normalized;
+	for (q = newpath; *q != '\0'; q++)
+		*p++ = (*q == '\\') ? '/' : (char)tolower(*q);
+	*p = '\0';
+
+	for (i = 0; i < MAX_BFILES; i++)
+	{
+		if (!g_bfiles[i].used)
+			continue;
+
+		if (Bpathcmp(normalized, g_bfiles[i].path) == 0)
+			return -1;
+	}
+
+	p = normalized;
+	for (q = oldpath; *q != '\0'; q++)
+		*p++ = (*q == '\\') ? '/' : (char)tolower(*q);
+	*p = '\0';
+
+	for (i = 0; i < MAX_BFILES; i++)
+	{
+		if (!g_bfiles[i].used)
+			continue;
+
+		if (Bpathcmp(normalized, g_bfiles[i].path) != 0)
+			continue;
+
+		p = g_bfiles[i].path;
+		for (q = newpath; *q != '\0'; q++)
+			*p++ = (*q == '\\') ? '/' : (char)tolower(*q);
+		*p = '\0';
+		return 0;
+	}
+
+	return -1;
 }
 
 // Compress the in-memory Bfile with the given path in place.
 int Bcompress_path( char *path )
 {
+	int i, result;
+
+	for (i = 0; i < MAX_BFILES; i++)
+	{
+		if (!g_bfiles[i].used || g_bfiles[i].open)
+			continue;
+
+		if (Bpathcmp(path, g_bfiles[i].path) != 0)
+			continue;
+
+		if (g_bfiles[i].flags & 1)
+			return 1;
+
+		result = Bcompress(&g_bfiles[i]);
+		Sys_SetTaskName("Compressed a Bfile");
+		return result;
+	}
+
 	return 0;
 }
 
 // Write a Bfile's contents out to the PC-side host under \PC\.
 int Bexport_handle( bfile_t *h )
 {
-	return 0;
+	char  name[256];
+	char *p;
+	void *pFile;
+
+	p = strrchr(h->path, '/');
+	if (p)
+		p = p + 1;
+	else
+		p = h->path;
+
+	sprintf(name, "\\PC\\%s", p);
+
+	pFile = Sys_OpenHandle(name, "wb");
+	if (pFile)
+	{
+		DC_fwrite(h->data, h->size, 1, pFile);
+		Sys_CloseHandle(pFile);
+	}
+
+	return pFile != NULL;
 }
 
 // Write the Bfile with the given path out to the PC-side host.
 int Bexport_path( char *path )
 {
+	int i;
+
+	for (i = 0; i < MAX_BFILES; i++)
+	{
+		if (!g_bfiles[i].used || g_bfiles[i].open)
+			continue;
+
+		if (Bpathcmp(path, g_bfiles[i].path) == 0)
+			return Bexport_handle(&g_bfiles[i]);
+	}
+
 	return 0;
 }
 
 // Return a pointer to a Bfile's data if it is uncompressed, else NULL.
 void *Bfileptr_path( char *path )
 {
+	int i;
+
+	for (i = 0; i < MAX_BFILES; i++)
+	{
+		if (!g_bfiles[i].used || g_bfiles[i].open)
+			continue;
+
+		if (Bpathcmp(path, g_bfiles[i].path) == 0 && !(g_bfiles[i].flags & 1))
+			return g_bfiles[i].data;
+	}
+
 	return NULL;
 }
 

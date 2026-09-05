@@ -197,6 +197,11 @@ int Sys_SampleCount( void )
 	return -1;
 }
 
+int DC_SetFileBuffering( void* stream, char* buffer, int mode, int size )
+{
+	return 0;
+}
+
 char* strrchr( const char* s, int c )
 {
 	const char ch = (char)c;

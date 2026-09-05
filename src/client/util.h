@@ -20,8 +20,48 @@
 
 #include "../engine/cvardef.h"
 
+#ifdef PlaySound
+#undef PlaySound
+#endif
+
+extern "C"
+{
+	int GetScreenInfo( SCREENINFO* pscrinfo );
+	int CVAR_CREATE( char* szName, char* szValue, int flags );
+	float CVAR_GET_FLOAT( char* szName );
+	char* CVAR_GET_STRING( char* szName );
+	int HOOK_COMMAND( char* cmd_name, void (*function)(void) );
+	int ServerCmd( char* pszCmdString );
+	int ClientCmd( char* pszCmdString );
+	int HookUserMsg( char* szMsgName, pfnUserMsgHook pfn );
+	void PlaySound( char* szSound, float volume );
+	void GetConsoleStringSize( const char* string, int* length, int* height );
+	void ConsolePrint( const char* string );
+	void CenterPrint( const char* string );
+	void HUD_GetPlayerInfo( int ent_num, hud_player_info_t* pinfo );
+
+	HSPRITE_t SPR_Load( const char* pTextureName );
+	client_sprite_t* SPR_GetList( char* psz, int* piCount );
+	int SPR_Frames( HSPRITE_t hSprite );
+	int SPR_Width( HSPRITE_t hSprite, int frame );
+	int SPR_Height( HSPRITE_t hSprite, int frame );
+	void SPR_Set( HSPRITE_t hSprite, int r, int g, int b );
+	void SPR_Draw( int frame, int x, int y, const wrect_t* prc );
+	void SPR_DrawHoles( int frame, int x, int y, const wrect_t* prc );
+	void SPR_DrawAdditive( int frame, int x, int y, const wrect_t* prc );
+	void SPR_EnableScissor( int x, int y, int width, int height );
+	void SPR_DisableScissor( void );
+	void SetCrosshair( HSPRITE_t hspr, wrect_t rc, int r, int g, int b );
+
+	void Draw_FillRGBA( int x, int y, int width, int height, int r, int g, int b, int a );
+	void AngleVectors( const vec_t* angles, vec_t* forward, vec_t* right, vec_t* up );
+	client_textmessage_t* TextMessageGet( const char* pName );
+	int TextMessageDrawCharacter( int x, int y, int number, int r, int g, int b );
+	int Draw_String( int x, int y, char* str );
+}
+
 // Macros to hook function calls into the HUD object
-#define HOOK_MESSAGE(x) gEngfuncs.pfnHookUserMsg(#x, __MsgFunc_##x );
+#define HOOK_MESSAGE(x) HookUserMsg(#x, __MsgFunc_##x );
 
 #define DECLARE_MESSAGE(y, x) int __MsgFunc_##x(const char *pszName, int iSize, void *pbuf) \
 							{ \
@@ -29,34 +69,17 @@
 							}
 
 
-#define HOOK_COMMAND(x, y) gEngfuncs.pfnAddCommand( x, __CmdFunc_##y );
+#define HOOK_COMMAND(x, y) (HOOK_COMMAND)( x, __CmdFunc_##y );
 #define DECLARE_COMMAND(y, x) void __CmdFunc_##x( void ) \
 							{ \
 								gHUD.##y.UserCmd_##x( ); \
 							}
 
-inline float CVAR_GET_FLOAT( const char *x ) {	return gEngfuncs.pfnGetCvarFloat( (char*)x ); }
-inline char* CVAR_GET_STRING( const char *x ) {	return gEngfuncs.pfnGetCvarString( (char*)x ); }
-inline void CVAR_CREATE( const char *cv, const char *val, const int flags ) {	gEngfuncs.pfnRegisterVariable( (char*)cv, (char*)val, flags ); }
+#define CVAR_GET_FLOAT(x) (CVAR_GET_FLOAT)((char*)(x))
+#define CVAR_GET_STRING(x) (CVAR_GET_STRING)((char*)(x))
+#define CVAR_CREATE(cv, val, flags) (CVAR_CREATE)((char*)(cv), (char*)(val), (flags))
 
-#define SPR_Load (*gEngfuncs.pfnSPR_Load)
-#define SPR_Set (*gEngfuncs.pfnSPR_Set)
-#define SPR_Frames (*gEngfuncs.pfnSPR_Frames)
-#define SPR_GetList (*gEngfuncs.pfnSPR_GetList)
-
-// SPR_Draw  draws a the current sprite as solid
-#define SPR_Draw (*gEngfuncs.pfnSPR_Draw)
-// SPR_DrawHoles  draws the current sprites,  with color index255 not drawn (transparent)
-#define SPR_DrawHoles (*gEngfuncs.pfnSPR_DrawHoles)
-// SPR_DrawAdditive  adds the sprites RGB values to the background  (additive transulency)
-#define SPR_DrawAdditive (*gEngfuncs.pfnSPR_DrawAdditive)
-
-// SPR_EnableScissor  sets a clipping rect for HUD sprites.  (0,0) is the top-left hand corner of the screen.
-#define SPR_EnableScissor (*gEngfuncs.pfnSPR_EnableScissor)
-// SPR_DisableScissor  disables the clipping rect
-#define SPR_DisableScissor (*gEngfuncs.pfnSPR_DisableScissor)
-//
-#define FillRGBA (*gEngfuncs.pfnFillRGBA)
+#define FillRGBA Draw_FillRGBA
 
 
 // ScreenHeight returns the height of the screen, in pixels
@@ -64,32 +87,17 @@ inline void CVAR_CREATE( const char *cv, const char *val, const int flags ) {	gE
 // ScreenWidth returns the width of the screen, in pixels
 #define ScreenWidth (gHUD.m_scrinfo.iWidth)
 
-#define GetScreenInfo (*gEngfuncs.pfnGetScreenInfo)
-#define ServerCmd (*gEngfuncs.pfnServerCmd)
-#define ClientCmd (*gEngfuncs.pfnClientCmd)
-#define SetCrosshair (*gEngfuncs.pfnSetCrosshair)
-#define AngleVectors (*gEngfuncs.pfnAngleVectors)
-
-
-// Gets the height & width of a sprite,  at the specified frame
-inline int SPR_Height( HSPRITE x, int f )	{ return gEngfuncs.pfnSPR_Height(x, f); }
-inline int SPR_Width( HSPRITE x, int f )	{ return gEngfuncs.pfnSPR_Width(x, f); }
-
-inline 	client_textmessage_t	*TextMessageGet( const char *pName ) { return gEngfuncs.pfnTextMessageGet( pName ); }
-inline 	int						TextMessageDrawChar( int x, int y, int number, int r, int g, int b ) 
-{ 
-	return gEngfuncs.pfnDrawCharacter( x, y, number, r, g, b ); 
-}
-
 inline int DrawConsoleString( int x, int y, const char *string )
-{
-	return gEngfuncs.pfnDrawConsoleString( x, y, (char*) string );
+{ 
+	return Draw_String(x, y, (char*)string);
 }
 
-inline void GetConsoleStringSize( const char *string, int *width, int *height )
+inline int TextMessageDrawChar( int x, int y, int number, int r, int g, int b )
 {
-	gEngfuncs.pfnDrawConsoleStringLen( string, width, height );
+	return TextMessageDrawCharacter(x, y, number, r, g, b);
 }
+
+#define GetConsoleStringSize(string, width, height) (GetConsoleStringSize)((string), (width), (height))
 
 inline int ConsoleStringLen( const char *string )
 {
@@ -98,22 +106,12 @@ inline int ConsoleStringLen( const char *string )
 	return _width;
 }
 
-inline void ConsolePrint( const char *string )
-{
-	gEngfuncs.pfnConsolePrint( string );
-}
+#define ConsolePrint(string) (ConsolePrint)((string))
+#define CenterPrint(string) (CenterPrint)((string))
 
-inline void CenterPrint( const char *string )
-{
-	gEngfuncs.pfnCenterPrint( string );
-}
+#define GetPlayerInfo HUD_GetPlayerInfo
 
-// returns the players name of entity no.
-#define GetPlayerInfo (*gEngfuncs.pfnGetPlayerInfo)
-
-// sound functions
-inline void PlaySound( char *szSound, float vol ) { gEngfuncs.pfnPlaySoundByName( szSound, vol ); }
-inline void PlaySound( int iSound, float vol ) { gEngfuncs.pfnPlaySoundByIndex( iSound, vol ); }
+#define PlaySound(szSound, vol) (PlaySound)((char*)(szSound), (vol))
 
 #define max(a, b)  (((a) > (b)) ? (a) : (b))
 #define min(a, b)  (((a) < (b)) ? (a) : (b))
