@@ -91,9 +91,12 @@ typedef struct tempent_s
 	float		x;
 	float		y;
 	float		z;
-	float		fadeSpeed;
+	unsigned short	fadeSpeed;
+	unsigned short	bounceFactor;
+	short		next;
+	short		clientIndex;
 	int			hitSound;
-	struct tempent_s* next;
+	vec3_t		tentOffset;
 	cl_entity_t	entity;
 } TEMPENTITY;
 
@@ -233,6 +236,7 @@ void R_ParticleBurst( vec_t* pos, int size, int color, float life );
 void R_ParticleExplosion( vec_t* org );
 void R_ParticleExplosion2( vec_t* org, int colorStart, int colorLength );
 void R_BlobExplosion( vec_t* org );
+particle_t* R_AllocParticle( void );
 
 void R_FlickerParticles( vec_t* org );
 particle_t* R_AllocTracer( vec_t* org, vec_t* vel, float life );

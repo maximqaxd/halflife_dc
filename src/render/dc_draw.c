@@ -169,7 +169,7 @@ static int			s_slotIsSystem[DC_MAXTEXTURES];  /* GLT_SYSTEM: never cache/decache
 static int			s_bTexReclaimGuard;
 static int			s_bUncacheGuard;
 static int			s_nD3dCurrentTexnum = -1;
-static int			s_stageTexnum[2];	/* last texnum bound per D3D texture stage */
+static int			s_stageTexnum[2] = { -1, -1 };	/* last texnum bound per D3D texture stage */
 
 /* Localized text/font renderer (text_draw.cpp). The font object is an internal
    dcfont_t; callers here pass draw_chars (qfont_t*), matched by cast at the def. */
@@ -1353,7 +1353,7 @@ LPDIRECTDRAWSURFACE4 DCV_PrepSurfaceTwiddled(int w, int h, void *data, unsigned 
 
 	g_nLastUploadBytes = w * w;
 
-	if (DCV_DDError(pSurf->lpVtbl->Lock(pSurf, NULL, &ddsd, DDLOCK_WAIT | DDLOCK_COMPRESSED, NULL), TEXT("Lock texture")))
+	if (DCV_DDError(pSurf->lpVtbl->Lock(pSurf, NULL, &ddsd, DDLOCK_WAIT | DDLOCK_OPTIMIZED, NULL), TEXT("Lock texture")))
 	{
 		pSurf->lpVtbl->Release(pSurf);
 		return NULL;
@@ -1443,24 +1443,24 @@ LPDIRECTDRAWSURFACE4 DCV_PrepSurfacePVR(int w, int h, int src_w, int src_h, void
 
 	if (fmtword == (PVR_TWIDDLE << 8))
 	{
-		ddsd.ddsCaps.dwCaps |= DDSCAPS_COMPLEX;
-		lockFlags = DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_COMPRESSED;
+		ddsd.ddsCaps.dwCaps |= DDSCAPS_OPTIMIZED;
+		lockFlags = DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_OPTIMIZED;
 	}
 	else if (fmtword == (PVR_TWIDDLED_MIPMAP << 8))
 	{
-		ddsd.ddsCaps.dwCaps |= (DDSCAPS_COMPLEX | DDSCAPS_MIPMAP);
-		lockFlags = DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_COMPRESSED;
+		ddsd.ddsCaps.dwCaps |= (DDSCAPS_OPTIMIZED | DDSCAPS_MIPMAP | DDSCAPS_COMPLEX);
+		lockFlags = DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_OPTIMIZED;
 	}
 	else if (fmtword == (PVR_VQ << 8))
 	{
 		ddsd.ddpfPixelFormat = g_pfScreenRGB565;
-		lockFlags = DDLOCK_WAIT;
+		lockFlags = DDLOCK_WAIT | DDLOCK_COMPRESSED;
 	}
 	else if (fmtword == (PVR_VQ_MIPMAP << 8))
 	{
 		ddsd.ddpfPixelFormat = g_pfScreenRGB565;
-		ddsd.ddsCaps.dwCaps |= DDSCAPS_MIPMAP;
-		lockFlags = DDLOCK_WAIT;
+		ddsd.ddsCaps.dwCaps |= (DDSCAPS_MIPMAP | DDSCAPS_COMPLEX);
+		lockFlags = DDLOCK_WAIT | DDLOCK_COMPRESSED;
 	}
 	else if (fmtword == (PVR_CLUT8_TWIDDLED << 8) || fmtword == (PVR_CLUT4_TWIDDLED << 8) ||
 	         fmtword == (PVR_DIRECT8_TWIDDLED << 8) || fmtword == (PVR_DIRECT4_TWIDDLED << 8))
@@ -1472,8 +1472,8 @@ LPDIRECTDRAWSURFACE4 DCV_PrepSurfacePVR(int w, int h, int src_w, int src_h, void
 	{
 		if (fmtword == (PVR_RECTANGULAR_TWIDDLED << 8))
 		{
-			ddsd.ddsCaps.dwCaps |= DDSCAPS_COMPLEX;
-			lockFlags = DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_COMPRESSED;
+			ddsd.ddsCaps.dwCaps |= DDSCAPS_OPTIMIZED;
+			lockFlags = DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_OPTIMIZED;
 		}
 		else if (fmtword != (0x0e << 8) &&
 		         (fmtword == (0x0f << 8) || fmtword == (PVR_SMALL_VQ << 8)))
@@ -1901,7 +1901,7 @@ void DC_TouchTexture( int texnum )
 		slot->nServerCount = (short)gHostSpawnCount;
 }
 
-int DC_ForceFreeTextureByName( char *name )
+extern "C" int DC_ForceFreeTextureByName( char *name )
 {
 	int i;
 	int servercount = 0;

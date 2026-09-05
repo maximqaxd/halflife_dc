@@ -509,6 +509,8 @@ typedef struct model_s
 	cache_user_t cache;		// only access through Mod_Extradata
 } model_t;
 
+void Mod_UnloadSpriteTextures( model_t* mod );
+
 //============================================================================
 
 typedef struct

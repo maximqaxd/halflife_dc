@@ -86,6 +86,7 @@ void R_ApplyViewModelProjection( float zn );
 
 extern int numgltextures;
 extern int nada_texture;
+extern int gHostSpawnCount;
 
 void R_RenderDynamicLightmaps( msurface_t* fa );
 void DrawGLSolidPoly( glpoly_t* p );
@@ -1543,7 +1544,7 @@ static void LM_UploadBlock( void )
 	if (!gl_texsort)
 		return;
 
-	sprintf(name, "lightmap.%d.%d", numgltextures, active_lightmaps);
+	sprintf(name, "lightmap.%d.%d", gHostSpawnCount, active_lightmaps);
 
 	if (lm_texnum[texnum])
 		return;
@@ -2369,7 +2370,10 @@ decal_t* R_DecalIntersect( msurface_t* psurf, int* pcount, float x, float y )
 	int			lastDist;
 	int			dx, dy;
 	texture_t* ptexture;
+	texture_t* psurfTexture;
 	float		w, h;
+	float		texWidth, texHeight;
+	float		centerX, centerY;
 	float		maxWidth;
 	qboolean	bPermanent;
 
@@ -2377,6 +2381,15 @@ decal_t* R_DecalIntersect( msurface_t* psurf, int* pcount, float x, float y )
 
 	lastDist = 0xFFFF;
 	*pcount = 0;
+
+	// The surface and the incoming decal are fixed for the whole walk, so work
+	// out where the new decal sits in texel space once, up front.
+	psurfTexture = psurf->texinfo->texture;
+	texWidth  = (float)psurfTexture->width;
+	texHeight = (float)psurfTexture->height;
+
+	centerX = texWidth  * x + (float)(gDecalTexture->width >> 1);
+	centerY = texHeight * y + (float)(gDecalTexture->height >> 1);
 
 	maxWidth = (float)(gDecalTexture->width) * 1.5f;
 
@@ -2390,12 +2403,10 @@ decal_t* R_DecalIntersect( msurface_t* psurf, int* pcount, float x, float y )
 		bPermanent = (plist->flags & FDECAL_PERMANENT);
 		if (!bPermanent)
 		{
-			if (maxWidth >= (float)ptexture->width)
+			if ((float)ptexture->width <= maxWidth)
 			{
-				w = abs((int)((gDecalTexture->width >> 1) + psurf->texinfo->texture->width * x
-					- (psurf->texinfo->texture->width * plist->dx + (ptexture->width >> 1))));
-				h = abs((int)((gDecalTexture->height >> 1) + psurf->texinfo->texture->height * y
-					- (psurf->texinfo->texture->height * plist->dy + (ptexture->height >> 1))));
+				w = abs((int)(centerX - (texWidth  * plist->dx + (float)(ptexture->width >> 1))));
+				h = abs((int)(centerY - (texHeight * plist->dy + (float)(ptexture->height >> 1))));
 
 				// Now figure out the part of the projection that intersects plist's
 				// clip box [0,0,1,1].
@@ -2412,7 +2423,7 @@ decal_t* R_DecalIntersect( msurface_t* psurf, int* pcount, float x, float y )
 
 				// Figure out how much of this intersects the (0,0) - (1,1) bbox
 				dist = (float)dx + (float)dy * 0.5f;
-				if ((dist * plist->scale) < 8)
+				if (((float)dist * ShortToFloat(plist->scale)) < 8.0f)
 				{
 					*pcount += 1;
 
@@ -2424,6 +2435,9 @@ decal_t* R_DecalIntersect( msurface_t* psurf, int* pcount, float x, float y )
 				}
 			}
 		}
+
+		if (plist == plist->pnext)
+			Sys_Error("Circular link in decal list\n");
 
 		plist = plist->pnext;
 	}

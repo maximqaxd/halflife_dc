@@ -15,14 +15,15 @@ extern "C" {
 #include "winquake.h"
 #include "dc_accum.h"
 #include "text_draw.h"
+#ifdef fmod
+#undef fmod
+#endif
+#ifdef fabs
+#undef fabs
+#endif
+#include <floatmathlib.h>
 
 // A %tag -> localized string pair parsed from langtags.txt.
-typedef struct
-{
-	char	*tag;
-	char	*string;
-} langtag_t;
-
 // Index of the language the disc was built for; 0 is English.
 int			g_Language;
 
@@ -628,8 +629,7 @@ void Text_DrawCenteredStatus( float sx, float sy, byte *str, int color )
 		else
 			str = (byte *)"%no_controller";
 
-		// TODO: reconstruct the exact pulse source (sin of realtime).
-		brightness = (int)((0.0f + 1.0f) * 127.0f);
+		brightness = (int)((coss(Sys_FloatTime() * 4.23f) + 1.0f) * 127.0f);
 	}
 	else
 	{
@@ -649,7 +649,7 @@ void Text_DrawCenteredStatus( float sx, float sy, byte *str, int color )
 		}
 	}
 
-	Font_FitScale(sx, sy, 640.0f, psz, &fx, &fy);
+	Font_FitScale(sx, sy, 430.0f, psz, &fx, &fy);
 
 	if (sv_language.value)
 	{
@@ -667,7 +667,7 @@ void Text_DrawCenteredStatus( float sx, float sy, byte *str, int color )
 	i = 320 - width / 2;
 	while (*psz)
 	{
-		i += Font_DrawCharI((dcfont_t *)draw_chars, i, 200, *psz);
+		i += Font_DrawCharI((dcfont_t *)draw_chars, i, 416, *psz);
 		psz++;
 	}
 }

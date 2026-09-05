@@ -11,6 +11,7 @@ extern "C" {
 
 // Sprites
 void	SPR_Init( void );
+void	SPR_Shutdown( void );
 
 void	SetCrosshair( HSPRITE_t hspr, wrect_t rc, int r, int g, int b );
 void	DrawCrosshair( int x, int y );

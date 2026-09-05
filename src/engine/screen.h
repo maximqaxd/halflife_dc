@@ -64,6 +64,7 @@ void DCV_SetProgress( int percent );
 extern float cl_progress_start;
 
 // Rows kept clear of the bottom of the screen so text stays inside the safe area
+extern int scr_safe_x;
 extern int scr_safe_y;
 
 #ifdef __cplusplus

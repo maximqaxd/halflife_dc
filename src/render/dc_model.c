@@ -2394,6 +2394,32 @@ void Mod_LoadSpriteModel( model_t* mod, void* buffer )
 	mod->type = mod_sprite;
 }
 
+/*
+=================
+Mod_UnloadSpriteTextures
+=================
+*/
+void Mod_UnloadSpriteTextures( model_t* mod )
+{
+	msprite_t* sprite;
+	char name[16];
+	int i;
+
+	if (mod->type != mod_sprite)
+		return;
+
+	mod->needload = NL_NEEDS_LOADED;
+	sprite = (msprite_t*)MOD_CACHEDATA(mod);
+	if (!sprite)
+		return;
+
+	for (i = 0; i < sprite->numframes; i++)
+	{
+		sprintf(name, "%s_%i", mod->name, i);
+		DC_ForceFreeTextureByName(name);
+	}
+}
+
 //=============================================================================
 
 /*

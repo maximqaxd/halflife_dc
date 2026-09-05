@@ -22,9 +22,28 @@ typedef struct
 	float		vsize;				// 1.0 / sheet height
 } dcfont_t;
 
+// A %tag and the string it stands for in the language the disc was built for
+typedef struct
+{
+	char*	tag;
+	char*	string;
+} langtag_t;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Text is laid out for the language the disc was built for
 extern cvar_t sv_language;
 extern int    g_Language;
+
+extern langtag_t*	g_pLangTags;
+extern int			g_nLangTags;
+
+// The scale the glyph renderer draws at
+extern float	g_flTextScaleX;
+extern float	g_flTextScaleY;
+extern int		g_nTextCharGap;
 
 // Glyph metrics and drawing
 void	Font_SetScale( float sx, float sy );
@@ -45,5 +64,9 @@ void	Text_DrawStringCentered( float sx, float sy, char* str, int x, int y, int b
 void	Text_DrawCenteredStatus( float sx, float sy, byte* str, int color );
 void	Text_LoadLangTags( void );
 char*	Text_ParseToken( char* in, char* out );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // TEXT_DRAW_H

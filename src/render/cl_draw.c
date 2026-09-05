@@ -141,6 +141,31 @@ void SPR_Init( void )
 	gpSprite = NULL;
 }
 
+void SPR_Shutdown( void )
+{
+	int i;
+
+	if (!gSpriteCount)
+		return;
+
+	if (gSpriteList)
+	{
+		for (i = 0; i < gSpriteCount; i++)
+		{
+			if (gSpriteList[i].pSprite)
+				Mod_UnloadSpriteTextures(gSpriteList[i].pSprite);
+			if (gSpriteList[i].pName)
+				free(gSpriteList[i].pName);
+		}
+
+		free(gSpriteList);
+	}
+
+	gSpriteList = NULL;
+	gSpriteCount = 0;
+	gpSprite = NULL;
+}
+
 // Gets the number of frames in the sprite
 int SPR_Frames( HSPRITE_t hSprite )
 {

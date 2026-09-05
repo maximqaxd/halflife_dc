@@ -14,6 +14,7 @@ extern "C" {
 int DCV_UpdateTextureSubRect( int texnum, int x, int y, int w, int h, const unsigned short* src, int src_pitch );
 int DC_FreeStaleTextureSlots( void );
 int DC_ReclaimTextureSlot( void );
+int DC_ForceFreeTextureByName( char* name );
 void DC_TexDump_f( void );
 
 
