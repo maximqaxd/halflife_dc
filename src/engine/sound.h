@@ -21,7 +21,7 @@
 
 // sfx_t::flags
 #define SFX_LOOPING			0x0008	// the wav carried a smpl chunk
-#define SFX_KEEP			0x0010	// server precache, survives a level change
+#define SFX_KEEP			0x0010	// the engine's own sound, never reclaimed
 
 // The buffer a cached sound lives in. Declared opaquely so the engine's C files
 // can carry sfx_t around without pulling in DirectSound.

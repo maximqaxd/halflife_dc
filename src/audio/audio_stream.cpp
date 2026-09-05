@@ -19,7 +19,7 @@ cvar_t	mouthdelay	= {"mouthdelay", "0.066"};
 cvar_t	mouthrate	= {"mouthrate", "1000"};
 cvar_t	mouthscale	= {"mouthscale", "1.5"};
 
-static qboolean	mouth_registered = true;
+static byte		mouth_registered = true;
 
 
 /*
@@ -64,6 +64,7 @@ CAudioStream::CAudioStream (int buffersize) : CAudio ()
 	m_buffersize = buffersize;
 	m_halfbuffer = buffersize / 2;
 
+	memset (&m_async, 0, sizeof(m_async));
 	memset (m_path, 0, sizeof(m_path));
 
 	m_filesize = 0;
@@ -473,7 +474,7 @@ qboolean CAudioStream::StartPlayback (void)
 	if (m_filesize < m_buffersize)
 	{
 		// the whole sound is already in memory
-		LockCopyTail (m_filesize - m_dataofs);
+		LockCopyTail (m_dataofs, m_filesize - m_dataofs);
 
 		m_dataofs = 0;
 		m_stream = false;
@@ -557,7 +558,7 @@ CAudioStream::LockCopyTail
 Fill a buffer that holds the whole sound in one go.
 ==================
 */
-qboolean CAudioStream::LockCopyTail (int offset)
+qboolean CAudioStream::LockCopyTail (int offset, int bytes)
 {
 	void	*ptr1, *ptr2;
 	DWORD	bytes1, bytes2;
@@ -566,7 +567,7 @@ qboolean CAudioStream::LockCopyTail (int offset)
 	ptr1 = ptr2 = NULL;
 	bytes1 = bytes2 = 0;
 
-	hr = m_pBuffer->Lock (0, 0, &ptr1, &bytes1, &ptr2, &bytes2, DSBLOCK_ENTIREBUFFER);
+	hr = m_pBuffer->Lock (0, bytes, &ptr1, &bytes1, &ptr2, &bytes2, 0);
 	if (hr != DS_OK)
 	{
 		S_DSoundError (hr);

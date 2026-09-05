@@ -21,7 +21,7 @@ CAudio		*g_audio[MAX_AUDIO];
 sfx_t		*known_sfx[MAX_SFX];
 int		s_servercount;
 
-static qboolean	s_registered = true;
+static byte		s_registered = true;
 static float	s_laststereo;
 
 cvar_t	volume		= {"volume", "0.7", FCVAR_ARCHIVE};
@@ -177,7 +177,7 @@ buffers filled but nothing is repositioned and the device is left alone.
 void CAudioMgr::Update (qboolean quiet)
 {
 	int		i, config;
-	DWORD		now;
+	int		now, oldtime;
 	float		frametime;
 	CAudio		*audio;
 	HRESULT		hr;
@@ -185,8 +185,8 @@ void CAudioMgr::Update (qboolean quiet)
 
 	// the audio objects run off the wall clock, not the game clock: they have
 	// to keep filling their buffers while the world is loading and frozen
+	oldtime = m_lasttime;
 	now = GetTickCount ();
-	frametime = (float)(now - m_lasttime) * 0.001f;
 	m_lasttime = now;
 
 	if (m_precaching)
@@ -194,6 +194,8 @@ void CAudioMgr::Update (qboolean quiet)
 		m_precaching = false;
 		S_FreeUnusedSounds ();
 	}
+
+	frametime = (float)(now - oldtime) * 0.001f;
 
 	for (i = 0 ; i < MAX_AUDIO ; i++)
 	{

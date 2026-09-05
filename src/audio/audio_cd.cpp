@@ -14,8 +14,8 @@ cvar_t		bgmvolume = {"bgmvolume", "1", FCVAR_ARCHIVE};
 CAudioCD	*cdaudio;
 
 static byte		remap[MAX_CDTRACKS];
-static qboolean		cdenabled = true;
-static qboolean		cdfirsttime = true;
+static byte		cdenabled = true;
+static byte		cdfirsttime = true;
 
 /*
 ==================
@@ -43,20 +43,8 @@ CAudioCD::~CAudioCD ()
 		cdaudio = NULL;
 }
 
-/*
-==================
-CDAudio_Shutdown
-
-Drop the music object. Called from S_Shutdown once every channel has stopped.
-==================
-*/
 void CDAudio_Shutdown (void)
 {
-	if (cdaudio)
-	{
-		cdaudio->Close ();
-		cdaudio = NULL;
-	}
 }
 
 /*
@@ -130,23 +118,18 @@ void CDAudio_Play (CAudioCD *cd, int track, qboolean looping)
 {
 	char	name[16];
 
-	track = remap[track];
-	if (track < 2)
-		return;
-
-	// a different track means starting over
-	while (cd->m_track && cd->m_track != track)
+	for (;;)
 	{
-		cd->Stop ();
-
-		if (!cdaudio)
-			new CAudioCD;
-
-		cd = cdaudio;
-
 		track = remap[track];
 		if (track < 2)
 			return;
+
+		if (!cd->m_track || cd->m_track == track)
+			break;
+
+		cd->Stop ();
+		new CAudioCD;
+		cd = cdaudio;
 	}
 
 	cd->m_track = track;
@@ -222,7 +205,7 @@ void CAudioCD::Restart (void)
 
 	Stop ();
 
-	track = m_track;
+	track = (byte)m_track;
 
 	if (!cdaudio)
 		new CAudioCD;

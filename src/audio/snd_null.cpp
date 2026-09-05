@@ -35,7 +35,7 @@ vec3_t	listener_right;
 vec3_t	listener_up;
 
 static qboolean	snd_registered = true;
-static qboolean	snd_fromserver;
+static byte		snd_fromserver = true;
 static float	snd_refdist = 1000.0f;
 static int	soundlist_cursor;
 
@@ -250,7 +250,8 @@ void S_ShutdownDevice (void)
 ==================
 S_EndPrecaching
 
-Sounds looked up from here on are ordinary client-side lookups again.
+Bracket the server's resource list with this. Those sounds are tracked by their
+server count, so they must not be marked permanent.
 ==================
 */
 void S_EndPrecaching (void)
@@ -262,8 +263,8 @@ void S_EndPrecaching (void)
 ==================
 S_BeginPrecaching
 
-Bracket the server's resource list with this. Sounds cached while it is set are
-marked as the server's, so they survive the level change that follows.
+Anything looked up outside the resource list is the engine's own -- the temp
+entity sounds, the console commands -- and is kept for the life of the game.
 ==================
 */
 void S_BeginPrecaching (void)
@@ -430,7 +431,7 @@ void S_StartDynamicSound (int entnum, int entchannel, sfx_t *sfx, vec3_t origin,
 		return;
 
 	// an update to something already playing rather than a new sound
-	if (flags & (SND_STOP | SND_CHANGE_VOL | SND_CHANGE_PITCH))
+	if ((flags & SND_STOP) || (flags & SND_CHANGE_VOL) || (flags & SND_CHANGE_PITCH))
 	{
 		ch = S_PickChannel (entnum, entchannel);
 		if (ch)

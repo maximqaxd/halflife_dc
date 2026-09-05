@@ -40,7 +40,7 @@ public:
 	qboolean	StartPlayback (void);
 	void		Service (void);
 	qboolean	LockAndCopy (int half, int leadin, int fadeout);
-	qboolean	LockCopyTail (int offset);
+	qboolean	LockCopyTail (int offset, int bytes);
 	void		ReadAhead (int offset);
 
 	int		m_state;		// 0x80

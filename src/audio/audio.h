@@ -99,7 +99,7 @@ public:
 
 	int		m_lasttime;
 	int		m_mastervolume;
-	qboolean	m_precaching;
+	byte		m_precaching;
 };
 
 extern CAudioMgr	*g_pAudioMgr;
