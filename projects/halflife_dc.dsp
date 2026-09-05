@@ -2868,7 +2868,7 @@ NODEP_CPP_CMODE=\
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\engine\common.c
+SOURCE=..\src\engine\eng_common.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -11125,6 +11125,14 @@ NODEP_CPP_SYS_D=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\engine\common.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\engine\sys_win.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\engine\sys_engine.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
@@ -11995,7 +12003,7 @@ NODEP_CPP_VIEW_=\
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\util\vmu.c
+SOURCE=..\src\util\vmu.cpp
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -12052,6 +12060,10 @@ DEP_CPP_VMU_C=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\esfile.h"\
+	"..\src\util\kzap.h"\
+	"..\src\util\vmu.h"\
+	"..\src\util\vmu_icons.inc"\
 	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_VMU_C=\
@@ -12117,6 +12129,10 @@ DEP_CPP_VMU_C=\
 	"..\src\network\net.h"\
 	"..\src\render\dc_model.h"\
 	"..\src\util\dreamcast_crt.h"\
+	"..\src\util\esfile.h"\
+	"..\src\util\kzap.h"\
+	"..\src\util\vmu.h"\
+	"..\src\util\vmu_icons.inc"\
 	{$(INCLUDE)}"shintr.h"\
 	
 NODEP_CPP_VMU_C=\
