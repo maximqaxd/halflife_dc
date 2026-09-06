@@ -110,7 +110,7 @@ CAudioStream::~CAudioStream ()
 		m_mouthsize = 0;
 
 		// stop the model talking
-		if (m_entnum > 0 && (m_entchannel == CHAN_STATIC || m_entchannel == CHAN_STREAM))
+		if (m_entnum > 0 && (m_entchannel == CHAN_VOICE || m_entchannel == CHAN_STREAM))
 			cl_entities[m_entnum].mouth.mouthopen = 0;
 	}
 }
@@ -146,7 +146,7 @@ void CAudioStream::Stop (void)
 		m_mouth = NULL;
 		m_mouthsize = 0;
 
-		if (m_entnum > 0 && (m_entchannel == CHAN_STATIC || m_entchannel == CHAN_STREAM))
+		if (m_entnum > 0 && (m_entchannel == CHAN_VOICE || m_entchannel == CHAN_STREAM))
 			cl_entities[m_entnum].mouth.mouthopen = 0;
 	}
 
@@ -861,7 +861,7 @@ void SND_MoveMouth (CAudioStream *stream, float frametime)
 	if (stream->m_entnum <= 0)
 		return;
 
-	if (stream->m_entchannel != CHAN_STATIC && stream->m_entchannel != CHAN_STREAM)
+	if (stream->m_entchannel != CHAN_VOICE && stream->m_entchannel != CHAN_STREAM)
 		return;
 
 	hr = stream->m_pBuffer->GetCurrentPosition (&play, NULL);
