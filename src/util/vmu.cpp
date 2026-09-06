@@ -828,7 +828,7 @@ static unsigned int VMU_WriteSaveGame( char *sourcePath, char *fileName, int dat
 	strcpy( signature, VMU_SIG_HALFLIFE );
 	result = 0;
 
-	if (!strcmp( com_gamedir, "barney" ))
+	if (!strcmp( com_gamedirname, "barney" ))
 		strcpy( signature, VMU_SIG_BARNEY );
 
 	device = VMU_OpenDevice();
