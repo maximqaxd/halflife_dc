@@ -28,8 +28,8 @@ static cvar_t ipx_hostport = { "ipx_hostport", "0" };
 static cvar_t ipx_clientport = { "ipx_clientport", "0" };
 #endif
 
-cvar_t fakelag = { "fakelag", "0.0" };  // Lag all incoming network data (including loopback) by xxx ms.
-cvar_t fakeloss = { "fakeloss", "0.0" }; // Act like we dropped the packet this % of the time.
+cvar_t fakelag = { "fakelag", "0.0f" };  // Lag all incoming network data (including loopback) by xxx ms.
+cvar_t fakeloss = { "fakeloss", "0.0f" }; // Act like we dropped the packet this % of the time.
 
 qboolean noip = TRUE;    // Disable IP Support
 
@@ -544,12 +544,12 @@ void SCR_UpdateNetUsage( int nBytes, int nListeners, qboolean bIsDatagram )
 		net_datagram_colors[index].high = high;
 		net_datagram_colors[index].count = normalizedBytes;
 
-		rolling = 0.0;
+		rolling = 0.0f;
 		for (i = 0; i < 32; i++)
 		{
 			rolling += net_datagram_colors[(net_datagram_current_color_index - i - 1) & (MAX_GRAPH_WIDTH - 1)].count;
 		}
-		net_datagram_colors[index].rolling = SCR_ClampHigh(rolling / 32.0);
+		net_datagram_colors[index].rolling = SCR_ClampHigh(rolling / 32.0f);
 
 		net_datagram_current_color_index++;
 	}
@@ -574,7 +574,7 @@ SCR_ClampHeight
 */
 int SCR_ClampHeight( float value )
 {
-	return max(0.0, min(scr_graphheight.value * value, scr_graphheight.value));
+	return max(0.0f, min(scr_graphheight.value * value, scr_graphheight.value));
 }
 
 /*
@@ -587,12 +587,12 @@ void SCR_SetTintFromFactor( float factor, qboolean bTintCyan, byte* color )
 	if (bTintCyan)
 	{
 		color[0] = 0;
-		color[1] = factor * 255.0;
-		color[2] = factor * 255.0;
+		color[1] = factor * 255.0f;
+		color[2] = factor * 255.0f;
 	}
 	else
 	{
-		color[0] = factor * 255.0;
+		color[0] = factor * 255.0f;
 		color[1] = 0;
 		color[2] = 0;
 	}
@@ -677,9 +677,9 @@ void SCR_NetUsage( void )
 	color[2] = 63;
 
 	rcFill.x = x - 1;
-	rcFill.y = y - scr_graphheight.value - 1.0;
+	rcFill.y = y - scr_graphheight.value - 1.0f;
 	rcFill.width = width + 1;
-	rcFill.height = scr_graphheight.value + 2.0;
+	rcFill.height = scr_graphheight.value + 2.0f;
 	SCR_DrawOutlineRect(&rcFill, color);
 
 	// byte usage
@@ -695,13 +695,13 @@ void SCR_NetUsage( void )
 	{
 		index = (j - i - 1) & (MAX_GRAPH_WIDTH - 1);
 		shade = net_bytes_colors[index].high;
-		if (shade == -1.0)
+		if (shade == -1.0f)
 			continue;
 
-		if (shade < 0.8)
+		if (shade < 0.8f)
 		{
-			color[0] = 128 + (int)(shade * 127.0);
-			color[1] = 128 + (int)(shade * 127.0);
+			color[0] = 128 + (int)(shade * 127.0f);
+			color[1] = 128 + (int)(shade * 127.0f);
 			color[2] = 0;
 		}
 		else
