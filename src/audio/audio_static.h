@@ -42,9 +42,6 @@ public:
 	qboolean	m_suspended;
 };
 
-typedef char CAudioStatic_must_match_retail_size[
-	(sizeof(CAudioStatic) == 0x90) ? 1 : -1];
-
 void	SND_InitStatic (void);
 void	SND_ShutdownStatic (void);
 

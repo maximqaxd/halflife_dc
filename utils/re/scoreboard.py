@@ -12,6 +12,21 @@ a per-file summary sorted by mean match (worst first).
 """
 import os, sys, glob, subprocess, csv, re
 
+# On Windows, a bare "bash" resolves through the Windows PATH and usually finds
+# WSL's bash.exe, which has neither the WCE toolchain nor cygpath - every build
+# then fails. Pin Git Bash (override with the BASH env var).
+def _bash():
+    env = os.environ.get("BASH")
+    if env and os.path.exists(env):
+        return env
+    for c in ("C:/Program Files/Git/bin/bash.exe",
+              "C:/Program Files/Git/usr/bin/bash.exe",
+              "C:/Program Files (x86)/Git/bin/bash.exe"):
+        if os.path.exists(c):
+            return c
+    return "bash"
+BASH = _bash()
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 BUILD = os.path.join(HERE, "build")
@@ -35,7 +50,7 @@ def main():
     per_file = []
     for src in files:
         base = os.path.splitext(os.path.basename(src))[0]
-        b = subprocess.run(["bash", os.path.join(HERE, "build_obj.sh"), src],
+        b = subprocess.run([BASH, os.path.join(HERE, "build_obj.sh"), src],
                            capture_output=True, text=True)
         obj = os.path.join(BUILD, base + ".obj")
         if b.returncode != 0 or not os.path.exists(obj):

@@ -27,7 +27,7 @@ typedef struct afile_s
 	int							size;		// bytes actually written into the blocks
 	int							usage;		// carried for the cache system
 	struct IDirectSoundBuffer*	blocks[AFILE_BLOCKS];
-	char						name[48];
+	char						name[MAX_SOUND_NAME];
 } afile_t;
 
 #ifdef __cplusplus
@@ -45,7 +45,7 @@ qboolean	AFile_HasRoomFor( int size );
 int			AFile_TotalCachedBytes( void );
 
 afile_t*	AFile_FindByName( char* name );
-void		AFile_PrintList( int fileid );
+void		AFile_PrintList( void* fileid );
 
 // Find the resource, or park a copy of it in audio RAM. Returns NULL if the
 // table is full or the buffers could not be created.

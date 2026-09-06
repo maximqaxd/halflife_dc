@@ -157,7 +157,7 @@ void Cmd_afilelist_f (void)
 AFile_PrintList
 ==================
 */
-void AFile_PrintList (int fileid)
+void AFile_PrintList (void* fileid)
 {
 	int	i;
 

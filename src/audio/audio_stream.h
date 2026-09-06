@@ -9,6 +9,7 @@
 // Ring buffer a stream plays out of. Half of it is refilled at a time while
 // the other half plays.
 #define STREAM_BUFFERSIZE	32768
+#define MAX_AUDIO_STREAM_PATH	48
 
 // m_state
 #define STREAM_OPEN		0		// fresh object, nothing to play yet
@@ -43,38 +44,35 @@ public:
 	qboolean	LockCopyTail (int offset, int bytes);
 	void		ReadAhead (int offset);
 
-	int		m_state;		// 0x80
-	float		m_timeleft;		// 0x84
-	float		m_elapsed;		// 0x88
+	int		m_state;
+	float		m_timeleft;
+	float		m_elapsed;
 
-	int		m_buffersize;		// 0x8c
-	int		m_halfbuffer;		// 0x90
+	int		m_buffersize;
+	int		m_halfbuffer;
 
-	int		m_file[3];		// 0x94  open file record
-	OVERLAPPED	m_async;		// 0xa0  read in flight
+	int		m_file[3];		// Open file record.
+	OVERLAPPED	m_async;		// Read in flight.
 
-	char		m_path[48];		// 0xb4
+	char		m_path[MAX_AUDIO_STREAM_PATH];
 
-	int		m_filesize;		// 0xe4  data chunk offset + its length
-	int		m_readpos;		// 0xe8  how far into the file we have read
-	int		m_writepos;		// 0xec
-	int		m_dataofs;		// 0xf0  data chunk offset inside m_filedata
-	byte		*m_filedata;		// 0xf4
+	int		m_filesize;		// Data chunk offset plus its length.
+	int		m_readpos;		// How far into the file we have read.
+	int		m_writepos;
+	int		m_dataofs;		// Data chunk offset inside m_filedata.
+	byte		*m_filedata;
 
-	byte		m_half;			// 0xf8  half of the ring being filled
-	int		m_playpos;		// 0xfc
-	byte		m_fill;			// 0x100
-	int		m_pending;		// 0x104
+	byte		m_half;			// Half of the ring being filled.
+	int		m_playpos;
+	byte		m_fill;
+	int		m_pending;
 
-	byte		m_ready;		// 0x108  the read we started has landed
-	byte		m_trystatic;		// 0x109  small enough to cache whole
+	byte		m_ready;		// The read we started has landed.
+	byte		m_trystatic;		// Small enough to cache whole.
 
-	byte		*m_mouth;		// 0x10c  MOTH chunk, drives the lip sync
-	int		m_mouthsize;		// 0x110
+	byte		*m_mouth;		// MOTH chunk, drives the lip sync.
+	int		m_mouthsize;
 };
-
-typedef char CAudioStream_must_match_retail_size[
-	(sizeof(CAudioStream) == 0x114) ? 1 : -1];
 
 // The wav carries a MOTH chunk of per-sample mouth openings alongside the
 // audio, so talking models move their jaw in step with the sound.

@@ -581,7 +581,7 @@ S_LoadSound
 */
 void S_LoadSound (CAudioMgr *mgr, sfx_t *sfx)
 {
-	char		path[52];
+	char		path[MAX_CONSOLE_SOUND_NAME];
 	byte		*data;
 	int		size;
 	int		hFile[3];

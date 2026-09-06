@@ -42,7 +42,7 @@ static int	soundlist_cursor;
 static char	*sentence_data;
 char	*rgpszrawsentence[CVOXFILESENTENCEMAX];
 static int	sentence_count;
-static char	sentence_path[64];
+static char	sentence_path[MAX_QPATH];
 
 /*
 ==================
@@ -518,7 +518,7 @@ Cmd_play_f
 */
 void Cmd_play_f (void)
 {
-	char	name[52];
+	char	name[MAX_CONSOLE_SOUND_NAME];
 	int	i;
 	sfx_t	*sfx;
 
@@ -543,7 +543,7 @@ Cmd_playvol_f
 */
 void Cmd_playvol_f (void)
 {
-	char	name[52];
+	char	name[MAX_CONSOLE_SOUND_NAME];
 	int	i;
 	float	vol;
 	sfx_t	*sfx;

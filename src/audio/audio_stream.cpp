@@ -15,6 +15,11 @@
 #include "audio_static.h"
 #include "audio_stream.h"
 
+// Reverb selection for the streaming mixer.
+cvar_t room_type = { "room_type", "0" };
+cvar_t waterroom_type = { "waterroom_type", "14" };
+cvar_t room_off = { "room_off", "0" };
+
 cvar_t	mouthdelay	= {"mouthdelay", "0.066"};
 cvar_t	mouthrate	= {"mouthrate", "1000"};
 cvar_t	mouthscale	= {"mouthscale", "1.5"};
@@ -395,7 +400,8 @@ qboolean CAudioStream::ParseWavHeader (void)
 		if (id == MAKEFOURCC('f','m','t',' '))
 		{
 			m_desc.lpwfxFormat = (WAVEFORMATEX *)chunk;
-			m_rate = ((int *)chunk)[1];
+			m_rate = (int)chunk[4] | ((int)chunk[5] << 8) |
+				((int)chunk[6] << 16) | ((int)chunk[7] << 24);
 		}
 		else if (id == MAKEFOURCC('M','O','T','H'))
 		{

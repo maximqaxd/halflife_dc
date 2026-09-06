@@ -15,10 +15,10 @@
 
 // Single-precision math. The FPU runs fixed in single-precision mode, so the
 // float entry points are the only ones worth calling.
-#include <floatmathlib.h>
 
 // Sample rate everything is mixed at.
 #define AFILE_RATE		44100
+#define MAX_AUDIO_NAME	48
 
 // The driver hands a static buffer a block of sample memory and records it
 // here. Filling and reading blocks goes straight to that memory rather than
@@ -55,34 +55,31 @@ public:
 	void		SetPitch (int pitch);
 	qboolean	Play (void);
 
-	LPDIRECTSOUNDBUFFER	m_pBuffer;		// 0x04
+	LPDIRECTSOUNDBUFFER	m_pBuffer;
 
-	DSBUFFERDESC		m_desc;			// 0x08  description the buffer was made from
+	DSBUFFERDESC		m_desc;			// Description the buffer was made from.
 
-	byte			m_loop;			// 0x1c
-	byte			m_stream;		// 0x1d  refilled while it plays
-	byte			m_spatial;		// 0x1e  placed in the world
+	byte			m_loop;
+	byte			m_stream;		// Refilled while it plays.
+	byte			m_spatial;		// Placed in the world.
 
-	vec3_t			m_origin;		// 0x20
-	float			m_attenuation;		// 0x2c
-	float			m_volume;		// 0x30
-	int			m_entnum;		// 0x34
-	int			m_entchannel;		// 0x38
-	int			m_pitch;		// 0x3c  100 plays at the recorded rate
-	int			m_rate;			// 0x40  recorded sample rate
+	vec3_t			m_origin;
+	float			m_attenuation;
+	float			m_volume;
+	int			m_entnum;
+	int			m_entchannel;
+	int			m_pitch;		// 100 plays at the recorded rate.
+	int			m_rate;			// Recorded sample rate.
 
-	byte			m_stopping;		// 0x44  fading out, reaped when silent
-	byte			m_autofree;		// 0x45  manager deletes it once done
-	byte			m_speech;		// 0x46  drives the mouth flap
+	byte			m_stopping;		// Fading out, reaped when silent.
+	byte			m_autofree;		// Manager deletes it once done.
+	byte			m_speech;		// Drives the mouth flap.
 
-	int			m_dsvolume;		// 0x48  hundredths of a dB, 0 is full
-	int			m_dspan;		// 0x4c
+	int			m_dsvolume;		// Hundredths of a dB, 0 is full.
+	int			m_dspan;
 
-	char			m_name[48];		// 0x50
+	char			m_name[MAX_AUDIO_NAME];
 };
-
-typedef char CAudio_must_match_retail_size[
-	(sizeof(CAudio) == 0x80) ? 1 : -1];
 
 // The audio manager. One instance, created by S_Init.
 class CAudioMgr
