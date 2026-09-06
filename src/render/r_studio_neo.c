@@ -1001,7 +1001,7 @@ void R_StudioLoadPlayerSkin_Neo( model_t* model, int textureIndex,
 	pixels = (byte*)pixelData;
 	memcpy(pixels, fileData + texture->index, dataSize);
 
-	COM_FreeFile();
+	COM_FreeFile(fileData);
 }
 
 void R_StudioSetupPlayerSkin_Neo( studiohdr_t* textureHeader, int textureIndex )

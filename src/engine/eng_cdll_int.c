@@ -185,7 +185,7 @@ void ClientDLL_UpdateClientData( void )
 SPR_GetList
 
 Loads a sprite list. This is a text file defining a list of HUD elements
-Free the returned list with COM_FreeFile
+Free the returned list with COM_FreeTempFile
 =================
 */
 client_sprite_t* SPR_GetList( char* psz, int* piCount )
@@ -197,7 +197,7 @@ client_sprite_t* SPR_GetList( char* psz, int* piCount )
 	pfile = (char*)COM_LoadFile(psz, 2, NULL);
 	if (!pfile)
 	{
-		COM_FreeFile();
+		COM_FreeTempFile();
 		return NULL;
 	}
 
@@ -205,7 +205,7 @@ client_sprite_t* SPR_GetList( char* psz, int* piCount )
 	iCount = atoi(com_token);
 	if (!iCount)
 	{
-		COM_FreeFile();
+		COM_FreeTempFile();
 		return NULL;
 	}
 	
@@ -239,7 +239,7 @@ client_sprite_t* SPR_GetList( char* psz, int* piCount )
 			*piCount = iCount;
 	}
 
-	COM_FreeFile();
+	COM_FreeTempFile();
 
 	return pret;
 }

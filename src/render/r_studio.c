@@ -4246,7 +4246,7 @@ void R_StudioLoadPlayerSkin( model_t* model, int textureIndex, studio_skin_cache
 	pixels = (byte*)pixelData;
 	memcpy(pixels, fileData + texture->index, dataSize);
 
-	COM_FreeFile();
+	COM_FreeFile(fileData);
 }
 
 extern	vec3_t			lightspot;

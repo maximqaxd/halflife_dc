@@ -605,7 +605,7 @@ void S_LoadSound (CAudioMgr *mgr, sfx_t *sfx)
 		CL_PollProgressBar ();
 	}
 
-	COM_FreeFile ();
+	COM_FreeTempFile ();
 }
 
 /*

@@ -731,7 +731,7 @@ int Sys_FileOpenWrite( char *path )
 
 extern void Sys_RegisterExport( char *pName, unsigned int function );	// cbase.cpp
 
-int COM_CompareFileTime( int *ft1, int *ft2 )
+int Sys_CompareFileTime( int *ft1, int *ft2 )
 {
 	int iCompare = 0;
 

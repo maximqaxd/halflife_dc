@@ -196,6 +196,7 @@ char* vstr( float* v );
 extern int com_filesize;
 
 extern	char	com_gamedir[MAX_OSPATH];
+extern	char	com_gamedirname[64];
 
 // A directory listing entry, as returned by the file system enumerator.
 typedef struct FileList_s
@@ -217,7 +218,8 @@ int COM_OpenFileByName( char* gamedir, char* filename, int* hndl );
 int COM_FOpenFile( char* filename, FILE** file );
 void COM_CloseFile( int filepos, int filelen, int handle );
 
-void COM_FreeFile( void );
+void COM_FreeFile( void* buffer );
+void COM_FreeTempFile( void );
 byte* COM_LoadFile( char* path, int usehunk, int* pLength );
 byte* COM_LoadFileLimit( char* path, int pos, int cbmax, int* pcbread, int* phFile );
 byte* COM_LoadFileLimitAsync( char* path, int pos, int cbmax, int* pcbread, int* phFile, byte* dest, struct _OVERLAPPED* pov );
@@ -230,7 +232,8 @@ byte* COM_LoadFileForMe( char* path, int* pLength );
 
 void COM_FileSeek( int filepos, int filelen, int handle, int pos );
 
-int COM_CompareFileTime( int* ft1, int* ft2 );
+int Sys_CompareFileTime( int* ft1, int* ft2 );
+int COM_CompareFileTime( char* filename1, char* filename2, int* iCompare );
 
 void COM_ClearCustomizationList( struct customization_s* pHead, qboolean bCleanDecals );
 
@@ -238,6 +241,7 @@ void COM_ListMaps( char* pszSubString );
 
 unsigned char COM_Nibble( char c );
 void COM_CheckAuthenticationType( void );
+void COM_AddGameDirectory( int flags, char* basedir, char* gamedir );
 void COM_ChangeGameDir( char* pszDir );
 
 void COM_GetGameDir( char* szGameDir );

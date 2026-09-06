@@ -63,7 +63,7 @@ void SENTENCEG_Init (void)
 
 	if (sentence_data)
 	{
-		COM_FreeFile ();
+		COM_FreeFile (sentence_data);
 		sentence_data = NULL;
 	}
 

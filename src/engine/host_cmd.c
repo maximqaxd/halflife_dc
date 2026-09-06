@@ -3955,7 +3955,7 @@ void SV_NextDownload_f( void )
 	if (host_client->downloadpos != host_client->downloadsize)
 		return;
 
-	COM_FreeFile();
+	COM_FreeFile(host_client->download);
 	host_client->download = NULL;
 	host_client->downloadcustom = FALSE;
 	host_client->downloadchunk = 1024;
@@ -4052,7 +4052,7 @@ void SV_BeginDownload_f( void )
 
 	if (host_client->download)
 	{
-		COM_FreeFile();
+		COM_FreeFile(host_client->download);
 		host_client->download = NULL;
 	}
 

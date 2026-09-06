@@ -2551,6 +2551,7 @@ typedef struct
 
 char    com_cachedir[MAX_OSPATH];
 char    com_gamedir[MAX_OSPATH];
+char    com_gamedirname[64] = GAMENAME;
 
 typedef struct searchpath_s
 {
@@ -2673,6 +2674,7 @@ int COM_FindFileSearch( searchpath_t** pRestart, char* gamedir, char* filename, 
 	// check a file in the directory tree first
 		sprintf(netpath, "%s/%s", search->filename, filename);
 		findtime = Sys_FileTime(netpath);
+		*(int*)&gFileTime = findtime;
 		if (findtime > 0)
 		{
 			com_filesize = Sys_FileOpenRead(netpath, &i, 0);
@@ -2740,6 +2742,39 @@ int COM_FindFileSearch( searchpath_t** pRestart, char* gamedir, char* filename, 
 int COM_FindFile( char* filename, int* phFile, FILE** file )
 {
 	return COM_FindFileSearch(NULL, NULL, filename, phFile, file);
+}
+
+int COM_CompareFileTime( char* filename1, char* filename2, int* iCompare )
+{
+	FILE* file;
+	int filetime1;
+	int filetime2;
+	int result = 0;
+
+	*iCompare = 0;
+
+	if (!filename1 || !filename2)
+		goto done;
+
+	COM_FindFileSearch(NULL, NULL, filename1, NULL, &file);
+	if (!file)
+		goto done;
+
+	Sys_CloseHandle(file);
+	filetime1 = *(int*)&gFileTime;
+
+	COM_FindFileSearch(NULL, NULL, filename2, NULL, &file);
+	if (!file)
+		goto done;
+
+	Sys_CloseHandle(file);
+	filetime2 = *(int*)&gFileTime;
+
+	*iCompare = Sys_CompareFileTime(&filetime1, &filetime2);
+	result = 1;
+
+done:
+	return result;
 }
 
 
@@ -2827,8 +2862,59 @@ directory in behind it.
 */
 void COM_ChangeGameDir( char* pszDir )
 {
-	// TODO: unlink and free the non-default search paths, then
-	// COM_AddGameDirectory(host_parms.basedir, pszDir)
+	searchpath_t*	search;
+	searchpath_t*	next;
+	searchpath_t*	keep;
+	char			dir[MAX_OSPATH];
+
+// throw away everything the last campaign brought in, keeping the paths that
+// were added at startup and are shared by every game directory
+	keep = NULL;
+	for (search = com_searchpaths; search; search = next)
+	{
+		next = search->next;
+
+		if (search->flags)
+		{
+			search->next = keep;
+			keep = search;
+			continue;
+		}
+
+		if (search->pack)
+		{
+			Sys_FileClose(search->pack->handle);
+			if (search->pack->files)
+				MnemoFree(search->pack->files);
+			MnemoFree(search->pack);
+		}
+
+		free(search);
+	}
+
+// the survivors came off the list backwards, so put them back in order
+	com_searchpaths = NULL;
+	while (keep)
+	{
+		next = keep->next;
+		keep->next = com_searchpaths;
+		com_searchpaths = keep;
+		keep = next;
+	}
+
+	strcpy(com_gamedirname, pszDir);
+
+	if (!Q_stricmp(pszDir, GAMENAME))
+	{
+		// the base game is always on the path, only the current directory moves
+		sprintf(dir, "%s/%s", host_parms.basedir, pszDir);
+		Info_SetValueForStarKey(serverinfo, "*gamedir", pszDir, MAX_INFO_STRING);
+		strcpy(com_gamedir, dir);
+	}
+	else
+	{
+		COM_AddGameDirectory(0, host_parms.basedir, pszDir);
+	}
 }
 
 /*
@@ -2923,7 +3009,7 @@ byte* COM_LoadFile( char* path, int usehunk, int* pLength )
 			buf = loadbuf;
 		break;
 	case 5:
-		buf = malloc(len + 1);
+		buf = MnemoAllocDbg(len + 1, __FILE__, __LINE__);
 		break;
 	default:
 		Sys_Error("COM_LoadFile: bad usehunk");
@@ -2950,7 +3036,28 @@ byte* COM_LoadFile( char* path, int usehunk, int* pLength )
 	return buf;
 }
 
-void COM_FreeFile( void )
+/*
+============
+COM_FreeFile
+
+Hand back a buffer COM_LoadFileForMe put on the heap.
+============
+*/
+void COM_FreeFile( void* buffer )
+{
+	if (buffer)
+		free(buffer);
+}
+
+/*
+============
+COM_FreeTempFile
+
+Drop the scratch buffer the last COM_LoadTempFile read into. There is only
+ever one of them, so it does not need naming.
+============
+*/
+void COM_FreeTempFile( void )
 {
 	_FreeBlock();
 }

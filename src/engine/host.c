@@ -463,7 +463,7 @@ void SV_DropClient( client_t *cl, qboolean crash )
 
 		if (cl->download)
 		{
-			COM_FreeFile();
+			COM_FreeFile(cl->download);
 			cl->download = NULL;
 		}
 
