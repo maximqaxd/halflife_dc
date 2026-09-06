@@ -153,7 +153,7 @@ local gzFile gz_open (path, mode, fd)
     s->stream.avail_out = Z_BUFSIZE;
 
     errno = 0;
-    s->file = fd < 0 ? F_OPEN(path, fmode) : (FILE*)fdopen(fd, fmode);
+    s->file = F_OPEN(path, fmode);
 
     if (s->file == NULL) {
         return destroy(s), (gzFile)Z_NULL;
@@ -752,7 +752,7 @@ int ZEXPORT gzrewind (file)
     s->crc = crc32(0L, Z_NULL, 0);
 	
     if (s->startpos == 0) { /* not a compressed file */
-	rewind(s->file);
+	(void)fseek(s->file, 0, SEEK_SET);
 	return 0;
     }
 

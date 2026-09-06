@@ -208,7 +208,8 @@ public:
 		if (remaining < 4)
 			return g_zapNoFit;
 		nbytes = 1;
-		value = *(unsigned int *)cur;
+		value = (unsigned int)cur[0] | ((unsigned int)cur[1] << 8) |
+			((unsigned int)cur[2] << 16) | ((unsigned int)cur[3] << 24);
 		if ((unsigned int)value > 0x801d)
 			return g_zapNoFit;
 		value += 1;
@@ -398,8 +399,10 @@ public:
 		if (cur - start < 4)
 			return g_zapNoFit;
 
-		prev = ((unsigned int *)cur)[-1];
-		val = *(unsigned int *)cur;
+		prev = (unsigned int)cur[-4] | ((unsigned int)cur[-3] << 8) |
+			((unsigned int)cur[-2] << 16) | ((unsigned int)cur[-1] << 24);
+		val = (unsigned int)cur[0] | ((unsigned int)cur[1] << 8) |
+			((unsigned int)cur[2] << 16) | ((unsigned int)cur[3] << 24);
 		for (s = 0; s < 0x18; s++)
 		{
 			mask = 0xff << s;
@@ -421,7 +424,9 @@ public:
 	}
 	virtual int Decode( byte **src, byte **dst )
 	{
-		unsigned int prev = *(unsigned int *)(*dst - 4);
+		byte *previous = *dst - 4;
+		unsigned int prev = (unsigned int)previous[0] | ((unsigned int)previous[1] << 8) |
+			((unsigned int)previous[2] << 16) | ((unsigned int)previous[3] << 24);
 		unsigned int val;
 
 		shift = *(*src)++ & 0x1f;

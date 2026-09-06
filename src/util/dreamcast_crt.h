@@ -9,6 +9,11 @@
 // in scope - otherwise the runtime's copy arrives second and collides.
 #include <stdlib.h>
 
+// The FPU runs fixed in single precision. floatmathlib redirects the math entry
+// points at the single-precision routines, so a call costs a handful of float
+// instructions instead of dragging in the software double helpers.
+#include <floatmathlib.h>
+
 #ifndef _INC_STDLIB
 typedef unsigned int size_t;
 #endif
@@ -28,7 +33,7 @@ extern "C" {
 
 int _strnicmp( const char *s1, const char *s2, unsigned int n );
 int _stricmp( const char *s1, const char *s2 );
-int Q_stricmp( char* s1, char* s2 );
+int Q_stricmp( const char* s1, const char* s2 );
 int Q_strnicmp( char* s1, char* s2, int n );
 
 // The Dreamcast heap allocators tag each block with its call site and route
@@ -39,7 +44,10 @@ int Q_strnicmp( char* s1, char* s2, int n );
 void* calloc( unsigned int num, unsigned int size, const char* file, int line );
 #define calloc( n, s )	calloc( (n), (s), __FILE__, __LINE__ )
 
+#pragma warning( push )
+#pragma warning( disable : 4273 )
 void  free( void* ptr );
+#pragma warning( pop )
 
 void* bsearch( const void* key, const void* base, unsigned int num, unsigned int width,
                int (__cdecl *compare)(const void*, const void*) );
@@ -74,14 +82,9 @@ struct tm
 
 struct tm* localtime( const long* t );
 
-// The FPU runs fixed in single precision, but <stdlib.h> only declares the double
-// form of fmod - calling that drags in the software double-precision helpers for
-// what is a handful of float instructions. Route it through the single version.
-float fmodf( float x, float y );
-#define fmod( x, y )	fmodf( (x), (y) )
-
-// Same for fabs: the single-precision form is one instruction, while the double
-// one costs a conversion either side of it.
+// floatmathlib spells fabs as a compare and a negate; the single-precision
+// instruction does it in one, so take that instead.
+#undef fabs
 float fabsf( float x );
 #define fabs( x )		fabsf( (x) )
 
@@ -92,4 +95,3 @@ float fabsf( float x );
 #endif /* WIN32_WCE */
 
 #endif /* DREAMCAST_CRT_H */
-

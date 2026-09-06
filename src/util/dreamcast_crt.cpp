@@ -68,7 +68,7 @@ void free( void* ptr )
 #pragma inline_depth(0)
 void* DebugRealloc( void* oldPtr, unsigned int sizeBytes, const char* srcFile, int srcLine )
 {
-	static char tag[260];
+	static char tag[MAX_PATH];
 	const char* base;
 	unsigned int copyBytes;
 	void* newPtr;
@@ -247,7 +247,7 @@ struct tm* localtime( const long* t )
 
 // Case-insensitive string compares (WinCE lacks these); tolower is resolved
 // through the CRT so the DC build shares one implementation.
-int Q_stricmp( char* s1, char* s2 )
+int Q_stricmp( const char* s1, const char* s2 )
 {
 	while (*s1)
 	{

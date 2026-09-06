@@ -264,7 +264,7 @@ void UnzipSaveGame( char *pszDir, char *pszName )
 
 // Expand the compressed level save on the card back out to a plain .HL1 the
 // save/restore code can read, using the dictionary save as the baseline.
-void ZipSaveGame( char *pszDir, char *pszName )
+void ZipSaveGame( char *pszDir, const char *pszName )
 {
 	zapsave_t	save;
 	char		szDicts[256];

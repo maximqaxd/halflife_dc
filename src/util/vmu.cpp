@@ -42,7 +42,7 @@
 #define VMU_BYTES_PER_SAVE	9216	// budgeted for each save already on disc
 #define VMU_MAX_SAVE_BYTES	97280	// never ask for more of the card than this
 
-// Chatter about the card is compiled out of the retail build, but the status
+// Chatter about the card is compiled out of release builds, but the status
 // lookup still runs so a failure is always decoded.
 #define VMU_Printf	(void)
 

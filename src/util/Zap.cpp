@@ -153,7 +153,7 @@ int IsBfile( bfile_t *h )
 
 extern void Sys_ErrorColor( int wColor, char *fmt, ... );
 
-int Bopen( char *path, char *mode )
+bfile_t *Bopen( char *path, char *mode )
 {
 	bfile_t *e;
 	byte  *buf;
@@ -184,7 +184,7 @@ int Bopen( char *path, char *mode )
 		}
 		e->position = 0;
 		e->open = 1;
-		return (int)e;
+		return e;
 	}
 
 	// No match. A read of a missing file fails; a write creates it.
@@ -214,7 +214,7 @@ int Bopen( char *path, char *mode )
 			e->size = 0;
 			e->position = 0;
 			e->open = 1;
-			return (int)e;
+			return e;
 		}
 		return 0;
 	}
@@ -766,8 +766,11 @@ int Bexport_handle( bfile_t *h )
 }
 
 // Write the Bfile with the given path out to the PC-side host.
-int Bexport_path( char *path )
+int Bexport_path( char *path, char *exportName )
 {
+	char *p;
+	char name[256];
+	void *pFile;
 	int i;
 
 	for (i = 0; i < MAX_BFILES; i++)
@@ -776,7 +779,22 @@ int Bexport_path( char *path )
 			continue;
 
 		if (Bpathcmp(path, g_bfiles[i].path) == 0)
-			return Bexport_handle(&g_bfiles[i]);
+		{
+			p = strrchr(exportName, '/');
+			if (p)
+				p++;
+			else
+				p = exportName;
+
+			sprintf(name, "\\PC\\%s", p);
+			pFile = Sys_OpenHandle(name, "wb");
+			if (!pFile)
+				return 0;
+
+			DC_fwrite(g_bfiles[i].data, g_bfiles[i].size, 1, pFile);
+			Sys_CloseHandle(pFile);
+			return 1;
+		}
 	}
 
 	return 0;

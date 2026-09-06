@@ -26,7 +26,7 @@ typedef struct bfile_s
 	unsigned int  flags;       // bit 0 = compressed
 } bfile_t;
 
-int   Bopen( char *path, char *mode );
+bfile_t* Bopen( char *path, char *mode );
 int   Bclose( bfile_t *h );
 int   Bread( void *buffer, int size, int count, bfile_t *h );
 int   Bwrite( void *buffer, int size, int count, bfile_t *h );
@@ -35,7 +35,7 @@ int   Bfilesize_path( char *path );
 void *Bfileptr_path( char *path );
 int   Brename_path( char *oldpath, char *newpath );
 int   Bcompress_path( char *path );
-int   Bexport_path( char *path );
+int   Bexport_path( char *path, char *exportName );
 
 // Wildcard search over the resident files. Each call returns the next matching
 // name, or NULL when the list runs out.
