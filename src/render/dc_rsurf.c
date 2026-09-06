@@ -10,7 +10,6 @@
 #include "dc_accum.h"
 #include "view.h"
 #include "input.h"
-#include <floatmathlib.h>
 
 #pragma intrinsic(fabsf)
 
@@ -48,6 +47,13 @@ byte		lightmaps[BLOCK_WIDTH * BLOCK_HEIGHT * 4];
 
 static glpoly_t*  lightmap_polys[MAX_LIGHTMAPS];
 static short      lightmap_modified[MAX_LIGHTMAPS];
+
+typedef struct
+{
+	int l, t, w, h;
+} glRect_t;
+
+static glRect_t   lightmap_rectchange[MAX_LIGHTMAPS];
 static int        lm_texnum[MAX_LIGHTMAPS];
 
 msurface_t* gDecalSurfs[MAX_DECALSURFS];
@@ -595,6 +601,72 @@ void R_BuildLightMap( msurface_t* psurf )
 		}
 	}
 }
+
+/*
+================
+R_RenderDynamicLightmaps
+
+Chain the surface onto its lightmap page and, if a style moved or a dlight
+touched it, grow that page's dirty rectangle and rebuild the block.
+================
+*/
+void R_RenderDynamicLightmaps( msurface_t* fa )
+{
+	glRect_t*	theRect;
+	int			maps;
+	int			smax, tmax;
+
+	c_brush_polys++;
+
+	if (fa->flags & (SURF_DRAWSKY | SURF_DRAWTURB))
+		return;
+
+	fa->polys->chain = lightmap_polys[fa->lightmaptexturenum];
+	lightmap_polys[fa->lightmaptexturenum] = fa->polys;
+
+	// check for lightmap modification
+	for (maps = 0; maps < MAXLIGHTMAPS && fa->styles[maps] != 255; maps++)
+	{
+		if (d_lightstylevalue[fa->styles[maps]] != fa->cached_light[maps])
+			goto dynamic;
+	}
+
+	if (fa->dlightframe == (char)r_framecount || fa->cached_dlight)
+	{
+dynamic:
+		if (r_dynamic.value)
+		{
+			lightmap_modified[fa->lightmaptexturenum] = 1;
+			theRect = &lightmap_rectchange[fa->lightmaptexturenum];
+			if (fa->light_t < theRect->t)
+			{
+				if (theRect->h)
+					theRect->h += theRect->t - fa->light_t;
+				theRect->t = fa->light_t;
+			}
+			if (fa->light_s < theRect->l)
+			{
+				if (theRect->w)
+					theRect->w += theRect->l - fa->light_s;
+				theRect->l = fa->light_s;
+			}
+			smax = (fa->extents[0] >> 4) + 1;
+			tmax = (fa->extents[1] >> 4) + 1;
+			if ((theRect->w + theRect->l) < (fa->light_s + smax))
+				theRect->w = (fa->light_s - theRect->l) + smax;
+			if ((theRect->h + theRect->t) < (fa->light_t + tmax))
+				theRect->h = (fa->light_t - theRect->t) + tmax;
+
+			R_BuildLightMap(fa);
+
+			if (lm_texnum[fa->lightmaptexturenum] != nada_texture)
+				DCV_UpdateTextureSubRect(lm_texnum[fa->lightmaptexturenum],
+					fa->light_s, fa->light_t, smax, tmax,
+					(const unsigned short*)lightmaps, BLOCK_WIDTH);
+		}
+	}
+}
+
 
 
 /*

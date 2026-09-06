@@ -1,6 +1,8 @@
 #ifndef TEXT_DRAW_H
 #define TEXT_DRAW_H
 
+#define FONT_GLYPH_COUNT	256
+
 // One glyph's placement in the font sheet.
 typedef struct
 {
@@ -16,7 +18,7 @@ typedef struct
 	int			height;
 	int			rowcount;
 	int			rowheight;			// source pixel height of a text row
-	charinfo_t	fontinfo[256];
+	charinfo_t	fontinfo[FONT_GLYPH_COUNT];
 	byte		data[4];
 	float		usize;				// 1.0 / sheet width
 	float		vsize;				// 1.0 / sheet height

@@ -3,7 +3,6 @@
 #include "r_triangle.h"
 #include "customentity.h"
 #include "dc_accum.h"
-#include <floatmathlib.h>
 
 #define MAX_BEAMS				128		// Max simultaneous beams
 #define MAX_PARTICLES			2048	// default max # of particles at one

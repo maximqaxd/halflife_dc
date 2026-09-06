@@ -3,6 +3,15 @@
 #include "quakedef.h"
 #include "pr_cmds.h"
 
+// Strings the driver reported at start-up, filled in by VID_Init.
+extern const char*	gl_vendor;
+extern const char*	gl_renderer;
+extern const char*	gl_version;
+extern const char*	gl_extensions;
+
+extern void	DCV_GammaRefresh_f( void );
+extern void	DC_TexCache( char* name );
+
 cvar_t	r_cachestudio = { "r_cachestudio", "1" };
 cvar_t	r_norefresh = { "r_norefresh", "0" };
 cvar_t	r_drawentities = { "r_drawentities", "1" };
@@ -12,7 +21,6 @@ cvar_t	r_fullbright = { "r_fullbright", "0" };
 cvar_t	r_decals = { "r_decals", "4096" };
 cvar_t	mp_decals = { "mp_decals", "300" };
 cvar_t	r_lightmap = { "r_lightmap", "0" };
-cvar_t	r_lightmap_upload = { "r_lightmap_upload", "0" }; 
 cvar_t	r_shadows = { "r_shadows", "0" };
 cvar_t	r_mirroralpha = { "r_mirroralpha", "1" };
 cvar_t	r_wateralpha = { "r_wateralpha", "1" };
@@ -20,6 +28,10 @@ cvar_t	r_dynamic = { "r_dynamic", "1" };
 cvar_t	r_novis = { "r_novis", "0" };
 cvar_t	r_mmx = { "r_mmx", "0" };
 cvar_t	r_traceglow = { "r_traceglow", "0" };
+cvar_t	r_testlight = { "r_testlight", "0" };
+cvar_t	r_drawadaptive = { "r_drawadaptive", "0" };
+cvar_t	r_glowshellfreq = { "r_glowshellfreq", "2.2" };
+cvar_t	d_spriteskip = { "d_spriteskip", "0" };
 cvar_t	r_wadtextures = { "r_wadtextures", "0" };
 
 cvar_t	gl_monolights = { "gl_monolights", "0" };
@@ -27,28 +39,20 @@ cvar_t	gl_monolights = { "gl_monolights", "0" };
 // Texture-sorted world rendering; always on for this build.
 int		gl_texsort = 1;
 
-cvar_t	gl_clear = { "gl_clear", "0" };
 cvar_t	gl_cull = { "gl_cull", "1" };
 cvar_t	gl_smoothmodels = { "gl_smoothmodels", "1" };
-cvar_t	gl_affinemodels = { "gl_affinemodels", "0" };
 cvar_t	gl_flashblend = { "gl_flashblend", "0" };
-cvar_t	gl_playermip = { "gl_playermip", "0" };
-cvar_t	gl_nocolors = { "gl_nocolors", "0" };
 cvar_t	gl_keeptjunctions = { "gl_keeptjunctions", "1" };
-cvar_t	gl_reporttjunctions = { "gl_reporttjunctions", "0" };
 cvar_t	gl_wateramp = { "gl_wateramp", "0.3" };
-cvar_t	gl_dither = { "gl_dither", "1", FCVAR_ARCHIVE };
 cvar_t	gl_spriteblend = { "gl_spriteblend", "1" };
-cvar_t	gl_polyoffset = { "gl_polyoffset", "4", FCVAR_ARCHIVE };
 cvar_t	gl_lightholes = { "gl_lightholes", "1" };
 cvar_t	gl_zmax = { "gl_zmax", "4096" };
 cvar_t	gl_alphamin = { "gl_alphamin", "0.25" };
 cvar_t	gl_overdraw = { "gl_overdraw", "0" };
 cvar_t	gl_watersides = { "gl_watersides", "0" };
-cvar_t	gl_overbright = { "gl_overbright", "1", FCVAR_ARCHIVE };
 cvar_t	gl_envmapsize = { "gl_envmapsize", "256" };
-cvar_t	gl_flipmatrix = { "gl_flipmatrix", "0", FCVAR_ARCHIVE };
 
+cvar_t	mipbias = { "mipbias", "0.0" };
 cvar_t	fogrange = { "fogrange", "500.0" };
 cvar_t	fogscale = { "fogscale", "0.03" };
 cvar_t	progress = { "progress", "0.0" };
@@ -76,6 +80,25 @@ cvar_t	dc_msh2 = { "dc_msh2", "0.475" };
 R_InitTextures
 ====================
 */
+/*
+===============
+Cmd_gl_dump_f
+
+Echo whatever the driver told us about itself.
+===============
+*/
+void Cmd_gl_dump_f( void )
+{
+	if (gl_vendor)
+		Con_Printf("GL Vendor: %s\n", gl_vendor);
+	if (gl_renderer)
+		Con_Printf("GL Renderer: %s\n", gl_renderer);
+	if (gl_version)
+		Con_Printf("GL Version: %s\n", gl_version);
+	if (gl_extensions)
+		Con_Printf("GL Extensions: %s\n", gl_extensions);
+}
+
 void R_InitTextures( void )
 {
 	int		x, y, m;
@@ -134,6 +157,51 @@ byte	dottexture[16][16] =
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 };
+/*
+===============
+R_MakeDotParticleTexture
+
+Build the small round particle out of an 8x8 stamp. Index 255 is the
+transparent entry, so the cleared area of the stamp drops out.
+===============
+*/
+static byte	dotparticle[8][8] =
+{
+	{0,1,1,0,0,0,0,0},
+	{1,1,1,1,0,0,0,0},
+	{1,1,1,1,0,0,0,0},
+	{0,1,1,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0},
+};
+
+int		dotparticletexture;
+
+void R_MakeDotParticleTexture( void )
+{
+	byte	data[8][8];
+	byte	pal[256][3];
+	int		x, y;
+
+	memset(pal, 0, sizeof(pal));
+	pal[0][0] = 0;
+	pal[0][1] = 0;
+	pal[0][2] = 255;
+	pal[255][0] = 255;
+	pal[255][1] = 255;
+	pal[255][2] = 255;
+
+	for (y = 0; y < 8; y++)
+	{
+		for (x = 0; x < 8; x++)
+			data[x][y] = dotparticle[y][x] ? 0 : 255;
+	}
+
+	dotparticletexture = DC_LoadTexture("particle", 0, 8, 8, data, 0, 1, (unsigned char*)pal);
+}
+
 void R_InitParticleTexture( void )
 {
 	int		x, y;
@@ -200,50 +268,35 @@ R_Init
 Initialize the renderer
 ====================
 */
+/*
+===============
+Cmd_skybox_f
+
+Switch the sky to the name given on the command line and reload it.
+===============
+*/
+void Cmd_skybox_f( void )
+{
+	R_LoadSkys();
+	Cvar_Set("cl_skyname", Cmd_Argv(1));
+	R_ForceLoadSkys();
+	R_LoadSkys();
+}
+
+/*
+===============
+Cmd_texcache_f
+
+Pull one texture into the cache by name.
+===============
+*/
+void Cmd_texcache_f( void )
+{
+	DC_TexCache(Cmd_Argv(1));
+}
+
 void R_Init( void )
 {
-	Cmd_AddCommand("timerefresh", R_TimeRefresh_f);
-	Cmd_AddCommand("envmap", R_Envmap_f);
-	Cmd_AddCommand("pointfile", R_ReadPointFile_f);
-	Cmd_AddCommand("textures", DC_TexDump_f);
-
-	Cvar_RegisterVariable(&r_norefresh);
-	Cvar_RegisterVariable(&r_lightmap);
-	Cvar_RegisterVariable(&r_lightmap_upload);
-	Cvar_RegisterVariable(&r_fullbright);
-	Cvar_RegisterVariable(&r_decals);
-	Cvar_RegisterVariable(&mp_decals);
-	Cvar_RegisterVariable(&r_drawentities);
-	Cvar_RegisterVariable(&r_drawviewmodel);
-	Cvar_RegisterVariable(&r_mirroralpha);
-	Cvar_RegisterVariable(&r_wateralpha);
-	Cvar_RegisterVariable(&r_dynamic);
-	Cvar_RegisterVariable(&r_novis);
-	Cvar_RegisterVariable(&r_speeds);
-	Cvar_RegisterVariable(&r_wadtextures);
-	Cvar_RegisterVariable(&r_shadows);
-	Cvar_RegisterVariable(&r_mmx);
-	Cvar_RegisterVariable(&r_traceglow);
-
-	Cvar_RegisterVariable(&gl_clear);
-	Cvar_RegisterVariable(&gl_monolights);
-	Cvar_RegisterVariable(&gl_cull);
-	Cvar_RegisterVariable(&gl_smoothmodels);
-	Cvar_RegisterVariable(&gl_affinemodels);
-	Cvar_RegisterVariable(&gl_playermip);
-	Cvar_RegisterVariable(&gl_nocolors);
-	Cvar_RegisterVariable(&gl_dither);
-	Cvar_RegisterVariable(&gl_spriteblend);
-	Cvar_RegisterVariable(&gl_polyoffset);
-	Cvar_RegisterVariable(&gl_lightholes);
-	Cvar_RegisterVariable(&gl_keeptjunctions);
-	Cvar_RegisterVariable(&gl_reporttjunctions);
-	Cvar_RegisterVariable(&gl_wateramp);
-	Cvar_RegisterVariable(&gl_overbright);
-	Cvar_RegisterVariable(&gl_zmax);
-	Cvar_RegisterVariable(&gl_alphamin);
-	Cvar_RegisterVariable(&gl_flipmatrix);
-
 	Cvar_RegisterVariable(&dc_depthhud);
 	Cvar_RegisterVariable(&dc_depthminhud);
 	Cvar_RegisterVariable(&dc_depthmaxhud);
@@ -254,19 +307,58 @@ void R_Init( void )
 	Cvar_RegisterVariable(&dc_msd);
 	Cvar_RegisterVariable(&dc_msh);
 	Cvar_RegisterVariable(&dc_msh2);
-
+	Cvar_RegisterVariable(&mipbias);
+	Cvar_RegisterVariable(&progress);
 	Cvar_RegisterVariable(&fogrange);
 	Cvar_RegisterVariable(&fogscale);
-	Cvar_RegisterVariable(&progress);
 	Cvar_RegisterVariable(&profilescale);
 	Cvar_RegisterVariable(&profilemeter);
-
 	Cvar_RegisterVariable(&dc_light_min);
 	Cvar_RegisterVariable(&dc_light_max);
 	Cvar_RegisterVariable(&dc_light_alpha);
 	Cvar_RegisterVariable(&dc_light_beta);
 
+	Cmd_AddCommand("gammarefresh", DCV_GammaRefresh_f);
+	Cmd_AddCommand("timerefresh", R_TimeRefresh_f);
+	Cmd_AddCommand("pointfile", R_ReadPointFile_f);
+	Cmd_AddCommand("gl_dump", Cmd_gl_dump_f);
+	Cmd_AddCommand("skybox", Cmd_skybox_f);
+	Cmd_AddCommand("textures", DC_TexDump_f);
+	Cmd_AddCommand("texcache", Cmd_texcache_f);
+
+	Cvar_RegisterVariable(&r_norefresh);
+	Cvar_RegisterVariable(&r_lightmap);
+	Cvar_RegisterVariable(&r_fullbright);
+	Cvar_RegisterVariable(&r_decals);
+	Cvar_RegisterVariable(&mp_decals);
+	Cvar_SetValue("r_decals", 1024.0f);
+	Cvar_RegisterVariable(&r_testlight);
+	Cvar_RegisterVariable(&r_drawentities);
+	Cvar_RegisterVariable(&r_drawviewmodel);
+	Cvar_RegisterVariable(&r_mirroralpha);
+	Cvar_RegisterVariable(&r_wateralpha);
+	Cvar_RegisterVariable(&r_dynamic);
+	Cvar_RegisterVariable(&r_novis);
+	Cvar_RegisterVariable(&r_speeds);
+	Cvar_RegisterVariable(&r_drawadaptive);
+	Cvar_RegisterVariable(&d_spriteskip);
+	Cvar_RegisterVariable(&r_wadtextures);
+	Cvar_RegisterVariable(&r_shadows);
+	Cvar_RegisterVariable(&r_mmx);
+	Cvar_RegisterVariable(&r_traceglow);
+	Cvar_RegisterVariable(&r_glowshellfreq);
+	Cvar_RegisterVariable(&gl_cull);
+	Cvar_RegisterVariable(&gl_smoothmodels);
+	Cvar_RegisterVariable(&gl_spriteblend);
+	Cvar_RegisterVariable(&gl_lightholes);
+	Cvar_RegisterVariable(&gl_keeptjunctions);
+	Cvar_RegisterVariable(&gl_wateramp);
+	Cvar_RegisterVariable(&gl_zmax);
+	Cvar_RegisterVariable(&gl_alphamin);
+	Cvar_RegisterVariable(&gl_monolights);
+
 	R_InitParticles();
+	R_MakeDotParticleTexture();
 	R_InitParticleTexture();
 	R_UploadEmptyTex();
 

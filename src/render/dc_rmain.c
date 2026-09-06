@@ -6,7 +6,6 @@
 #include "shake.h"
 #include "dc_draw.h"
 #include "dc_accum.h"
-#include <floatmathlib.h>
 #include <shintr.h>
 
 #pragma intrinsic(fabsf)
@@ -141,7 +140,7 @@ void DCV_BuildProjectionAndSetTransform(
 	m._34 = -1.0f;
 	m._43 = -( zn * zf ) / zRange;
 
-	/* Post-multiply by scale (binary-accurate) */
+	/* Post-multiply by scale. */
 	m._11 *= scale;
 	m._31 *= scale;
 	m._22 *= scale;

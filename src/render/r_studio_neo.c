@@ -32,7 +32,7 @@ extern vec3_t vright;
 extern int r_smodels_total;
 extern int r_topcolor;
 extern int r_bottomcolor;
-extern byte g_studioTranslatedPalette[768];
+extern byte g_studioTranslatedPalette[STUDIO_PALETTE_RGB_BYTES];
 extern int r_amodels_drawn;
 extern auxvert_t* pauxverts;
 extern vec3_t* pvlightvalues;
@@ -66,8 +66,8 @@ typedef struct studio_skin_cache_neo_s
 	int					topColor;
 	int					bottomColor;
 	model_t*			model;
-	char				textureName[224];
-	byte				skinState[36];
+	char				textureName[STUDIO_SKIN_CACHE_NAME_LENGTH];
+	byte				skinState[STUDIO_SKIN_STATE_BYTES];
 	int					textureIndex;
 	int					textureState;
 	int					width;
@@ -987,15 +987,20 @@ void R_StudioLoadPlayerSkin_Neo( model_t* model, int textureIndex,
 	header = (studiohdr_t*)fileData;
 	texture = (mstudiotexture_t*)(fileData + header->textureindex) +
 		cache->textureIndex;
+
 	cache->width = texture->width;
 	cache->height = texture->height;
-	dataSize = cache->width * cache->height + 768;
+
+	dataSize = cache->width * cache->height + STUDIO_PALETTE_RGB_BYTES;
 	Cache_Alloc(&cache->pixels, dataSize, cache->textureName);
+
 	pixelData = (unsigned int)cache->pixels.data;
 	if (pixelData & 1U)
 		pixelData = 0;
+
 	pixels = (byte*)pixelData;
 	memcpy(pixels, fileData + texture->index, dataSize);
+
 	COM_FreeFile();
 }
 
@@ -1005,7 +1010,7 @@ void R_StudioSetupPlayerSkin_Neo( studiohdr_t* textureHeader, int textureIndex )
 	studio_skin_cache_neo_t*	cache;
 	byte*						pixels;
 	int							playerIndex;
-	char						textureName[224];
+	char						textureName[STUDIO_SKIN_CACHE_NAME_LENGTH];
 
 	if (g_ForcedFaceFlags & STUDIO_NF_CHROME)
 		return;
@@ -1020,21 +1025,28 @@ void R_StudioSetupPlayerSkin_Neo( studiohdr_t* textureHeader, int textureIndex )
 			cache->bottomColor != r_bottomcolor)
 		{
 			R_StudioLoadPlayerSkin_Neo(r_studio_model, textureIndex, cache);
+
 			sprintf(textureName, "%s%d", texture->name, playerIndex);
+
 			pixels = (byte*)cache->pixels.data;
 			if ((unsigned int)pixels & 1U)
 				pixels = NULL;
 			memcpy(g_studioTranslatedPalette,
-				pixels + texture->width * texture->height, 768);
+				pixels + texture->width * texture->height, STUDIO_PALETTE_RGB_BYTES);
+
 			cache->model = r_studio_model;
 			cache->topColor = r_topcolor;
 			cache->bottomColor = r_bottomcolor;
-			R_StudioRemapPaletteRange(g_studioTranslatedPalette, r_topcolor, 160, 191);
-			R_StudioRemapPaletteRange(g_studioTranslatedPalette, cache->bottomColor, 192, 223);
+			R_StudioRemapPaletteRange(g_studioTranslatedPalette, r_topcolor,
+				STUDIO_TOP_COLOR_START, STUDIO_TOP_COLOR_END);
+			R_StudioRemapPaletteRange(g_studioTranslatedPalette, cache->bottomColor,
+				STUDIO_BOTTOM_COLOR_START, STUDIO_BOTTOM_COLOR_END);
+
 			GL_UnloadTexture(textureName);
 			pixels = (byte*)cache->pixels.data;
 			if ((unsigned int)pixels & 1U)
 				pixels = NULL;
+
 			cache->glTexture = GL_LoadTexture(textureName, GLT_STUDIO,
 				cache->width, cache->height, pixels, FALSE, TEX_TYPE_NONE,
 				g_studioTranslatedPalette);
@@ -1142,6 +1154,7 @@ int R_StudioDrawPlayer_Neo( int flags, player_state_t* player )
 		cl.players[r_playerindex].model[0] == 0)
 	{
 		g_studioPlayerModels[r_playerindex].name[0] = 0;
+
 		if (g_studioPlayerModels[r_playerindex].model != currententity->model)
 		{
 			g_studioPlayerModels[r_playerindex].model = currententity->model;
@@ -1153,6 +1166,7 @@ int R_StudioDrawPlayer_Neo( int flags, player_state_t* player )
 	{
 		strcpy(g_studioPlayerModels[r_playerindex].name,
 			cl.players[r_playerindex].model);
+
 		strcpy(g_studioPlayerModels[r_playerindex].modelName, "models/player/");
 		strcat(g_studioPlayerModels[r_playerindex].modelName,
 			cl.players[r_playerindex].model);
@@ -1160,16 +1174,19 @@ int R_StudioDrawPlayer_Neo( int flags, player_state_t* player )
 		strcat(g_studioPlayerModels[r_playerindex].modelName,
 			cl.players[r_playerindex].model);
 		strcat(g_studioPlayerModels[r_playerindex].modelName, ".mdl");
+
 		g_studioPlayerModels[r_playerindex].model =
 			Mod_ForName(g_studioPlayerModels[r_playerindex].modelName, FALSE);
 		if (!g_studioPlayerModels[r_playerindex].model)
 			g_studioPlayerModels[r_playerindex].model = currententity->model;
+
 		R_StudioResetPlayerModel();
 	}
 
 	r_studio_model = g_studioPlayerModels[r_playerindex].model;
 	if (!r_studio_model)
 		return 0;
+
 	pstudiohdr = (studiohdr_t*)Mod_Extradata(r_studio_model);
 
 	if (player->gaitsequence != 0)
@@ -1217,6 +1234,7 @@ int R_StudioDrawPlayer_Neo( int flags, player_state_t* player )
 	R_StudioSetupBones_Neo();
 	R_StudioSaveBones_Neo();
 	player->renderframe = r_framecount;
+
 	r_playerinfo = NULL;
 
 	if (flags & STUDIO_EVENTS)
@@ -1256,6 +1274,7 @@ int R_StudioDrawPlayer_Neo( int flags, player_state_t* player )
 			r_bottomcolor = 0;
 		if (r_bottomcolor > 360)
 			r_bottomcolor = 360;
+
 		VectorCopy(r_origin, g_ChromeOrigin);
 		g_ForcedFaceFlags = 0;
 		R_StudioRenderFinal_Neo();
@@ -1268,9 +1287,12 @@ int R_StudioDrawPlayer_Neo( int flags, player_state_t* player )
 
 			savedEntity = *currententity;
 			weaponModel = cl.model_precache[player->weaponmodel];
+
 			pstudiohdr = (studiohdr_t*)Mod_Extradata(weaponModel);
+
 			R_StudioMergeBones_Neo(weaponModel);
 			R_StudioSetupLighting(&lighting);
+
 			VectorCopy(r_origin, g_ChromeOrigin);
 			g_ForcedFaceFlags = 0;
 			R_StudioRenderFinal_Neo();
@@ -1381,6 +1403,7 @@ int R_StudioDrawModel_Neo( int flags, int checkBBox )
 
 	r_studio_model = currententity->model;
 	pstudiohdr = (studiohdr_t*)Mod_Extradata(r_studio_model);
+
 	R_StudioSetUpTransform(0);
 
 	if (flags & STUDIO_RENDER)
@@ -1406,12 +1429,14 @@ int R_StudioDrawModel_Neo( int flags, int checkBBox )
 		R_StudioMergeBones_Neo(r_studio_model);
 	else
 		R_StudioSetupBones_Neo();
+
 	R_StudioSaveBones_Neo();
 
 	if (flags & STUDIO_EVENTS)
 	{
 		R_StudioCalcAttachments_Neo();
 		R_StudioClientEvents_Neo();
+
 		if (currententity->index > 0)
 			memcpy(cl_entities[currententity->index].attachment,
 				currententity->attachment, sizeof(vec3_t) * 4);
@@ -1421,10 +1446,14 @@ int R_StudioDrawModel_Neo( int flags, int checkBBox )
 	{
 		lighting.plightvec = direction;
 		R_StudioDynamicLight(currententity, &lighting);
+
 		R_StudioEntityLight(&lighting);
+
 		R_StudioSetupLighting(&lighting);
+
 		r_topcolor = currententity->colormap & 0xFF;
 		r_bottomcolor = (currententity->colormap >> 8) & 0xFF;
+
 		VectorCopy(r_origin, g_ChromeOrigin);
 		g_ForcedFaceFlags = 0;
 		R_StudioRenderFinal_Neo();

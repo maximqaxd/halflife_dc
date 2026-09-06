@@ -11,7 +11,6 @@
 #include "qgl.h"
 #include "kzap.h"
 #include "crc.h"
-#include <floatmathlib.h>
 
 #pragma intrinsic(fabsf)
 

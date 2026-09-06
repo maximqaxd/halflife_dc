@@ -9,6 +9,8 @@
 
 #define GLYPH_W          5
 #define GLYPH_H          5
+#define GLYPH_COUNT      96
+#define MAX_GLYPH_INDEX  (GLYPH_COUNT - 1)
 #define GLYPH_XSCALE     2
 #define GLYPH_YSCALE     3
 #define GLYPH_ADVANCE    13
@@ -23,12 +25,10 @@
 #define SHADOW_COLOR     0x0000
 
 /*
- * Font blob at 0x001be764 used for rendering glyphs to FB for Sys_Error:
- * 96 glyphs (0x20-0x7f), 5 rows each, 6 bytes per row including NUL.
- * We keep the same logical row layout here and stamp 2x3 pixel blocks
+ * The font contains the printable ASCII glyphs, five rows each. We stamp 2x3 pixel blocks
  * directly into the primary surface.
  */
-static const char s_szGlyphRows[96][GLYPH_H][GLYPH_W + 1] =
+static const char s_szGlyphRows[GLYPH_COUNT][GLYPH_H][GLYPH_W + 1] =
 {
 	{ "-----", "-----", "-----", "-----", "-----" },
 	{ "--x--", "--x--", "--x--", "-----", "--x--" },
@@ -254,8 +254,8 @@ void DCV_FB_TextOnSurface( LPDIRECTDRAWSURFACE4 pddsSurface, int x, int y, const
 			continue;
 		}
 
-		if (iGlyph > 0x5F)
-			iGlyph = 0x5F;
+		if (iGlyph > MAX_GLYPH_INDEX)
+			iGlyph = MAX_GLYPH_INDEX;
 
 		DCV_FB_Glyph(&ddsd, xPos + SHADOW_OFFSET, yPos + SHADOW_OFFSET, iGlyph, SHADOW_COLOR);
 		xPos = DCV_FB_Glyph(&ddsd, xPos, yPos, iGlyph, TEXT_COLOR);
@@ -363,7 +363,7 @@ void DCV_FB_Text( const char* text )
 {
 	LPDIRECTDRAWSURFACE4 pddsPrimary;
 	LPDIRECTDRAWSURFACE4 pddsBack;
-	int x = 8;      /* binary reads fixed x/y offsets from globals (DAT_001be730/734) */
+	int x = 8;
 	int y = 0x18;
 
 	pddsPrimary = (LPDIRECTDRAWSURFACE4)Sys_GetPrimarySurface4();

@@ -11,17 +11,20 @@
 
 #include "winquake.h"
 
-/* Profiling/status meters drawn over the framebuffer each flip. 0x4c bytes. */
+#define MAX_FB_METERS 32
+#define FBMETER_DATA_BYTES 64
+
+/* Profiling/status meters drawn over the framebuffer each flip. */
 typedef struct fbmeter_s
 {
 	short type;
 	short value;
 	int   frame;
 	DWORD color;
-	char  pad[64];
+	char  pad[FBMETER_DATA_BYTES];
 } fbmeter_t;
 
-extern fbmeter_t g_FBMeters[32];
+extern fbmeter_t g_FBMeters[MAX_FB_METERS];
 
 void DCV_FB_TextOnSurface( LPDIRECTDRAWSURFACE4 pddsSurface, int x, int y, const char* text );
 

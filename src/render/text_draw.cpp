@@ -15,13 +15,6 @@ extern "C" {
 #include "winquake.h"
 #include "dc_accum.h"
 #include "text_draw.h"
-#ifdef fmod
-#undef fmod
-#endif
-#ifdef fabs
-#undef fabs
-#endif
-#include <floatmathlib.h>
 
 // A %tag -> localized string pair parsed from langtags.txt.
 // Index of the language the disc was built for; 0 is English.
@@ -683,7 +676,7 @@ Read langtags.txt and build the %tag -> string table. Each entry is written as
 void Text_LoadLangTags( void )
 {
 	char	*buf;
-	char	tmp[128];
+	char	tmp[LANGTAG_MAXLEN + 1];
 	int		len;
 	int		i, n, count;
 	qboolean	invalue;

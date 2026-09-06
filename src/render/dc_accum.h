@@ -14,6 +14,7 @@ extern "C" {
 
 #define QUAD_TABLE_MAX_VERTS  50
 #define FLUSH_THRESHOLD       224
+#define MAX_D3D_LIGHTS        4
 
 void          DCV_AccumInit( void );
 void          DCV_SetColor( int r, int g, int b, int a );
@@ -76,7 +77,7 @@ void          DCV_Rotate( int state, float angle, float x, float y, float z );
 extern D3DMATRIX g_matWorld;
 extern D3DMATRIX g_matView;
 extern D3DMATRIX g_matProjection;
-extern D3DLIGHT2 g_lightData[4];
+extern D3DLIGHT2 g_lightData[MAX_D3D_LIGHTS];
 
 /*
  * The PowerVR is a deferred tile renderer: a render-state change also affects the

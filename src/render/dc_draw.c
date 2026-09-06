@@ -10,7 +10,6 @@
 #include "wad.h"
 #include "dc_accum.h"
 #include "qgl.h"
-#include <floatmathlib.h>
 
 typedef unsigned char byte;
 
@@ -20,7 +19,7 @@ cvar_t		gl_round_down = { "gl_round_down", "3" };
 cvar_t		gl_picmip = { "gl_picmip", "0" };
 cvar_t		gl_palette_tex = { "gl_palette_tex", "1" };
 
-int		g_bTextureLog = 0;	/* open log-file handle; nonzero => trace texture cache (set by dc_texdump) */
+void*		g_bTextureLog = NULL;	/* open log-file handle; nonzero => trace texture cache (set by dc_texdump) */
 
 qfont_t* draw_chars;
 qpic_t* draw_disc;
@@ -44,8 +43,7 @@ qpic_t* conback = (qpic_t*)&conback_buffer;
 
 int		texels;
 
-/* Expand a four-bit color component to the full byte range.  The retail
-   Dreamcast PutRGB/GetRGB pair uses this table for packed ARGB4444 colors. */
+/* Expand a four-bit color component to the full byte range. */
 static const unsigned int s_color4To8[16] =
 {
 	0x00, 0x11, 0x22, 0x33,
@@ -112,32 +110,33 @@ int			nada_texture;
 #endif
 
 
-#define DC_MAXTEXTURES   1140
+#define MAX_D3D_TEXTURES 1140
+#define SURFACE_CAPS_PALETTE8 0x80007000
 class dc_texture_s
 {
 public:
 	dc_texture_s();
 	~dc_texture_s();
 
-	short   iPalette;       /* +0x00 */
-	short   nScaledWidth;   /* +0x02 */
-	short   nScaledHeight;  /* +0x04 */
-	short   nSrcWidth;      /* +0x06 */
-	short   nSrcHeight;     /* +0x08 */
-	short   nUsageCount;    /* +0x0a */
-	short   nServerCount;   /* +0x0c, -1 = free */
-	short   pad0e;          /* +0x0e */
-	int     iTextureKey;    /* +0x10 */
-	int     iTextureType;   /* +0x14 */
-	void   *pddsSurface;    /* +0x18 */
-	void   *pd3dtTexture;   /* +0x1c */
-	char   *pszName;        /* +0x20 */
-	int     cbData;         /* +0x24 */
-	void   *pCacheBlock;    /* +0x28 */
-	unsigned char *pbCacheData; /* +0x2c */
-	int     bCached;        /* +0x30 */
-	void   *pPrev;          /* +0x34 */
-	void   *pNext;          /* +0x38 */
+	short   iPalette;
+	short   nScaledWidth;
+	short   nScaledHeight;
+	short   nSrcWidth;
+	short   nSrcHeight;
+	short   nUsageCount;
+	short   nServerCount;		/* -1 = free */
+	short   reserved;
+	int     iTextureKey;
+	int     iTextureType;
+	void   *pddsSurface;
+	void   *pd3dtTexture;
+	char   *pszName;
+	int     cbData;
+	void   *pCacheBlock;
+	unsigned char *pbCacheData;
+	int     bCached;
+	void   *pPrev;
+	void   *pNext;
 };
 typedef dc_texture_s dctexture_t;
 
@@ -154,18 +153,18 @@ public:
 	LPDIRECTDRAWPALETTE	lpPalette;
 };
 
-#define DC_MAXPALETTES	4
+#define MAX_D3D_PALETTES	4
 
-static dcpalette_t	gGLPalette[DC_MAXPALETTES];
+static dcpalette_t	gGLPalette[MAX_D3D_PALETTES];
 
-static dctexture_t	s_texSlots[DC_MAXTEXTURES];
+static dctexture_t	s_texSlots[MAX_D3D_TEXTURES];
 static dctexture_t	s_dcTextureLruHead;
 static dctexture_t	s_dcTextureLruTail;
 static int			s_nCached;
 static LPDIRECTDRAWSURFACE4 s_pCurrentTextureSurface;
-static int			s_slotServercount[DC_MAXTEXTURES];
-static int			s_slotUse4444[DC_MAXTEXTURES];
-static int			s_slotIsSystem[DC_MAXTEXTURES];  /* GLT_SYSTEM: never cache/decache */
+static int			s_slotServercount[MAX_D3D_TEXTURES];
+static int			s_slotUse4444[MAX_D3D_TEXTURES];
+static int			s_slotIsSystem[MAX_D3D_TEXTURES];  /* GLT_SYSTEM: never cache/decache */
 static int			s_bTexReclaimGuard;
 static int			s_bUncacheGuard;
 static int			s_nD3dCurrentTexnum = -1;
@@ -338,7 +337,7 @@ int DC_GetPaletteIndex( byte* pPal )
 
 	tag = GL_PaletteTag(pPal);
 
-	for (i = 0; i < DC_MAXPALETTES; i++)
+	for (i = 0; i < MAX_D3D_PALETTES; i++)
 	{
 		if (gGLPalette[i].tag < 0)
 		{
@@ -629,11 +628,11 @@ static void DC_SetupTextureSlot( dctexture_t *slot, LPDIRECTDRAWSURFACE4 pSurf, 
 			slot->pszName ? slot->pszName : "<nameless>");
 }
 
-void DC_TexCache( char *name )
+extern "C" void DC_TexCache( char *name )
 {
 	int i;
 
-	for (i = 0; i < DC_MAXTEXTURES; i++)
+	for (i = 0; i < MAX_D3D_TEXTURES; i++)
 	{
 		dctexture_t *slot = &s_texSlots[i];
 
@@ -652,7 +651,7 @@ void DC_TexDump( void )
 	int i, count;
 
 	count = 0;
-	for (i = 0; i < DC_MAXTEXTURES; i++)
+	for (i = 0; i < MAX_D3D_TEXTURES; i++)
 	{
 		if (s_texSlots[i].nServerCount != -1)
 			count++;
@@ -663,8 +662,8 @@ void DC_TexDump( void )
 	if (g_bTextureLog)
 	{
 		Sys_FPrintf(g_bTextureLog, "Texture log end.\n");
-		Sys_CloseHandle((void*)g_bTextureLog);
-		g_bTextureLog = 0;
+		Sys_CloseHandle(g_bTextureLog);
+		g_bTextureLog = NULL;
 	}
 }
 
@@ -679,7 +678,7 @@ int DC_FindTextureSlot(char *name, int width, int height, unsigned int key)
 
 	for (;;)
 	{
-		for (i = 0; i < DC_MAXTEXTURES; i++)
+		for (i = 0; i < MAX_D3D_TEXTURES; i++)
 		{
 			dctexture_t *slot = &s_texSlots[i];
 
@@ -696,7 +695,7 @@ int DC_FindTextureSlot(char *name, int width, int height, unsigned int key)
 			}
 		}
 
-		if (i >= DC_MAXTEXTURES)
+		if (i >= MAX_D3D_TEXTURES)
 			return -1;
 
 		if (s_texSlots[i].nSrcWidth == width && s_texSlots[i].nSrcHeight == height)
@@ -711,7 +710,7 @@ int DCV_GetSlot( void )
 {
 	int i;
 
-	for (i = 0; i < DC_MAXTEXTURES; i++)
+	for (i = 0; i < MAX_D3D_TEXTURES; i++)
 	{
 		if (s_texSlots[i].nServerCount == -1)
 			return i;
@@ -1238,7 +1237,7 @@ LPDIRECTDRAWSURFACE4 DCV_PrepSurfacePaletted(int w, int h, void *data, byte *pPa
 	LPDIRECTDRAWSURFACE4 pSurf;
 	(void)h;
 
-	DCV_CREATE_SURFACE(pSurf, ddsd, w, h, &g_pfPalette8, 0x80007000);  /* P8: binary caps has bit31 set */
+	DCV_CREATE_SURFACE(pSurf, ddsd, w, h, &g_pfPalette8, SURFACE_CAPS_PALETTE8);
 	if (!pSurf)
 		return NULL;
 
@@ -1658,7 +1657,7 @@ int DC_LoadTexture(char *identifier, int texture_type, int width, int height, vo
 	slot_index = 0;
 	while (s_texSlots[slot_index].nServerCount != -1)
 	{
-		if (++slot_index >= DC_MAXTEXTURES)
+		if (++slot_index >= MAX_D3D_TEXTURES)
 		{
 			Sys_Error("DCV_GetSlot: Too many textures.");
 			slot_index = -1;
@@ -1801,7 +1800,7 @@ void GL_BindStage( int texnum, int stage )
 	dctexture_t *slot;
 
 	// A texnum of -1 is the "no texture" sentinel used to unbind a stage.
-	if ((unsigned)texnum >= DC_MAXTEXTURES)
+	if ((unsigned)texnum >= MAX_D3D_TEXTURES)
 		return;
 
 	if (texnum == s_nD3dCurrentTexnum)
@@ -1840,7 +1839,7 @@ We do this every time we load the map
 int GL_UnloadTextures( void )
 {
 	int i, freed = 0;
-	for (i = 0; i < DC_MAXTEXTURES; i++)
+	for (i = 0; i < MAX_D3D_TEXTURES; i++)
 	{
 		dctexture_t *slot = &s_texSlots[i];
 		if (slot->nServerCount != -1 &&
@@ -1860,7 +1859,7 @@ int DC_FreeTextureByName( char *name )
 	int i;
 	int servercount = 0;
 
-	for (i = 0; i < DC_MAXTEXTURES; i++)
+	for (i = 0; i < MAX_D3D_TEXTURES; i++)
 	{
 		dctexture_t *slot = &s_texSlots[i];
 
@@ -1887,7 +1886,7 @@ void DC_TouchTexture( int texnum )
 {
 	dctexture_t *slot;
 
-	if (texnum < 0 || texnum >= DC_MAXTEXTURES)
+	if (texnum < 0 || texnum >= MAX_D3D_TEXTURES)
 		return;
 
 	slot = &s_texSlots[texnum];
@@ -1906,7 +1905,7 @@ extern "C" int DC_ForceFreeTextureByName( char *name )
 	int i;
 	int servercount = 0;
 
-	for (i = 0; i < DC_MAXTEXTURES; i++)
+	for (i = 0; i < MAX_D3D_TEXTURES; i++)
 	{
 		dctexture_t *slot = &s_texSlots[i];
 
@@ -1955,7 +1954,7 @@ int DC_ReleaseTexture( int texnum )
 int DC_FreeStaleTextureSlots( void )
 {
 	int i, freed = 0;
-	for (i = 0; i < DC_MAXTEXTURES; i++)
+	for (i = 0; i < MAX_D3D_TEXTURES; i++)
 	{
 		dctexture_t *slot = &s_texSlots[i];
 		if (slot->nServerCount != -1 &&
@@ -2584,7 +2583,7 @@ int GL_PaletteTag( byte* pPal )
 
 int DC_GetSlotPaletteIndex(int slot_index)
 {
-	if (slot_index < 0 || slot_index >= DC_MAXTEXTURES) return -1;
+	if (slot_index < 0 || slot_index >= MAX_D3D_TEXTURES) return -1;
 	return (int)s_texSlots[slot_index].iPalette;
 }
 

@@ -3,6 +3,7 @@
 #include "quakedef.h"
 #include "winquake.h"
 #include "dc_accum.h"
+#include "qgl.h"
 
 BOOL gfMiniDriver = FALSE;
 
@@ -15,8 +16,7 @@ static HANDLE	hMovieFile = INVALID_HANDLE_VALUE;
 
 cvar_t	gl_ztrick = { "gl_ztrick", "1" };
 cvar_t	gl_d3dflip = { "gl_d3dflip", "0" };
-cvar_t	r_testlight = { "r_testlight", "0" };
-cvar_t	mipbias = { "mipbias", "0" };
+cvar_t	gl_allowsoftware = { "gl_allowsoftware", "0" };
 
 viddef_t	vid;				// global video state
 
@@ -52,8 +52,7 @@ extern int GlideReadPixels( int x, int y, int width, int height, word* pixels );
 
 
 
-/* GL_LINEAR (0x2601); this unit intentionally does not include GL/gl.h. */
-int		texture_mode = 0x2601;
+int		texture_mode = GL_LINEAR;
 //int		texture_mode = GL_NEAREST_MIPMAP_NEAREST;
 //int		texture_mode = GL_NEAREST_MIPMAP_LINEAR;
 //int		texture_mode = GL_LINEAR; TODO!

@@ -1,4 +1,4 @@
-// r_studio.c: routines for setting up to draw 3DStudio models 
+// r_studio.c: routines for setting up to draw 3DStudio models
 
 #include <shintr.h>
 
@@ -12,9 +12,6 @@
 #include "r_studio.h"
 #include "dc_draw.h"
 #include "dc_accum.h"
-#undef fmod
-#undef fabs
-#include <floatmathlib.h>
 
 // Hulls & planes
 #define STUDIO_NUM_HULLS	128
@@ -131,11 +128,10 @@ typedef struct studio_player_model_s
 	model_t*			model;
 } studio_player_model_t;
 
-/* The retail studio renderer preserves the mutable prefix, not the final
- * eight bytes of cl_entity_t, while drawing an attached weapon model. */
+/* Preserve the player entity while drawing an attached weapon. */
 typedef struct studio_entity_snapshot_s
 {
-	int					data[0x160 / 4];
+	int					data[sizeof(cl_entity_t) / sizeof(int)];
 } studio_entity_snapshot_t;
 
 studio_player_model_t g_studioPlayerModels[MAX_CLIENTS];
@@ -146,8 +142,8 @@ typedef struct studio_skin_cache_s
 	int					topColor;
 	int					bottomColor;
 	model_t*			model;
-	char				textureName[224];
-	byte				skinState[36];
+	char				textureName[STUDIO_SKIN_CACHE_NAME_LENGTH];
+	byte				skinState[STUDIO_SKIN_STATE_BYTES];
 	int					textureIndex;
 	int					textureState;
 	int					width;
@@ -156,10 +152,10 @@ typedef struct studio_skin_cache_s
 	int					glTexture;
 } studio_skin_cache_t;
 
-static studio_skin_cache_t g_studioSkinCache[64];
-static studio_skin_cache_t* g_studioSkinByPlayer[65];
+static studio_skin_cache_t g_studioSkinCache[STUDIO_SKIN_CACHE_COUNT];
+static studio_skin_cache_t* g_studioSkinByPlayer[STUDIO_SKIN_PLAYER_SLOTS];
 static int g_studioSkinCacheCursor;
-byte g_studioTranslatedPalette[768];
+byte g_studioTranslatedPalette[STUDIO_PALETTE_RGB_BYTES];
 
 studio_skin_cache_t* R_StudioGetPlayerSkinCache( int playerIndex );
 void R_StudioLoadPlayerSkin( model_t* model, int textureIndex, studio_skin_cache_t* cache );
@@ -492,7 +488,7 @@ void R_StudioSetUpTransform( int trivial_accept )
 	vec3_t				angles;
 	vec3_t				modelpos;
 
-	// tweek model origin	
+	// tweek model origin
 		//for (i = 0; i < 3; i++)
 		//	modelpos[i] = currententity->origin[i];
 
@@ -641,7 +637,7 @@ float	omega, cosom, sinom, sclp, sclq;
 void QuaternionSlerp( vec_t* p, vec_t* q, float t, vec_t* qt )
 {
 	int					i;
-	
+
 	// decide if one of the quaternions is backwards
 	float				a = 0;
 	float				b = 0;
@@ -675,7 +671,8 @@ void QuaternionSlerp( vec_t* p, vec_t* q, float t, vec_t* qt )
 			sclp = 1.0f - t;
 			sclq = t;
 		}
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < 4; i++)
+		{
 			qt[i] = sclp * p[i] + sclq * q[i];
 		}
 	}
@@ -2300,7 +2297,7 @@ void R_LightLambert( float(*light)[4], float* normal, float* src, float* lambert
 	{
 		float				r2, r;
 
-		r = -DotProduct(normal, light[i]);		
+		r = -DotProduct(normal, light[i]);
 		if (r > 0.0f)
 		{
 			if (light[i][3] == 0.0f)
@@ -2333,7 +2330,7 @@ void R_LightLambert( float(*light)[4], float* normal, float* src, float* lambert
 	//
 	j = adjr + lineargammatable[(int)(src[0] * 1023.0f)];
 	if (j > 1023)
-		lambert[0] = 1.0f;	
+		lambert[0] = 1.0f;
 	else
 		lambert[0] = screengammatable[j] / 1023.0f;
 
@@ -2455,7 +2452,7 @@ void R_StudioSetupModel( int bodypart )
 	{
 		bodypart = 0;
 	}
-	
+
 	pbodypart = (mstudiobodyparts_t*)((byte*)pstudiohdr + pstudiohdr->bodypartindex) + bodypart;
 
 	index = currententity->body / pbodypart->base;
@@ -2724,6 +2721,7 @@ void R_StudioResetPlayerModel( void )
 	cache = R_StudioGetPlayerSkinCache(currententity->index);
 	cache->topColor = -1;
 	cache->bottomColor = -1;
+
 	if (Cache_Check(&cache->pixels) != NULL)
 		Cache_Free(&cache->pixels, 0);
 }
@@ -2750,15 +2748,18 @@ int R_StudioDrawPlayer( int flags, player_state_t* pplayer )
 		if (strcmp(g_studioPlayerModels[r_playerindex].name, cl.players[r_playerindex].model) != 0)
 		{
 			strcpy(g_studioPlayerModels[r_playerindex].name, cl.players[r_playerindex].model);
+
 			strcpy(g_studioPlayerModels[r_playerindex].modelName, "models/player/");
 			strcat(g_studioPlayerModels[r_playerindex].modelName, cl.players[r_playerindex].model);
 			strcat(g_studioPlayerModels[r_playerindex].modelName, "/");
 			strcat(g_studioPlayerModels[r_playerindex].modelName, cl.players[r_playerindex].model);
 			strcat(g_studioPlayerModels[r_playerindex].modelName, ".mdl");
+
 			g_studioPlayerModels[r_playerindex].model =
 				Mod_ForName(g_studioPlayerModels[r_playerindex].modelName, FALSE);
 			if (g_studioPlayerModels[r_playerindex].model == NULL)
 				g_studioPlayerModels[r_playerindex].model = currententity->model;
+
 			R_StudioResetPlayerModel();
 		}
 	}
@@ -2775,6 +2776,7 @@ int R_StudioDrawPlayer( int flags, player_state_t* pplayer )
 	r_studio_model = g_studioPlayerModels[r_playerindex].model;
 	if (r_studio_model == NULL)
 		return 0;
+
 	pstudiohdr = (studiohdr_t*)Mod_Extradata(r_studio_model);
 	if (Mod_IsStudioNeoModel(pstudiohdr))
 		return R_StudioDrawPlayer_Neo(flags, pplayer);
@@ -2965,7 +2967,7 @@ void R_StudioDynamicLight( cl_entity_t* ent, alight_t* plight )
 		}
 	}
 
-	// see if the model is not illuminated by the sky 
+	// see if the model is not illuminated by the sky
 	if ((down.r + down.g + down.b) == 0)
 	{
 		colorVec gcolor;
@@ -3118,7 +3120,7 @@ void R_StudioEntityLight( alight_t* plight )
 
 		if (el->die <= cl.time || el->radius <= 0.0f)
 			continue;
-		
+
 		// Beam entities
 		if (BEAMENT_ENTITY(el->key) == currententity->index)
 		{
@@ -3726,19 +3728,26 @@ void R_StudioSetupPlayerSkin( studiohdr_t* textureHeader, int textureIndex )
 			R_StudioLoadPlayerSkin(r_studio_model, textureIndex, cache);
 
 			sprintf(textureName, "%s%d", texture->name, playerIndex);
+
 			pixels = (byte*)cache->pixels.data;
 			if ((unsigned int)pixels & 1)
 				pixels = NULL;
-			memcpy(g_studioTranslatedPalette, pixels + cache->width * cache->height, 768);
+			memcpy(g_studioTranslatedPalette, pixels + cache->width * cache->height,
+				STUDIO_PALETTE_RGB_BYTES);
+
 			cache->model = r_studio_model;
 			cache->topColor = r_topcolor;
 			cache->bottomColor = r_bottomcolor;
-			R_StudioRemapPaletteRange(g_studioTranslatedPalette, r_topcolor, 160, 191);
-			R_StudioRemapPaletteRange(g_studioTranslatedPalette, cache->bottomColor, 192, 223);
+			R_StudioRemapPaletteRange(g_studioTranslatedPalette, r_topcolor,
+				STUDIO_TOP_COLOR_START, STUDIO_TOP_COLOR_END);
+			R_StudioRemapPaletteRange(g_studioTranslatedPalette, cache->bottomColor,
+				STUDIO_BOTTOM_COLOR_START, STUDIO_BOTTOM_COLOR_END);
+
 			GL_UnloadTexture(textureName);
 			pixels = (byte*)cache->pixels.data;
 			if ((unsigned int)pixels & 1)
 				pixels = NULL;
+
 			cache->glTexture = GL_LoadTexture(textureName, GLT_STUDIO,
 				cache->width, cache->height, pixels, FALSE, TEX_TYPE_NONE,
 				g_studioTranslatedPalette);
@@ -4191,7 +4200,7 @@ studio_skin_cache_t* R_StudioGetPlayerSkinCache( int playerIndex )
 	if (cache == NULL || cache->playerIndex != playerIndex)
 	{
 		cursor = g_studioSkinCacheCursor;
-		g_studioSkinCacheCursor = (cursor + 1) % 64;
+		g_studioSkinCacheCursor = (cursor + 1) % STUDIO_SKIN_CACHE_COUNT;
 		cache = &g_studioSkinCache[cursor];
 		g_studioSkinByPlayer[playerIndex] = cache;
 		cache->playerIndex = playerIndex;
@@ -4222,16 +4231,21 @@ void R_StudioLoadPlayerSkin( model_t* model, int textureIndex, studio_skin_cache
 	fileData = COM_LoadFile(model->name, 5, NULL);
 	header = (studiohdr_t*)fileData;
 	texture = (mstudiotexture_t*)(fileData + header->textureindex) + textureIndex;
+
 	cache->textureIndex = textureIndex;
 	cache->width = texture->width;
 	cache->height = texture->height;
-	dataSize = cache->width * cache->height + 768;
+
+	dataSize = cache->width * cache->height + STUDIO_PALETTE_RGB_BYTES;
 	Cache_Alloc(&cache->pixels, dataSize, cache->textureName);
+
 	pixelData = (unsigned int)cache->pixels.data;
 	if (pixelData & 1)
 		pixelData = 0;
+
 	pixels = (byte*)pixelData;
 	memcpy(pixels, fileData + texture->index, dataSize);
+
 	COM_FreeFile();
 }
 

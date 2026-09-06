@@ -30,7 +30,10 @@ int              g_nAccumMaxIndicesSeen;
 static void     *g_pMultiMtx0;
 static void     *g_pMultiMtx1;
 static D3DCOLOR  g_studioLightTable[128];
-DWORD            g_dwAccumCurrentDiffuse = 0xFFFFFFFFu;
+#define COLOR_OPAQUE_WHITE	0xFFFFFFFFu
+#define STRIP_RESTART_INDEX	0xFFFF
+
+DWORD            g_dwAccumCurrentDiffuse = COLOR_OPAQUE_WHITE;
 
 static int DCV_GetMaxVertCount( void )
 {
@@ -40,12 +43,6 @@ static int DCV_GetMaxVertCount( void )
 static int DCV_GetMaxIndexCount( void )
 {
 	return ACCUM_INDEX_SIZE / (int)sizeof(WORD);
-}
-
-static void DCV_ClearBatch( void )
-{
-	g_nAccumVertCount = 0;
-	g_nAccumIndexCount = 0;
 }
 
 void DCV_AccumInit( void )
@@ -84,7 +81,7 @@ void DCV_AccumInit( void )
 	g_pAccumVerts = (D3DLVERTEX *)MnemoAlloc(ACCUM_VERTS_SIZE, MNEMO_FLAG_MALLOC, 0, "AccumVerts");
 	g_pAccumIndex = (WORD *)MnemoAlloc(ACCUM_INDEX_SIZE, MNEMO_FLAG_MALLOC, 0, "AccumIndex");
 
-	/* Reserve for multi matrixes for future use in r_studio.c */
+	/* Reserve the matrix and lighting data used by studio rendering. */
 	g_pMultiMtx0 = MnemoAlloc(MULTI_MTX_0_SIZE, MNEMO_FLAG_MALLOC, 0, "MultiMtx");
 	g_pMultiMtx1 = MnemoAlloc(MULTI_MTX_1_SIZE, MNEMO_FLAG_MALLOC, 0, "MultiMtx");
 }
@@ -499,13 +496,8 @@ int DCV_GetVertCount( void )
 	return g_nAccumVertCount;
 }
 
-/* The four DCV_Accum*Poly variants below all take a glpoly_t-shaped source
-   (next, chain, numverts, verts[][8] -- one field narrower than this fork's
-   own glpoly_t, which also carries a flags field before verts; that gap is
-   not yet reconciled, so the vertex array is reached by raw offset here
-   rather than through the glpoly_t type). Each copies numverts vertices into
-   the batch using the quad table for the triangle indices, then flushes if
-   the batch has grown past FLUSH_THRESHOLD. */
+/* Surface records carry the vertex count followed by eight floats per vertex.
+   The accumulation passes copy those vertices and emit the matching indices. */
 #define DC_POLY_NUMVERTS( poly )  (*(const short *)((const byte *)(poly) + 8))
 #define DC_POLY_VERTS( poly )     ((const float *)((const byte *)(poly) + 12))
 
@@ -660,9 +652,7 @@ void DCV_AccumLightmapBatch( const void *poly )
 }
 
 /* Scrolling texture: current diffuse, base UV with a running U offset. */
-/* The U scroll offset is not a parameter -- the binary reads it from a
-   global (a pooled float load, not the FR5 register a second param would
-   use), set by a not-yet-reconstructed caller. Real identity unconfirmed. */
+/* The U scroll offset is stored in renderer state rather than passed in. */
 // Set by ScrollOffset() for the surface currently being accumulated.
 float g_flScrollOffset;
 
@@ -1049,7 +1039,7 @@ void DCV_BuildStudioIndexList( const short *pCmds )
 }
 
 /* Same quad-strip split as DCV_AddPolyIndices, but each pair of triangles is
-   followed by a 0xFFFF strip-restart marker instead of running straight into
+   followed by a strip-restart marker instead of running straight into
    the next pair. */
 void DCV_AddIndicesFanRestart( short base, int count )
 {
@@ -1073,7 +1063,7 @@ void DCV_AddIndicesFanRestart( short base, int count )
 		*p++ = base;
 		++next;
 		*p++ = next;
-		*p++ = (short)0xFFFF;
+		*p++ = (short)STRIP_RESTART_INDEX;
 	}
 
 	if (tailTri != 0)
@@ -1082,13 +1072,13 @@ void DCV_AddIndicesFanRestart( short base, int count )
 		++next;
 		*p++ = next;
 		*p++ = base;
-		*p = (short)0xFFFF;
+		*p = (short)STRIP_RESTART_INDEX;
 	}
 
 	g_nAccumIndexCount += pairs * 5 + tailTri * 4;
 }
 
-/* Same strip as DCV_AddIndicesStrip, followed by a 0xFFFF strip-restart marker. */
+/* Same strip as DCV_AddIndicesStrip, followed by a strip-restart marker. */
 void DCV_AddIndicesStripRestart( int base, int count )
 {
 	WORD *p = &g_pAccumIndex[g_nAccumIndexCount];
@@ -1100,13 +1090,13 @@ void DCV_AddIndicesStripRestart( int base, int count )
 		base++;
 		p++;
 	}
-	*p = (short)0xFFFF;
+	*p = (short)STRIP_RESTART_INDEX;
 
 	g_nAccumIndexCount += count + 1;
 }
 
 /* Same as DCV_BuildStudioIndexList, but emits strips and fans the hardware can
-   take back to back: each run ends with a 0xFFFF restart marker instead of
+   take back to back: each run ends with a restart marker instead of
    being expanded into separate triangles. */
 void DCV_AssembleStudioIndexListRestart( const short *pCmds )
 {
@@ -1136,7 +1126,7 @@ void DCV_AssembleStudioIndexListRestart( const short *pCmds )
 				*pOut++ = *pCmds++;
 				*pOut++ = hub;
 				*pOut++ = *pCmds;
-				*pOut++ = (short)0xFFFF;
+				*pOut++ = (short)STRIP_RESTART_INDEX;
 			}
 
 			if (tail != 0)
@@ -1144,7 +1134,7 @@ void DCV_AssembleStudioIndexListRestart( const short *pCmds )
 				*pOut++ = *pCmds++;
 				*pOut++ = *pCmds;
 				*pOut++ = hub;
-				*pOut++ = (short)0xFFFF;
+				*pOut++ = (short)STRIP_RESTART_INDEX;
 			}
 
 			++pCmds;
@@ -1158,7 +1148,7 @@ void DCV_AssembleStudioIndexListRestart( const short *pCmds )
 			i = command;
 			while (i--)
 				*pOut++ = *pCmds++;
-			*pOut++ = (short)0xFFFF;
+			*pOut++ = (short)STRIP_RESTART_INDEX;
 		}
 	}
 

@@ -2,7 +2,6 @@
 
 #include "quakedef.h"
 #include "qgl.h"
-#include <floatmathlib.h>
 
 #pragma intrinsic(fabsf)
 

@@ -22,8 +22,34 @@ extern qboolean DC_InitTextureList( void );
 extern float    Sys_FloatTime( void );
 extern int      GetVideoOutputFormat( void );
 
-#define MAX_METERS      32
 #define METER_FLIP      400
+#define COLOR_OPAQUE_WHITE	0xffffffff
+
+#define RGB565_RED_MASK		0xf800
+#define RGB565_GREEN_MASK	0x07e0
+#define RGB565_BLUE_MASK		0x001f
+#define ARGB1555_RED_MASK	0x7c00
+#define ARGB1555_GREEN_MASK	0x03e0
+#define ARGB1555_BLUE_MASK	0x001f
+#define ARGB1555_ALPHA_MASK	0x8000
+#define ARGB4444_RED_MASK	0x0f00
+#define ARGB4444_GREEN_MASK	0x00f0
+#define ARGB4444_BLUE_MASK	0x000f
+#define ARGB4444_ALPHA_MASK	0xf000
+
+#define PIXELFORMAT_PALETTE8_FLAGS	(DDPF_RGB | DDPF_PALETTEINDEXED8)
+#define PIXELFORMAT_SCREEN_FLAGS		(DDPF_RGB | DDPF_COMPRESSED)
+#define PIXELFORMAT_ALPHA_FLAGS		(DDPF_RGB | DDPF_ALPHAPIXELS)
+
+#define PVR_YUV420_STAGING_BYTES		0x1000
+#define PVR_COMMAND_POLYGON_BYTES	0x2ce20
+#define PVR_COMMAND_VERTEX_BYTES		0xdbba0
+
+#define PALETTE_COLOR_COUNT			256
+#define PALETTE_RGB_BYTES			(PALETTE_COLOR_COUNT * 3)
+#define PALETTE_CUBE_LEVELS			6
+#define PALETTE_CUBE_COLOR_COUNT	(PALETTE_CUBE_LEVELS * PALETTE_CUBE_LEVELS * PALETTE_CUBE_LEVELS)
+#define PALETTE_CUBE_GRAY_COUNT		40
 
 HWND                        g_hWnd;
 static LPDIRECTDRAW         g_pDD           = NULL;
@@ -34,14 +60,14 @@ static LPDIRECT3D3          g_pD3D          = NULL;
 LPDIRECT3DDEVICE3           g_pD3DDevice    = NULL;
 LPDIRECT3DVIEWPORT3         g_pViewport     = NULL;
 static LPDIRECT3DMATERIAL3  g_pBackgroundMaterial = NULL;
-static LPDIRECT3DLIGHT      g_pLights[4];
+static LPDIRECT3DLIGHT      g_pLights[MAX_D3D_LIGHTS];
 
 static D3DDEVICEDESC        g_d3dHWDeviceDesc;
 static D3DDEVICEDESC        g_d3dHELDeviceDesc;
 static D3DDEVICEDESC        g_d3dDeviceDesc;
 D3DVIEWPORT2               g_viewportDesc;
 D3DMATERIAL                 g_backgroundMaterialData;
-D3DLIGHT2                   g_lightData[4];
+D3DLIGHT2                   g_lightData[MAX_D3D_LIGHTS];
 D3DMATRIX                   g_identityMatrix;
 static D3DMATRIX            g_matNegY;
 static D3DMATRIX            g_matNegX;
@@ -263,7 +289,7 @@ images for the calibration screen: a 256-step gray ramp and the classic
 */
 void DCV_GammaRefresh_f( void )
 {
-	byte rgb[768];
+	byte rgb[PALETTE_RGB_BYTES];
 	byte *p;
 	int  i, j, k;
 
@@ -294,7 +320,7 @@ void DCV_GammaRefresh_f( void )
 	}
 
 	p = rgb;
-	for (i = 0; i < 256; i++)
+	for (i = 0; i < PALETTE_COLOR_COUNT; i++)
 	{
 		p[0] = (byte)i;
 		p[1] = (byte)i;
@@ -303,24 +329,24 @@ void DCV_GammaRefresh_f( void )
 	}
 	g_iPalIdxDefault = (short)DC_GetPaletteIndex(rgb);
 
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < PALETTE_CUBE_LEVELS; i++)
 	{
-		for (j = 0; j < 6; j++)
+		for (j = 0; j < PALETTE_CUBE_LEVELS; j++)
 		{
-			for (k = 0; k < 6; k++)
+			for (k = 0; k < PALETTE_CUBE_LEVELS; k++)
 			{
-				rgb[(i * 36 + j * 6 + k) * 3]     = (byte)(i * 255 / 5);
-				rgb[(i * 36 + j * 6 + k) * 3 + 1] = (byte)(j * 255 / 5);
-				rgb[(i * 36 + j * 6 + k) * 3 + 2] = (byte)(k * 255 / 5);
+				rgb[(i * PALETTE_CUBE_LEVELS * PALETTE_CUBE_LEVELS + j * PALETTE_CUBE_LEVELS + k) * 3]     = (byte)(i * 255 / (PALETTE_CUBE_LEVELS - 1));
+				rgb[(i * PALETTE_CUBE_LEVELS * PALETTE_CUBE_LEVELS + j * PALETTE_CUBE_LEVELS + k) * 3 + 1] = (byte)(j * 255 / (PALETTE_CUBE_LEVELS - 1));
+				rgb[(i * PALETTE_CUBE_LEVELS * PALETTE_CUBE_LEVELS + j * PALETTE_CUBE_LEVELS + k) * 3 + 2] = (byte)(k * 255 / (PALETTE_CUBE_LEVELS - 1));
 			}
 		}
 	}
-	p = rgb + 6 * 6 * 6 * 3;
-	for (i = 0; i < 40; i++)
+	p = rgb + PALETTE_CUBE_COLOR_COUNT * 3;
+	for (i = 0; i < PALETTE_CUBE_GRAY_COUNT; i++)
 	{
-		p[0] = (byte)(i * 255 / 39);
-		p[1] = (byte)(i * 255 / 39);
-		p[2] = (byte)(i * 255 / 39);
+		p[0] = (byte)(i * 255 / (PALETTE_CUBE_GRAY_COUNT - 1));
+		p[1] = (byte)(i * 255 / (PALETTE_CUBE_GRAY_COUNT - 1));
+		p[2] = (byte)(i * 255 / (PALETTE_CUBE_GRAY_COUNT - 1));
 		p += 3;
 	}
 	g_iPalIdxClass6 = (short)DC_GetPaletteIndex(rgb);
@@ -593,7 +619,7 @@ void DCV_Flip( void )
 			if (val > 0)
 			{
 				pMeter = NULL;
-				for (i = 0; i < MAX_METERS; i++)
+				for (i = 0; i < MAX_FB_METERS; i++)
 				{
 					if (g_FBMeters[i].type == 0)
 					{
@@ -628,7 +654,7 @@ void DCV_Flip( void )
 		if (val > 0)
 		{
 			pMeter = NULL;
-			for (i = 0; i < MAX_METERS; i++)
+			for (i = 0; i < MAX_FB_METERS; i++)
 			{
 				if (g_FBMeters[i].type == 0)
 				{
@@ -639,7 +665,7 @@ void DCV_Flip( void )
 			if (pMeter)
 			{
 				pMeter->type = METER_FLIP;
-				pMeter->color = 0xffffffff;
+				pMeter->color = COLOR_OPAQUE_WHITE;
 				pMeter->value = (short)val;
 			}
 		}
@@ -655,7 +681,7 @@ void DCV_Flip( void )
 		DCV_DrawProgress((int)progress.value, 257, 30);
 	}
 
-	g_dwAccumCurrentDiffuse = 0xffffffff;
+	g_dwAccumCurrentDiffuse = COLOR_OPAQUE_WHITE;
 }
 
 /*
@@ -727,7 +753,7 @@ qboolean DCV_InitDirect3D( void )
 	g_pD3DDevice->lpVtbl->SetLightState(g_pD3DDevice, D3DLIGHTSTATE_MATERIAL, hMaterial);
 
 	// one directional light and three point lights
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < MAX_D3D_LIGHTS; i++)
 	{
 		g_pD3D->lpVtbl->CreateLight(g_pD3D, &g_pLights[i], NULL);
 		memset(&g_lightData[i], 0, sizeof(D3DLIGHT2));
@@ -785,39 +811,39 @@ qboolean DCV_InitDirect3D( void )
 	g_pfRGB565.dwSize            = sizeof(DDPIXELFORMAT);
 	g_pfRGB565.dwFlags           = DDPF_RGB;
 	g_pfRGB565.dwRGBBitCount     = 16;
-	g_pfRGB565.dwRBitMask        = 0xf800;
-	g_pfRGB565.dwGBitMask        = 0x07e0;
-	g_pfRGB565.dwBBitMask        = 0x001f;
+	g_pfRGB565.dwRBitMask        = RGB565_RED_MASK;
+	g_pfRGB565.dwGBitMask        = RGB565_GREEN_MASK;
+	g_pfRGB565.dwBBitMask        = RGB565_BLUE_MASK;
 	g_pfRGB565.dwRGBAlphaBitMask = 0;
 
 	g_pfPalette8 = g_pfRGB565;
-	g_pfPalette8.dwFlags       = 0x60;                   /* RGB | PALETTEINDEXED8 */
+	g_pfPalette8.dwFlags       = PIXELFORMAT_PALETTE8_FLAGS;
 	g_pfPalette8.dwRGBBitCount = 8;
 
 	g_pfScreenRGB565 = g_pfRGB565;
 	g_pfARGB1555     = g_pfRGB565;
 	g_pfARGB4444     = g_pfRGB565;
 
-	g_pfScreenRGB565.dwFlags           = 0xc0;
+	g_pfScreenRGB565.dwFlags           = PIXELFORMAT_SCREEN_FLAGS;
 	g_pfScreenRGB565.dwRGBBitCount     = 16;
-	g_pfScreenRGB565.dwRBitMask        = 0xf800;
-	g_pfScreenRGB565.dwGBitMask        = 0x07e0;
-	g_pfScreenRGB565.dwBBitMask        = 0x001f;
+	g_pfScreenRGB565.dwRBitMask        = RGB565_RED_MASK;
+	g_pfScreenRGB565.dwGBitMask        = RGB565_GREEN_MASK;
+	g_pfScreenRGB565.dwBBitMask        = RGB565_BLUE_MASK;
 	g_pfScreenRGB565.dwRGBAlphaBitMask = 0;
 
-	g_pfARGB1555.dwFlags           = 0x41;               /* RGB | ALPHAPIXELS */
+	g_pfARGB1555.dwFlags           = PIXELFORMAT_ALPHA_FLAGS;
 	g_pfARGB1555.dwRGBBitCount     = 16;
-	g_pfARGB1555.dwRBitMask        = 0x7c00;
-	g_pfARGB1555.dwGBitMask        = 0x03e0;
-	g_pfARGB1555.dwBBitMask        = 0x001f;
-	g_pfARGB1555.dwRGBAlphaBitMask = 0x8000;
+	g_pfARGB1555.dwRBitMask        = ARGB1555_RED_MASK;
+	g_pfARGB1555.dwGBitMask        = ARGB1555_GREEN_MASK;
+	g_pfARGB1555.dwBBitMask        = ARGB1555_BLUE_MASK;
+	g_pfARGB1555.dwRGBAlphaBitMask = ARGB1555_ALPHA_MASK;
 
-	g_pfARGB4444.dwFlags           = 0x41;
+	g_pfARGB4444.dwFlags           = PIXELFORMAT_ALPHA_FLAGS;
 	g_pfARGB4444.dwRGBBitCount     = 16;
-	g_pfARGB4444.dwRBitMask        = 0x0f00;
-	g_pfARGB4444.dwGBitMask        = 0x00f0;
-	g_pfARGB4444.dwBBitMask        = 0x000f;
-	g_pfARGB4444.dwRGBAlphaBitMask = 0xf000;
+	g_pfARGB4444.dwRBitMask        = ARGB4444_RED_MASK;
+	g_pfARGB4444.dwGBitMask        = ARGB4444_GREEN_MASK;
+	g_pfARGB4444.dwBBitMask        = ARGB4444_BLUE_MASK;
+	g_pfARGB4444.dwRGBAlphaBitMask = ARGB4444_ALPHA_MASK;
 
 	// default render and texture-stage states
 	DCV_SetRenderState(D3DRENDERSTATE_TEXTUREPERSPECTIVE, TRUE);
@@ -887,11 +913,11 @@ qboolean DCV_CreateWindow( void )
 
 	// PowerVR tuning values
 	RegOpenKeyEx(HKEY_LOCAL_MACHINE, TEXT("DisplaySettings"), 0, 0, &hKey);
-	dwValue = 0x1000;
+	dwValue = PVR_YUV420_STAGING_BYTES;
 	RegSetValueEx(hKey, TEXT("YUV420StagingBufferSize"), 0, REG_DWORD, (LPBYTE)&dwValue, 4);
-	dwValue = 0x2ce20;
+	dwValue = PVR_COMMAND_POLYGON_BYTES;
 	RegSetValueEx(hKey, TEXT("CommandPolygonBufferSize"), 0, REG_DWORD, (LPBYTE)&dwValue, 4);
-	dwValue = 0xdbba0;
+	dwValue = PVR_COMMAND_VERTEX_BYTES;
 	RegSetValueEx(hKey, TEXT("CommandVertexBufferSize"), 0, REG_DWORD, (LPBYTE)&dwValue, 4);
 	dwValue = 0;
 	RegSetValueEx(hKey, TEXT("SmallestPolygon"), 0, REG_DWORD, (LPBYTE)&dwValue, 4);

@@ -5,7 +5,6 @@
 #include "winquake.h"
 #include "dc_accum.h"
 
-#include <floatmathlib.h>
 
 D3DMATRIX	g_matWorld;
 D3DMATRIX	g_matView;

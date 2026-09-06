@@ -10,6 +10,18 @@
 #define STUDIO_TRACE_HITBOX			0x0200	// always use hitbox trace instead of bbox
 #define STUDIO_FORCE_SKYLIGHT		0x400	// always grab lightvalues from the sky settings (even if sky is invisible)
 
+#define STUDIO_SKIN_CACHE_COUNT		64
+#define STUDIO_SKIN_PLAYER_MAX_INDEX	64
+#define STUDIO_SKIN_PLAYER_SLOTS	(STUDIO_SKIN_PLAYER_MAX_INDEX + 1)
+#define STUDIO_SKIN_CACHE_NAME_LENGTH	224
+#define STUDIO_SKIN_STATE_BYTES		36
+#define STUDIO_PALETTE_COLOR_COUNT	256
+#define STUDIO_PALETTE_RGB_BYTES		(STUDIO_PALETTE_COLOR_COUNT * 3)
+#define STUDIO_TOP_COLOR_START		160
+#define STUDIO_TOP_COLOR_END		191
+#define STUDIO_BOTTOM_COLOR_START	192
+#define STUDIO_BOTTOM_COLOR_END		223
+
 extern int r_dointerp;
 
 void	AnimationAutomove( const edict_t* pEdict, float flTime );
