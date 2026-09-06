@@ -2330,7 +2330,7 @@ int CGraph :: FLoadGraph ( char *szMapName )
 	strcat ( szFilename, szMapName );
 	strcat( szFilename, ".nod" );
 
-	pMemFile = aMemFile = LOAD_FILE_FOR_ME(szFilename, &length);
+	pMemFile = aMemFile = COM_LoadFileForMe(szFilename, &length);
 
 	if ( !aMemFile )
 	{
@@ -2349,7 +2349,7 @@ int CGraph :: FLoadGraph ( char *szMapName )
 		{
 			// This file was written by a different build of the dll!
 			//
-			ALERT ( at_aiconsole, "**ERROR** Graph version is %d, expected %d\n",iVersion, GRAPH_VERSION );
+			AlertMessage ( at_aiconsole, "**ERROR** Graph version is %d, expected %d\n",iVersion, GRAPH_VERSION );
 			goto ShortFile;
 		}
 
@@ -2375,7 +2375,7 @@ int CGraph :: FLoadGraph ( char *szMapName )
 
 		if ( !m_pNodes )
 		{
-			ALERT ( at_aiconsole, "**ERROR**\nCouldn't malloc %d nodes!\n", m_cNodes );
+			AlertMessage ( at_aiconsole, "**ERROR**\nCouldn't malloc %d nodes!\n", m_cNodes );
 			goto NoMemory;
 		}
 
@@ -2393,7 +2393,7 @@ int CGraph :: FLoadGraph ( char *szMapName )
 
 		if ( !m_pLinkPool )
 		{
-			ALERT ( at_aiconsole, "**ERROR**\nCouldn't malloc %d link!\n", m_cLinks );
+			AlertMessage ( at_aiconsole, "**ERROR**\nCouldn't malloc %d link!\n", m_cLinks );
 			goto NoMemory;
 		}
 
@@ -2409,7 +2409,7 @@ int CGraph :: FLoadGraph ( char *szMapName )
 		m_di = (DIST_INFO *)calloc( sizeof(DIST_INFO), m_cNodes );
 		if ( !m_di )
 		{
-			ALERT ( at_aiconsole, "***ERROR**\nCouldn't malloc %d entries sorting nodes!\n", m_cNodes );
+			AlertMessage ( at_aiconsole, "***ERROR**\nCouldn't malloc %d entries sorting nodes!\n", m_cNodes );
 			goto NoMemory;
 		}
 
@@ -2426,7 +2426,7 @@ int CGraph :: FLoadGraph ( char *szMapName )
 		m_pRouteInfo = (char *)calloc( sizeof(char), m_nRouteInfo );
 		if ( !m_pRouteInfo )
 		{
-			ALERT ( at_aiconsole, "***ERROR**\nCounldn't malloc %d route bytes!\n", m_nRouteInfo );
+			AlertMessage ( at_aiconsole, "***ERROR**\nCounldn't malloc %d route bytes!\n", m_nRouteInfo );
 			goto NoMemory;
 		}
 		m_CheckedCounter = 0;
@@ -2448,7 +2448,7 @@ int CGraph :: FLoadGraph ( char *szMapName )
 		m_pHashLinks = (short *)calloc(sizeof(short), m_nHashLinks);
 		if (!m_pHashLinks)
 		{
-			ALERT ( at_aiconsole, "***ERROR**\nCounldn't malloc %d hash link bytes!\n", m_nHashLinks );
+			AlertMessage ( at_aiconsole, "***ERROR**\nCounldn't malloc %d hash link bytes!\n", m_nHashLinks );
 			goto NoMemory;
 		}
 
@@ -2464,11 +2464,11 @@ int CGraph :: FLoadGraph ( char *szMapName )
 		m_fGraphPresent = TRUE;
 		m_fGraphPointersSet = FALSE;
 		
-		FREE_FILE(aMemFile);
+		COM_FreeFile(aMemFile);
 
 		if (length != 0)
 		{
-			ALERT ( at_aiconsole, "***WARNING***:Node graph was longer than expected by %d bytes.!\n", length);
+			AlertMessage ( at_aiconsole, "***WARNING***:Node graph was longer than expected by %d bytes.!\n", length);
 		}
 
 		return TRUE;
@@ -2476,7 +2476,7 @@ int CGraph :: FLoadGraph ( char *szMapName )
 
 ShortFile:
 NoMemory:
-	FREE_FILE(aMemFile);
+	COM_FreeFile(aMemFile);
 	return FALSE;
 }
 

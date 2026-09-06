@@ -2052,13 +2052,11 @@ void CTriggerSave::SaveTouch( CBaseEntity *pOther )
 	if ( !UTIL_IsMasterTriggered( m_sMaster, pOther ) )
 		return;
 
-	// Only save on clients
+	// Only trigger on clients
 	if ( !pOther->IsPlayer() )
 		return;
-    
+
 	SetTouch( NULL );
-	UTIL_Remove( this );
-	SERVER_COMMAND( "autosave\n" );
 }
 
 #define SF_ENDSECTION_USEONLY		0x0001
