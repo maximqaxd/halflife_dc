@@ -2918,4 +2918,3 @@ void R_DrawDecals( void )
 	DCV_SetPackedColor(0xFFFFFFFF);
 }
 
-

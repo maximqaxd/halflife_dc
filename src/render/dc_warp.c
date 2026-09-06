@@ -555,7 +555,7 @@ void R_LoadSkys( void )
 				sprintf(name, "sky%d", i);
 				gSkyTexNumber[i] = DC_LoadTexture(name, GLT_WORLD, 512, 512,
 					buffer, FALSE, TEX_TYPE_GBIX, NULL);
-				COM_FreeFile();
+				COM_FreeTempFile();
 			} while (++i < 6);
 		}
 
@@ -1002,8 +1002,8 @@ void R_DrawSkyBox( void )
 		DCV_AddPolyIndices(base, 4);
 		MakeSkyVec(skymins[0][i], skymins[1][i], i);
 		MakeSkyVec(skymins[0][i], skymaxs[1][i], i);
-		MakeSkyVec(skymaxs[0][i], skymaxs[1][i], i);
 		MakeSkyVec(skymaxs[0][i], skymins[1][i], i);
+		MakeSkyVec(skymaxs[0][i], skymaxs[1][i], i);
 	}
 }
 

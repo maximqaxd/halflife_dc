@@ -408,9 +408,6 @@ void R_NewMap( void )
 	}
 	R_LoadSkys();
 	cl_entities->scale = gl_wateramp.value;
-
-	// Unload textures from the previous map
-	GL_UnloadTextures();
 }
 
 /*

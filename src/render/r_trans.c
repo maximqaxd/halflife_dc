@@ -37,7 +37,7 @@ void R_AllocObjects( int nMax )
 	if (transObjects)
 		Con_Printf("Transparent objects reallocate\n");
 
-	transObjects = (transObjRef*)malloc(sizeof(transObjRef) * nMax);
+	transObjects = (transObjRef*)MnemoAllocDbg(sizeof(transObjRef) * nMax, __FILE__, __LINE__);
 	memset(transObjects, 0, sizeof(transObjRef) * nMax);
 
 	maxTransObjs = nMax;

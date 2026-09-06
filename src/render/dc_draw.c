@@ -598,7 +598,7 @@ static void DC_SetupTextureSlot( dctexture_t *slot, LPDIRECTDRAWSURFACE4 pSurf, 
 
 	if (!name)
 	{
-		slot->pszName = (char *)::operator new(3);
+		slot->pszName = (char *)::operator new(4);
 		strcpy(slot->pszName, "?!?");
 	}
 	else
