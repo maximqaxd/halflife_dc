@@ -16,6 +16,9 @@
 //  parsemsg.h
 //
 
+#ifdef ASSERT
+#undef ASSERT
+#endif
 #define ASSERT( x )
 
 void BEGIN_READ( void *buf, int size );

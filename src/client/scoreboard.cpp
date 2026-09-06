@@ -268,7 +268,7 @@ int CHudScoreboard :: Draw( float fTime )
 	}
 
 	// draw all the players who are not in a team
-	list_slot += 0.5;
+	list_slot += 0.5f;
 	DrawPlayers( xpos_rel, list_slot, 0, "" );
 
 	return 1;

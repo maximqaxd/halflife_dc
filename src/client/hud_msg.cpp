@@ -82,7 +82,7 @@ int CHud :: MsgFunc_Damage(const char *pszName, int iSize, void *pbuf )
 	for (i=0 ; i<3 ; i++)
 		from[i] = READ_COORD();
 
-	count = (blood * 0.5) + (armor * 0.5);
+	count = (blood * 0.5f) + (armor * 0.5f);
 
 	if (count < 10)
 		count = 10;

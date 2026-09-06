@@ -269,25 +269,25 @@ void CHudHealth::CalcDamageDirection(vec3_t vecFrom)
 	{
 		if (side > 0)
 		{
-			if (side > 0.3)
+			if (side > 0.3f)
 				m_fAttackFront = max(m_fAttackFront, side);
 		}
 		else
 		{
 			float f = fabs(side);
-			if (f > 0.3)
+			if (f > 0.3f)
 				m_fAttackRear = max(m_fAttackRear, f);
 		}
 
 		if (front > 0)
 		{
-			if (front > 0.3)
+			if (front > 0.3f)
 				m_fAttackRight = max(m_fAttackRight, front);
 		}
 		else
 		{
 			float f = fabs(front);
-			if (f > 0.3)
+			if (f > 0.3f)
 				m_fAttackLeft = max(m_fAttackLeft, f);
 		}
 	}
@@ -307,10 +307,10 @@ int CHudHealth::DrawPain(float flTime)
 	float fFade = gHUD.m_flTimeDelta * 2;
 	
 	// SPR_Draw top
-	if (m_fAttackFront > 0.4)
+	if (m_fAttackFront > 0.4f)
 	{
 		GetPainColor(r,g,b);
-		shade = a * max( m_fAttackFront, 0.5 );
+		shade = a * max( m_fAttackFront, 0.5f );
 		ScaleColors(r, g, b, shade);
 		SPR_Set(m_hSprite, r, g, b );
 
@@ -321,10 +321,10 @@ int CHudHealth::DrawPain(float flTime)
 	} else
 		m_fAttackFront = 0;
 
-	if (m_fAttackRight > 0.4)
+	if (m_fAttackRight > 0.4f)
 	{
 		GetPainColor(r,g,b);
-		shade = a * max( m_fAttackRight, 0.5 );
+		shade = a * max( m_fAttackRight, 0.5f );
 		ScaleColors(r, g, b, shade);
 		SPR_Set(m_hSprite, r, g, b );
 
@@ -335,10 +335,10 @@ int CHudHealth::DrawPain(float flTime)
 	} else
 		m_fAttackRight = 0;
 
-	if (m_fAttackRear > 0.4)
+	if (m_fAttackRear > 0.4f)
 	{
 		GetPainColor(r,g,b);
-		shade = a * max( m_fAttackRear, 0.5 );
+		shade = a * max( m_fAttackRear, 0.5f );
 		ScaleColors(r, g, b, shade);
 		SPR_Set(m_hSprite, r, g, b );
 
@@ -349,10 +349,10 @@ int CHudHealth::DrawPain(float flTime)
 	} else
 		m_fAttackRear = 0;
 
-	if (m_fAttackLeft > 0.4)
+	if (m_fAttackLeft > 0.4f)
 	{
 		GetPainColor(r,g,b);
-		shade = a * max( m_fAttackLeft, 0.5 );
+		shade = a * max( m_fAttackLeft, 0.5f );
 		ScaleColors(r, g, b, shade);
 		SPR_Set(m_hSprite, r, g, b );
 
@@ -377,7 +377,7 @@ int CHudHealth::DrawDamage(float flTime)
 
 	UnpackRGB(r,g,b, RGB_YELLOWISH);
 	
-	a = (int)( fabs(sin(flTime*2)) * 256.0);
+	a = (int)( fabs(sin(flTime * 2.0f)) * 256.0f);
 
 	ScaleColors(r, g, b, a);
 

@@ -20,6 +20,10 @@
 #include "STDIO.H"
 #include "STDLIB.H"
 #include "MATH.H"
+#include <shintr.h>
+#include <shsgintr.h>
+
+#pragma intrinsic(sqrtf)
 
 // Header file containing definition of globalvars_t and entvars_t
 typedef int	func_t;					//
@@ -40,20 +44,20 @@ public:
 	inline Vector2D operator*(float fl)				const	{ return Vector2D(x*fl, y*fl);	}
 	inline Vector2D operator/(float fl)				const	{ return Vector2D(x/fl, y/fl);	}
 	
-	inline float Length(void)						const	{ return (float)sqrt(x*x + y*y );		}
+	inline float Length(void)						const	{ return sqrtf(x*x + y*y );		}
 
 	inline Vector2D Normalize ( void ) const
 	{
 		Vector2D vec2;
 
-		float flLen = Length();
+		float flLen = x * x + y * y;
 		if ( flLen == 0 )
 		{
 			return Vector2D( (float)0, (float)0 );
 		}
 		else
 		{
-			flLen = 1 / flLen;
+			flLen = _InvSqrtA(flLen);
 			return Vector2D( x * flLen, y * flLen );
 		}
 	}
@@ -89,14 +93,14 @@ public:
 	
 	// Methods
 	inline void CopyToArray(float* rgfl) const		{ rgfl[0] = x, rgfl[1] = y, rgfl[2] = z; }
-	inline float Length(void) const					{ return (float)sqrt(x*x + y*y + z*z); }
+	inline float Length(void) const					{ return sqrtf(x*x + y*y + z*z); }
 	operator float *()								{ return &x; } // Vectors will now automatically convert to float * when needed
 	operator const float *() const					{ return &x; } // Vectors will now automatically convert to float * when needed
 	inline Vector Normalize(void) const
 	{
-		float flLen = Length();
+		float flLen = x * x + y * y + z * z;
 		if (flLen == 0) return Vector(0,0,1); // ????
-		flLen = 1 / flLen;
+		flLen = _InvSqrtA(flLen);
 		return Vector(x * flLen, y * flLen, z * flLen);
 	}
 
@@ -109,7 +113,7 @@ public:
 
 		return Vec2;
 	}
-	inline float Length2D(void) const					{ return (float)sqrt(x*x + y*y); }
+	inline float Length2D(void) const					{ return sqrtf(x*x + y*y); }
 
 	// Members
 	vec_t x, y, z;

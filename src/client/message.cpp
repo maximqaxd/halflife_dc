@@ -96,7 +96,7 @@ int	CHudMessage::XPosition( float x, int width, int totalWidth )
 	else
 	{
 		if ( x < 0 )
-			xPos = (1.0 + x) * ScreenWidth - totalWidth;	// Alight right
+			xPos = (1.0f + x) * ScreenWidth - totalWidth;	// Alight right
 		else
 			xPos = x * ScreenWidth;
 	}
@@ -115,12 +115,12 @@ int CHudMessage::YPosition( float y, int height )
 	int yPos;
 
 	if ( y == -1 )	// Centered?
-		yPos = (ScreenHeight - height) * 0.5;
+		yPos = (ScreenHeight - height) * 0.5f;
 	else
 	{
 		// Alight bottom?
 		if ( y < 0 )
-			yPos = (1.0 + y) * ScreenHeight - height;	// Alight bottom
+			yPos = (1.0f + y) * ScreenHeight - height;	// Alight bottom
 		else // align top
 			yPos = y * ScreenHeight;
 	}
@@ -176,7 +176,7 @@ void CHudMessage::MessageScanNextChar( void )
 				destRed = m_parms.pMessage->r2;
 				destGreen = m_parms.pMessage->g2;
 				destBlue = m_parms.pMessage->b2;
-				blend = 255 - (deltaTime * (1.0/m_parms.pMessage->fxtime) * 255.0 + 0.5);
+				blend = 255 - (deltaTime * (1.0f / m_parms.pMessage->fxtime) * 255.0f + 0.5f);
 			}
 		}
 		break;
@@ -210,7 +210,7 @@ void CHudMessage::MessageScanStart( void )
 
 		if ( m_parms.time < m_parms.pMessage->fadein )
 		{
-			m_parms.fadeBlend = ((m_parms.pMessage->fadein - m_parms.time) * (1.0/m_parms.pMessage->fadein) * 255);
+			m_parms.fadeBlend = ((m_parms.pMessage->fadein - m_parms.time) * (1.0f / m_parms.pMessage->fadein) * 255.0f);
 		}
 		else if ( m_parms.time > m_parms.fadeTime )
 		{
@@ -359,7 +359,7 @@ int CHudMessage::Draw( float fTime )
 		{
 			pMessage = m_pMessages[i];
 			if ( m_startTime[i] > gHUD.m_flTime )
-				m_startTime[i] = gHUD.m_flTime + m_parms.time - m_startTime[i] + 0.2;	// Server takes 0.2 seconds to spawn, adjust for this
+				m_startTime[i] = gHUD.m_flTime + m_parms.time - m_startTime[i] + 0.2f;	// Server takes 0.2 seconds to spawn, adjust for this
 		}
 	}
 

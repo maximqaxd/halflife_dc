@@ -165,7 +165,7 @@ int CHudGeiger::Draw (float flTime)
 			i = 2;
 		}
 
-		flvol = (flvol * ((rand() & 127)) / 255) + 0.25; // UTIL_RandomFloat(0.25, 0.5);
+		flvol = (flvol * ((rand() & 127)) / 255.0f) + 0.25f; // UTIL_RandomFloat(0.25, 0.5);
 
 		if ((rand() & 127) < pct || (rand() & 127) < pct)
 		{
