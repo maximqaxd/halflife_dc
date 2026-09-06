@@ -62,6 +62,9 @@ static dc_syncslot_t g_AsyncHandles[MAX_ASYNC];
 int g_filesOpened;
 int g_filesClosed;
 
+#define FILE_COUNT_TEXT_SIZE		68
+#define FILE_COUNT_METER_COLOR	0x8000ff00
+
 /* GD-ROM filesystem hooks: the DC routes reads under \CD-ROM\ through its own
  * GD driver instead of CreateFileW. Bopen returns a driver handle (0 if the
  * path isn't on the GD filesystem); IsBfile tests a live handle. */
@@ -79,10 +82,10 @@ extern int  Beof( void *hFile );
 // On-screen open/close counters ("%d opened %d closed", profilemeter overlay).
 void DC_PrintFileCounts( void )
 {
-	char szText[68];
+	char szText[FILE_COUNT_TEXT_SIZE];
 
 	sprintf(szText, "%d opened %d closed", g_filesOpened, g_filesClosed);
-	DCV_MeterText(0x8000ff00, 0, (g_filesOpened - g_filesClosed) + 1, szText);
+	DCV_MeterText(FILE_COUNT_METER_COLOR, 0, (g_filesOpened - g_filesClosed) + 1, szText);
 }
 
 void Sys_RegisterFileHandle( const char *path, int hFile );
@@ -93,10 +96,13 @@ unsigned int DC_fwrite( void *buffer, unsigned int size, unsigned int count, voi
 static WCHAR g_wOpenPath[MAX_PATH];
 static BYTE  g_gdOpenFlag;
 
+#define SYS_FPRINTF_BUFFER_SIZE	0x400
+#define SYS_FPRINTF_GUARD_BYTES	4
+
 /* Sys_FPrintf coalescing buffer: writes to the same file accumulate here and
- * flush when the target file changes or the buffer would pass 0x400 bytes. */
-static int  g_fprintfFile;
-static char g_fprintfBuffer[0x400 + 4];
+ * flush when the target file changes or the buffer would pass its capacity. */
+static void* g_fprintfFile;
+static char g_fprintfBuffer[SYS_FPRINTF_BUFFER_SIZE + SYS_FPRINTF_GUARD_BYTES];
 static int  g_fprintfLen;
 
 void Host_ExecConfig( void )
@@ -177,7 +183,7 @@ int Sys_CloseHandle( void *hFile )
 	dc_syncslot_t *slot = NULL;
 	int i;
 
-	if (hFile == (void *)g_fprintfFile)
+	if (hFile == g_fprintfFile)
 	{
 		DC_fwrite(g_fprintfBuffer, g_fprintfLen, 1, hFile);
 		g_fprintfLen = 0;
@@ -212,7 +218,7 @@ int Sys_CloseHandle( void *hFile )
 
 // Buffered file printf: coalesce writes to the same file, flush when the target
 // changes or the buffer would pass 0x400 bytes.
-void Sys_FPrintf( int fileid, char *fmt, ... )
+void Sys_FPrintf( void *fileid, char *fmt, ... )
 {
 	va_list argptr;
 	char    text[1024];
@@ -223,9 +229,9 @@ void Sys_FPrintf( int fileid, char *fmt, ... )
 	va_end(argptr);
 
 	len = strlen(text);
-	if (fileid != g_fprintfFile || g_fprintfLen + len > 0x400)
+	if (fileid != g_fprintfFile || g_fprintfLen + len > SYS_FPRINTF_BUFFER_SIZE)
 	{
-		DC_fwrite(g_fprintfBuffer, g_fprintfLen, 1, (void *)g_fprintfFile);
+		DC_fwrite(g_fprintfBuffer, g_fprintfLen, 1, g_fprintfFile);
 		g_fprintfLen = 0;
 	}
 
@@ -839,5 +845,3 @@ ENTITYINIT GetEntityInit( char *pClassName )
 {
 	return (ENTITYINIT)GetDispatch(pClassName);
 }
-
-

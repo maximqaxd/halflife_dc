@@ -79,7 +79,7 @@ void MSG_WriteShort( sizebuf_t* sb, int c );
 void MSG_WriteWord( sizebuf_t* sb, int c );
 void MSG_WriteLong( sizebuf_t* sb, int c );
 void MSG_WriteFloat( sizebuf_t* sb, float f );
-void MSG_WriteString( sizebuf_t* sb, char* s );
+void MSG_WriteString( sizebuf_t* sb, const char* s );
 void MSG_WriteBuf( sizebuf_t* sb, int iSize, void* buf );
 void MSG_WriteCoord( sizebuf_t* sb, float f );
 void MSG_WriteAngle( sizebuf_t* sb, float f );
@@ -142,13 +142,13 @@ void Q_memcpy( void* dest, void* src, int count );
 int Q_memcmp( void* m1, void* m2, int count );
 void Q_strcpy( char* dest, char* src );
 void Q_strncpy( char* dest, char* src, int count );
-int Q_strlen( char* str );
+int Q_strlen( const char* str );
 char* Q_strrchr( char* s, char c );
 void Q_strcat( char* dest, char* src );
 int Q_strcmp( char* s1, char* s2 );
 int Q_strncmp( char* s1, char* s2, int count );
-int Q_strcasecmp( char* s1, char* s2 );
-int Q_strncasecmp( char* s1, char* s2, int n );
+int Q_strcasecmp( const char* s1, const char* s2 );
+int Q_strncasecmp( const char* s1, const char* s2, int n );
 int	Q_atoi( char* str );
 float Q_atof( char* str );
 int Q_FileNameCmp( char* file1, char* file2 );
@@ -242,7 +242,6 @@ void COM_ChangeGameDir( char* pszDir );
 
 void COM_GetGameDir( char* szGameDir );
 
-byte* LoadBMP16( FILE* fin, qboolean is15bit );
 
 
 int build_number( void );

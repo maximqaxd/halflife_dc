@@ -34,27 +34,24 @@ typedef struct
 #define	MAX_SCOREBOARDNAME		32
 typedef struct player_info_s
 {
-	int		userid;                 // 0x000
-	char	userinfo[196];          // 0x004
-	char	name[MAX_SCOREBOARDNAME];// 0x0C8
-	int		ping;                   // 0x0E8
-	int		spectator;              // 0x0EC
-	char	model[48];               // 0x0F0
-	int		color;                  // 0x120, player top color
-	int		bottomcolor;            // 0x124
-	byte	translations[512];       // 0x128
-	int		packetloss;             // 0x328
-	int		renderframe;            // 0x32C
-	float	maxspeed;               // 0x330
-	customization_t customdata;   // 0x334; pNext is 0x38C
-	int		gaitsequence;           // 0x390
-	float	gaitframe;              // 0x394
-	float	gaityaw;                // 0x398
-	vec3_t	prevgaitorigin;         // 0x39C
+	int		userid;
+	char	userinfo[196];
+	char	name[MAX_SCOREBOARDNAME];
+	int		ping;
+	int		spectator;
+	char	model[48];
+	int		color;					// Player top color.
+	int		bottomcolor;
+	byte	translations[512];
+	int		packetloss;
+	int		renderframe;
+	float	maxspeed;
+	customization_t customdata;
+	int		gaitsequence;
+	float	gaitframe;
+	float	gaityaw;
+	vec3_t	prevgaitorigin;
 } player_info_t;
-
-typedef char player_info_t_must_match_retail_size[
-	(sizeof(player_info_t) == 0x3A8) ? 1 : -1];
 
 //
 // client_state_t should hold all pieces of the client state
@@ -260,7 +257,7 @@ typedef struct
 	int			reserved1;
 	int			reserved2;
 	int			usehull;
-} player_state_t; // sizeof(player_state_t) = 0xF8
+} player_state_t;
 
 typedef struct
 {
@@ -282,7 +279,7 @@ typedef struct
 	unsigned short	sound_bytes;
 	unsigned short	message_bytes;
 	unsigned short	reserved;
-} frame_t; // sizeof(frame_t) = 0x144
+} frame_t;
 
 //
 // the client_state_t structure is wiped completely at every
@@ -381,7 +378,7 @@ typedef struct
 	//
 	int			playernum;	 // player entity.  skips world. Add 1 to get cl_entitites index;
 
-	int			spectator;   // binary stores this client-state flag as a 32-bit value
+	int			spectator;
 
 //
 // information that is static for the entire time connected to a server

@@ -3,7 +3,11 @@
 #ifndef INC_CUSTOMIZATION
 #define INC_CUSTOMIZATION
 
-#define MAX_QPATH 64    // Must match value in quakedefs.h
+#ifndef MAX_QPATH
+#define MAX_QPATH 64
+#endif
+
+#define MAX_RESOURCE_FILENAME 48
 
 /////////////////
 // Customization
@@ -36,14 +40,14 @@ typedef struct
 
 typedef struct resource_s
 {
-	char              szFileName[48];      // 0x00 File name to download/precache.
-	unsigned char     type;                // 0x30 t_sound, t_skin, t_model, t_decal.
-	unsigned char     ucFlags;             // 0x31
-	unsigned char     pad[2];              // 0x32
-	int               nIndex;              // 0x34 For t_decals
-	struct resource_s* pNext;              // 0x38 Next in chain.
-	struct resource_s* pPrev;              // 0x3c
-} resource_t;   // 64 bytes
+	char              szFileName[MAX_RESOURCE_FILENAME]; // File name to download/precache.
+	unsigned char     type;                              // t_sound, t_skin, t_model, t_decal.
+	unsigned char     ucFlags;
+	unsigned char     pad[2];
+	int               nIndex;                            // For t_decals.
+	struct resource_s* pNext;                            // Next in chain.
+	struct resource_s* pPrev;
+} resource_t;
 
 typedef struct customization_s
 {

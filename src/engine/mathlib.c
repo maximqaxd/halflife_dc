@@ -2,7 +2,6 @@
 
 #include <math.h>
 #include "quakedef.h"
-#include <floatmathlib.h>
 #include <shsgintr.h>
 #include <shintr.h>
 
@@ -661,14 +660,14 @@ quotient must fit in 32 bits.
 ====================
 */
 
-void FloorDivMod( double numer, double denom, int* quotient,
+void FloorDivMod( float numer, float denom, int* quotient,
 		int* rem )
 {
 	int		q, r;
-	double	x;
+	float	x;
 
 #ifndef PARANOID
-	if (denom <= 0.0)
+	if (denom <= 0.0f)
 		Sys_Error("FloorDivMod: bad denominator %d\n", denom);
 
 //	if ((floor(numer) != numer) || (floor(denom) != denom))
@@ -676,7 +675,7 @@ void FloorDivMod( double numer, double denom, int* quotient,
 //				numer, denom);
 #endif
 
-	if (numer >= 0.0)
+	if (numer >= 0.0f)
 	{
 
 		x = floor(numer / denom);
@@ -743,7 +742,7 @@ fixed16_t Invert24To16( fixed16_t val )
 		return (0xFFFFFFFF);
 
 	return (fixed16_t)
-		(((double)0x10000 * (double)0x1000000 / (double)val) + 0.5);
+		(((float)0x10000 * (float)0x1000000 / (float)val) + 0.5f);
 }
 
 #endif

@@ -6,7 +6,7 @@
 #pragma intrinsic(sqrtf)
 
 cvar_t	cl_nopred = { "cl_nopred", "0" };
-cvar_t	cl_pushlatency = { "pushlatency", "-500" };
+cvar_t	cl_pushlatency = { "pushlatency", "-150" };
 cvar_t	cl_dumpents = { "cl_dumpents", "0" };
 cvar_t	cl_showpred = { "cl_showpred", "0" };
 
@@ -46,8 +46,8 @@ void CL_PredictUsercmd( player_state_t* from, player_state_t* to, usercmd_t* u, 
 	VectorCopy(from->velocity, pmove.velocity);
 	VectorCopy(from->basevelocity, pmove.basevelocity);
 	VectorCopy(from->view_ofs, pmove.view_ofs);
-	pmove.field_54[0] = from->reserved1;
-	pmove.field_54[1] = from->reserved2;
+	pmove.reserved[0] = from->reserved1;
+	pmove.reserved[1] = from->reserved2;
 
 	VectorCopy(cmd.angles, pmove.angles);
 	// Player pitch is inverted
@@ -121,8 +121,8 @@ void CL_PredictUsercmd( player_state_t* from, player_state_t* to, usercmd_t* u, 
 	to->friction = pmove.friction;
 	to->movetype = pmove.movetype;
 	to->physflags = pmove.flags;
-	to->reserved1 = pmove.field_54[0];
-	to->reserved2 = pmove.field_54[1];
+	to->reserved1 = pmove.reserved[0];
+	to->reserved2 = pmove.reserved[1];
 	to->usehull = pmove.usehull;
 }
 #pragma optimize("", on)

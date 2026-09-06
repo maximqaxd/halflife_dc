@@ -880,7 +880,7 @@ void Cmd_CmdList_f( void )
 	const char* partial = NULL;
 	int		ipLen;
 	char	szTemp[256];
-	int		f;
+	void	*f;
 	qboolean bLogging = FALSE;
 
 	iArgs = Cmd_Argc();
@@ -900,7 +900,7 @@ void Cmd_CmdList_f( void )
 		{
 			sprintf(szTemp, "c:\\%s", Cmd_Argv(2));
 
-			f = (int)Sys_OpenHandle(szTemp, "wt");
+			f = Sys_OpenHandle(szTemp, "wt");
 			if (f)
 			{
 				bLogging = TRUE;

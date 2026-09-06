@@ -95,7 +95,7 @@ typedef union DLONG {
 
 extern DLONG	dlong;
 
-void FloorDivMod( double numer, double denom, int* quotient,
+void FloorDivMod( float numer, float denom, int* quotient,
 		int* rem );
 fixed16_t Invert24To16( fixed16_t val );
 int GreatestCommonDivisor( int i1, int i2 );

@@ -7,6 +7,13 @@
 #include "hashpak.h"
 #include "won.h"
 #include "ui.h"
+#include "dc_accum.h"
+#include "info.h"
+#include "kzap.h"
+#include "mnemo.h"
+#include "sys.h"
+#include "text_draw.h"
+#include "vmu.h"
 
 #ifdef _WIN32_WCE
 #pragma optimize("", off)
@@ -85,7 +92,7 @@ cvar_t	teamplay = { "mp_teamplay", "0", FCVAR_SERVER };
 cvar_t	friendlyfire = { "mp_friendlyfire", "0", FCVAR_SERVER };
 cvar_t	falldamage = { "mp_falldamage", "0", FCVAR_SERVER };
 cvar_t	weaponstay = { "mp_weaponstay", "0", FCVAR_SERVER };
-cvar_t	forcerespawn = { "mp_forcerespawn", "0", FCVAR_SERVER };
+cvar_t	forcerespawn = { "mp_forcerespawn", "1", FCVAR_SERVER };
 
 cvar_t	mp_logfile = { "mp_logfile", "1", FCVAR_SERVER };
 cvar_t	mp_logecho = { "mp_logecho", "1", FCVAR_SERVER };

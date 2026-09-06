@@ -9,13 +9,6 @@
 #include "r_trans.h"
 #include "r_efx.h"
 #include "tmessage.h"
-#ifdef fmod
-#undef fmod
-#endif
-#ifdef fabs
-#undef fabs
-#endif
-#include <floatmathlib.h>
 
 TEMPENTITY gTempEnts[MAX_TEMP_ENTITIES], * gpTempEntFree, * gpTempEntActive;
 

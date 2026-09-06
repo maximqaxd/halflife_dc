@@ -4,13 +4,6 @@
 #include "decal.h"
 #include "pr_cmds.h"
 #include "info.h"
-#ifdef fmod
-#undef fmod
-#endif
-#ifdef fabs
-#undef fabs
-#endif
-#include <floatmathlib.h>
 
 /*
 ===============================================================================
@@ -1508,7 +1501,7 @@ Pick a vector for the player to shoot along
 vector aim(entity, missilespeed)
 =============
 */
-cvar_t	sv_aim = { "sv_aim", "1", FCVAR_SERVER };
+cvar_t	sv_aim = { "sv_aim", "0.9", FCVAR_SERVER };
 void PF_aim_I( edict_t* ent, float speed, float* rgflReturn )
 {
 	edict_t* check;
@@ -2233,7 +2226,7 @@ void EngineFprintf( FILE* pfile, char* szFmt, ... )
 	vsprintf(string, szFmt, argptr);
 	va_end(argptr);
 
-	Sys_FPrintf((int)pfile, "%s", string);
+	Sys_FPrintf(pfile, "%s", string);
 }
 
 /* Studio server-side queries are not reconstructed yet; return zeroed results

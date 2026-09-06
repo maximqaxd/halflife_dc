@@ -107,25 +107,25 @@ typedef struct mnemo_pez_pool_s
 // The whole allocator state is one struct so field offsets match the image.
 typedef struct mnemo_state_s
 {
-	int				arena_size;			/* 0x00 */
-	byte*			arena_base;			/* 0x04 */
-	mnemo_header_t	head;				/* 0x08 - block-list sentinel ("Root Node") */
-	mnemo_header_t*	rover_cache;		/* 0x28 */
-	mnemo_header_t*	rover_hunk;			/* 0x2c */
-	mnemo_header_t*	rover_malloc;		/* 0x30 */
-	mnemo_header_t*	last_temp;			/* 0x34 */
-	int				reserved_38;		/* 0x38 - cleared at init, never read */
-	int				reserved_3c;		/* 0x3c - unused */
-	int				alloc_seq;			/* 0x40 - next block sequence number */
-	mnemo_purge_callback_t purge_callback;	/* 0x44 */
-	int				cache_bytes;		/* 0x48 - live cache bytes */
-	struct cache_system_s* cache_mru;	/* 0x4c - LRU list, newest */
-	struct cache_system_s* cache_lru;	/* 0x50 - LRU list, oldest */
-	mnemo_pez_pool_t* pez_buckets[8];	/* 0x54 */
-	int				cache_epoch_frame;			/* 0x74 */
-	int				cache_epoch_bytes;			/* 0x78 */
-	int				alloc_attempts;			/* 0x7c */
-	int				last_chance;			/* 0x80 */
+	int				arena_size;
+	byte*			arena_base;
+	mnemo_header_t	head;				/* Block-list sentinel. */
+	mnemo_header_t*	rover_cache;
+	mnemo_header_t*	rover_hunk;
+	mnemo_header_t*	rover_malloc;
+	mnemo_header_t*	last_temp;
+	int				reserved0;
+	int				reserved1;
+	int				alloc_seq;			/* Next block sequence number. */
+	mnemo_purge_callback_t purge_callback;
+	int				cache_bytes;		/* Live cache bytes. */
+	struct cache_system_s* cache_mru;	/* Newest cache entry. */
+	struct cache_system_s* cache_lru;	/* Oldest cache entry. */
+	mnemo_pez_pool_t* pez_buckets[8];
+	int				cache_epoch_frame;
+	int				cache_epoch_bytes;
+	int				alloc_attempts;
+	int				last_chance;
 } mnemo_state_t;
 
 static mnemo_state_t g_mnemo;

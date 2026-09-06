@@ -37,6 +37,8 @@ extern RECT		window_rect;
 
 DLL_EXPORT void IN_UpdateClipCursor( void );
 
+void GL_Init( void );
+
 #ifdef __cplusplus
 }
 #endif

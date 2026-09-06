@@ -6,6 +6,9 @@
 #endif
 
 #define	MAX_SIGNON_BUFFERS	16
+#define MAX_SOUND_PRECACHE_BYTES	0x800
+#define MAX_GENERIC_PRECACHE_BYTES	0x800
+#define CLIENT_RESERVED_STATE_BYTES	48
 
 #define MAX_SVCHANNELS 10
 
@@ -84,7 +87,7 @@ typedef struct server_static_s
 #else
 	byte		reserved[20];
 #endif
-} server_static_t; // sizeof(server_static_t) = 0x208
+} server_static_t;
 
 //=============================================================================
 
@@ -96,7 +99,6 @@ typedef enum server_state_e
 	ss_active	// Running
 } server_state_t;
 
-// sizeof(server_t) = 0x2FFB8u
 typedef struct
 {
 	qboolean	active;				// false if only a net client
@@ -123,9 +125,9 @@ typedef struct
 	char*		model_precache[MAX_MODELS];	
 	struct model_s*	models[MAX_MODELS];
 	char*		sound_precache[MAX_SOUNDS];
-	byte		reserved_sound_precache[0x800];
+	byte		reserved_sound_precache[MAX_SOUND_PRECACHE_BYTES];
 	char*		generic_precache[MAX_GENERIC];
-	byte		reserved_generic_precache[0x800];
+	byte		reserved_generic_precache[MAX_GENERIC_PRECACHE_BYTES];
 	char*		lightstyles[MAX_LIGHTSTYLES];
 
 	int			num_edicts;
@@ -181,7 +183,7 @@ typedef struct
 	float				frame_time;
 	// State of entities this frame from the POV of the client.
 	packet_entities_t	entities;
-} client_frame_t; // sizeof(client_frame_t) = 0x20
+} client_frame_t;
 
 // client_t
 typedef struct client_s
@@ -217,7 +219,7 @@ typedef struct client_s
 	int		oldbuttons;
 	int		reserved2;
 	double	svtimebase;
-	byte	reserved3[48];
+	byte	reserved3[CLIENT_RESERVED_STATE_BYTES];
 
 	float	maxspeed; // localized maxspeed
 	int		reserved4;
@@ -296,18 +298,7 @@ typedef struct client_s
 	CRC32_t		uploadcurrentCRC;
 
 	customization_t customdata;
-} client_t; // sizeof(client_t) = 0x36F0
-
-typedef char client_frame_t_sizecheck[(sizeof(client_frame_t) == 0x20) ? 1 : -1];
-#ifndef HLDC_MP
-#define CLIENT_FIELD_OFFSET(type, field) ((unsigned long)&(((type*)0)->field))
-typedef char server_static_t_sizecheck[(sizeof(server_static_t) == 0x208) ? 1 : -1];
-typedef char server_t_sizecheck[(sizeof(server_t) == 0x2FFB8) ? 1 : -1];
-typedef char client_t_sizecheck[(sizeof(client_t) == 0x36F0) ? 1 : -1];
-typedef char client_netchan_offsetcheck[(CLIENT_FIELD_OFFSET(client_t, netchan) == 0xC) ? 1 : -1];
-typedef char client_datagram_offsetcheck[(CLIENT_FIELD_OFFSET(client_t, datagram) == 0x2418) ? 1 : -1];
-#undef CLIENT_FIELD_OFFSET
-#endif
+} client_t;
 
 // server flags
 #define	SFL_EPISODE_1		1

@@ -6,10 +6,12 @@
 #include "hashpak.h"
 #include "r_studio.h"
 #include "pr_edict.h"
+#include "tmessage.h"
 #include "kzap.h"
 #include "vmu.h"
 #include "ui.h"
 #include "text_draw.h"
+#include "won.h"
 
 int	current_skill;
 int	gHostSpawnCount = 0;
@@ -59,6 +61,8 @@ extern cvar_t*	sv_allow_upload;
 // last terminator and the data buffer is rounded up to four bytes, so the block
 // needs a little more room than the sizes stored in the file account for.
 #define SAVE_HEAPSLACK	32
+#define SAVE_TOKEN_COUNT	0xfff
+#define SAVE_TOKEN_EXTRA	8
 
 // Scratch path a packed save is expanded into before it is read back
 #define UNZIP_TEMP_FILE	"\\CD-ROM\\valve\\SAVE\\UnzipTmp.sdj"
@@ -158,7 +162,7 @@ TYPEDESCRIPTION gLightstyleDescription[] =
 	DEFINE_ARRAY(SAVELIGHTSTYLE, style, FIELD_CHARACTER, MAX_LIGHTSTYLES),
 };
 
-cvar_t gHostMap = { "HostMap", "C1A0" };
+cvar_t gHostMap = { "HostMap", "C0A0" };
 
 /*
 ====================
@@ -1077,7 +1081,6 @@ Host_Maps_f
 */
 void Host_Maps_f( void )
 {
-	char	szMapName[MAX_QPATH];
 	char* pszSubString;
 
 	if (Cmd_Argc() != 2)
@@ -1207,7 +1210,6 @@ Restarts the current server for a dead player
 void Host_Reload_f( void )
 {
 	char* pSaveName;
-	char name[MAX_PATH];
 
 	if (!sv.active)
 		return;
@@ -1493,6 +1495,8 @@ SaveInit
 Initialize Save/Restore Data
 ==================
 */
+#define DEFAULT_SAVE_BUFFER_SIZE	0x80000
+
 SAVERESTOREDATA* SaveInit( int size )
 {
 	SAVERESTOREDATA* pSaveData;
@@ -1500,13 +1504,13 @@ SAVERESTOREDATA* SaveInit( int size )
 	edict_t* pEdict = NULL;
 
 	if (size <= 0)
-		size = 0x80000;		// Reserve 512K for now, UNDONE: Shrink this after compressing strings
+		size = DEFAULT_SAVE_BUFFER_SIZE;		// Reserve 512K for now, UNDONE: Shrink this after compressing strings
 
 	pSaveData = (SAVERESTOREDATA*)calloc(sizeof(SAVERESTOREDATA) + (sizeof(ENTITYTABLE) * sv.num_edicts) + size, sizeof(char));
 	pSaveData->pTable = (ENTITYTABLE*)(pSaveData + 1); // skip the save structure
 	pSaveData->tokenSize = 0;
-	pSaveData->tokenCount = 0xfff; // Assume a maximum of 4K-1 symbol table entries(each of some length)
-	pSaveData->pTokens = (char**)calloc(pSaveData->tokenCount + 8, sizeof(char*));
+	pSaveData->tokenCount = SAVE_TOKEN_COUNT;
+	pSaveData->pTokens = (char**)calloc(pSaveData->tokenCount + SAVE_TOKEN_EXTRA, sizeof(char*));
 
 	for (i = 0; i < sv.num_edicts; i++)
 	{
@@ -4594,7 +4598,7 @@ void Host_DrawMessage( void )
 	}
 
 	Font_SetScale(1.0f, 1.3333f);
-	width = Font_StringWidth(draw_chars, hostMessage);
+	width = Font_StringWidth((dcfont_t *)draw_chars, (byte *)hostMessage);
 
 	// Centred across the screen, sitting just inside the title-safe area
 	x = 320 - width / 2;

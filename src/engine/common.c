@@ -2,7 +2,7 @@
 //
 // Picks the heap the engine runs out of, then hands it to Host_Init. On a
 // machine with room to spare the heap comes from the WinCE allocator; on a
-// tight one we map the fixed block at 0x8c800000 instead.
+// tight one we map a fixed physical block instead.
 
 #include "quakedef.h"
 #include "winquake.h"
@@ -14,6 +14,10 @@
 static char          *g_GameArgv[1];
 static unsigned char *g_pEngineMem     = NULL;
 static int            g_iEngineMemSize = 0;
+
+#define ENGINE_MEMORY_RESERVE		1700000
+#define MIN_ENGINE_HEAP_BYTES		0x800000
+#define FIXED_ENGINE_HEAP_ADDRESS	0x8c800000
 
 /*
 ==================
@@ -32,13 +36,13 @@ qboolean GameInit( void )
 	stat.dwLength = sizeof(MEMORYSTATUS);
 	GlobalMemoryStatus(&stat);
 
-	g_iEngineMemSize = stat.dwAvailPhys - 1700000;
-	if (stat.dwAvailPhys < 0x800000)
+	g_iEngineMemSize = stat.dwAvailPhys - ENGINE_MEMORY_RESERVE;
+	if (stat.dwAvailPhys < MIN_ENGINE_HEAP_BYTES)
 	{
 		PHYSICAL_ADDRESS pa;
 
-		g_iEngineMemSize = 0x800000;
-		pa.LowPart = 0x8c800000;
+		g_iEngineMemSize = MIN_ENGINE_HEAP_BYTES;
+		pa.LowPart = FIXED_ENGINE_HEAP_ADDRESS;
 		g_pEngineMem = (unsigned char *)MmMapIoSpace(pa, g_iEngineMemSize, TRUE);
 	}
 	else

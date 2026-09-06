@@ -187,7 +187,7 @@ void Q_strncpy( char* dest, char* src, int count )
 		*dest++ = 0;
 }
 
-int Q_strlen( char* str )
+int Q_strlen( const char* str )
 {
 	int             count;
 	
@@ -253,7 +253,7 @@ int Q_strncmp( char* s1, char* s2, int count )
 	return -1;
 }
 
-int Q_strncasecmp( char* s1, char* s2, int n )
+int Q_strncasecmp( const char* s1, const char* s2, int n )
 {
 	int             c1, c2;
 
@@ -283,7 +283,7 @@ int Q_strncasecmp( char* s1, char* s2, int n )
 	return -1;
 }
 
-int Q_strcasecmp( char* s1, char* s2 )
+int Q_strcasecmp( const char* s1, const char* s2 )
 {
 	return Q_strncasecmp(s1, s2, 99999);
 }
@@ -646,12 +646,12 @@ void MSG_WriteFloat( sizebuf_t* sb, float f )
 	Q_memcpy(buf, &dat.l, 4);
 }
 
-void MSG_WriteString( sizebuf_t* sb, char* s )
+void MSG_WriteString( sizebuf_t* sb, const char* s )
 {
 	if (!s)
 		SZ_Write(sb, "", 1);
 	else
-		SZ_Write(sb, s, Q_strlen(s) + 1);
+		SZ_Write(sb, (void *)s, Q_strlen(s) + 1);
 }
 
 void MSG_WriteBuf( sizebuf_t* sb, int iSize, void* buf )
@@ -747,7 +747,7 @@ void MSG_WriteDeltaUsercmd( sizebuf_t* buf, usercmd_t* from, usercmd_t* cmd )
 ============
 MSG_WriteUsercmdGold
 
-Delta-compress a movement command against a baseline for the retail protocol.
+Delta-compress a movement command against a baseline.
 Movement values are sent full precision.
 ============
 */
@@ -1243,7 +1243,7 @@ void MSG_ReadDeltaUsercmd( usercmd_t* move, usercmd_t* from )
 ============
 MSG_ReadUsercmdGold
 
-Decode a delta-compressed movement command for the retail protocol.
+Decode a delta-compressed movement command.
 ============
 */
 void MSG_ReadUsercmdGold( usercmd_t* move, usercmd_t* from )
@@ -1699,7 +1699,7 @@ void MSG_WriteSBitByte( char* data, int numbits )
 
 	value = *data;
 	if ((char)value < 0)
-		value = -value;
+		value = 0U - value;
 
 	numbits--;
 	while (numbits > 0)
@@ -1720,7 +1720,7 @@ void MSG_WriteSBitShort( short* data, int numbits )
 
 	value = *data;
 	if ((short)value < 0)
-		value = -value;
+		value = 0U - value;
 
 	numbits--;
 	while (numbits > 0)
@@ -1741,7 +1741,7 @@ void MSG_WriteSBitLong( int* data, int numbits )
 
 	value = *data;
 	if ((int)value < 0)
-		value = -value;
+		value = 0U - value;
 
 	numbits--;
 	while (numbits > 0)
@@ -1916,7 +1916,7 @@ unsigned int MSG_ReadSignMagnitude32( int numbits )
 	}
 
 	if (sign)
-		value = -value;
+		value = 0U - value;
 
 	return value;
 }
@@ -2638,13 +2638,11 @@ int COM_FindFileSearch( searchpath_t** pRestart, char* gamedir, char* filename, 
 {
 	searchpath_t*	search;
 	char			netpath[MAX_OSPATH];
-	char			base[MAX_OSPATH];
 	pack_t*			pak;
 	packfile_t*		entry;
 	packfile_t		key;
 	int				i = -1;
 	int				findtime;
-	HANDLE			hfile;
 
 	if (file && phFile)
 		Sys_Error("COM_FindFile: both phFile and file set");
@@ -3409,336 +3407,6 @@ void COM_ListMaps( char* pszSubString )
 {
 	//Con_Printf
 	("COM_ListMaps is, um, non-trivial when abbreviated pak-names are involved.\n");
-}
-
-#define DIB_HEADER_MARKER   ((WORD) ('M' << 8) | 'B')
-
-byte* LoadBMP16( FILE* fin, qboolean is15bit )
-{
-	BITMAPFILEHEADER bmfh;
-	BITMAPINFOHEADER bmih;
-	byte *pImage16;
-
-	pImage16 = NULL;
-	// Read file header
-	if (fread(&bmfh, sizeof(bmfh), 1, fin) != 1)
-	{
-		fclose(fin);
-		return pImage16;
-	}
-
-	if (bmfh.bfType != DIB_HEADER_MARKER)
-	{
-		fclose(fin);
-		return pImage16;
-	}
-
-	// Bogus file header check
-	if (!(bmfh.bfReserved1 == 0 && bmfh.bfReserved2 == 0))
-	{
-		fclose(fin);
-		return pImage16;
-	}
-
-	// Read info header
-	if (fread(&bmih, sizeof(bmih), 1, fin) != 1)
-	{
-		fclose(fin);
-		return pImage16;
-	}
-
-	// Bogus info header check
-	if (!(bmih.biSize >= sizeof(bmih) && bmih.biPlanes == 1))
-	{
-		fclose(fin);
-		return pImage16;
-	}
-
-	// Bogus compression? Only non-compressed supported
-	if (bmih.biCompression != BI_RGB)
-	{
-		fclose(fin);
-		return pImage16;
-	}
-
-	if (bmih.biBitCount == 16)
-	{
-		fseek(fin, 0, bmfh.bfOffBits);
-		pImage16 = Hunk_AllocName(bmih.biSizeImage, "SKYBOX");
-		if (pImage16)
-		{
-			if (fread(pImage16, bmih.biSizeImage, 1, fin) != 1)
-			{
-				free(pImage16);
-				pImage16 = NULL;
-			}
-		}
-	}
-	else if (bmih.biBitCount == 8)
-	{	
-		int nPalette;
-		byte* pPalette;
-		int nImage8;
-		byte* pImage8;
-		int SizeOfRow8;
-		int SizeOfRow16;
-		int TrueHeight;
-		int nImage16;
-
-		// Figure out how many entires are actually in the table
-		if (bmih.biClrUsed)
-			nPalette = bmih.biClrUsed;
-		else
-			nPalette = 256;
-
-		// Allocate memory for the palette
-		pPalette = malloc(nPalette * 4);
-		if (!pPalette || fread(pPalette, nPalette * 4, 1, fin) != 1)
-		{
-			fclose(fin);
-			return pImage16;
-		}
-
-		// Calculate the size of each row in the image data for 8-bit and 16-bit images
-		SizeOfRow8 = (((bmih.biWidth * 8) + 7) / 8 + 3) & ~3;
-		SizeOfRow16 = (((bmih.biWidth * 16) + 7) / 8 + 3) & ~3;
-		TrueHeight = abs(bmih.biHeight);
-		nImage16 = SizeOfRow16 * TrueHeight;
-
-		// Calculate the size of the image data in bytes for 8-bit and 16-bit images
-		nImage8 = bmih.biSizeImage;
-
-		// Allocate memory for the 8-bit image data
-		pImage8 = malloc(nImage8);
-
-		fseek(fin, 0, bmfh.bfOffBits);
-
-		if (!pImage8)
-		{
-			fclose(fin);
-			return pImage16;
-		}
-		
-		// Read the 8-bit image data from the file
-		if (fread(pImage8, nImage8, 1, fin) != 1)
-		{
-			free(pImage8);
-			free(pPalette);
-			fclose(fin);
-			return pImage16;
-		}
-
-		// Allocate memory for the 16-bit image data
-		pImage16 = Hunk_AllocName(nImage16, "SKYBOX");
-		if (!pImage16)
-		{
-			fclose(fin);
-			return pImage16;
-		}
-
-		// Check if image is using 15-bit color
-		if (is15bit)
-		{
-			// Check if BMP image is top-down orientation
-			if (bmih.biHeight <= 0)
-			{
-				//
-				// The pixel image will be flipped vertically
-
-				byte* row16 = pImage16; // pointer to current 16-bit pixel
-				byte* row8 = pImage8; // pointer to current 8-bit pixel
-				int nRows = TrueHeight;
-
-				// Convert each pixel of the 8-bit palette image to a 16-bit color image
-				while (nRows > 0)
-				{
-					unsigned short* p16 = (unsigned short*)row16;
-					byte* p8 = row8;
-					int nPixels = bmih.biWidth;
-
-					// Convert 8-bit palette image to 16-bit image
-					while (nPixels > 0)
-					{
-						// Extract BGR values from palette
-						byte r = pPalette[*p8 * 4 + 2] + RandomLong(0, 3);
-						byte g = pPalette[*p8 * 4 + 1] + RandomLong(0, 3);
-						byte b = pPalette[*p8 * 4 + 0] + RandomLong(0, 3);
-
-						// Clamp to byte
-						if (r > 255)
-							r = 255;
-						if (g > 255)
-							g = 255;
-						if (b > 255)
-							b = 255;
-
-						// Pack the RGB values into a 16-bit pixel 565 color and store in 16-bit image
-						*p16 = PACKEDRGB565(r, g, b);
-
-						// next pixel in the row
-						p16++;
-						p8++;
-
-						nPixels--;
-					}
-
-					// next row
-					row16 += SizeOfRow16;
-					row8 += SizeOfRow8;
-					nRows--;
-				}
-			}
-			// image is bottom-up orientation
-			else
-			{
-				byte* row16 = pImage16;
-				byte* row8 = &pImage8[nImage8 - SizeOfRow8];
-				int nRows = TrueHeight;
-
-				// Convert each pixel of the 8-bit palette image to a 16-bit color image
-				while (nRows > 0)
-				{
-					unsigned short* p16 = (unsigned short*)row16;
-					byte* p8 = row8;
-					int nPixels = bmih.biWidth;
-
-					// Convert 8-bit palette image to 16-bit image
-					while (nPixels > 0)
-					{
-						// Extract BGR values from palette
-						byte r = pPalette[*p8 * 4 + 2] + RandomLong(0, 3);
-						byte g = pPalette[*p8 * 4 + 1] + RandomLong(0, 3);
-						byte b = pPalette[*p8 * 4 + 0] + RandomLong(0, 3);
-
-						// Clamp to byte
-						if (r > 255)
-							r = 255;
-						if (g > 255)
-							g = 255;
-						if (b > 255)
-							b = 255;
-
-						// Pack the RGB values into a 16-bit pixel 565 color and store in 16-bit image
-						*p16 = PACKEDRGB565(r, g, b);
-
-						// next pixel in the row
-						p16++;
-						p8++;
-
-						nPixels--;
-					}
-
-					// next row
-					row16 += SizeOfRow16;
-					row8 -= SizeOfRow8;
-					nRows--;
-				}
-			}
-		}
-		else
-		{
-			// Check if BMP image is top-down orientation
-			if (bmih.biHeight <= 0)
-			{
-				//
-				// The pixel image will be flipped vertically
-
-				byte* row16 = pImage16;
-				byte* row8 = pImage8;
-				int nRows = TrueHeight;
-
-				// Convert each pixel of the 8-bit palette image to a 16-bit color image
-				while (nRows > 0)
-				{
-					unsigned short* p16 = (unsigned short*)row16;
-					byte* p8 = row8;
-					int nPixels = bmih.biWidth;
-
-					// Convert 8-bit palette image to 16-bit image
-					while (nPixels > 0)
-					{
-						// Extract BGR values from palette
-						byte r = pPalette[*p8 * 4 + 2] + RandomLong(0, 3);
-						byte g = pPalette[*p8 * 4 + 1] + RandomLong(0, 3);
-						byte b = pPalette[*p8 * 4 + 0] + RandomLong(0, 3);
-
-						// Clamp to byte
-						if (r > 255)
-							r = 255;
-						if (g > 255)
-							g = 255;
-						if (b > 255)
-							b = 255;
-
-						// Pack the RGB values into a 16-bit pixel 555 color and store in 16-bit image
-						*p16 = PACKEDRGB555(r, g, b);
-
-						// next pixel in the row
-						p16++;
-						p8++;
-
-						nPixels--;
-					}
-
-					// next row
-					row16 += SizeOfRow16;
-					row8 += SizeOfRow8;
-					nRows--;
-				}
-			}
-			// image is bottom-up orientation
-			else
-			{
-				byte* row16 = pImage16;
-				byte* row8 = &pImage8[nImage8 - SizeOfRow8];
-				int nRows = TrueHeight;
-
-				// Convert each pixel of the 8-bit palette image to a 16-bit color image
-				while (nRows > 0)
-				{
-					unsigned short* p16 = (unsigned short*)row16;
-					byte* p8 = row8;
-					int nPixels = bmih.biWidth;
-
-					// Convert 8-bit palette image to 16-bit image
-					while (nPixels > 0)
-					{
-						// Extract BGR values from palette
-						byte r = pPalette[*p8 * 4 + 2] + RandomLong(0, 3);
-						byte g = pPalette[*p8 * 4 + 1] + RandomLong(0, 3);
-						byte b = pPalette[*p8 * 4 + 0] + RandomLong(0, 3);
-
-						// Clamp to byte
-						if (r > 255)
-							r = 255;
-						if (g > 255)
-							g = 255;
-						if (b > 255)
-							b = 255;
-
-						// Pack the RGB values into a 16-bit pixel 555 color and store in 16-bit image
-						*p16 = PACKEDRGB555(r, g, b);
-
-						// next pixel in the row
-						p16++;
-						p8++;
-
-						nPixels--;
-					}
-
-					// next row
-					row16 += SizeOfRow16;
-					row8 -= SizeOfRow8;
-					nRows--;
-				}
-			}
-
-			return pImage16;
-		}
-	}
-
-	fclose(fin);
-	return pImage16;
 }
 
 /*

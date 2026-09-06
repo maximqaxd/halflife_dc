@@ -3,13 +3,6 @@
 #include "quakedef.h"
 #include "server.h"
 #include "pr_cmds.h"
-#ifdef fmod
-#undef fmod
-#endif
-#ifdef fabs
-#undef fabs
-#endif
-#include <floatmathlib.h>
 
 /*
 =============

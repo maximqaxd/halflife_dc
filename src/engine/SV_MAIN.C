@@ -70,7 +70,10 @@ cvar_t	sv_clienttrace = { "sv_clienttrace", "1", FALSE, TRUE };
 cvar_t	timeout = { "sv_timeout", "65", FALSE, TRUE };
 cvar_t	sv_challengetime = { "sv_challengetime", "15.0" };
 
-cvar_t	sv_cheats = { "sv_cheats", "0", FALSE, TRUE };
+cvar_t	sv_cheats = { "sv_cheats", "1", FALSE, TRUE };
+cvar_t	sv_rollspeed = { "sv_rollspeed", "200", FCVAR_SERVER };
+cvar_t	sv_rollangle = { "sv_rollangle", "2.0", FCVAR_SERVER };
+cvar_t	sv_uploadinterval = { "sv_uploadinterval", "1.0f" };
 
 cvar_t	spectator_password = { "sv_spectator_password", "" };	// password for entering as a sepctator
 cvar_t	max_spectators = { "sv_maxspectators", "8", FALSE, TRUE };
@@ -4336,7 +4339,7 @@ SV_ActivateServer
 
 ================
 */
-void SV_ActivateServer( int runPhysics )
+void SV_ActivateServer( qboolean runPhysics )
 {
 	int i;
 

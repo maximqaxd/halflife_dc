@@ -266,7 +266,7 @@ cvar_t	cl_forwardspeed = { "cl_forwardspeed", "400", FCVAR_ARCHIVE };
 cvar_t	cl_backspeed = { "cl_backspeed", "400", FCVAR_ARCHIVE };
 cvar_t	cl_sidespeed = { "cl_sidespeed", "400" };
 
-cvar_t	cl_movespeedkey = { "cl_movespeedkey", "0.3" };
+cvar_t	cl_movespeedkey = { "cl_movespeedkey", "0.4" };
 
 cvar_t	cl_yawspeed = { "cl_yawspeed", "210" };
 cvar_t	cl_pitchspeed = { "cl_pitchspeed", "225" };

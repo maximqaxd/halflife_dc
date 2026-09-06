@@ -289,7 +289,7 @@ pfnUserMsgHook CL_HookUserMsg( char* pszName, pfnUserMsgHook pfn )
 	pList->pfn = pfn;
 	pList->next = gClientUserMsgs;
 	gClientUserMsgs = pList;
-	
+
 	return NULL;
 }
 
@@ -1158,7 +1158,7 @@ void CL_ParseServerInfo( void )
 // wipe the client_state_t struct
 //
 	CL_ClearState(FALSE);
-	
+
 	// Re-init hud video, especially if we changed game directories
 	ClientDLL_HudVidInit();
 
@@ -1740,7 +1740,7 @@ void CL_ParseServerMessage( void )
 			last_data[63] += bufEnd - bufStart;
 			continue;
 		}
-		
+
 		SHOWNET(svc_strings[cmd]);
 
 		if (cmd <= 63)
@@ -1906,7 +1906,7 @@ void CL_ParseServerMessage( void )
 			cl.completed_time = cl.time;
 			SCR_CenterPrint(MSG_ReadString());
 			break;
-		
+
 		case svc_weaponanim:
 			cl.weaponstarttime = 0.0f;
 			cl.weaponsequence = MSG_ReadByte();

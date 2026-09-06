@@ -37,6 +37,12 @@ extern qpic_t*	conback;
 
 #define MAX_MENU_ITEMS		90
 #define MAX_MENU_TEXTURES	32
+#define MAX_MENU_NAME		68
+#define MAX_MENU_COMMAND	532
+#define MAX_MENU_COMMAND_TEXT	68
+#define MAX_MENU_PRESET_LABEL	32
+#define MAX_MENU_PRESET_DESCRIPTION	64
+#define MAX_MENU_PRESET_COMMAND	32
 
 class CMenu;
 class CMenuItemBase;
@@ -179,9 +185,9 @@ public:
 	CMenu( char* pszMenu );
 	~CMenu( void );
 
-	char			m_szName[68];
+	char			m_szName[MAX_MENU_NAME];
 	CMenuItemBase*	m_pItems[MAX_MENU_ITEMS];
-	char			m_szCommand[472];
+	char			m_szCommand[MAX_MENU_COMMAND];
 	menustate_t		m_state;
 };
 
@@ -637,9 +643,9 @@ public:
 	virtual void Down( void );
 	virtual int  IsActive( void );
 
-	char		m_szLabel[32];
-	char		m_szDescription[64];
-	char		m_szCommand[32];
+	char		m_szLabel[MAX_MENU_PRESET_LABEL];
+	char		m_szDescription[MAX_MENU_PRESET_DESCRIPTION];
+	char		m_szCommand[MAX_MENU_PRESET_COMMAND];
 	char		m_preset;
 	byte		m_pad[3];
 	char**		m_ppAliases;

@@ -161,6 +161,7 @@ DLL_EXPORT void Key_ClearStates( void );
 
 void	Key_Init( void );
 void	Key_WriteBindings( void* f );
+int		Key_CountBindings( void );
 void	Key_SetCaptureMode( int capture );
 int		Key_GetCapturedKey( void );
 void	Key_SetBinding( int keynum, char* binding );

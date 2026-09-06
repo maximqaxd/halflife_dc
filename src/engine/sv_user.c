@@ -4,13 +4,6 @@
 #include "pmove.h"
 #include "view.h"
 #include "r_studio.h"
-#ifdef fmod
-#undef fmod
-#endif
-#ifdef fabs
-#undef fabs
-#endif
-#include <floatmathlib.h>
 
 edict_t* sv_player;
 

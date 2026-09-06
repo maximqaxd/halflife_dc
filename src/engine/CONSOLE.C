@@ -27,7 +27,7 @@ int			con_x;				// offset in current line for next print
 int			con_rows = 0;
 char* con_text = NULL;
 
-cvar_t		con_notifytime = { "con_notifytime", "1" };		//seconds
+cvar_t		con_notifytime = { "con_notifytime", "4" };		//seconds
 
 #define	NUM_CON_TIMES 4
 int con_num_times = NUM_CON_TIMES;

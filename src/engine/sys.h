@@ -80,7 +80,9 @@ int           DC_ftell( void* hFile );
 unsigned long DC_fsize( void* hFile );
 
 // Buffered text output to a Sys_OpenHandle file
-void Sys_FPrintf( int fileid, char* fmt, ... );
+void Sys_FPrintf( void* fileid, char* fmt, ... );
+
+void DC_PrintFileCounts( void );
 
 // Name the work in progress so a hang can be traced to the step that caused it
 void Sys_SetTaskName( char* pszName );
@@ -113,4 +115,3 @@ extern void	(VID_Shutdown)( void );
 #ifdef __cplusplus
 }
 #endif
-

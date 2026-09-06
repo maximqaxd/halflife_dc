@@ -13,13 +13,6 @@
 #include "hud_handlers.h"
 #include "../util/vmu.h"
 #include <platutil.h>
-#ifdef fmod
-#undef fmod
-#endif
-#ifdef fabs
-#undef fabs
-#endif
-#include <floatmathlib.h>
 
 #define JOY_AXIS_ACTIONS	5
 
@@ -51,6 +44,11 @@ int		g_iControlPreset;
 int		g_iInvertPad;
 
 #define MAX_MENU_SAVE_FILES	100
+#define MAX_MENU_SAVE_SPACE	128
+#define MAX_MENU_LOAD_COMMAND	128
+#define MAX_MENU_CONTROL_KEYS	256
+#define MAX_MENU_SAVE_LABEL	32
+#define MAX_MENU_SAVE_COMMAND	32
 #define MENU_LOAD_SLOT		0xe7
 #define MENU_SAVE_SLOT		0xe8
 #define MENU_OPTION_VALUE_X	404
@@ -64,8 +62,8 @@ typedef struct menusave_s
 
 static menusave_t	g_MenuSaves[MAX_MENU_SAVE_FILES];
 static int			g_nMenuSaves;
-static char			g_szMenuSaveSpace[128];
-static char			g_szMenuLoadCommand[128];
+static char			g_szMenuSaveSpace[MAX_MENU_SAVE_SPACE];
+static char			g_szMenuLoadCommand[MAX_MENU_LOAD_COMMAND];
 
 static void M_InitSaveList( qboolean bSaving )
 {
@@ -274,7 +272,7 @@ controlaction_t g_ControlActions[] =
 	{ NULL, NULL, NULL }
 };
 
-controlkey_t g_ControlKeys[256];
+controlkey_t g_ControlKeys[MAX_MENU_CONTROL_KEYS];
 
 static int M_BuildControlList( qboolean bKeyboard, qboolean bJoystick )
 {
@@ -296,7 +294,7 @@ static int M_BuildControlList( qboolean bKeyboard, qboolean bJoystick )
 			continue;
 
 		found = 0;
-		for (key = 0; key < 256; key++)
+	for (key = 0; key < MAX_MENU_CONTROL_KEYS; key++)
 		{
 			if (!keybindings[key] || strcmp(pAction->pszCommand, keybindings[key]))
 				continue;
@@ -3038,7 +3036,7 @@ void CMenuToggleItem::Select( void )
 {
 	float	flPitch;
 	char	sign;
-	char	command[68];
+	char	command[MAX_MENU_COMMAND_TEXT];
 
 	(*m_piIndex)++;
 	*m_piIndex %= m_nValues;
@@ -3063,7 +3061,7 @@ void CMenuToggleItem::Select( void )
 void CMenuToggleItem::Cancel( void )
 {
 	CMenu	*pMenu;
-	char	command[68];
+	char	command[MAX_MENU_COMMAND_TEXT];
 
 	sprintf(command, "joyadvancedupdate");
 	pMenu = m_pMenu;
@@ -3082,7 +3080,7 @@ void CMenuToggleItem::Left( void )
 {
 	float	flPitch;
 	char	sign;
-	char	command[68];
+	char	command[MAX_MENU_COMMAND_TEXT];
 
 	CMenuOptionItem::Left();
 
@@ -3106,7 +3104,7 @@ void CMenuToggleItem::Right( void )
 {
 	float	flPitch;
 	char	sign;
-	char	command[68];
+	char	command[MAX_MENU_COMMAND_TEXT];
 
 	CMenuOptionItem::Right();
 
@@ -3423,7 +3421,7 @@ void CMenuSaveSlotItem::Draw( float flFade, qboolean bSelected )
 	int			iconY;
 	int			device;
 	qboolean		anyDevice;
-	char			label[32];
+	char			label[MAX_MENU_SAVE_LABEL];
 	char			*text;
 	char			*status;
 	float			textScaleX;
@@ -3465,7 +3463,7 @@ void CMenuSaveSlotItem::Draw( float flFade, qboolean bSelected )
 			GDROM_SetDoorBehavior();
 			if (m_selectedFile < m_fileCount)
 			{
-				char command[32];
+				char command[MAX_MENU_SAVE_COMMAND];
 				sprintf(command, "save %s\n", g_MenuSaves[m_selectedFile].pszName);
 				Cbuf_AddText(command);
 			}
@@ -4467,7 +4465,7 @@ void CMenuSensitivitySlider::Draw( float flFade, qboolean bSelected )
 
 void CMenuSensitivitySlider::Left( void )
 {
-	char	command[64];
+	char	command[MAX_QPATH];
 	float	value;
 
 	(*m_piValue)--;
@@ -4497,7 +4495,7 @@ void CMenuSensitivitySlider::Left( void )
 
 void CMenuSensitivitySlider::Right( void )
 {
-	char	command[64];
+	char	command[MAX_QPATH];
 	float	value;
 
 	(*m_piValue)++;
@@ -4582,7 +4580,7 @@ void CMenuPresetItem::Select( void )
 void CMenuPresetItem::Cancel( void )
 {
 	CMenu	*pMenu;
-	char	command[64];
+	char	command[MAX_QPATH];
 
 	sprintf(command, "joyadvancedupdate");
 	pMenu = m_pMenu;
@@ -4675,7 +4673,7 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 	int			tag;
 	char		*pszKey;
 	char		*pszCommand;
-	char		bindCommand[64];
+	char		bindCommand[MAX_QPATH];
 
 	oldKeyboard = m_reserved24;
 	oldJoystick = m_reserved28;

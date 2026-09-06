@@ -1,13 +1,11 @@
 // view.c -- player eye positioning
 
 #include "quakedef.h"
-#include <floatmathlib.h>
 #include <shintr.h>
 #include "pmove.h"
 #include "pr_cmds.h"
 #include "shake.h"
 
-#undef fabs
 #pragma intrinsic(fabsf)
 #pragma intrinsic(sqrtf)
 
@@ -49,7 +47,7 @@ cvar_t	v_ipitch_level = { "v_ipitch_level", "0.3", 0, 0.3f };
 float	v_idlescale;
 
 cvar_t	v_dark = { "v_dark", "0" };
-cvar_t	crosshair = { "crosshair", "0", TRUE };
+cvar_t	crosshair = { "crosshair", "1", TRUE };
 
 byte		texgammatable[256];	// palette is sent through this to convert to screen gamma
 int			lightgammatable[1024];

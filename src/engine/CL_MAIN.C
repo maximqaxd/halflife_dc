@@ -86,14 +86,14 @@ cvar_t	rcon_password = { "rcon_password", "" };
 cvar_t	rcon_address = { "rcon_address", "" };
 cvar_t	rcon_port = { "rcon_port", "0" };
 
-cvar_t	cl_resend = { "cl_resend", "3.0" };
+cvar_t	cl_resend = { "cl_resend", "6.0" };
 cvar_t	cl_downloadinterval = { "cl_downloadinterval", "1.0" };
 cvar_t	cl_slisttimeout = { "cl_slist", "10.0" };
-cvar_t	cl_allowdownload = { "cl_allowdownload", "1" };
-cvar_t	cl_allowupload = { "cl_allowupload", "1" };
+cvar_t	cl_allowdownload = { "cl_allowdownload", "0" };
+cvar_t	cl_allowupload = { "cl_allowupload", "0" };
 cvar_t	cl_upload_max = { "cl_upload_max", "0" };
 cvar_t	cl_download_max = { "cl_download_max", "0" };
-cvar_t	cl_download_ingame = { "cl_download_ingame", "1" };
+cvar_t	cl_download_ingame = { "cl_download_ingame", "0" };
 
 cvar_t 	rate = { "rate", "2500", FCVAR_USERINFO };
 
@@ -2575,10 +2575,7 @@ void CL_PrintCDKey_f( void )
 	MD5Context_t ctx;
 	clientid_t clientid;
 	unsigned char digest[16]; // The MD5 Hash
-#if 0
-	// Get the cd key.
-	Launcher_GetCDKey(szKeyBuffer, &nKeyLength, &bDedicated);
-#endif
+
 	// A dedicated server
 	if (bDedicated)
 	{
@@ -2606,14 +2603,7 @@ void CL_PrintCDKey_f( void )
 	strcpy(szHashedKeyBuffer, MD5_Print(digest));
 
 	memset(szHashedClientID, 0, sizeof(szHashedClientID));
-#if 0
-	// Get the client ID
-	if (Launcher_GetClientID(&clientid))
-	{
-		sprintf(szHashedClientID, "%s", CL_HashedClientID(clientid.hash, clientid.size));
-	}
-	else
-#endif
+
 	{
 		strcpy(szHashedClientID, "Unset");
 	}
@@ -2704,7 +2694,6 @@ void CL_Init( void )
 	Cvar_RegisterVariable(&cl_pred_fraction);
 	Cvar_RegisterVariable(&cl_adaptive);
 
-	Cmd_AddCommand("cdkey", CL_PrintCDKey_f);
 	Cmd_AddCommand("fullserverinfo", Cmd_fullserverinfo_f);
 	Cmd_AddCommand("retry", CL_Retry_f);
 	Cmd_AddCommand("disconnect", CL_Disconnect_f);

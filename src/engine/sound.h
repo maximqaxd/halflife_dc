@@ -18,6 +18,8 @@
 // Sounds the cache can hold at once, and objects the audio manager can track.
 #define MAX_SFX				512
 #define MAX_AUDIO			64
+#define MAX_SOUND_NAME			48
+#define MAX_CONSOLE_SOUND_NAME	(MAX_SOUND_NAME + 4)
 
 // sfx_t::flags
 #define SFX_LOOPING			0x0008	// the wav carried a smpl chunk
@@ -32,7 +34,7 @@ typedef struct sfx_s
 	struct IDirectSoundBuffer*	buffer;
 	unsigned short				flags;
 	short						servercount;
-	char						name[48];
+	char						name[MAX_SOUND_NAME];
 } sfx_t;
 
 #ifdef __cplusplus

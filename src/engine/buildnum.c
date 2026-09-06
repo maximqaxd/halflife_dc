@@ -34,7 +34,7 @@ int build_number( void )
 
 	y = atoi(&date[7]) - 1900;
 
-	b = d + (int)((y - 1) * 365.25);
+	b = d + (int)((y - 1) * 365.25f);
 
 	if (((y % 4) == 0) && m > 1)
 	{

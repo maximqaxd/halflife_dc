@@ -17,5 +17,6 @@ void  Info_SetValueForStarKey( char* s, char* key, char* value, int maxsize );
 void  Info_SetValueForKey( char* s, char* key, char* value, int maxsize );
 void  Info_Print( char* s );
 char* Info_Serverinfo( void );
+void  Info_WriteVars( void* f );
 
 #endif
