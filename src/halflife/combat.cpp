@@ -48,7 +48,7 @@ void CGib :: LimitVelocity( void )
 
 	// ceiling at 1500.  The gib velocity equation is not bounded properly.  Rather than tune it
 	// in 3 separate places again, I'll just limit it here.
-	if ( length > 1500.0 )
+	if ( length > 1500.0f )
 		pev->velocity = pev->velocity.Normalize() * 1500;		// This should really be sv_maxvelocity * 0.75 or something
 }
 
@@ -382,11 +382,11 @@ Activity CBaseMonster :: GetDeathActivity ( void )
 		// try to pick a death based on attack direction
 		fTriedDirection = TRUE;
 
-		if ( flDot > 0.3 )
+		if ( flDot > 0.3f )
 		{
 			deathActivity = ACT_DIEFORWARD;
 		}
-		else if ( flDot <= -0.3 )
+		else if ( flDot <= -0.3f )
 		{
 			deathActivity = ACT_DIEBACKWARD;
 		}
@@ -396,11 +396,11 @@ Activity CBaseMonster :: GetDeathActivity ( void )
 		// try to pick a death based on attack direction
 		fTriedDirection = TRUE;
 
-		if ( flDot > 0.3 )
+		if ( flDot > 0.3f )
 		{
 			deathActivity = ACT_DIEFORWARD;
 		}
-		else if ( flDot <= -0.3 )
+		else if ( flDot <= -0.3f )
 		{
 			deathActivity = ACT_DIEBACKWARD;
 		}
@@ -420,11 +420,11 @@ Activity CBaseMonster :: GetDeathActivity ( void )
 		else
 		{
 			// cannot perform the ideal region-specific death, so try a direction.
-			if ( flDot > 0.3 )
+			if ( flDot > 0.3f )
 			{
 				deathActivity = ACT_DIEFORWARD;
 			}
-			else if ( flDot <= -0.3 )
+			else if ( flDot <= -0.3f )
 			{
 				deathActivity = ACT_DIEBACKWARD;
 			}
@@ -442,7 +442,7 @@ Activity CBaseMonster :: GetDeathActivity ( void )
 			// make sure there's room to fall forward
 			UTIL_TraceHull ( vecSrc, vecSrc + gpGlobals->v_forward * 64, dont_ignore_monsters, head_hull, edict(), &tr );
 
-			if ( tr.flFraction != 1.0 )
+			if ( tr.flFraction != 1.0f )
 			{
 				deathActivity = ACT_DIESIMPLE;
 			}
@@ -453,7 +453,7 @@ Activity CBaseMonster :: GetDeathActivity ( void )
 			// make sure there's room to fall backward
 			UTIL_TraceHull ( vecSrc, vecSrc - gpGlobals->v_forward * 64, dont_ignore_monsters, head_hull, edict(), &tr );
 
-			if ( tr.flFraction != 1.0 )
+			if ( tr.flFraction != 1.0f )
 			{
 				deathActivity = ACT_DIESIMPLE;
 			}
@@ -653,7 +653,7 @@ void CBaseEntity :: SUB_StartFadeOut ( void )
 	pev->solid = SOLID_NOT;
 	pev->avelocity = g_vecZero;
 
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 	SetThink ( SUB_FadeOut );
 }
 
@@ -662,12 +662,12 @@ void CBaseEntity :: SUB_FadeOut ( void  )
 	if ( pev->renderamt > 7 )
 	{
 		pev->renderamt -= 7;
-		pev->nextthink = gpGlobals->time + 0.1;
+		pev->nextthink = gpGlobals->time + 0.1f;
 	}
 	else 
 	{
 		pev->renderamt = 0;
-		pev->nextthink = gpGlobals->time + 0.2;
+		pev->nextthink = gpGlobals->time + 0.2f;
 		SetThink ( SUB_Remove );
 	}
 }
@@ -701,7 +701,7 @@ void CGib :: WaitTillLand ( void )
 	else
 	{
 		// wait and check again in another half second.
-		pev->nextthink = gpGlobals->time + 0.5;
+		pev->nextthink = gpGlobals->time + 0.5f;
 	}
 }
 
@@ -739,9 +739,9 @@ void CGib :: BounceGibTouch ( CBaseEntity *pOther )
 		if ( m_material != matNone && RANDOM_LONG(0,2) == 0 )
 		{
 			float volume;
-			float zvel = fabs(pev->velocity.z);
+			float zvel = fabsf(pev->velocity.z);
 		
-			volume = 0.8 * min(1.0, ((float)zvel) / 450.0);
+			volume = 0.8f * min(1.0f, zvel / 450.0f);
 
 			CBreakable::MaterialSoundRandom( edict(), (Materials)m_material, volume );
 		}
@@ -1009,7 +1009,7 @@ int CBaseMonster :: DeadTakeDamage( entvars_t *pevInflictor, entvars_t *pevAttac
 			return 0;
 		}
 		// Accumulate corpse gibbing damage, so you can gib with multiple hits
-		pev->health -= flDamage * 0.1;
+		pev->health -= flDamage * 0.1f;
 	}
 	
 	return 1;
@@ -1018,9 +1018,9 @@ int CBaseMonster :: DeadTakeDamage( entvars_t *pevInflictor, entvars_t *pevAttac
 
 float CBaseMonster :: DamageForce( float damage )
 { 
-	float force = damage * ((32 * 32 * 72.0) / (pev->size.x * pev->size.y * pev->size.z)) * 5;
+	float force = damage * ((32 * 32 * 72.0f) / (pev->size.x * pev->size.y * pev->size.z)) * 5;
 	
-	if ( force > 1000.0) 
+	if ( force > 1000.0f)
 	{
 		force = 1000.0;
 	}
@@ -1074,7 +1074,7 @@ void RadiusDamage( Vector vecSrc, entvars_t *pevInflictor, entvars_t *pevAttacke
 			
 			UTIL_TraceLine ( vecSrc, vecSpot, dont_ignore_monsters, ENT(pevInflictor), &tr );
 
-			if ( tr.flFraction == 1.0 || tr.pHit == pEntity->edict() )
+			if ( tr.flFraction == 1.0f || tr.pHit == pEntity->edict() )
 			{// the explosion can 'see' this entity, so hurt them!
 				if (tr.fStartSolid)
 				{
@@ -1093,7 +1093,7 @@ void RadiusDamage( Vector vecSrc, entvars_t *pevInflictor, entvars_t *pevAttacke
 				}
 			
 				// ALERT( at_console, "hit %s\n", STRING( pEntity->pev->classname ) );
-				if (tr.flFraction != 1.0)
+				if (tr.flFraction != 1.0f)
 				{
 					ClearMultiDamage( );
 					pEntity->TraceAttack( pevInflictor, flAdjustedDamage, (tr.vecEndPos - vecSrc).Normalize( ), &tr, bitsDamageType );
@@ -1111,13 +1111,13 @@ void RadiusDamage( Vector vecSrc, entvars_t *pevInflictor, entvars_t *pevAttacke
 
 void CBaseMonster :: RadiusDamage(entvars_t* pevInflictor, entvars_t*	pevAttacker, float flDamage, int iClassIgnore, int bitsDamageType )
 {
-	::RadiusDamage( pev->origin, pevInflictor, pevAttacker, flDamage, flDamage * 2.5, iClassIgnore, bitsDamageType );
+	::RadiusDamage( pev->origin, pevInflictor, pevAttacker, flDamage, flDamage * 2.5f, iClassIgnore, bitsDamageType );
 }
 
 
 void CBaseMonster :: RadiusDamage( Vector vecSrc, entvars_t *pevInflictor, entvars_t *pevAttacker, float flDamage, int iClassIgnore, int bitsDamageType )
 {
-	::RadiusDamage( vecSrc, pevInflictor, pevAttacker, flDamage, flDamage * 2.5, iClassIgnore, bitsDamageType );
+	::RadiusDamage( vecSrc, pevInflictor, pevAttacker, flDamage, flDamage * 2.5f, iClassIgnore, bitsDamageType );
 }
 
 
@@ -1139,7 +1139,7 @@ CBaseEntity* CBaseMonster :: CheckTraceHullAttack( float flDist, int iDamage, in
 		UTIL_MakeAimVectors( pev->angles );
 
 	Vector vecStart = pev->origin;
-	vecStart.z += pev->size.z * 0.5;
+	vecStart.z += pev->size.z * 0.5f;
 	Vector vecEnd = vecStart + (gpGlobals->v_forward * flDist );
 
 	UTIL_TraceHull( vecStart, vecEnd, dont_ignore_monsters, head_hull, ENT(pev), &tr );
@@ -1237,7 +1237,7 @@ BOOL CBaseEntity :: FVisible ( CBaseEntity *pEntity )
 
 	UTIL_TraceLine(vecLookerOrigin, vecTargetOrigin, ignore_monsters, ignore_glass, ENT(pev)/*pentIgnore*/, &tr);
 	
-	if (tr.flFraction != 1.0)
+	if (tr.flFraction != 1.0f)
 	{
 		return FALSE;// Line of sight is not established
 	}
@@ -1260,7 +1260,7 @@ BOOL CBaseEntity :: FVisible ( const Vector &vecOrigin )
 
 	UTIL_TraceLine(vecLookerOrigin, vecOrigin, ignore_monsters, ignore_glass, ENT(pev)/*pentIgnore*/, &tr);
 	
-	if (tr.flFraction != 1.0)
+	if (tr.flFraction != 1.0f)
 	{
 		return FALSE;// Line of sight is not established
 	}

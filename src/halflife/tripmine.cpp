@@ -128,16 +128,16 @@ void CTripmineGrenade :: Spawn( void )
 	if (pev->spawnflags & 1)
 	{
 		// power up quickly
-		m_flPowerUp = gpGlobals->time + 1.0;
+		m_flPowerUp = gpGlobals->time + 1.0f;
 	}
 	else
 	{
 		// power up in 2.5 seconds
-		m_flPowerUp = gpGlobals->time + 2.5;
+		m_flPowerUp = gpGlobals->time + 2.5f;
 	}
 
 	SetThink( PowerupThink );
-	pev->nextthink = gpGlobals->time + 0.2;
+	pev->nextthink = gpGlobals->time + 0.2f;
 
 	pev->takedamage = DAMAGE_YES;
 	pev->dmg = gSkillData.plrDmgTripmine;
@@ -175,7 +175,7 @@ void CTripmineGrenade :: WarningThink( void  )
 
 	// set to power up
 	SetThink( PowerupThink );
-	pev->nextthink = gpGlobals->time + 1.0;
+	pev->nextthink = gpGlobals->time + 1.0f;
 }
 
 
@@ -192,11 +192,11 @@ void CTripmineGrenade :: PowerupThink( void  )
 		if (tr.fStartSolid || (oldowner && tr.pHit == oldowner))
 		{
 			pev->owner = oldowner;
-			m_flPowerUp += 0.1;
-			pev->nextthink = gpGlobals->time + 0.1;
+			m_flPowerUp += 0.1f;
+			pev->nextthink = gpGlobals->time + 0.1f;
 			return;
 		}
-		if (tr.flFraction < 1.0)
+		if (tr.flFraction < 1.0f)
 		{
 			pev->owner = tr.pHit;
 			m_hOwner = CBaseEntity::Instance( pev->owner );
@@ -208,7 +208,7 @@ void CTripmineGrenade :: PowerupThink( void  )
 			STOP_SOUND( ENT(pev), CHAN_VOICE, "weapons/mine_deploy.wav" );
 			STOP_SOUND( ENT(pev), CHAN_BODY, "weapons/mine_charge.wav" );
 			SetThink( SUB_Remove );
-			pev->nextthink = gpGlobals->time + 0.1;
+			pev->nextthink = gpGlobals->time + 0.1f;
 			ALERT( at_console, "WARNING:Tripmine at %.0f, %.0f, %.0f removed\n", pev->origin.x, pev->origin.y, pev->origin.z );
 			KillBeam();
 			return;
@@ -224,7 +224,7 @@ void CTripmineGrenade :: PowerupThink( void  )
 
 		SetThink( SUB_Remove );
 		KillBeam();
-		pev->nextthink = gpGlobals->time + 0.1;
+		pev->nextthink = gpGlobals->time + 0.1f;
 		return;
 	}
 	// ALERT( at_console, "%d %.0f %.0f %0.f\n", pev->owner, m_pOwner->pev->origin.x, m_pOwner->pev->origin.y, m_pOwner->pev->origin.z );
@@ -240,7 +240,7 @@ void CTripmineGrenade :: PowerupThink( void  )
 		// play enabled sound
         EMIT_SOUND_DYN( ENT(pev), CHAN_VOICE, "weapons/mine_activate.wav", 0.5, ATTN_NORM, 1.0, 75 );
 	}
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 
@@ -266,7 +266,7 @@ void CTripmineGrenade :: MakeBeam( void )
 
 	// set to follow laser spot
 	SetThink( BeamBreakThink );
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 
 	Vector vecTmpEnd = pev->origin + m_vecDir * 2048 * m_flBeamLength;
 
@@ -298,7 +298,7 @@ void CTripmineGrenade :: BeamBreakThink( void  )
 			m_hOwner = CBaseEntity::Instance( tr.pHit );	// reset owner too
 	}
 
-	if (fabs( m_flBeamLength - tr.flFraction ) > 0.001)
+	if (fabsf( m_flBeamLength - tr.flFraction ) > 0.001f)
 	{
 		bBlowup = 1;
 	}
@@ -324,7 +324,7 @@ void CTripmineGrenade :: BeamBreakThink( void  )
 		return;
 	}
 
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 int CTripmineGrenade :: TakeDamage( entvars_t *pevInflictor, entvars_t *pevAttacker, float flDamage, int bitsDamageType )
@@ -334,7 +334,7 @@ int CTripmineGrenade :: TakeDamage( entvars_t *pevInflictor, entvars_t *pevAttac
 		// disable
 		// Create( "weapon_tripmine", pev->origin + m_vecDir * 24, pev->angles );
 		SetThink( SUB_Remove );
-		pev->nextthink = gpGlobals->time + 0.1;
+		pev->nextthink = gpGlobals->time + 0.1f;
 		KillBeam();
 		return FALSE;
 	}
@@ -443,14 +443,14 @@ BOOL CTripmine::Deploy( )
 
 void CTripmine::Holster( )
 {
-	m_pPlayer->m_flNextAttack = gpGlobals->time + 0.5;
+	m_pPlayer->m_flNextAttack = gpGlobals->time + 0.5f;
 
 	if (!m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType])
 	{
 		// out of mines
 		m_pPlayer->pev->weapons &= ~(1<<WEAPON_TRIPMINE);
 		SetThink( DestroyItem );
-		pev->nextthink = gpGlobals->time + 0.1;
+		pev->nextthink = gpGlobals->time + 0.1f;
 	}
 
 	SendWeaponAnim( TRIPMINE_HOLSTER );
@@ -470,7 +470,7 @@ void CTripmine::PrimaryAttack( void )
 
 	UTIL_TraceLine( vecSrc, vecSrc + vecAiming * 128, dont_ignore_monsters, ENT( m_pPlayer->pev ), &tr );
 
-	if (tr.flFraction < 1.0)
+	if (tr.flFraction < 1.0f)
 	{
 		// ALERT( at_console, "hit %f\n", tr.flFraction );
 
@@ -509,7 +509,7 @@ void CTripmine::PrimaryAttack( void )
 
 	}
 
-	m_flNextPrimaryAttack = gpGlobals->time + 0.3;
+	m_flNextPrimaryAttack = gpGlobals->time + 0.3f;
 	m_flTimeWeaponIdle = gpGlobals->time + RANDOM_FLOAT ( 10, 15 );
 }
 
@@ -530,20 +530,20 @@ void CTripmine::WeaponIdle( void )
 
 	int iAnim;
 	float flRand = RANDOM_FLOAT(0, 1);
-	if (flRand <= 0.25)
+	if (flRand <= 0.25f)
 	{
 		iAnim = TRIPMINE_IDLE1;
-		m_flTimeWeaponIdle = gpGlobals->time + 90.0 / 30.0;
+		m_flTimeWeaponIdle = gpGlobals->time + 90.0f / 30.0f;
 	}
-	else if (flRand <= 0.75)
+	else if (flRand <= 0.75f)
 	{
 		iAnim = TRIPMINE_IDLE2;
-		m_flTimeWeaponIdle = gpGlobals->time + 60.0 / 30.0;
+		m_flTimeWeaponIdle = gpGlobals->time + 60.0f / 30.0f;
 	}
 	else
 	{
 		iAnim = TRIPMINE_FIDGET;
-		m_flTimeWeaponIdle = gpGlobals->time + 100.0 / 30.0;
+		m_flTimeWeaponIdle = gpGlobals->time + 100.0f / 30.0f;
 	}
 
 	SendWeaponAnim( iAnim );

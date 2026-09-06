@@ -235,7 +235,7 @@ class CItemBattery : public CItem
 			
 			// Suit reports new power level
 			// For some reason this wasn't working in release build -- round it.
-			pct = (int)( (float)(pPlayer->pev->armorvalue * 100.0) * (1.0/MAX_NORMAL_BATTERY) + 0.5);
+			pct = (int)( (float)(pPlayer->pev->armorvalue * 100.0f) * (1.0f/MAX_NORMAL_BATTERY) + 0.5f);
 			pct = (pct / 5);
 			if (pct > 0)
 				pct--;

@@ -379,7 +379,7 @@ int	CGraph :: FindNearestLink ( const Vector &vecTestPoint, int *piNearestLink, 
 			}
 			else
 			{// point inside line
-				flDistToLine = fabs( DotProduct ( vec2TestPoint - vec2Spot2, vec2Normal ) );
+				flDistToLine = fabsf( DotProduct ( vec2TestPoint - vec2Spot2, vec2Normal ) );
 				fCurrentAlongLine = TRUE;
 			}
 
@@ -388,11 +388,11 @@ int	CGraph :: FindNearestLink ( const Vector &vecTestPoint, int *piNearestLink, 
 				
 				UTIL_TraceLine ( vecTestPoint, SourceNode( i, j ).m_vecOrigin, ignore_monsters, g_pBodyQueueHead, &tr );
 
-				if ( tr.flFraction != 1.0 )
+				if ( tr.flFraction != 1.0f )
 				{// crap. can't see the first node of this link, try to see the other
 					
 					UTIL_TraceLine ( vecTestPoint, DestNode( i, j ).m_vecOrigin, ignore_monsters, g_pBodyQueueHead, &tr );
-					if ( tr.flFraction != 1.0 )
+					if ( tr.flFraction != 1.0f )
 					{// can't use this link, cause can't see either node!
 						continue;
 					}
@@ -655,12 +655,12 @@ int CGraph :: FindShortestPath ( int *piPath, int iStart, int iDest, int iHull, 
 		//
 		for ( int i = 0; i < m_cNodes; i++)
 		{
-			m_pNodes[ i ].m_flClosestSoFar = -1.0;
+			m_pNodes[ i ].m_flClosestSoFar = -1.0f;
 		}
 
-		m_pNodes[ iStart ].m_flClosestSoFar = 0.0;
+		m_pNodes[ iStart ].m_flClosestSoFar = 0.0f;
 		m_pNodes[ iStart ].m_iPreviousNode = iStart;// tag this as the origin node
-		queue.Insert( iStart, 0.0 );// insert start node 
+		queue.Insert( iStart, 0.0f );// insert start node
 		
 		while ( !queue.Empty() )
 		{
@@ -694,8 +694,8 @@ int CGraph :: FindShortestPath ( int *piPath, int iStart, int iDest, int iHull, 
 					}
 				}
 				float flOurDistance = flCurrentDistance + m_pLinkPool[ m_pNodes[ iCurrentNode ].m_iFirstLink + i].m_flWeight;
-				if (  m_pNodes[ iVisitNode ].m_flClosestSoFar < -0.5
-				   || flOurDistance < m_pNodes[ iVisitNode ].m_flClosestSoFar - 0.001 )
+				if (  m_pNodes[ iVisitNode ].m_flClosestSoFar < -0.5f
+				   || flOurDistance < m_pNodes[ iVisitNode ].m_flClosestSoFar - 0.001f )
 				{
 					m_pNodes[iVisitNode].m_flClosestSoFar = flOurDistance;
 					m_pNodes[iVisitNode].m_iPreviousNode = iCurrentNode;
@@ -704,7 +704,7 @@ int CGraph :: FindShortestPath ( int *piPath, int iStart, int iDest, int iHull, 
 				}
 			}
 		}
-		if ( m_pNodes[iDest].m_flClosestSoFar < -0.5 )
+		if ( m_pNodes[iDest].m_flClosestSoFar < -0.5f )
 		{// Destination is unreachable, no path found.
 			return 0;
 		}
@@ -824,7 +824,7 @@ void CGraph :: CheckNode(Vector vecOrigin, int iNode)
 		// make sure that vecOrigin can trace to this node!
 		UTIL_TraceLine ( vecOrigin, m_pNodes[ iNode ].m_vecOriginPeek, ignore_monsters, 0, &tr );
 
-		if ( tr.flFraction == 1.0 )
+		if ( tr.flFraction == 1.0f )
 		{
 			m_iNearest = iNode;
 			m_flShortest = flDist;
@@ -893,7 +893,7 @@ int	CGraph :: FindNearestNode ( const Vector &vecOrigin,  int afNodeTypes )
 	}
 
 	m_iNearest = -1;
-	m_flShortest = 999999.0; // just a big number.
+	m_flShortest = 999999.0f; // just a big number.
 
 	// If we can find a visible point, then let CalcBounds set the limits, but if
 	// we have no visible point at all to start with, then don't restrict the limits.
@@ -1036,7 +1036,7 @@ int	CGraph :: FindNearestNode ( const Vector &vecOrigin,  int afNodeTypes )
 			// make sure that vecOrigin can trace to this node!
 			UTIL_TraceLine ( vecOrigin, m_pNodes[ i ].m_vecOriginPeek, ignore_monsters, 0, &tr );
 
-			if ( tr.flFraction == 1.0 )
+			if ( tr.flFraction == 1.0f )
 			{
 				iNearestCheck = i;
 				m_flShortest = flDist;
@@ -1052,9 +1052,9 @@ int	CGraph :: FindNearestNode ( const Vector &vecOrigin,  int afNodeTypes )
 			m_pNodes[iNearestCheck].m_vecOriginPeek.y,
 			m_pNodes[iNearestCheck].m_vecOriginPeek.z,
 			m_iNearest,
-			(m_iNearest == -1?0.0:m_pNodes[m_iNearest].m_vecOriginPeek.x),
-			(m_iNearest == -1?0.0:m_pNodes[m_iNearest].m_vecOriginPeek.y),
-			(m_iNearest == -1?0.0:m_pNodes[m_iNearest].m_vecOriginPeek.z));
+			(m_iNearest == -1?0.0f:m_pNodes[m_iNearest].m_vecOriginPeek.x),
+			(m_iNearest == -1?0.0f:m_pNodes[m_iNearest].m_vecOriginPeek.y),
+			(m_iNearest == -1?0.0f:m_pNodes[m_iNearest].m_vecOriginPeek.z));
 	}
 	if (m_iNearest == -1)
 	{
@@ -1224,7 +1224,7 @@ int CGraph :: LinkVisibleNodes ( CLink *pLinkPool, FILE *file, int *piBadNode )
 			if ( tr.fStartSolid )
 				continue;
 
-			if ( tr.flFraction != 1.0 )
+			if ( tr.flFraction != 1.0f )
 			{// trace hit a brush ent, trace backwards to make sure that this ent is the only thing in the way.
 				
 				pTraceEnt = tr.pHit;// store the ent that the trace hit, for comparison
@@ -1388,7 +1388,7 @@ int	CGraph :: RejectInlineLinks ( CLink *pLinkPool, FILE *file )
 				flDistToTestNode = vec2DirToTestNode.Length();
 				vec2DirToTestNode = vec2DirToTestNode.Normalize();
 
-				if ( DotProduct ( vec2DirToCheckNode, vec2DirToTestNode ) >= 0.998 )
+				if ( DotProduct ( vec2DirToCheckNode, vec2DirToTestNode ) >= 0.998f )
 				{
 					// there's a chance that TestNode intersects the line to CheckNode. If so, we should disconnect the link to CheckNode. 
 					if ( flDistToTestNode < flDistToCheckNode )
@@ -1584,7 +1584,7 @@ void CTestHull :: ShowBadNode( void )
 	UTIL_ParticleEffect ( pev->origin + gpGlobals->v_right * 64, g_vecZero, 255, 25 );
 	UTIL_ParticleEffect ( pev->origin - gpGlobals->v_right * 64, g_vecZero, 255, 25 );
 
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 extern BOOL gTouchDisabled;
@@ -1916,7 +1916,7 @@ void CTestHull :: BuildNodeGraph( void )
 					TraceResult tr;
 
 					UTIL_TraceHull( pSrcNode->m_vecOrigin + Vector( 0, 0, 32 ), pDestNode->m_vecOriginPeek + Vector( 0, 0, 32 ), ignore_monsters, large_hull, ENT( pev ), &tr );
-					if (tr.fStartSolid || tr.flFraction < 1.0)
+					if (tr.fStartSolid || tr.flFraction < 1.0f)
 					{
 						pTempPool[ pSrcNode->m_iFirstLink + j ].m_afLinkInfo &= ~bits_LINK_FLY_HULL;
 					}
@@ -2898,8 +2898,8 @@ void CGraph::BuildRegionTables(void)
 	//
 	for (int i = 0; i < 3; i++)
 	{
-		m_RegionMin[i] =  999999999.0; // just a big number out there;
-		m_RegionMax[i] = -999999999.0; // just a big number out there;
+		m_RegionMin[i] =  999999999.0f; // just a big number out there;
+		m_RegionMax[i] = -999999999.0f; // just a big number out there;
 	}
 	for (i = 0; i < m_cNodes; i++)
 	{
@@ -3367,7 +3367,7 @@ void CGraph :: TestRoutingTables( void )
 						// Compare distances.
 						//
 #if 1
-						float flDistance1 = 0.0;
+						float flDistance1 = 0.0f;
 						for (int i = 0; i < cPathSize1-1; i++)
 						{
 							// Find the link from pMyPath[i] to pMyPath[i+1]
@@ -3391,7 +3391,7 @@ void CGraph :: TestRoutingTables( void )
 							}
 						}
 
-						float flDistance2 = 0.0;
+						float flDistance2 = 0.0f;
 						for (i = 0; i < cPathSize2-1; i++)
 						{
 							// Find the link from pMyPath2[i] to pMyPath2[i+1]
@@ -3414,7 +3414,7 @@ void CGraph :: TestRoutingTables( void )
 								ALERT(at_aiconsole, "No link.\n");
 							}
 						}
-						if (fabs(flDistance1 - flDistance2) > 0.10)
+						if (fabsf(flDistance1 - flDistance2) > 0.10f)
 						{
 #else
 						if (cPathSize1 != cPathSize2 || memcmp(pMyPath, pMyPath2, sizeof(int)*cPathSize1) != 0)

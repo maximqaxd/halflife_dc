@@ -65,7 +65,7 @@ char *CTalkMonster::m_szFriends[TLK_CFRIENDS] =
 Task_t	tlIdleResponse[] =
 {
 	{ TASK_SET_ACTIVITY,	(float)ACT_IDLE	},// Stop and listen
-	{ TASK_WAIT,			(float)0.5		},// Wait until sure it's me they are talking to
+	{ TASK_WAIT,			0.5f				},// Wait until sure it's me they are talking to
 	{ TASK_TLK_EYECONTACT,	(float)0		},// Wait until speaker is done
 	{ TASK_TLK_RESPOND,		(float)0		},// Wait and then say my response
 	{ TASK_TLK_IDEALYAW,	(float)0		},// look at who I'm talking to
@@ -95,7 +95,7 @@ Task_t	tlIdleSpeak[] =
 	{ TASK_FACE_IDEAL,		(float)0		}, 
 	{ TASK_SET_ACTIVITY,	(float)ACT_SIGNAL3	},
 	{ TASK_TLK_EYECONTACT,	(float)0		},
-	{ TASK_WAIT_RANDOM,		(float)0.5		},
+	{ TASK_WAIT_RANDOM,		0.5f				},
 };
 
 Schedule_t	slIdleSpeak[] =
@@ -139,16 +139,16 @@ Task_t	tlIdleHello[] =
 	{ TASK_SET_ACTIVITY,	(float)ACT_SIGNAL3	},// Stop and talk
 	{ TASK_TLK_HELLO,		(float)0		},// Try to say hello to player
 	{ TASK_TLK_EYECONTACT,	(float)0		},
-	{ TASK_WAIT,			(float)0.5		},// wait a bit
+	{ TASK_WAIT,			0.5f				},// wait a bit
 	{ TASK_TLK_HELLO,		(float)0		},// Try to say hello to player
 	{ TASK_TLK_EYECONTACT,	(float)0		},
-	{ TASK_WAIT,			(float)0.5		},// wait a bit
+	{ TASK_WAIT,			0.5f				},// wait a bit
 	{ TASK_TLK_HELLO,		(float)0		},// Try to say hello to player
 	{ TASK_TLK_EYECONTACT,	(float)0		},
-	{ TASK_WAIT,			(float)0.5		},// wait a bit
+	{ TASK_WAIT,			0.5f				},// wait a bit
 	{ TASK_TLK_HELLO,		(float)0		},// Try to say hello to player
 	{ TASK_TLK_EYECONTACT,	(float)0		},
-	{ TASK_WAIT,			(float)0.5		},// wait a bit
+	{ TASK_WAIT,			0.5f				},// wait a bit
 
 };
 
@@ -196,7 +196,7 @@ Task_t	tlMoveAway[] =
 	{ TASK_MOVE_AWAY_PATH,			(float)100		},
 	{ TASK_WALK_PATH_FOR_UNITS,		(float)100		},
 	{ TASK_STOP_MOVING,				(float)0		},
-	{ TASK_FACE_PLAYER,				(float)0.5 },
+	{ TASK_FACE_PLAYER,				0.5f },
 };
 
 Schedule_t	slMoveAway[] =
@@ -214,7 +214,7 @@ Schedule_t	slMoveAway[] =
 Task_t	tlMoveAwayFail[] =
 {
 	{ TASK_STOP_MOVING,				(float)0		},
-	{ TASK_FACE_PLAYER,				(float)0.5		},
+	{ TASK_FACE_PLAYER,				0.5f				},
 };
 
 Schedule_t	slMoveAwayFail[] =
@@ -441,13 +441,13 @@ void CTalkMonster :: StartTask( Task_t *pTask )
 
 	case TASK_TLK_STOPSHOOTING:
 		// tell player to stop shooting
-		PlaySentence( m_szGrp[TLK_NOSHOOT], RANDOM_FLOAT(2.8, 3.2), VOL_NORM, ATTN_NORM );
+		PlaySentence( m_szGrp[TLK_NOSHOOT], RANDOM_FLOAT(2.8f, 3.2f), VOL_NORM, ATTN_NORM );
 		TaskComplete();
 		break;
 
 	case TASK_CANT_FOLLOW:
 		StopFollowing( FALSE );
-		PlaySentence( m_szGrp[TLK_STOP], RANDOM_FLOAT(2, 2.5), VOL_NORM, ATTN_NORM );
+		PlaySentence( m_szGrp[TLK_STOP], RANDOM_FLOAT(2, 2.5f), VOL_NORM, ATTN_NORM );
 		TaskComplete();
 		break;
 
@@ -667,9 +667,9 @@ CBaseEntity	*CTalkMonster::EnumFriends( CBaseEntity *pPrevious, int listNumber, 
 			UTIL_TraceLine( pev->origin, vecCheck, ignore_monsters, ENT(pev), &tr);
 		}
 		else
-			tr.flFraction = 1.0;
+			tr.flFraction = 1.0f;
 
-		if (tr.flFraction == 1.0)
+		if (tr.flFraction == 1.0f)
 		{
 			return pFriend;
 		}
@@ -773,7 +773,7 @@ void CTalkMonster :: HandleAnimEvent( MonsterEvent_t *pEvent )
 		// fall through...
 	case SCRIPT_EVENT_SENTENCE:				// Play a named sentence group
 		ShutUpFriends();
-		PlaySentence( pEvent->options, RANDOM_FLOAT(2.8, 3.4), VOL_NORM, ATTN_IDLE );
+		PlaySentence( pEvent->options, RANDOM_FLOAT(2.8f, 3.4f), VOL_NORM, ATTN_IDLE );
 		//ALERT(at_console, "script event speak\n");
 		break;
 
@@ -803,7 +803,7 @@ CBaseEntity *CTalkMonster :: FindNearestFriend(BOOL fPlayer)
 {
 	CBaseEntity *pFriend = NULL;
 	CBaseEntity *pNearest = NULL;
-	float range = 10000000.0;
+	float range = 10000000.0f;
 	TraceResult tr;
 	Vector vecStart = pev->origin;
 	Vector vecCheck;
@@ -852,7 +852,7 @@ CBaseEntity *CTalkMonster :: FindNearestFriend(BOOL fPlayer)
 			{
 				UTIL_TraceLine(vecStart, vecCheck, ignore_monsters, ENT(pev), &tr);
 
-				if (tr.flFraction == 1.0)
+				if (tr.flFraction == 1.0f)
 				{
 					// visible and in range, this is the new nearest scientist
 					if ((vecStart - vecCheck).Length() < TALKRANGE_MIN)
@@ -907,7 +907,7 @@ void CTalkMonster :: IdleRespond( void )
 	int pitch = GetVoicePitch();
 	
 	// play response
-	PlaySentence( m_szGrp[TLK_ANSWER], RANDOM_FLOAT(2.8, 3.2), VOL_NORM, ATTN_IDLE );
+	PlaySentence( m_szGrp[TLK_ANSWER], RANDOM_FLOAT(2.8f, 3.2f), VOL_NORM, ATTN_IDLE );
 }
 
 int CTalkMonster :: FOkToSpeak( void )
@@ -961,7 +961,7 @@ int CTalkMonster :: FIdleStare( void )
 	if (!FOkToSpeak())
 		return FALSE;
 
-	PlaySentence( m_szGrp[TLK_STARE], RANDOM_FLOAT(5, 7.5), VOL_NORM, ATTN_IDLE );
+	PlaySentence( m_szGrp[TLK_STARE], RANDOM_FLOAT(5, 7.5f), VOL_NORM, ATTN_IDLE );
 
 	m_hTalkTarget = FindNearestFriend( TRUE );
 	return TRUE;
@@ -989,9 +989,9 @@ int CTalkMonster :: FIdleHello( void )
 				m_hTalkTarget = pPlayer;
 
 				if (FBitSet(pev->spawnflags, SF_MONSTER_PREDISASTER))
-					PlaySentence( m_szGrp[TLK_PHELLO], RANDOM_FLOAT(3, 3.5), VOL_NORM,  ATTN_IDLE );
+					PlaySentence( m_szGrp[TLK_PHELLO], RANDOM_FLOAT(3, 3.5f), VOL_NORM,  ATTN_IDLE );
 				else
-					PlaySentence( m_szGrp[TLK_HELLO], RANDOM_FLOAT(3, 3.5), VOL_NORM,  ATTN_IDLE );
+					PlaySentence( m_szGrp[TLK_HELLO], RANDOM_FLOAT(3, 3.5f), VOL_NORM,  ATTN_IDLE );
 
 				SetBits(m_bitsSaid, bit_saidHelloPlayer);
 				
@@ -1040,14 +1040,14 @@ int CTalkMonster :: FIdleSpeak ( void )
 		szIdleGroup = m_szGrp[TLK_PIDLE];
 		szQuestionGroup = m_szGrp[TLK_PQUESTION];
 		// set global min delay for next conversation
-		duration = RANDOM_FLOAT(4.8, 5.2);
+		duration = RANDOM_FLOAT(4.8f, 5.2f);
 	}
 	else
 	{
 		szIdleGroup = m_szGrp[TLK_IDLE];
 		szQuestionGroup = m_szGrp[TLK_QUESTION];
 		// set global min delay for next conversation
-		duration = RANDOM_FLOAT(2.8, 3.2);
+		duration = RANDOM_FLOAT(2.8f, 3.2f);
 
 	}
 
@@ -1155,7 +1155,7 @@ void CTalkMonster::PlaySentence( const char *pszSentence, float duration, float 
 
 	Talk ( duration );
 
-	CTalkMonster::g_talkWaitTime = gpGlobals->time + duration + 2.0;
+	CTalkMonster::g_talkWaitTime = gpGlobals->time + duration + 2.0f;
 	if ( pszSentence[0] == '!' )
 		EMIT_SOUND_DYN( edict(), CHAN_VOICE, pszSentence, volume, attenuation, 0, GetVoicePitch());
 	else
@@ -1241,20 +1241,20 @@ Schedule_t* CTalkMonster :: GetScheduleOfType ( int Type )
 			}
 
 			// sustained light wounds?
-			if (!FBitSet(m_bitsSaid, bit_saidWoundLight) && (pev->health <= (pev->max_health * 0.75)))
+			if (!FBitSet(m_bitsSaid, bit_saidWoundLight) && (pev->health <= (pev->max_health * 0.75f)))
 			{
 				//SENTENCEG_PlayRndSz( ENT(pev), m_szGrp[TLK_WOUND], 1.0, ATTN_IDLE, 0, GetVoicePitch() );
 				//CTalkMonster::g_talkWaitTime = gpGlobals->time + RANDOM_FLOAT(2.8, 3.2);
-				PlaySentence( m_szGrp[TLK_WOUND], RANDOM_FLOAT(2.8, 3.2), VOL_NORM, ATTN_IDLE );
+				PlaySentence( m_szGrp[TLK_WOUND], RANDOM_FLOAT(2.8f, 3.2f), VOL_NORM, ATTN_IDLE );
 				SetBits(m_bitsSaid, bit_saidWoundLight);
 				return slIdleStand;
 			}
 			// sustained heavy wounds?
-			else if (!FBitSet(m_bitsSaid, bit_saidWoundHeavy) && (pev->health <= (pev->max_health * 0.5)))
+			else if (!FBitSet(m_bitsSaid, bit_saidWoundHeavy) && (pev->health <= (pev->max_health * 0.5f)))
 			{
 				//SENTENCEG_PlayRndSz( ENT(pev), m_szGrp[TLK_MORTAL], 1.0, ATTN_IDLE, 0, GetVoicePitch() );
 				//CTalkMonster::g_talkWaitTime = gpGlobals->time + RANDOM_FLOAT(2.8, 3.2);
-				PlaySentence( m_szGrp[TLK_MORTAL], RANDOM_FLOAT(2.8, 3.2), VOL_NORM, ATTN_IDLE );
+				PlaySentence( m_szGrp[TLK_MORTAL], RANDOM_FLOAT(2.8f, 3.2f), VOL_NORM, ATTN_IDLE );
 				SetBits(m_bitsSaid, bit_saidWoundHeavy);
 				return slIdleStand;
 			}
@@ -1344,7 +1344,7 @@ void CTalkMonster :: TrySmellTalk( void )
 	// smelled something?
 	if (!FBitSet(m_bitsSaid, bit_saidSmelled) && HasConditions ( bits_COND_SMELL ))
 	{
-		PlaySentence( m_szGrp[TLK_SMELL], RANDOM_FLOAT(2.8, 3.2), VOL_NORM, ATTN_IDLE );
+		PlaySentence( m_szGrp[TLK_SMELL], RANDOM_FLOAT(2.8f, 3.2f), VOL_NORM, ATTN_IDLE );
 		m_flLastSaidSmelled = gpGlobals->time + 60;// don't talk about the stinky for a while.
 		SetBits(m_bitsSaid, bit_saidSmelled);
 	}
@@ -1367,7 +1367,7 @@ void CTalkMonster::StopFollowing( BOOL clearSchedule )
 	{
 		if ( !(m_afMemory & bits_MEMORY_PROVOKED) )
 		{
-			PlaySentence( m_szGrp[TLK_UNUSE], RANDOM_FLOAT(2.8, 3.2), VOL_NORM, ATTN_IDLE );
+			PlaySentence( m_szGrp[TLK_UNUSE], RANDOM_FLOAT(2.8f, 3.2f), VOL_NORM, ATTN_IDLE );
 			m_hTalkTarget = m_hTargetEnt;
 		}
 
@@ -1391,7 +1391,7 @@ void CTalkMonster::StartFollowing( CBaseEntity *pLeader )
 		m_IdealMonsterState = MONSTERSTATE_ALERT;
 
 	m_hTargetEnt = pLeader;
-	PlaySentence( m_szGrp[TLK_USE], RANDOM_FLOAT(2.8, 3.2), VOL_NORM, ATTN_IDLE );
+	PlaySentence( m_szGrp[TLK_USE], RANDOM_FLOAT(2.8f, 3.2f), VOL_NORM, ATTN_IDLE );
 	m_hTalkTarget = m_hTargetEnt;
 	ClearConditions( bits_COND_CLIENT_PUSH );
 	ClearSchedule();

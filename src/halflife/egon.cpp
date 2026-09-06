@@ -190,7 +190,7 @@ int CEgon::AddToPlayer( CBasePlayer *pPlayer )
 
 void CEgon::Holster( void )
 {
-	m_pPlayer->m_flNextAttack = gpGlobals->time + 0.5;
+	m_pPlayer->m_flNextAttack = gpGlobals->time + 0.5f;
 	// m_flTimeWeaponIdle = gpGlobals->time + UTIL_RandomFloat ( 10, 15 );
 	SendWeaponAnim( EGON_HOLSTER );
 
@@ -268,7 +268,7 @@ void CEgon::Attack( void )
 		{
 			if ( !HasAmmo() )
 			{
-				m_flNextPrimaryAttack = m_flNextSecondaryAttack = gpGlobals->time + 0.25;
+				m_flNextPrimaryAttack = m_flNextSecondaryAttack = gpGlobals->time + 0.25f;
 				PlayEmptySound( );
 				return;
 			}
@@ -279,7 +279,7 @@ void CEgon::Attack( void )
 			m_shakeTime = 0;
 
 			m_pPlayer->m_iWeaponVolume = EGON_PRIMARY_VOLUME;
-			m_flTimeWeaponIdle = gpGlobals->time + 0.1;
+			m_flTimeWeaponIdle = gpGlobals->time + 0.1f;
 			m_shootTime = gpGlobals->time + 2;
 
 			if ( m_fireMode == FIRE_WIDE )
@@ -318,7 +318,7 @@ void CEgon::Attack( void )
 			{
 				EndAttack();
 				m_fireState = FIRE_OFF;
-				m_flNextPrimaryAttack = m_flNextSecondaryAttack = gpGlobals->time + 1.0;
+				m_flNextPrimaryAttack = m_flNextSecondaryAttack = gpGlobals->time + 1.0f;
 			}
 
 		}
@@ -387,7 +387,7 @@ void CEgon::Fire( const Vector &vecOrigSrc, const Vector &vecDir )
 				if ( gpGlobals->time >= m_flAmmoUseTime )
 				{
 					UseAmmo( 1 );
-					m_flAmmoUseTime = gpGlobals->time + 0.1;
+					m_flAmmoUseTime = gpGlobals->time + 0.1f;
 				}
 			}
 			else
@@ -396,7 +396,7 @@ void CEgon::Fire( const Vector &vecOrigSrc, const Vector &vecDir )
 				if ( gpGlobals->time >= m_flAmmoUseTime )
 				{
 					UseAmmo( 1 );
-					m_flAmmoUseTime = gpGlobals->time + 0.166;
+					m_flAmmoUseTime = gpGlobals->time + 0.166f;
 				}
 			}
 
@@ -431,7 +431,7 @@ void CEgon::Fire( const Vector &vecOrigSrc, const Vector &vecDir )
 				if ( gpGlobals->time >= m_flAmmoUseTime )
 				{
 					UseAmmo( 1 );
-					m_flAmmoUseTime = gpGlobals->time + 0.2;
+					m_flAmmoUseTime = gpGlobals->time + 0.2f;
 				}
 			}
 			else
@@ -440,7 +440,7 @@ void CEgon::Fire( const Vector &vecOrigSrc, const Vector &vecDir )
 				if ( gpGlobals->time >= m_flAmmoUseTime )
 				{
 					UseAmmo( 1 );
-					m_flAmmoUseTime = gpGlobals->time + 0.1;
+					m_flAmmoUseTime = gpGlobals->time + 0.1f;
 				}
 			}
 
@@ -448,7 +448,7 @@ void CEgon::Fire( const Vector &vecOrigSrc, const Vector &vecDir )
 			if ( m_shakeTime < gpGlobals->time )
 			{
 				UTIL_ScreenShake( tr.vecEndPos, 5.0, 150.0, 0.75, 250.0 );
-				m_shakeTime = gpGlobals->time + 1.5;
+				m_shakeTime = gpGlobals->time + 1.5f;
 			}
 		}
 		timedist = ( pev->dmgtime - gpGlobals->time ) / GetDischargeInterval();
@@ -568,7 +568,7 @@ void CEgon::WeaponIdle( void )
 
 	float flRand = RANDOM_FLOAT(0,1);
 
-	if ( flRand <= 0.5 )
+	if ( flRand <= 0.5f )
 	{
 		iAnim = EGON_IDLE1;
 		m_flTimeWeaponIdle = gpGlobals->time + RANDOM_FLOAT(10,15);
@@ -590,8 +590,8 @@ void CEgon::EndAttack( void )
 	STOP_SOUND( ENT(m_pPlayer->pev), CHAN_STATIC, EGON_SOUND_RUN );
 	EMIT_SOUND_DYN(ENT(m_pPlayer->pev), CHAN_WEAPON, EGON_SOUND_OFF, 0.98, ATTN_NORM, 0, 100); 
 	m_fireState = FIRE_OFF;
-	m_flTimeWeaponIdle = gpGlobals->time + 2.0;
-	m_flNextPrimaryAttack = m_flNextSecondaryAttack = gpGlobals->time + 0.5;
+	m_flTimeWeaponIdle = gpGlobals->time + 2.0f;
+	m_flNextPrimaryAttack = m_flNextSecondaryAttack = gpGlobals->time + 0.5f;
 	DestroyEffect();
 }
 

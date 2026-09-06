@@ -189,7 +189,7 @@ void COsprey :: Spawn( void )
 
 	if (!(pev->spawnflags & SF_WAITFORTRIGGER))
 	{
-		pev->nextthink = gpGlobals->time + 1.0;
+		pev->nextthink = gpGlobals->time + 1.0f;
 	}
 
 	m_pos2 = pev->origin;
@@ -218,7 +218,7 @@ void COsprey::Precache( void )
 
 void COsprey::CommandUse( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value )
 {
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 void COsprey :: FindAllThink( void )
@@ -243,7 +243,7 @@ void COsprey :: FindAllThink( void )
 		return;
 	}
 	SetThink( FlyThink );
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 	m_startTime = gpGlobals->time;
 }
 
@@ -259,8 +259,8 @@ void COsprey :: DeployThink( void )
 	Vector vecSrc;
 
 	TraceResult tr;
-	UTIL_TraceLine( pev->origin, pev->origin + Vector( 0, 0, -4096.0), ignore_monsters, ENT(pev), &tr);
-	CSoundEnt::InsertSound ( bits_SOUND_DANGER, tr.vecEndPos, 400, 0.3 );
+	UTIL_TraceLine( pev->origin, pev->origin + Vector( 0, 0, -4096.0f), ignore_monsters, ENT(pev), &tr);
+	CSoundEnt::InsertSound ( bits_SOUND_DANGER, tr.vecEndPos, 400, 0.3f );
 
 	vecSrc = pev->origin + vecForward *  32 + vecRight *  100 + vecUp * -96;
 	m_hRepel[0] = MakeGrunt( vecSrc );
@@ -275,7 +275,7 @@ void COsprey :: DeployThink( void )
 	m_hRepel[3] = MakeGrunt( vecSrc );
 
 	SetThink( HoverThink );
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 
@@ -303,7 +303,7 @@ CBaseMonster *COsprey :: MakeGrunt( Vector vecSrc )
 	CBaseMonster *pGrunt;
 
 	TraceResult tr;
-	UTIL_TraceLine( vecSrc, vecSrc + Vector( 0, 0, -4096.0), dont_ignore_monsters, ENT(pev), &tr);
+	UTIL_TraceLine( vecSrc, vecSrc + Vector( 0, 0, -4096.0f), dont_ignore_monsters, ENT(pev), &tr);
 	if ( tr.pHit && Instance( tr.pHit )->pev->solid != SOLID_BSP) 
 		return NULL;
 
@@ -326,7 +326,7 @@ CBaseMonster *COsprey :: MakeGrunt( Vector vecSrc )
 			pBeam->SetFlags( BEAM_FSOLID );
 			pBeam->SetColor( 255, 255, 255 );
 			pBeam->SetThink( SUB_Remove );
-			pBeam->pev->nextthink = gpGlobals->time + -4096.0 * tr.flFraction / pGrunt->pev->velocity.z + 0.5;
+			pBeam->pev->nextthink = gpGlobals->time + -4096.0f * tr.flFraction / pGrunt->pev->velocity.z + 0.5f;
 
 			// ALERT( at_console, "%d at %.0f %.0f %.0f\n", i, m_vecOrigin[i].x, m_vecOrigin[i].y, m_vecOrigin[i].z );  
 			pGrunt->m_vecLastPosition = m_vecOrigin[i];
@@ -356,7 +356,7 @@ void COsprey :: HoverThink( void )
 		SetThink( FlyThink );
 	}
 
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 	UTIL_MakeAimVectors( pev->angles );
 	ShowDamage( );
 }
@@ -375,7 +375,7 @@ void COsprey::UpdateGoal( )
 		m_vel2 = gpGlobals->v_forward * m_pGoalEnt->pev->speed;
 
 		m_startTime = m_startTime + m_dTime;
-		m_dTime = 2.0 * (m_pos1 - m_pos2).Length() / (m_vel1.Length() + m_pGoalEnt->pev->speed);
+		m_dTime = 2.0f * (m_pos1 - m_pos2).Length() / (m_vel1.Length() + m_pGoalEnt->pev->speed);
 
 		if (m_ang1.y - m_ang2.y < -180)
 		{
@@ -401,7 +401,7 @@ void COsprey::UpdateGoal( )
 void COsprey::FlyThink( void )
 {
 	StudioFrameAdvance( );
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 
 	if ( m_pGoalEnt == NULL && !FStringNull(pev->target) )// this monster has a target
 	{
@@ -429,13 +429,13 @@ void COsprey::FlyThink( void )
 void COsprey::Flight( )
 {
 	float t = (gpGlobals->time - m_startTime);
-	float scale = 1.0 / m_dTime;
+	float scale = 1.0f / m_dTime;
 	
-	float f = UTIL_SplineFraction( t * scale, 1.0 );
+	float f = UTIL_SplineFraction( t * scale, 1.0f );
 
-	Vector pos = (m_pos1 + m_vel1 * t) * (1.0 - f) + (m_pos2 - m_vel2 * (m_dTime - t)) * f;
-	Vector ang = (m_ang1) * (1.0 - f) + (m_ang2) * f;
-	m_velocity = m_vel1 * (1.0 - f) + m_vel2 * f;
+	Vector pos = (m_pos1 + m_vel1 * t) * (1.0f - f) + (m_pos2 - m_vel2 * (m_dTime - t)) * f;
+	Vector ang = (m_ang1) * (1.0f - f) + (m_ang2) * f;
+	m_velocity = m_vel1 * (1.0f - f) + m_vel2 * f;
 
 	UTIL_SetOrigin( pev, pos );
 	pev->angles = ang;
@@ -444,18 +444,18 @@ void COsprey::Flight( )
 
 	// float flSpeed = DotProduct( gpGlobals->v_forward, pev->velocity );
 
-	float m_flIdealtilt = (160 - flSpeed) / 10.0;
+	float m_flIdealtilt = (160 - flSpeed) / 10.0f;
 
 	// ALERT( at_console, "%f %f\n", flSpeed, flIdealtilt );
 	if (m_flRotortilt < m_flIdealtilt)
 	{
-		m_flRotortilt += 0.5;
+		m_flRotortilt += 0.5f;
 		if (m_flRotortilt > 0)
 			m_flRotortilt = 0;
 	}
 	if (m_flRotortilt > m_flIdealtilt)
 	{
-		m_flRotortilt -= 0.5;
+		m_flRotortilt -= 0.5f;
 		if (m_flRotortilt < -90)
 			m_flRotortilt = -90;
 	}
@@ -464,7 +464,7 @@ void COsprey::Flight( )
 
 	if (m_iSoundState == 0)
 	{
-		EMIT_SOUND_DYN(ENT(pev), CHAN_STATIC, "apache/ap_rotor4.wav", 1.0, 0.15, 0, 110 );
+		EMIT_SOUND_DYN(ENT(pev), CHAN_STATIC, "apache/ap_rotor4.wav", 1.0f, 0.15f, 0, 110 );
 		// EMIT_SOUND_DYN(ENT(pev), CHAN_STATIC, "apache/ap_whine1.wav", 0.5, 0.2, 0, 110 );
 
 		m_iSoundState = SND_CHANGE_PITCH; // hack for going through level transitions
@@ -479,7 +479,7 @@ void COsprey::Flight( )
 		{
 			float pitch = DotProduct( m_velocity - pPlayer->pev->velocity, (pPlayer->pev->origin - pev->origin).Normalize() );
 
-			pitch = (int)(100 + pitch / 75.0);
+			pitch = (int)(100 + pitch / 75.0f);
 
 			if (pitch > 250) 
 				pitch = 250;
@@ -492,7 +492,7 @@ void COsprey::Flight( )
 			if (pitch != m_iPitch)
 			{
 				m_iPitch = pitch;
-				EMIT_SOUND_DYN(ENT(pev), CHAN_STATIC, "apache/ap_rotor4.wav", 1.0, 0.15, SND_CHANGE_PITCH | SND_CHANGE_VOL, pitch);
+				EMIT_SOUND_DYN(ENT(pev), CHAN_STATIC, "apache/ap_rotor4.wav", 1.0f, 0.15f, SND_CHANGE_PITCH | SND_CHANGE_VOL, pitch);
 				// ALERT( at_console, "%.0f\n", pitch );
 			}
 		}
@@ -504,7 +504,7 @@ void COsprey::Flight( )
 
 void COsprey::HitTouch( CBaseEntity *pOther )
 {
-	pev->nextthink = gpGlobals->time + 2.0;
+	pev->nextthink = gpGlobals->time + 2.0f;
 }
 
 
@@ -529,7 +529,7 @@ int COsprey::TakeDamage( entvars_t *pevInflictor, entvars_t *pevAttacker, float 
 void COsprey :: Killed( entvars_t *pevAttacker, int iGib )
 {
 	pev->movetype = MOVETYPE_TOSS;
-	pev->gravity = 0.3;
+	pev->gravity = 0.3f;
 	pev->velocity = m_velocity;
 	pev->avelocity = Vector( RANDOM_FLOAT( -20, 20 ), 0, RANDOM_FLOAT( -50, 50 ) );
 	STOP_SOUND( ENT(pev), CHAN_STATIC, "apache/ap_rotor4.wav" );
@@ -537,11 +537,11 @@ void COsprey :: Killed( entvars_t *pevAttacker, int iGib )
 	UTIL_SetSize( pev, Vector( -32, -32, -64), Vector( 32, 32, 0) );
 	SetThink( DyingThink );
 	SetTouch( CrashTouch );
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 	pev->health = 0;
 	pev->takedamage = DAMAGE_NO;
 
-	m_startTime = gpGlobals->time + 4.0;
+	m_startTime = gpGlobals->time + 4.0f;
 }
 
 void COsprey::CrashTouch( CBaseEntity *pOther )
@@ -560,9 +560,9 @@ void COsprey::CrashTouch( CBaseEntity *pOther )
 void COsprey :: DyingThink( void )
 {
 	StudioFrameAdvance( );
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 
-	pev->avelocity = pev->avelocity * 1.02;
+	pev->avelocity = pev->avelocity * 1.02f;
 
 	// still falling?
 	if (m_startTime > gpGlobals->time )
@@ -570,7 +570,7 @@ void COsprey :: DyingThink( void )
 		UTIL_MakeAimVectors( pev->angles );
 		ShowDamage( );
 
-		Vector vecSpot = pev->origin + pev->velocity * 0.2;
+		Vector vecSpot = pev->origin + pev->velocity * 0.2f;
 
 		// random explosions
 		MESSAGE_BEGIN( MSG_PVS, SVC_TEMPENTITY, vecSpot );
@@ -596,7 +596,7 @@ void COsprey :: DyingThink( void )
 		MESSAGE_END();
 
 
-		vecSpot = pev->origin + (pev->mins + pev->maxs) * 0.5;
+		vecSpot = pev->origin + (pev->mins + pev->maxs) * 0.5f;
 		MESSAGE_BEGIN( MSG_PVS, SVC_TEMPENTITY, vecSpot );
 			WRITE_BYTE( TE_BREAKMODEL);
 
@@ -636,12 +636,12 @@ void COsprey :: DyingThink( void )
 
 		// don't stop it we touch a entity
 		pev->flags &= ~FL_ONGROUND;
-		pev->nextthink = gpGlobals->time + 0.2;
+		pev->nextthink = gpGlobals->time + 0.2f;
 		return;
 	}
 	else
 	{
-		Vector vecSpot = pev->origin + (pev->mins + pev->maxs) * 0.5;
+		Vector vecSpot = pev->origin + (pev->mins + pev->maxs) * 0.5f;
 
 		/*
 		MESSAGE_BEGIN( MSG_BROADCAST, SVC_TEMPENTITY );
@@ -700,12 +700,12 @@ void COsprey :: DyingThink( void )
 			WRITE_BYTE( 0 );		// speed
 		MESSAGE_END();
 
-		EMIT_SOUND(ENT(pev), CHAN_STATIC, "weapons/mortarhit.wav", 1.0, 0.3);
+		EMIT_SOUND(ENT(pev), CHAN_STATIC, "weapons/mortarhit.wav", 1.0f, 0.3f);
 
 		RadiusDamage( pev->origin, pev, pev, 300, CLASS_NONE, DMG_BLAST );
 
 		// gibs
-		vecSpot = pev->origin + (pev->mins + pev->maxs) * 0.5;
+		vecSpot = pev->origin + (pev->mins + pev->maxs) * 0.5f;
 		MESSAGE_BEGIN( MSG_PAS, SVC_TEMPENTITY, vecSpot );
 			WRITE_BYTE( TE_BREAKMODEL);
 
@@ -722,7 +722,7 @@ void COsprey :: DyingThink( void )
 			// velocity
 			WRITE_COORD( m_velocity.x ); 
 			WRITE_COORD( m_velocity.y );
-			WRITE_COORD( fabs( m_velocity.z ) * 0.25 );
+			WRITE_COORD( fabsf( m_velocity.z ) * 0.25f );
 
 			// randomization
 			WRITE_BYTE( 40 ); 
@@ -792,7 +792,7 @@ void COsprey::TraceAttack( entvars_t *pevAttacker, float flDamage, Vector vecDir
 			return;
 		else
 			m_flRightHealth -= flDamage;
-		m_iDoLeftSmokePuff = 3 + (flDamage / 5.0);
+		m_iDoLeftSmokePuff = 3 + (flDamage / 5.0f);
 	}
 
 	if (ptr->iHitgroup == 2)
@@ -801,7 +801,7 @@ void COsprey::TraceAttack( entvars_t *pevAttacker, float flDamage, Vector vecDir
 			return;
 		else
 			m_flLeftHealth -= flDamage;
-		m_iDoRightSmokePuff = 3 + (flDamage / 5.0);
+		m_iDoRightSmokePuff = 3 + (flDamage / 5.0f);
 	}
 
 	// hit hard, hits cockpit, hits engines

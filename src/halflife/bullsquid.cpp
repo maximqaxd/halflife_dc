@@ -117,7 +117,7 @@ void CSquidSpit:: Spawn( void )
 
 void CSquidSpit::Animate( void )
 {
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 
 	if ( pev->frame++ )
 	{
@@ -138,7 +138,7 @@ void CSquidSpit::Shoot( entvars_t *pevOwner, Vector vecStart, Vector vecVelocity
 	pSpit->pev->owner = ENT(pevOwner);
 
 	pSpit->SetThink ( Animate );
-	pSpit->pev->nextthink = gpGlobals->time + 0.1;
+	pSpit->pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 void CSquidSpit :: Touch ( CBaseEntity *pOther )
@@ -313,7 +313,7 @@ int CBullsquid :: TakeDamage( entvars_t *pevInflictor, entvars_t *pevAttacker, f
 		{
 			flDist = ( pev->origin - m_Route[ m_iRouteIndex ].vecLocation ).Length2D();// reusing flDist. 
 
-			if ( FTriangulate( pev->origin, m_Route[ m_iRouteIndex ].vecLocation, flDist * 0.5, m_hEnemy, &vecApex ) )
+			if ( FTriangulate( pev->origin, m_Route[ m_iRouteIndex ].vecLocation, flDist * 0.5f, m_hEnemy, &vecApex ) )
 			{
 				InsertWaypoint( vecApex, bits_MF_TO_DETOUR | bits_MF_DONT_SIMPLIFY );
 			}
@@ -340,11 +340,11 @@ BOOL CBullsquid :: CheckRangeAttack1 ( float flDot, float flDist )
 		return FALSE;
 	}
 
-	if ( flDist > 64 && flDist <= 784 && flDot >= 0.5 && gpGlobals->time >= m_flNextSpitTime )
+	if ( flDist > 64 && flDist <= 784 && flDot >= 0.5f && gpGlobals->time >= m_flNextSpitTime )
 	{
 		if ( m_hEnemy != NULL )
 		{
-			if ( fabs( pev->origin.z - m_hEnemy->pev->origin.z ) > 256 )
+			if ( fabsf( pev->origin.z - m_hEnemy->pev->origin.z ) > 256 )
 			{
 				// don't try to spit at someone up really high or down really low.
 				return FALSE;
@@ -359,7 +359,7 @@ BOOL CBullsquid :: CheckRangeAttack1 ( float flDot, float flDist )
 		else
 		{
 			// not moving, so spit again pretty soon.
-			m_flNextSpitTime = gpGlobals->time + 0.5;
+			m_flNextSpitTime = gpGlobals->time + 0.5f;
 		}
 
 		return TRUE;
@@ -374,7 +374,7 @@ BOOL CBullsquid :: CheckRangeAttack1 ( float flDot, float flDist )
 //=========================================================
 BOOL CBullsquid :: CheckMeleeAttack1 ( float flDot, float flDist )
 {
-	if ( m_hEnemy->pev->health <= gSkillData.bullsquidDmgWhip && flDist <= 85 && flDot >= 0.7 )
+	if ( m_hEnemy->pev->health <= gSkillData.bullsquidDmgWhip && flDist <= 85 && flDot >= 0.7f )
 	{
 		return TRUE;
 	}
@@ -389,7 +389,7 @@ BOOL CBullsquid :: CheckMeleeAttack1 ( float flDot, float flDist )
 //=========================================================
 BOOL CBullsquid :: CheckMeleeAttack2 ( float flDot, float flDist )
 {
-	if ( flDist <= 85 && flDot >= 0.7 && !HasConditions( bits_COND_CAN_MELEE_ATTACK1 ) )		// The player & bullsquid can be as much as their bboxes 
+	if ( flDist <= 85 && flDot >= 0.7f && !HasConditions( bits_COND_CAN_MELEE_ATTACK1 ) )		// The player & bullsquid can be as much as their bboxes
 	{										// apart (48 * sqrt(3)) and he can still attack (85 is a little more than 48*sqrt(3))
 		return TRUE;
 	}
@@ -631,7 +631,7 @@ void CBullsquid :: HandleAnimEvent( MonsterEvent_t *pEvent )
 
 			// jump into air for 0.8 (24/30) seconds
 //			pev->velocity.z += (0.875 * flGravity) * 0.5;
-			pev->velocity.z += (0.625 * flGravity) * 0.5;
+			pev->velocity.z += (0.625f * flGravity) * 0.5f;
 		}
 		break;
 

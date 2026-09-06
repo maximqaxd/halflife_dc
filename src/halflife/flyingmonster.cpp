@@ -47,7 +47,7 @@ int CFlyingMonster :: CheckLocalMove ( const Vector &vecStart, const Vector &vec
 	}
 
 	// ALERT( at_console, "check %d %d %f\n", tr.fStartSolid, tr.fAllSolid, tr.flFraction );
-	if (tr.fStartSolid || tr.flFraction < 1.0)
+	if (tr.fStartSolid || tr.flFraction < 1.0f)
 	{
 		if ( pTarget && pTarget->edict() == gpGlobals->trace_ent )
 			return LOCALMOVE_VALID;
@@ -101,7 +101,7 @@ float CFlyingMonster :: ChangeYaw( int speed )
 			else if ( diff > 20 )
 				target = -90;
 		}
-		pev->angles.z = UTIL_Approach( target, pev->angles.z, 220.0 * gpGlobals->frametime );
+		pev->angles.z = UTIL_Approach( target, pev->angles.z, 220.0f * gpGlobals->frametime );
 	}
 	return CBaseMonster::ChangeYaw( speed );
 }
@@ -162,7 +162,7 @@ void CFlyingMonster::MoveExecute( CBaseEntity *pTargetEnt, const Vector &vecDir,
 {
 	if ( pev->movetype == MOVETYPE_FLY )
 	{
-		if ( gpGlobals->time - m_stopTime > 1.0 )
+		if ( gpGlobals->time - m_stopTime > 1.0f )
 		{
 			if ( m_IdealActivity != m_movementActivity )
 			{
@@ -205,10 +205,10 @@ float CFlyingMonster::CeilingZ( const Vector &position )
 
 	Vector minUp = position;
 	Vector maxUp = position;
-	maxUp.z += 4096.0;
+	maxUp.z += 4096.0f;
 
 	UTIL_TraceLine(position, maxUp, ignore_monsters, NULL, &tr);
-	if (tr.flFraction != 1.0)
+	if (tr.flFraction != 1.0f)
 		maxUp.z = tr.vecEndPos.z;
 
 	if ((pev->flags) & FL_SWIM)
@@ -245,7 +245,7 @@ BOOL CFlyingMonster::ProbeZ( const Vector &position, const Vector &probe, float 
 	float minProbeLength = 0;
 
 	float diff = maxProbeLength - minProbeLength;
-	while (diff > 1.0)
+	while (diff > 1.0f)
 	{
 		float midProbeLength = minProbeLength + diff/2.0;
 		Vector midProbeVec = midProbeLength * ProbeUnit;
@@ -273,7 +273,7 @@ float CFlyingMonster::FloorZ( const Vector &position )
 
 	UTIL_TraceLine( position, down, ignore_monsters, NULL, &tr );
 
-	if ( tr.flFraction != 1.0 )
+	if ( tr.flFraction != 1.0f )
 		return tr.vecEndPos.z;
 
 	return down.z;

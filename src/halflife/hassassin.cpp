@@ -203,8 +203,8 @@ void CHAssassin :: Shoot ( void )
 	}
 	else
 	{
-		m_flDiviation -= 0.01;
-		if (m_flDiviation < 0.02)
+		m_flDiviation -= 0.01f;
+		if (m_flDiviation < 0.02f)
 			m_flDiviation = 0.02;
 	}
 	m_flLastShot = gpGlobals->time;
@@ -264,7 +264,7 @@ void CHAssassin :: HandleAnimEvent( MonsterEvent_t *pEvent )
 			pev->movetype = MOVETYPE_TOSS;
 			pev->flags &= ~FL_ONGROUND;
 			pev->velocity = m_vecJumpVelocity;
-			m_flNextJump = gpGlobals->time + 3.0;
+			m_flNextJump = gpGlobals->time + 3.0f;
 		}
 		return;
 	default:
@@ -632,14 +632,14 @@ BOOL CHAssassin :: CheckMeleeAttack1 ( float flDot, float flDist )
 
 		UTIL_TraceHull( pev->origin + Vector( 0, 0, 36 ), vecDest + Vector( 0, 0, 36 ), dont_ignore_monsters, human_hull, ENT(pev), &tr);
 
-		if ( tr.fStartSolid || tr.flFraction < 1.0)
+		if ( tr.fStartSolid || tr.flFraction < 1.0f)
 		{
 			return FALSE;
 		}
 
 		float flGravity = CVAR_GET_FLOAT( "sv_gravity" );
 
-		float time = sqrt( 160 / (0.5 * flGravity));
+		float time = sqrtf( 160 / (0.5f * flGravity));
 		float speed = flGravity * time / 160;
 		m_vecJumpVelocity = (vecDest - pev->origin) * speed;
 

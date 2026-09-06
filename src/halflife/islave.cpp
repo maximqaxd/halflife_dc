@@ -744,7 +744,7 @@ void CISlave :: ArmBeam( int side )
 	}
 
 	// Couldn't find anything close enough
-	if ( flDist == 1.0 )
+	if ( flDist == 1.0f )
 		return;
 
 	DecalGunshot( &tr, BULLET_PLAYER_CROWBAR );

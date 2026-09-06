@@ -207,7 +207,7 @@ void CRoach :: MonsterThink( void  )
 	if ( FNullEnt( FIND_CLIENT_IN_PVS( edict() ) ) )
 		pev->nextthink = gpGlobals->time + RANDOM_FLOAT(1,1.5);
 	else
-		pev->nextthink = gpGlobals->time + 0.1;// keep monster thinking
+		pev->nextthink = gpGlobals->time + 0.1f;// keep monster thinking
 
 	float flInterval = StudioFrameAdvance( ); // animate
 

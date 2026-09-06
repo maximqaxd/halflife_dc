@@ -143,7 +143,7 @@ int CZombie :: TakeDamage( entvars_t *pevInflictor, entvars_t *pevAttacker, floa
 		vecDir = vecDir.Normalize();
 		float flForce = DamageForce( flDamage );
 		pev->velocity = pev->velocity + vecDir * flForce;
-		flDamage *= 0.3;
+		flDamage *= 0.3f;
 	}
 
 	// HACK HACK -- until we fix this.

@@ -70,14 +70,14 @@ void CHornet :: Spawn( void )
 	if ( g_pGameRules->IsMultiplayer() )
 	{
 		// hornets don't live as long in multiplayer
-		m_flStopAttack = gpGlobals->time + 3.5;
+		m_flStopAttack = gpGlobals->time + 3.5f;
 	}
 	else
 	{
-		m_flStopAttack	= gpGlobals->time + 5.0;
+		m_flStopAttack	= gpGlobals->time + 5.0f;
 	}
 
-	m_flFieldOfView = 0.9; // +- 25 degrees
+	m_flFieldOfView = 0.9f; // +- 25 degrees
 
 	if ( RANDOM_LONG ( 1, 5 ) <= 2 )
 	{
@@ -117,7 +117,7 @@ void CHornet :: Spawn( void )
 		pev->dmg = gSkillData.monDmgHornet;
 	}
 	
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 	ResetSequenceInfo( );
 }
 
@@ -179,7 +179,7 @@ void CHornet :: StartTrack ( void )
 	SetTouch( TrackTouch );
 	SetThink( TrackTarget );
 
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 //=========================================================
@@ -265,7 +265,7 @@ void CHornet :: TrackTarget ( void )
 	{
 		SetTouch( NULL );
 		SetThink( SUB_Remove );
-		pev->nextthink = gpGlobals->time + 0.1;
+		pev->nextthink = gpGlobals->time + 0.1f;
 		return;
 	}
 
@@ -282,12 +282,12 @@ void CHornet :: TrackTarget ( void )
 	}
 	else
 	{
-		m_vecEnemyLKP = m_vecEnemyLKP + pev->velocity * m_flFlySpeed * 0.1;
+		m_vecEnemyLKP = m_vecEnemyLKP + pev->velocity * m_flFlySpeed * 0.1f;
 	}
 
 	vecDirToEnemy = ( m_vecEnemyLKP - pev->origin ).Normalize();
 
-	if (pev->velocity.Length() < 0.1)
+	if (pev->velocity.Length() < 0.1f)
 		vecFlightDir = vecDirToEnemy;
 	else 
 		vecFlightDir = pev->velocity.Normalize();
@@ -295,7 +295,7 @@ void CHornet :: TrackTarget ( void )
 	// measure how far the turn is, the wider the turn, the slow we'll go this time.
 	flDelta = DotProduct ( vecFlightDir, vecDirToEnemy );
 	
-	if ( flDelta < 0.5 )
+	if ( flDelta < 0.5f )
 	{// hafta turn wide again. play sound
 		switch (RANDOM_LONG(0,2))
 		{
@@ -307,7 +307,7 @@ void CHornet :: TrackTarget ( void )
 
 	if ( flDelta <= 0 && m_iHornetType == HORNET_TYPE_RED )
 	{// no flying backwards, but we don't want to invert this, cause we'd go fast when we have to turn REAL far.
-		flDelta = 0.25;
+		flDelta = 0.25f;
 	}
 
 	pev->velocity = ( vecFlightDir + vecDirToEnemy).Normalize();
@@ -316,20 +316,20 @@ void CHornet :: TrackTarget ( void )
 	{
 		// random pattern only applies to hornets fired by monsters, not players. 
 
-		pev->velocity.x += RANDOM_FLOAT ( -0.10, 0.10 );// scramble the flight dir a bit.
-		pev->velocity.y += RANDOM_FLOAT ( -0.10, 0.10 );
-		pev->velocity.z += RANDOM_FLOAT ( -0.10, 0.10 );
+		pev->velocity.x += RANDOM_FLOAT ( -0.10f, 0.10f );// scramble the flight dir a bit.
+		pev->velocity.y += RANDOM_FLOAT ( -0.10f, 0.10f );
+		pev->velocity.z += RANDOM_FLOAT ( -0.10f, 0.10f );
 	}
 	
 	switch ( m_iHornetType )
 	{
 		case HORNET_TYPE_RED:
 			pev->velocity = pev->velocity * ( m_flFlySpeed * flDelta );// scale the dir by the ( speed * width of turn )
-			pev->nextthink = gpGlobals->time + RANDOM_FLOAT( 0.1, 0.3 );
+			pev->nextthink = gpGlobals->time + RANDOM_FLOAT( 0.1f, 0.3f );
 			break;
 		case HORNET_TYPE_ORANGE:
 			pev->velocity = pev->velocity * m_flFlySpeed;// do not have to slow down to turn.
-			pev->nextthink = gpGlobals->time + 0.1;// fixed think time
+			pev->nextthink = gpGlobals->time + 0.1f;// fixed think time
 			break;
 	}
 
@@ -341,7 +341,7 @@ void CHornet :: TrackTarget ( void )
 	// (only in the single player game)
 	if ( m_hEnemy != NULL && !g_pGameRules->IsMultiplayer() )
 	{
-		if ( flDelta >= 0.4 && ( pev->origin - m_vecEnemyLKP ).Length() <= 300 )
+		if ( flDelta >= 0.4f && ( pev->origin - m_vecEnemyLKP ).Length() <= 300 )
 		{
 			MESSAGE_BEGIN( MSG_PVS, SVC_TEMPENTITY, pev->origin );
 				WRITE_BYTE( TE_SPRITE );
@@ -361,7 +361,7 @@ void CHornet :: TrackTarget ( void )
 			case 2:	EMIT_SOUND( ENT(pev), CHAN_VOICE, "hornet/ag_buzz3.wav", HORNET_BUZZ_VOLUME, ATTN_NORM);	break;
 			}
 			pev->velocity = pev->velocity * 2;
-			pev->nextthink = gpGlobals->time + 1.0;
+			pev->nextthink = gpGlobals->time + 1.0f;
 			// don't attack again
 			m_flStopAttack = gpGlobals->time;
 		}

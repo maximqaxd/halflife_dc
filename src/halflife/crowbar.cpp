@@ -125,7 +125,7 @@ BOOL CCrowbar::Deploy( )
 
 void CCrowbar::Holster( )
 {
-	m_pPlayer->m_flNextAttack = gpGlobals->time + 0.5;
+	m_pPlayer->m_flNextAttack = gpGlobals->time + 0.5f;
 	SendWeaponAnim( CROWBAR_HOLSTER );
 }
 
@@ -143,7 +143,7 @@ void FindHullIntersection( const Vector &vecSrc, TraceResult &tr, float *mins, f
 
 	vecHullEnd = vecSrc + ((vecHullEnd - vecSrc)*2);
 	UTIL_TraceLine( vecSrc, vecHullEnd, dont_ignore_monsters, pEntity, &tmpTrace );
-	if ( tmpTrace.flFraction < 1.0 )
+	if ( tmpTrace.flFraction < 1.0f )
 	{
 		tr = tmpTrace;
 		return;
@@ -180,7 +180,7 @@ void CCrowbar::PrimaryAttack()
 	if (! Swing( 1 ))
 	{
 		SetThink( SwingAgain );
-		pev->nextthink = gpGlobals->time + 0.1;
+		pev->nextthink = gpGlobals->time + 0.1f;
 	}
 }
 
@@ -209,10 +209,10 @@ int CCrowbar::Swing( int fFirst )
 
 	UTIL_TraceLine( vecSrc, vecEnd, dont_ignore_monsters, ENT( m_pPlayer->pev ), &tr );
 
-	if ( tr.flFraction >= 1.0 )
+	if ( tr.flFraction >= 1.0f )
 	{
 		UTIL_TraceHull( vecSrc, vecEnd, dont_ignore_monsters, head_hull, ENT( m_pPlayer->pev ), &tr );
-		if ( tr.flFraction < 1.0 )
+		if ( tr.flFraction < 1.0f )
 		{
 			// Calculate the point of intersection of the line (or hull) and the object we hit
 			// This is and approximation of the "best" intersection
@@ -223,7 +223,7 @@ int CCrowbar::Swing( int fFirst )
 		}
 	}
 
-	if ( tr.flFraction >= 1.0 )
+	if ( tr.flFraction >= 1.0f )
 	{
 		if (fFirst)
 		{
@@ -237,7 +237,7 @@ int CCrowbar::Swing( int fFirst )
 			case 2:
 				SendWeaponAnim( CROWBAR_ATTACK3MISS ); break;
 			}
-			m_flNextPrimaryAttack = gpGlobals->time + 0.5;
+			m_flNextPrimaryAttack = gpGlobals->time + 0.5f;
 			// play wiff or swish sound
 			EMIT_SOUND_DYN(ENT(m_pPlayer->pev), CHAN_WEAPON, "weapons/cbar_miss1.wav", 1, ATTN_NORM, 0, 94 + RANDOM_LONG(0,0xF));
 
@@ -278,7 +278,7 @@ int CCrowbar::Swing( int fFirst )
 		}	
 		ApplyMultiDamage( m_pPlayer->pev, m_pPlayer->pev );
 
-		m_flNextPrimaryAttack = gpGlobals->time + 0.25;
+		m_flNextPrimaryAttack = gpGlobals->time + 0.25f;
 
 		// play thwack, smack, or dong sound
 		float flVol = 1.0;
@@ -340,7 +340,7 @@ int CCrowbar::Swing( int fFirst )
 		// delay the decal a bit
 		m_trHit = tr;
 		SetThink( Smack );
-		pev->nextthink = gpGlobals->time + 0.2;
+		pev->nextthink = gpGlobals->time + 0.2f;
 
 		m_pPlayer->m_iWeaponVolume = flVol * CROWBAR_WALLHIT_VOLUME;
 	}

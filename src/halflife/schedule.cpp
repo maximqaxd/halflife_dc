@@ -417,7 +417,7 @@ void CBaseMonster :: RunTask ( Task_t *pTask )
 			{
 				distance = ( m_vecMoveGoal - pev->origin ).Length2D();
 				// Re-evaluate when you think your finished, or the target has moved too far
-				if ( (distance < pTask->flData) || (m_vecMoveGoal - m_hTargetEnt->pev->origin).Length() > pTask->flData * 0.5 )
+				if ( (distance < pTask->flData) || (m_vecMoveGoal - m_hTargetEnt->pev->origin).Length() > pTask->flData * 0.5f )
 				{
 					m_vecMoveGoal = m_hTargetEnt->pev->origin;
 					distance = ( m_vecMoveGoal - pev->origin ).Length2D();
@@ -527,7 +527,7 @@ void CBaseMonster :: RunTask ( Task_t *pTask )
 				m_pCine->StartSequence( (CBaseMonster *)this, m_pCine->m_iszPlay, TRUE );
 				if ( m_fSequenceFinished )
 					ClearSchedule();
-				pev->framerate = 1.0;
+				pev->framerate = 1.0f;
 				//ALERT( at_aiconsole, "Script %s has begun for %s\n", STRING( m_pCine->m_iszPlay ), STRING(pev->classname) );
 			}
 			break;
@@ -873,7 +873,7 @@ void CBaseMonster :: StartTask ( Task_t *pTask )
 		}
 	case TASK_WAIT_RANDOM:
 		{// set a future time that tells us when the wait is over.
-			m_flWaitFinished = gpGlobals->time + RANDOM_FLOAT( 0.1, pTask->flData );
+			m_flWaitFinished = gpGlobals->time + RANDOM_FLOAT( 0.1f, pTask->flData );
 			break;
 		}
 	case TASK_MOVE_TO_TARGET_RANGE:
@@ -1388,7 +1388,7 @@ Schedule_t *CBaseMonster :: GetSchedule ( void )
 
 			if ( HasConditions(bits_COND_LIGHT_DAMAGE | bits_COND_HEAVY_DAMAGE) )
 			{
-				if ( fabs( FlYawDiff() ) < (1.0 - m_flFieldOfView) * 60 ) // roughly in the correct direction
+				if ( fabsf( FlYawDiff() ) < (1.0f - m_flFieldOfView) * 60 ) // roughly in the correct direction
 				{
 					return GetScheduleOfType( SCHED_TAKE_COVER_FROM_ORIGIN );
 				}

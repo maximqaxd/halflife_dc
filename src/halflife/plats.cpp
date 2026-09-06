@@ -319,7 +319,7 @@ void CFuncPlat :: Setup( void )
 		pev->speed = 150;
 
 	if ( m_volume == 0 )
-		m_volume = 0.85;
+		m_volume = 0.85f;
 }
 
 
@@ -628,7 +628,7 @@ void CFuncPlatRot :: RotMove( Vector &destAngle, float time )
 	Vector vecDestDelta = destAngle - pev->angles;
 
 	// Travel time is so short, we're practically there already;  so make it so.
-	if ( time >= 0.1)
+	if ( time >= 0.1f)
 		pev->avelocity = vecDestDelta / time;
 	else
 	{
@@ -712,7 +712,7 @@ void CFuncTrain :: Blocked( CBaseEntity *pOther )
 	if ( gpGlobals->time < m_flActivateFinished)
 		return;
 
-	m_flActivateFinished = gpGlobals->time + 0.5;
+	m_flActivateFinished = gpGlobals->time + 0.5f;
 	
 	pOther->TakeDamage(pev, pev, pev->dmg, DMG_CRUSH);
 }
@@ -821,7 +821,7 @@ void CFuncTrain :: Next( void )
 	{
 		// Path corner has indicated a teleport to the next corner.
 		SetBits(pev->effects, EF_NOINTERP);
-		UTIL_SetOrigin(pev, pTarg->pev->origin - (pev->mins + pev->maxs)* 0.5);
+		UTIL_SetOrigin(pev, pTarg->pev->origin - (pev->mins + pev->maxs)* 0.5f);
 		Wait(); // Get on with doing the next path corner.
 	}
 	else
@@ -837,7 +837,7 @@ void CFuncTrain :: Next( void )
 			EMIT_SOUND (ENT(pev), CHAN_STATIC, (char*)STRING(pev->noiseMovement), m_volume, ATTN_NORM);
 		ClearBits(pev->effects, EF_NOINTERP);
 		SetMoveDone( Wait );
-		LinearMove (pTarg->pev->origin - (pev->mins + pev->maxs)* 0.5, pev->speed);
+		LinearMove (pTarg->pev->origin - (pev->mins + pev->maxs)* 0.5f, pev->speed);
 	}
 }
 
@@ -853,11 +853,11 @@ void CFuncTrain :: Activate( void )
 		pev->target = pevTarg->target;
 		m_pevCurrentTarget = pevTarg;// keep track of this since path corners change our target for us.
     
-		UTIL_SetOrigin	(pev, pevTarg->origin - (pev->mins + pev->maxs) * 0.5 );
+		UTIL_SetOrigin	(pev, pevTarg->origin - (pev->mins + pev->maxs) * 0.5f );
 		
 		if ( FStringNull(pev->targetname) )
 		{	// not triggered, so start immediately
-			pev->nextthink = pev->ltime + 0.1;
+			pev->nextthink = pev->ltime + 0.1f;
 			SetThink( Next );
 		}
 		else
@@ -902,7 +902,7 @@ void CFuncTrain :: Spawn( void )
 	m_activated = FALSE;
 
 	if ( m_volume == 0 )
-		m_volume = 0.85;
+		m_volume = 0.85f;
 }
 
 
@@ -955,7 +955,7 @@ void CFuncTrain::OverrideReset( void )
 		else	// Keep moving for 0.1 secs, then find path_corner again and restart
 		{
 			SetThink( Next );
-			pev->nextthink = pev->ltime + 0.1;
+			pev->nextthink = pev->ltime + 0.1f;
 		}
 	}
 }
@@ -1013,7 +1013,7 @@ void CFuncTrackTrain :: KeyValue( KeyValueData *pkvd )
 	else if (FStrEq(pkvd->szKeyName, "volume"))
 	{
 		m_flVolume = (float) (atoi(pkvd->szValue));
-		m_flVolume *= 0.1;
+		m_flVolume *= 0.1f;
 		pkvd->fHandled = TRUE;
 	}
 	else if (FStrEq(pkvd->szKeyName, "bank"))
@@ -1088,7 +1088,7 @@ void CFuncTrackTrain :: Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_
 	{
 		float delta = value;
 
-		delta = ((int)(pev->speed * 4) / (int)m_speed)*0.25 + 0.25 * delta;
+		delta = ((int)(pev->speed * 4) / (int)m_speed)*0.25f + 0.25f * delta;
 		if ( delta > 1 )
 			delta = 1;
 		else if ( delta < -1 )
@@ -1169,7 +1169,7 @@ void CFuncTrackTrain :: UpdateSound( void )
 
 void CFuncTrackTrain :: Next( void )
 {
-	float time = 0.5;
+	float time = 0.5f;
 
 	if ( !pev->speed )
 	{
@@ -1192,7 +1192,7 @@ void CFuncTrackTrain :: Next( void )
 	Vector nextPos = pev->origin;
 
 	nextPos.z -= m_height;
-	CPathTrack *pnext = m_ppath->LookAhead( &nextPos, pev->speed * 0.1, 1 );
+	CPathTrack *pnext = m_ppath->LookAhead( &nextPos, pev->speed * 0.1f, 1 );
 	nextPos.z += m_height;
 
 	pev->velocity = (nextPos - pev->origin) * 10;
@@ -1409,7 +1409,7 @@ void CFuncTrackTrain :: Find( void )
 	if ( pev->spawnflags & SF_TRACKTRAIN_NOPITCH )
 		pev->angles.x = 0;
     UTIL_SetOrigin( pev, nextPos );
-	NextThink( pev->ltime + 0.1, FALSE );
+	NextThink( pev->ltime + 0.1f, FALSE );
 	SetThink( Next );
 	pev->speed = m_startSpeed;
 
@@ -1459,7 +1459,7 @@ void CFuncTrackTrain :: NearestPath( void )
 
 	if ( pev->speed != 0 )
 	{
-		NextThink( pev->ltime + 0.1, FALSE );
+		NextThink( pev->ltime + 0.1f, FALSE );
 		SetThink( Next );
 	}
 }
@@ -1467,7 +1467,7 @@ void CFuncTrackTrain :: NearestPath( void )
 
 void CFuncTrackTrain::OverrideReset( void )
 {
-	NextThink( pev->ltime + 0.1, FALSE );
+	NextThink( pev->ltime + 0.1f, FALSE );
 	SetThink( NearestPath );
 }
 
@@ -1526,15 +1526,15 @@ void CFuncTrackTrain :: Spawn( void )
 	m_controlMaxs.z += 72;
 // start trains on the next frame, to make sure their targets have had
 // a chance to spawn/activate
-	NextThink( pev->ltime + 0.1, FALSE );
+	NextThink( pev->ltime + 0.1f, FALSE );
 	SetThink( Find );
 	Precache();
 }
 
 void CFuncTrackTrain :: Precache( void )
 {
-	if (m_flVolume == 0.0)
-		m_flVolume = 1.0;
+	if (m_flVolume == 0.0f)
+		m_flVolume = 1.0f;
 
 	switch (m_sounds)
 	{
@@ -1741,7 +1741,7 @@ void CFuncTrackChange :: Spawn( void )
 	}
 
 	EnableUse();
-	pev->nextthink = pev->ltime + 2.0;
+	pev->nextthink = pev->ltime + 2.0f;
 	SetThink( Find );
 	Precache();
 }
@@ -1792,7 +1792,7 @@ void CFuncTrackChange :: KeyValue( KeyValueData *pkvd )
 
 void CFuncTrackChange::OverrideReset( void )
 {
-	pev->nextthink = pev->ltime + 1.0;
+	pev->nextthink = pev->ltime + 1.0f;
 	SetThink( Find );
 }
 
@@ -1818,7 +1818,7 @@ void CFuncTrackChange :: Find( void )
 					ALERT( at_error, "Can't find train for track change! %s\n", STRING(m_trainName) );
 					return;
 				}
-				Vector center = (pev->absmin + pev->absmax) * 0.5;
+				Vector center = (pev->absmin + pev->absmax) * 0.5f;
 				m_trackBottom = m_trackBottom->Nearest( center );
 				m_trackTop = m_trackTop->Nearest( center );
 				UpdateAutoTargets( m_toggle_state );
@@ -1888,7 +1888,7 @@ void CFuncTrackChange :: UpdateTrain( Vector &dest )
 	local.z = DotProduct( offset, gpGlobals->v_up );
 
 	local = local - offset;
-	m_train->pev->velocity = pev->velocity + (local * (1.0/time));
+	m_train->pev->velocity = pev->velocity + (local * (1.0f/time));
 }
 
 void CFuncTrackChange :: GoDown( void )
@@ -2219,7 +2219,7 @@ void CGunTarget::Spawn( void )
 	if ( pev->spawnflags & FGUNTARGET_START_ON )
 	{
 		SetThink( Start );
-		pev->nextthink = pev->ltime + 0.3;
+		pev->nextthink = pev->ltime + 0.3f;
 	}
 }
 
@@ -2233,7 +2233,7 @@ void CGunTarget::Activate( void )
 	if ( pTarg )
 	{
 		m_hTargetEnt = pTarg;
-		UTIL_SetOrigin( pev, pTarg->pev->origin - (pev->mins + pev->maxs) * 0.5 );
+		UTIL_SetOrigin( pev, pTarg->pev->origin - (pev->mins + pev->maxs) * 0.5f );
 	}
 }
 
@@ -2257,7 +2257,7 @@ void CGunTarget::Next( void )
 		return;
 	}
 	SetMoveDone( Wait );
-	LinearMove( pTarget->pev->origin - (pev->mins + pev->maxs) * 0.5, pev->speed );
+	LinearMove( pTarget->pev->origin - (pev->mins + pev->maxs) * 0.5f, pev->speed );
 }
 
 

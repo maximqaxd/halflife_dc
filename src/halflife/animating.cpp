@@ -21,6 +21,10 @@
 */
 
 #include "extdll.h"
+#ifdef fabs
+#undef fabs
+#endif
+#include <floatmathlib.h>
 #include "util.h"
 #include "cbase.h"
 #include "animation.h"
@@ -44,10 +48,10 @@ IMPLEMENT_SAVERESTORE( CBaseAnimating, CBaseDelay );
 //=========================================================
 float CBaseAnimating :: StudioFrameAdvance ( float flInterval )
 {
-	if (flInterval == 0.0)
+	if (flInterval == 0.0f)
 	{
 		flInterval = (gpGlobals->time - pev->animtime);
-		if (flInterval <= 0.001)
+		if (flInterval <= 0.001f)
 		{
 			pev->animtime = gpGlobals->time;
 			return 0.0;
@@ -59,12 +63,12 @@ float CBaseAnimating :: StudioFrameAdvance ( float flInterval )
 	pev->frame += flInterval * m_flFrameRate * pev->framerate;
 	pev->animtime = gpGlobals->time;
 
-	if (pev->frame < 0.0 || pev->frame >= 256.0) 
+	if (pev->frame < 0.0f || pev->frame >= 256.0f)
 	{
 		if (m_fSequenceLoops)
-			pev->frame -= (int)(pev->frame / 256.0) * 256.0;
+			pev->frame -= (int)(pev->frame / 256.0f) * 256.0f;
 		else
-			pev->frame = (pev->frame < 0.0) ? 0 : 255;
+			pev->frame = (pev->frame < 0.0f) ? 0 : 255;
 		m_fSequenceFinished = TRUE;	// just in case it wasn't caught in GetEvents
 	}
 
@@ -154,7 +158,7 @@ void CBaseAnimating :: DispatchAnimEvents ( float flInterval )
 	m_flLastEventCheck = pev->animtime + flInterval;
 
 	m_fSequenceFinished = FALSE;
-	if (flEnd >= 256 || flEnd <= 0.0) 
+	if (flEnd >= 256 || flEnd <= 0.0f)
 		m_fSequenceFinished = TRUE;
 
 	int index = 0;
@@ -264,7 +268,7 @@ void CBaseAnimating :: SetSequenceBox( void )
 	{
 		// expand box for rotation
 		// find min / max for rotations
-		float yaw = pev->angles.y * (M_PI / 180.0);
+		float yaw = pev->angles.y * ((float)M_PI / 180.0f);
 		
 		Vector xvector, yvector;
 		xvector.x = cos(yaw);

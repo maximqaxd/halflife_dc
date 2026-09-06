@@ -254,7 +254,7 @@ void CBaseDoor::KeyValue( KeyValueData *pkvd )
 	}
 	else if (FStrEq(pkvd->szKeyName, "WaveHeight"))
 	{
-		pev->scale = atof(pkvd->szValue) * (1.0/8.0);
+		pev->scale = (float)atof(pkvd->szValue) * (1.0f / 8.0f);
 		pkvd->fHandled = TRUE;
 	}
 	else
@@ -1023,8 +1023,8 @@ void CMomentaryDoor::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYP
 	if ( useType != USE_SET )		// Momentary buttons will pass down a float in here
 		return;
 
-	if ( value > 1.0 )
-		value = 1.0;
+	if ( value > 1.0f )
+		value = 1.0f;
 	Vector move = m_vecPosition1 + (value * (m_vecPosition2 - m_vecPosition1));
 	
 	Vector delta = move - pev->origin;

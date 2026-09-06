@@ -518,7 +518,7 @@ CSound* CBaseMonster :: PBestScent ( void )
 //=========================================================
 void CBaseMonster :: MonsterThink ( void )
 {
-	pev->nextthink = gpGlobals->time + 0.1;// keep monster thinking.
+	pev->nextthink = gpGlobals->time + 0.1f;// keep monster thinking.
 
 
 	RunAI();
@@ -944,7 +944,7 @@ BOOL CBaseMonster :: FBecomeProne ( void )
 //=========================================================
 BOOL CBaseMonster :: CheckRangeAttack1 ( float flDot, float flDist )
 {
-	if ( flDist > 64 && flDist <= 784 && flDot >= 0.5 )
+	if ( flDist > 64 && flDist <= 784 && flDot >= 0.5f )
 	{
 		return TRUE;
 	}
@@ -956,7 +956,7 @@ BOOL CBaseMonster :: CheckRangeAttack1 ( float flDot, float flDist )
 //=========================================================
 BOOL CBaseMonster :: CheckRangeAttack2 ( float flDot, float flDist )
 {
-	if ( flDist > 64 && flDist <= 512 && flDot >= 0.5 )
+	if ( flDist > 64 && flDist <= 512 && flDot >= 0.5f )
 	{
 		return TRUE;
 	}
@@ -969,7 +969,7 @@ BOOL CBaseMonster :: CheckRangeAttack2 ( float flDot, float flDist )
 BOOL CBaseMonster :: CheckMeleeAttack1 ( float flDot, float flDist )
 {
 	// Decent fix to keep folks from kicking/punching hornets and snarks is to check the onground flag(sjb)
-	if ( flDist <= 64 && flDot >= 0.7 && m_hEnemy != NULL && FBitSet ( m_hEnemy->pev->flags, FL_ONGROUND ) )
+	if ( flDist <= 64 && flDot >= 0.7f && m_hEnemy != NULL && FBitSet ( m_hEnemy->pev->flags, FL_ONGROUND ) )
 	{
 		return TRUE;
 	}
@@ -981,7 +981,7 @@ BOOL CBaseMonster :: CheckMeleeAttack1 ( float flDot, float flDist )
 //=========================================================
 BOOL CBaseMonster :: CheckMeleeAttack2 ( float flDot, float flDist )
 {
-	if ( flDist <= 64 && flDot >= 0.7 )
+	if ( flDist <= 64 && flDot >= 0.7f )
 	{
 		return TRUE;
 	}
@@ -1078,7 +1078,7 @@ int CBaseMonster :: CheckEnemy ( CBaseEntity *pEnemy )
 	Vector vecEnemyPos = pEnemy->pev->origin;
 	// distance to enemy's origin
 	flDistToEnemy = ( vecEnemyPos - pev->origin ).Length();
-	vecEnemyPos.z += pEnemy->pev->size.z * 0.5;
+	vecEnemyPos.z += pEnemy->pev->size.z * 0.5f;
 	// distance to enemy's head
 	float flDistToEnemy2 = (vecEnemyPos - pev->origin).Length();
 	if (flDistToEnemy2 < flDistToEnemy)
@@ -1498,7 +1498,7 @@ void CBaseMonster :: AdvanceRoute ( float distance )
 		}
 		else	// At goal!!!
 		{
-			if ( distance < m_flGroundSpeed * 0.2 /* FIX */ )
+			if ( distance < m_flGroundSpeed * 0.2f /* FIX */ )
 			{
 				MovementComplete();
 			}
@@ -1636,9 +1636,9 @@ BOOL CBaseMonster :: FTriangulate ( const Vector &vecStart , const Vector &vecEn
 	// If the hull width is less than 24, use 24 because CheckLocalMove uses a min of
 	// 24.
 	sizeX = pev->size.x;
-	if (sizeX < 24.0)
+	if (sizeX < 24.0f)
 		sizeX = 24.0;
-	else if (sizeX > 48.0)
+	else if (sizeX > 48.0f)
 		sizeX = 48.0;
 	sizeZ = pev->size.z;
 	//if (sizeZ < 24.0)
@@ -1882,7 +1882,7 @@ void CBaseMonster :: Move ( float flInterval )
 			DispatchBlocked( edict(), pBlocker->edict() );
 		}
 
-		if ( pBlocker && m_moveWaitTime > 0 && pBlocker->IsMoving() && !pBlocker->IsPlayer() && (gpGlobals->time-m_flMoveWaitFinished) > 3.0 )
+		if ( pBlocker && m_moveWaitTime > 0 && pBlocker->IsMoving() && !pBlocker->IsPlayer() && (gpGlobals->time-m_flMoveWaitFinished) > 3.0f )
 		{
 			// Can we still move toward our target?
 			if ( flDist < m_flGroundSpeed )
@@ -1916,10 +1916,10 @@ void CBaseMonster :: Move ( float flInterval )
 					else
 					{
 						// Don't get stuck
-						if ( (gpGlobals->time - m_flMoveWaitFinished) < 0.2 )
+						if ( (gpGlobals->time - m_flMoveWaitFinished) < 0.2f )
 							Remember( bits_MEMORY_MOVE_FAILED );
 
-						m_flMoveWaitFinished = gpGlobals->time + 0.1;
+						m_flMoveWaitFinished = gpGlobals->time + 0.1f;
 					}
 				}
 				else
@@ -1984,7 +1984,7 @@ void CBaseMonster::MoveExecute( CBaseEntity *pTargetEnt, const Vector &vecDir, f
 
 	float flTotal = m_flGroundSpeed * pev->framerate * flInterval;
 	float flStep;
-	while (flTotal > 0.001)
+	while (flTotal > 0.001f)
 	{
 		// don't walk more than 16 units or stairs stop working
 		flStep = min( 16.0, flTotal );
@@ -2043,7 +2043,7 @@ void CBaseMonster :: MonsterInit ( void )
 	SetEyePosition();
 
 	SetThink( MonsterInitThink );
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 	SetUse ( MonsterUse );
 }
 
@@ -2246,12 +2246,12 @@ BOOL CBaseMonster :: FindCover ( Vector vecThreat, Vector vecViewOffset, float f
 		flMaxDist = 784;
 	}
 
-	if ( flMinDist > 0.5 * flMaxDist)
+	if ( flMinDist > 0.5f * flMaxDist)
 	{
 #if _DEBUG
 		ALERT ( at_console, "FindCover MinDist (%.0f) too close to MaxDist (%.0f)\n", flMinDist, flMaxDist );
 #endif
-		flMinDist = 0.5 * flMaxDist;
+		flMinDist = 0.5f * flMaxDist;
 	}
 
 	if ( !WorldGraph.m_fGraphPresent || !WorldGraph.m_fGraphPointersSet )
@@ -2296,7 +2296,7 @@ BOOL CBaseMonster :: FindCover ( Vector vecThreat, Vector vecViewOffset, float f
 			UTIL_TraceLine ( node.m_vecOrigin + vecViewOffset, vecLookersOffset, ignore_monsters, ignore_glass,  ENT(pev), &tr );
 
 			// if this node will block the threat's line of sight to me...
-			if ( tr.flFraction != 1.0 )
+			if ( tr.flFraction != 1.0f )
 			{
 				// ..and is also closer to me than the threat, or the same distance from myself and the threat the node is good.
 				if ( ( iMyNode == iThreatNode ) || WorldGraph.PathLength( iMyNode, nodeNumber, iMyHullIndex, m_afCapability ) <= WorldGraph.PathLength( iThreatNode, nodeNumber, iMyHullIndex, m_afCapability ) )
@@ -2351,12 +2351,12 @@ BOOL CBaseMonster :: BuildNearestRoute ( Vector vecThreat, Vector vecViewOffset,
 		flMaxDist = 784;
 	}
 
-	if ( flMinDist > 0.5 * flMaxDist)
+	if ( flMinDist > 0.5f * flMaxDist)
 	{
 #if _DEBUG
 		ALERT ( at_console, "FindCover MinDist (%.0f) too close to MaxDist (%.0f)\n", flMinDist, flMaxDist );
 #endif
-		flMinDist = 0.5 * flMaxDist;
+		flMinDist = 0.5f * flMaxDist;
 	}
 
 	if ( !WorldGraph.m_fGraphPresent || !WorldGraph.m_fGraphPointersSet )
@@ -2395,7 +2395,7 @@ BOOL CBaseMonster :: BuildNearestRoute ( Vector vecThreat, Vector vecViewOffset,
 				// can I see where I want to be from there?
 				UTIL_TraceLine( node.m_vecOrigin + pev->view_ofs, vecLookersOffset, ignore_monsters, edict(), &tr );
 
-				if (tr.flFraction == 1.0)
+				if (tr.flFraction == 1.0f)
 				{
 					// try to actually get there
 					if ( BuildRoute ( node.m_vecOrigin, bits_MF_TO_LOCATION, NULL ) )
@@ -2870,7 +2870,7 @@ int CBaseMonster :: FindHintNode ( void )
 				{
 					UTIL_TraceLine ( pev->origin + pev->view_ofs, node.m_vecOrigin + pev->view_ofs, ignore_monsters, ENT(pev), &tr );
 
-					if ( tr.flFraction == 1.0 )
+					if ( tr.flFraction == 1.0f )
 					{
 						WorldGraph.m_iLastActiveIdleSearch = nodeNumber + 1; // next monster that searches for hint nodes will start where we left off.
 						return nodeNumber;// take it!
@@ -3167,7 +3167,7 @@ BOOL CBaseMonster :: FindLateralCover ( const Vector &vecThreat, const Vector &v
 		// it's faster to check the SightEnt's visibility to the potential spot than to check the local move, so we do that first.
 		UTIL_TraceLine(vecThreat + vecViewOffset, vecRightTest + pev->view_ofs, ignore_monsters, ignore_glass, ENT(pev)/*pentIgnore*/, &tr);
 		
-		if ( tr.flFraction != 1.0 )
+		if ( tr.flFraction != 1.0f )
 		{
 			if (  FValidateCover ( vecRightTest ) && CheckLocalMove( pev->origin, vecRightTest, NULL, NULL ) == LOCALMOVE_VALID )
 			{
@@ -3206,7 +3206,7 @@ Vector CBaseMonster :: ShootAtEnemy( const Vector &shootOrigin )
 //=========================================================
 BOOL CBaseMonster :: FacingIdeal( void )
 {
-	if ( fabs( FlYawDiff() ) <= 0.006 )//!!!BUGBUG - no magic numbers!!!
+	if ( fabsf( FlYawDiff() ) <= 0.006f )//!!!BUGBUG - no magic numbers!!!
 	{
 		return TRUE;
 	}
@@ -3263,7 +3263,7 @@ void CBaseMonster::CorpseFallThink( void )
 		UTIL_SetOrigin( pev, pev->origin );// link into world.
 	}
 	else
-		pev->nextthink = gpGlobals->time + 0.1;
+		pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 // Call after animation/pose is set up
@@ -3288,7 +3288,7 @@ void CBaseMonster :: MonsterInitDead( void )
 	// Setup health counters, etc.
 	BecomeDead();
 	SetThink( CorpseFallThink );
-	pev->nextthink = gpGlobals->time + 0.5;
+	pev->nextthink = gpGlobals->time + 0.5f;
 }
 
 //=========================================================

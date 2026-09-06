@@ -251,9 +251,9 @@ void CRpgRocket :: Spawn( void )
 	pev->angles.x = -(pev->angles.x + 30);
 
 	pev->velocity = gpGlobals->v_forward * 250;
-	pev->gravity = 0.5;
+	pev->gravity = 0.5f;
 
-	pev->nextthink = gpGlobals->time + 0.4;
+	pev->nextthink = gpGlobals->time + 0.4f;
 
 	pev->dmg = gSkillData.plrDmgRPG;
 }
@@ -290,7 +290,7 @@ void CRpgRocket :: IgniteThink( void  )
 	pev->effects |= EF_LIGHT;
 
 	// make rocket sound
-	EMIT_SOUND( ENT(pev), CHAN_VOICE, "weapons/rocket1.wav", 1, 0.5 );
+	EMIT_SOUND( ENT(pev), CHAN_VOICE, "weapons/rocket1.wav", 1, 0.5f );
 
 	// rocket trail
 	MESSAGE_BEGIN( MSG_BROADCAST, SVC_TEMPENTITY );
@@ -325,7 +325,7 @@ void CRpgRocket :: IgniteThink( void  )
 
 	// set to follow laser spot
 	SetThink( FollowThink );
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 
@@ -347,7 +347,7 @@ void CRpgRocket :: FollowThink( void  )
 	{
 		UTIL_TraceLine ( pev->origin, pOther->pev->origin, dont_ignore_monsters, ENT(pev), &tr );
 		// ALERT( at_console, "%f\n", tr.flFraction );
-		if (tr.flFraction >= 0.90)
+		if (tr.flFraction >= 0.90f)
 		{
 			vecDir = pOther->pev->origin - pev->origin;
 			flDist = vecDir.Length( );
@@ -365,9 +365,9 @@ void CRpgRocket :: FollowThink( void  )
 
 	// this acceleration and turning math is totally wrong, but it seems to respond well so don't change it.
 	float flSpeed = pev->velocity.Length();
-	if (gpGlobals->time - m_flIgniteTime < 1.0)
+	if (gpGlobals->time - m_flIgniteTime < 1.0f)
 	{
-		pev->velocity = pev->velocity * 0.2 + vecTarget * (flSpeed * 0.8 + 400);
+		pev->velocity = pev->velocity * 0.2f + vecTarget * (flSpeed * 0.8f + 400);
 		if (pev->waterlevel == 3)
 		{
 			// go slow underwater
@@ -375,7 +375,7 @@ void CRpgRocket :: FollowThink( void  )
 			{
 				pev->velocity = pev->velocity.Normalize() * 300;
 			}
-			UTIL_BubbleTrail( pev->origin - pev->velocity * 0.1, pev->origin, 4 );
+			UTIL_BubbleTrail( pev->origin - pev->velocity * 0.1f, pev->origin, 4 );
 		} 
 		else 
 		{
@@ -392,7 +392,7 @@ void CRpgRocket :: FollowThink( void  )
 			pev->effects = 0;
 			STOP_SOUND( ENT(pev), CHAN_VOICE, "weapons/rocket1.wav" );
 		}
-		pev->velocity = pev->velocity * 0.2 + vecTarget * flSpeed * 0.798;
+		pev->velocity = pev->velocity * 0.2f + vecTarget * flSpeed * 0.798f;
 		if (pev->waterlevel == 0 && pev->velocity.Length() < 1500)
 		{
 			Detonate( );
@@ -400,7 +400,7 @@ void CRpgRocket :: FollowThink( void  )
 	}
 	// ALERT( at_console, "%.0f\n", flSpeed );
 
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 
@@ -430,7 +430,7 @@ void CRpg::Reload( void )
 	// Set the next attack time into the future so that WeaponIdle will get called more often
 	// than reload, allowing the RPG LTD to be updated
 	
-	m_flNextPrimaryAttack = gpGlobals->time + 0.5;
+	m_flNextPrimaryAttack = gpGlobals->time + 0.5f;
 
 	if ( m_cActiveRockets && m_fSpotActive )
 	{
@@ -441,8 +441,8 @@ void CRpg::Reload( void )
 
 	if (m_pSpot && m_fSpotActive)
 	{
-		m_pSpot->Suspend( 2.1 );
-		m_flNextSecondaryAttack = gpGlobals->time + 2.1;
+		m_pSpot->Suspend( 2.1f );
+		m_flNextSecondaryAttack = gpGlobals->time + 2.1f;
 	}
 
 	if (m_iClip == 0)
@@ -549,7 +549,7 @@ void CRpg::Holster( )
 {
 	m_fInReload = FALSE;// cancel any reload in progress.
 
-	m_pPlayer->m_flNextAttack = gpGlobals->time + 0.5;
+	m_pPlayer->m_flNextAttack = gpGlobals->time + 0.5f;
 	// m_flTimeWeaponIdle = gpGlobals->time + RANDOM_FLOAT ( 10, 15 );
 	SendWeaponAnim( RPG_HOLSTER1 );
 	if (m_pSpot)
@@ -585,14 +585,14 @@ void CRpg::PrimaryAttack()
 		// Ken signed up for this as a global change (sjb)
 
 		
-		EMIT_SOUND(ENT(m_pPlayer->pev), CHAN_WEAPON, "weapons/rocketfire1.wav", 0.9, ATTN_NORM );
-		EMIT_SOUND(ENT(m_pPlayer->pev), CHAN_ITEM, "weapons/glauncher.wav", 0.7, ATTN_NORM );
+		EMIT_SOUND(ENT(m_pPlayer->pev), CHAN_WEAPON, "weapons/rocketfire1.wav", 0.9f, ATTN_NORM );
+		EMIT_SOUND(ENT(m_pPlayer->pev), CHAN_ITEM, "weapons/glauncher.wav", 0.7f, ATTN_NORM );
 
 		m_iClip--; 
 		//m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType]--;
 		
-		m_flNextPrimaryAttack = gpGlobals->time + 1.5;
-		m_flTimeWeaponIdle = gpGlobals->time + 1.5;
+		m_flNextPrimaryAttack = gpGlobals->time + 1.5f;
+		m_flTimeWeaponIdle = gpGlobals->time + 1.5f;
 		m_pPlayer->pev->punchangle.x -= 5;
 	}
 	else
@@ -613,7 +613,7 @@ void CRpg::SecondaryAttack()
 		m_pSpot = NULL;
 	}
 
-	m_flNextSecondaryAttack = gpGlobals->time + 0.2;
+	m_flNextSecondaryAttack = gpGlobals->time + 0.2f;
 }
 
 
@@ -630,14 +630,14 @@ void CRpg::WeaponIdle( void )
 	{
 		int iAnim;
 		float flRand = RANDOM_FLOAT(0, 1);
-		if (flRand <= 0.75 || m_fSpotActive)
+		if (flRand <= 0.75f || m_fSpotActive)
 		{
 			if ( m_iClip == 0 )
 				iAnim = RPG_IDLE_UL;
 			else
 				iAnim = RPG_IDLE;
 
-			m_flTimeWeaponIdle = gpGlobals->time + 90.0 / 15.0;
+			m_flTimeWeaponIdle = gpGlobals->time + 90.0f / 15.0f;
 		}
 		else
 		{
@@ -646,7 +646,7 @@ void CRpg::WeaponIdle( void )
 			else
 				iAnim = RPG_FIDGET;
 
-			m_flTimeWeaponIdle = gpGlobals->time + 3.0;
+			m_flTimeWeaponIdle = gpGlobals->time + 3.0f;
 		}
 
 		SendWeaponAnim( iAnim );

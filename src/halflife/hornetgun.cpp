@@ -128,7 +128,7 @@ BOOL CHgun::Deploy( )
 
 void CHgun::Holster( )
 {
-	m_pPlayer->m_flNextAttack = gpGlobals->time + 0.5;
+	m_pPlayer->m_flNextAttack = gpGlobals->time + 0.5f;
 	// m_flTimeWeaponIdle = gpGlobals->time + RANDOM_FLOAT ( 10, 15 );
 	SendWeaponAnim( HGUN_DOWN );
 
@@ -155,7 +155,7 @@ void CHgun::PrimaryAttack()
 	pHornet->pev->velocity = gpGlobals->v_forward * 300;
 	
 	m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType]--;
-	m_flRechargeTime = gpGlobals->time + 0.5;
+	m_flRechargeTime = gpGlobals->time + 0.5f;
 
 	m_pPlayer->m_iWeaponVolume = QUIET_GUN_VOLUME;
 	m_pPlayer->m_iWeaponFlash = DIM_GUN_FLASH;
@@ -165,11 +165,11 @@ void CHgun::PrimaryAttack()
 	// player "shoot" animation
 	m_pPlayer->SetAnimation( PLAYER_ATTACK1 );
 
-	m_flNextPrimaryAttack = m_flNextPrimaryAttack + 0.25;
+	m_flNextPrimaryAttack = m_flNextPrimaryAttack + 0.25f;
 
 	if (m_flNextPrimaryAttack < gpGlobals->time)
 	{
-		m_flNextPrimaryAttack = gpGlobals->time + 0.25;
+		m_flNextPrimaryAttack = gpGlobals->time + 0.25f;
 	}
 
 	m_flTimeWeaponIdle = gpGlobals->time + RANDOM_FLOAT ( 10, 15 );
@@ -237,14 +237,14 @@ void CHgun::SecondaryAttack( void )
 	m_pPlayer->m_iWeaponVolume = NORMAL_GUN_VOLUME;
 	m_pPlayer->m_iWeaponFlash = DIM_GUN_FLASH;
 
-	m_flRechargeTime = gpGlobals->time + 0.5;
+	m_flRechargeTime = gpGlobals->time + 0.5f;
 
 	SendWeaponAnim( HGUN_SHOOT );
 
 	// player "shoot" animation
 	m_pPlayer->SetAnimation( PLAYER_ATTACK1 );
 
-	m_flNextPrimaryAttack = m_flNextSecondaryAttack = gpGlobals->time + 0.1;
+	m_flNextPrimaryAttack = m_flNextSecondaryAttack = gpGlobals->time + 0.1f;
 	m_flTimeWeaponIdle = gpGlobals->time + RANDOM_FLOAT ( 10, 15 );
 	m_pPlayer->pev->punchangle.x = RANDOM_FLOAT( 0, 2 );
 }
@@ -258,7 +258,7 @@ void CHgun::Reload( void )
 	while (m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType] < HORNET_MAX_CARRY && m_flRechargeTime < gpGlobals->time)
 	{
 		m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType]++;
-		m_flRechargeTime += 0.5;
+		m_flRechargeTime += 0.5f;
 	}
 }
 
@@ -272,20 +272,20 @@ void CHgun::WeaponIdle( void )
 
 	int iAnim;
 	float flRand = RANDOM_FLOAT(0, 1);
-	if (flRand <= 0.75)
+	if (flRand <= 0.75f)
 	{
 		iAnim = HGUN_IDLE1;
-		m_flTimeWeaponIdle = gpGlobals->time + 30.0 / 16 * (2);
+		m_flTimeWeaponIdle = gpGlobals->time + 30.0f / 16 * (2);
 	}
-	else if (flRand <= 0.875)
+	else if (flRand <= 0.875f)
 	{
 		iAnim = HGUN_FIDGETSWAY;
-		m_flTimeWeaponIdle = gpGlobals->time + 40.0 / 16.0;
+		m_flTimeWeaponIdle = gpGlobals->time + 40.0f / 16.0f;
 	}
 	else
 	{
 		iAnim = HGUN_FIDGETSHAKE;
-		m_flTimeWeaponIdle = gpGlobals->time + 35.0 / 16.0;
+		m_flTimeWeaponIdle = gpGlobals->time + 35.0f / 16.0f;
 	}
 	SendWeaponAnim( iAnim );
 }

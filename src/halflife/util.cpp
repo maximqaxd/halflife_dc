@@ -314,7 +314,7 @@ int UTIL_MonstersInSphere( CBaseEntity **pList, int listMax, const Vector &cente
 			continue;
 
 		// Now Z
-		delta = center.z - (pEdict->v.absmin.z + pEdict->v.absmax.z)*0.5;
+	delta = center.z - (pEdict->v.absmin.z + pEdict->v.absmax.z)*0.5f;
 		delta *= delta;
 
 		distance += delta;
@@ -1063,7 +1063,7 @@ void UTIL_DecalTrace( TraceResult *pTrace, int decalNumber )
 	if ( index < 0 )
 		return;
 
-	if (pTrace->flFraction == 1.0)
+	if (pTrace->flFraction == 1.0f)
 		return;
 
 	// Only decal BSP models
@@ -1132,7 +1132,7 @@ void UTIL_PlayerDecalTrace( TraceResult *pTrace, int playernum, int decalNumber,
 	else
 		index = decalNumber;
 
-	if (pTrace->flFraction == 1.0)
+	if (pTrace->flFraction == 1.0f)
 		return;
 
 	MESSAGE_BEGIN( MSG_BROADCAST, SVC_TEMPENTITY );
@@ -1155,7 +1155,7 @@ void UTIL_GunshotDecalTrace( TraceResult *pTrace, int decalNumber )
 	if ( index < 0 )
 		return;
 
-	if (pTrace->flFraction == 1.0)
+	if (pTrace->flFraction == 1.0f)
 		return;
 
 	MESSAGE_BEGIN( MSG_PAS, SVC_TEMPENTITY, pTrace->vecEndPos );
@@ -1308,7 +1308,7 @@ float UTIL_WaterLevel( const Vector &position, float minz, float maxz )
 		return maxz;
 
 	float diff = maxz - minz;
-	while (diff > 1.0)
+	while (diff > 1.0f)
 	{
 		midUp.z = minz + diff/2.0;
 		if (UTIL_PointContents(midUp) == CONTENTS_WATER)
@@ -2021,6 +2021,7 @@ int CRestore::ReadField( void *pBaseData, TYPEDESCRIPTION *pFields, int fieldCou
 	TYPEDESCRIPTION *pTest;
 	float	time, timeData;
 	Vector	position;
+	Vector	inputPosition;
 	edict_t	*pent;
 	char	*pString;
 
@@ -2050,13 +2051,13 @@ int CRestore::ReadField( void *pBaseData, TYPEDESCRIPTION *pFields, int fieldCou
 					switch( pTest->fieldType )
 					{
 					case FIELD_TIME:
-						timeData = *(float *)pInputData;
+						memcpy( &timeData, pInputData, sizeof(timeData) );
 						// Re-base time variables
 						timeData += time;
 						*((float *)pOutputData) = timeData;
 					break;
 					case FIELD_FLOAT:
-						*((float *)pOutputData) = *(float *)pInputData;
+						memcpy( pOutputData, pInputData, sizeof(float) );
 					break;
 					case FIELD_MODELNAME:
 					case FIELD_SOUNDNAME:
@@ -2090,7 +2091,7 @@ int CRestore::ReadField( void *pBaseData, TYPEDESCRIPTION *pFields, int fieldCou
 						}
 					break;
 					case FIELD_EVARS:
-						entityIndex = *( int *)pInputData;
+						memcpy( &entityIndex, pInputData, sizeof(entityIndex) );
 						pent = EntityFromIndex( entityIndex );
 						if ( pent )
 							*((entvars_t **)pOutputData) = VARS(pent);
@@ -2098,7 +2099,7 @@ int CRestore::ReadField( void *pBaseData, TYPEDESCRIPTION *pFields, int fieldCou
 							*((entvars_t **)pOutputData) = NULL;
 					break;
 					case FIELD_CLASSPTR:
-						entityIndex = *( int *)pInputData;
+						memcpy( &entityIndex, pInputData, sizeof(entityIndex) );
 						pent = EntityFromIndex( entityIndex );
 						if ( pent )
 							*((CBaseEntity **)pOutputData) = CBaseEntity::Instance(pent);
@@ -2106,14 +2107,14 @@ int CRestore::ReadField( void *pBaseData, TYPEDESCRIPTION *pFields, int fieldCou
 							*((CBaseEntity **)pOutputData) = NULL;
 					break;
 					case FIELD_EDICT:
-						entityIndex = *( int *)pInputData;
+						memcpy( &entityIndex, pInputData, sizeof(entityIndex) );
 						pent = EntityFromIndex( entityIndex );
 						*((edict_t **)pOutputData) = pent;
 					break;
 					case FIELD_EHANDLE:
 						// Input and Output sizes are different!
 						pOutputData = (char *)pOutputData + j*(sizeof(EHANDLE) - gSizes[pTest->fieldType]);
-						entityIndex = *( int *)pInputData;
+						memcpy( &entityIndex, pInputData, sizeof(entityIndex) );
 						pent = EntityFromIndex( entityIndex );
 						if ( pent )
 							*((EHANDLE *)pOutputData) = CBaseEntity::Instance(pent);
@@ -2121,7 +2122,7 @@ int CRestore::ReadField( void *pBaseData, TYPEDESCRIPTION *pFields, int fieldCou
 							*((EHANDLE *)pOutputData) = NULL;
 					break;
 					case FIELD_ENTITY:
-						entityIndex = *( int *)pInputData;
+						memcpy( &entityIndex, pInputData, sizeof(entityIndex) );
 						pent = EntityFromIndex( entityIndex );
 						if ( pent )
 							*((EOFFSET *)pOutputData) = OFFSET(pent);
@@ -2129,23 +2130,22 @@ int CRestore::ReadField( void *pBaseData, TYPEDESCRIPTION *pFields, int fieldCou
 							*((EOFFSET *)pOutputData) = 0;
 					break;
 					case FIELD_VECTOR:
-						((float *)pOutputData)[0] = ((float *)pInputData)[0];
-						((float *)pOutputData)[1] = ((float *)pInputData)[1];
-						((float *)pOutputData)[2] = ((float *)pInputData)[2];
+						memcpy( pOutputData, pInputData, sizeof(Vector) );
 					break;
 					case FIELD_POSITION_VECTOR:
-						((float *)pOutputData)[0] = ((float *)pInputData)[0] + position.x;
-						((float *)pOutputData)[1] = ((float *)pInputData)[1] + position.y;
-						((float *)pOutputData)[2] = ((float *)pInputData)[2] + position.z;
+						memcpy( &inputPosition, pInputData, sizeof(inputPosition) );
+						((float *)pOutputData)[0] = inputPosition.x + position.x;
+						((float *)pOutputData)[1] = inputPosition.y + position.y;
+						((float *)pOutputData)[2] = inputPosition.z + position.z;
 					break;
 
 					case FIELD_BOOLEAN:
 					case FIELD_INTEGER:
-						*((int *)pOutputData) = *( int *)pInputData;
+						memcpy( pOutputData, pInputData, sizeof(int) );
 					break;
 
 					case FIELD_SHORT:
-						*((short *)pOutputData) = *( short *)pInputData;
+						memcpy( pOutputData, pInputData, sizeof(short) );
 					break;
 
 					case FIELD_CHARACTER:
@@ -2153,7 +2153,7 @@ int CRestore::ReadField( void *pBaseData, TYPEDESCRIPTION *pFields, int fieldCou
 					break;
 
 					case FIELD_POINTER:
-						*((int *)pOutputData) = *( int *)pInputData;
+						memcpy( pOutputData, pInputData, sizeof(int) );
 					break;
 					case FIELD_FUNCTION:
 						if ( strlen( (char *)pInputData ) == 0 )
@@ -2261,9 +2261,11 @@ int	CRestore::ReadInt( void )
 int CRestore::ReadNamedInt( const char *pName )
 {
 	HEADER header;
+	int value;
 
 	BufferReadHeader( &header );
-	return ((int *)header.pData)[0];
+	memcpy( &value, header.pData, sizeof(value) );
+	return value;
 }
 
 char *CRestore::ReadNamedString( const char *pName )

@@ -64,8 +64,8 @@ extern CGraph	WorldGraph;
 #define TRAIN_FAST		0x04 
 #define TRAIN_BACK		0x05
 
-#define	FLASH_DRAIN_TIME	 1.2 //100 units/3 minutes
-#define	FLASH_CHARGE_TIME	 0.2 // 100 units/20 seconds  (seconds per unit)
+#define	FLASH_DRAIN_TIME	 1.2f //100 units/3 minutes
+#define	FLASH_CHARGE_TIME	 0.2f // 100 units/20 seconds  (seconds per unit)
 
 
 //#define PLAYER_MAX_SAFE_FALL_DIST	20// falling any farther than this many feet will inflict damage
@@ -197,9 +197,9 @@ void CBasePlayer :: Pain( void )
 
 	flRndSound = RANDOM_FLOAT ( 0 , 1 ); 
 	
-	if ( flRndSound <= 0.33 )
+	if ( flRndSound <= 0.33f )
 		EMIT_SOUND(ENT(pev), CHAN_VOICE, "player/pl_pain5.wav", 1, ATTN_NORM);
-	else if ( flRndSound <= 0.66 )	
+	else if ( flRndSound <= 0.66f )
 		EMIT_SOUND(ENT(pev), CHAN_VOICE, "player/pl_pain6.wav", 1, ATTN_NORM);
 	else
 		EMIT_SOUND(ENT(pev), CHAN_VOICE, "player/pl_pain7.wav", 1, ATTN_NORM);
@@ -213,7 +213,7 @@ Vector VecVelocityForDamage(float flDamage)
 	Vector vec(RANDOM_FLOAT(-100,100), RANDOM_FLOAT(-100,100), RANDOM_FLOAT(200,300));
 
 	if (flDamage > -50)
-		vec = vec * 0.7;
+		vec = vec * 0.7f;
 	else if (flDamage > -200)
 		vec = vec * 2;
 	else
@@ -280,9 +280,9 @@ int TrainSpeed(int iSpeed, int iMax)
 		iRet = TRAIN_BACK;
 	else if (iSpeed == 0)
 		iRet = TRAIN_NEUTRAL;
-	else if (fSpeed < 0.33)
+	else if (fSpeed < 0.33f)
 		iRet = TRAIN_SLOW;
-	else if (fSpeed < 0.66)
+	else if (fSpeed < 0.66f)
 		iRet = TRAIN_MEDIUM;
 	else
 		iRet = TRAIN_FAST;
@@ -382,8 +382,8 @@ void CBasePlayer :: TraceAttack( entvars_t *pevAttacker, float flDamage, Vector 
 	etc are implemented with subsequent calls to TakeDamage using DMG_GENERIC.
 */
 
-#define ARMOR_RATIO	 0.2	// Armor Takes 80% of the damage
-#define ARMOR_BONUS  0.5	// Each Point of Armor is work 1/x points of health
+#define ARMOR_RATIO	 0.2f	// Armor Takes 80% of the damage
+#define ARMOR_BONUS  0.5f	// Each Point of Armor is work 1/x points of health
 
 int CBasePlayer :: TakeDamage( entvars_t *pevInflictor, entvars_t *pevAttacker, float flDamage, int bitsDamageType )
 {
@@ -735,7 +735,7 @@ void CBasePlayer::PackDeadPlayerItems( void )
 		iPW++;
 	}
 
-	pWeaponBox->pev->velocity = pev->velocity * 1.2;// weaponbox has player's velocity, then some.
+	pWeaponBox->pev->velocity = pev->velocity * 1.2f;// weaponbox has player's velocity, then some.
 
 	RemoveAllItems( TRUE );// now strip off everything that wasn't handled by the code above.
 }
@@ -869,7 +869,7 @@ void CBasePlayer::Killed( entvars_t *pevAttacker, int iGib )
 	pev->angles.z = 0;
 
 	SetThink(PlayerDeathThink);
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 
@@ -1150,10 +1150,10 @@ void CBasePlayer::WaterMove()
 	{
 		switch (RANDOM_LONG(0,3))
 			{
-			case 0:	EMIT_SOUND(ENT(pev), CHAN_BODY, "player/pl_swim1.wav", 0.8, ATTN_NORM); break;
-			case 1:	EMIT_SOUND(ENT(pev), CHAN_BODY, "player/pl_swim2.wav", 0.8, ATTN_NORM); break;
-			case 2:	EMIT_SOUND(ENT(pev), CHAN_BODY, "player/pl_swim3.wav", 0.8, ATTN_NORM); break;
-			case 3:	EMIT_SOUND(ENT(pev), CHAN_BODY, "player/pl_swim4.wav", 0.8, ATTN_NORM); break;
+			case 0:	EMIT_SOUND(ENT(pev), CHAN_BODY, "player/pl_swim1.wav", 0.8f, ATTN_NORM); break;
+			case 1:	EMIT_SOUND(ENT(pev), CHAN_BODY, "player/pl_swim2.wav", 0.8f, ATTN_NORM); break;
+			case 2:	EMIT_SOUND(ENT(pev), CHAN_BODY, "player/pl_swim3.wav", 0.8f, ATTN_NORM); break;
+			case 3:	EMIT_SOUND(ENT(pev), CHAN_BODY, "player/pl_swim4.wav", 0.8f, ATTN_NORM); break;
 		}
 	}
 
@@ -1187,7 +1187,7 @@ void CBasePlayer::WaterMove()
 	}
 	
 	if (!FBitSet(pev->flags, FL_WATERJUMP))
-		pev->velocity = pev->velocity - 0.8 * pev->waterlevel * gpGlobals->frametime * pev->velocity;
+		pev->velocity = pev->velocity - 0.8f * pev->waterlevel * gpGlobals->frametime * pev->velocity;
 }
 
 
@@ -1271,7 +1271,7 @@ void CBasePlayer::PlayerDeathThink(void)
 	StopAnimation();
 
 	pev->effects |= EF_NOINTERP;
-	pev->framerate = 0.0;
+	pev->framerate = 0.0f;
 
 	BOOL fAnyButtonDown = (pev->button);
 	
@@ -1414,7 +1414,7 @@ void CBasePlayer::PlayerUse ( void )
 					m_afPhysicsFlags |= PFLAG_ONTRAIN;
 					m_iTrain = TrainSpeed(pTrain->pev->speed, pTrain->pev->impulse);
 					m_iTrain |= TRAIN_NEW;
-					EMIT_SOUND( ENT(pev), CHAN_ITEM, "plats/train_use1.wav", 0.8, ATTN_NORM);
+					EMIT_SOUND( ENT(pev), CHAN_ITEM, "plats/train_use1.wav", 0.8f, ATTN_NORM);
 					return;
 				}
 			}
@@ -1441,7 +1441,7 @@ void CBasePlayer::PlayerUse ( void )
 			
 			// This essentially moves the origin of the target to the corner nearest the player to test to see 
 			// if it's "hull" is in the view cone
-			vecLOS = UTIL_ClampVectorToBox( vecLOS, pObject->pev->size * 0.5 );
+			vecLOS = UTIL_ClampVectorToBox( vecLOS, pObject->pev->size * 0.5f );
 			
 			flDot = DotProduct (vecLOS , gpGlobals->v_forward);
 			if (flDot > flMaxDot )
@@ -1462,7 +1462,7 @@ void CBasePlayer::PlayerUse ( void )
 		int caps = pObject->ObjectCaps();
 
 		if ( m_afButtonPressed & IN_USE )
-			EMIT_SOUND( ENT(pev), CHAN_ITEM, "common/wpn_select.wav", 0.4, ATTN_NORM);
+			EMIT_SOUND( ENT(pev), CHAN_ITEM, "common/wpn_select.wav", 0.4f, ATTN_NORM);
 
 		if ( ( (pev->button & IN_USE) && (caps & FCAP_CONTINUOUS_USE) ) ||
 			 ( (m_afButtonPressed & IN_USE) && (caps & (FCAP_IMPULSE_USE|FCAP_ONOFF_USE)) ) )
@@ -1481,7 +1481,7 @@ void CBasePlayer::PlayerUse ( void )
 	else
 	{
 		if ( m_afButtonPressed & IN_USE )
-			EMIT_SOUND( ENT(pev), CHAN_ITEM, "common/wpn_denyselect.wav", 0.4, ATTN_NORM);
+			EMIT_SOUND( ENT(pev), CHAN_ITEM, "common/wpn_denyselect.wav", 0.4f, ATTN_NORM);
 	}
 }
 
@@ -1544,7 +1544,7 @@ void CBasePlayer::Jump()
 
 	// play step sound for current texture at full volume
 
-	PlayStepSound(MapTextureTypeStepType(m_chTextureType), 1.0);
+	PlayStepSound(MapTextureTypeStepType(m_chTextureType), 1.0f);
 	
 	if ( FBitSet(pev->flags, FL_DUCKING ) || FBitSet(m_afPhysicsFlags, PFLAG_DUCKING) )
 	{
@@ -1563,18 +1563,18 @@ void CBasePlayer::Jump()
 			}
 
 			pev->punchangle.x = -5;
-			pev->velocity = gpGlobals->v_forward * (PLAYER_LONGJUMP_SPEED * 1.6);
-			pev->velocity.z = sqrt( 2 * 800 * 56.0 ); // jump 56 units
+			pev->velocity = gpGlobals->v_forward * (PLAYER_LONGJUMP_SPEED * 1.6f);
+			pev->velocity.z = sqrt( 2 * 800 * 56.0f ); // jump 56 units
 			SetAnimation( PLAYER_SUPERJUMP );
 		}
 		else
 		{// ducking jump
-			pev->velocity.z = sqrt( 2 * 800 * 45.0 ); // jump 45 units
+			pev->velocity.z = sqrt( 2 * 800 * 45.0f ); // jump 45 units
 		}
 	}
 	else
 	{
-		pev->velocity.z = sqrt( 2 * 800 * 45.0 ); // jump 45 units
+		pev->velocity.z = sqrt( 2 * 800 * 45.0f ); // jump 45 units
 	}
 	
 	// If you're standing on a conveyor, add it's velocity to yours (for momentum)
@@ -1604,7 +1604,7 @@ void FixPlayerCrouchStuck( edict_t *pPlayer )
 }
 
 // It takes 0.4 seconds to duck
-#define TIME_TO_DUCK	0.4
+#define TIME_TO_DUCK	0.4f
 
 // This is a little more complicated now than it used to be, but I think for the better -
 // The player's origin no longer moves when ducking.  If you start ducking while standing on ground,
@@ -1656,7 +1656,7 @@ void CBasePlayer::Duck( )
 			else
 			{
 				// Calc parametric time
-				duckFraction = UTIL_SplineFraction( time, (1.0/TIME_TO_DUCK) );
+				duckFraction = UTIL_SplineFraction( time, (1.0f/TIME_TO_DUCK) );
 				pev->view_ofs = ((VEC_DUCK_VIEW - (VEC_DUCK_HULL_MIN - VEC_HULL_MIN)) * duckFraction) + (VEC_VIEW * (1-duckFraction));
 			}
 		}
@@ -1953,13 +1953,13 @@ void CBasePlayer :: UpdateStepSound( void )
 	{
 		velwalk = 60;		// These constants should be based on cl_movespeedkey * cl_forwardspeed somehow
 		velrun = 80;		// UNDONE: Move walking to server
-		flduck = 0.1;
+		flduck = 0.1f;
 	}
 	else
 	{
 		velwalk = 120;
 		velrun = 210;
-		flduck = 0.0;
+		flduck = 0.0f;
 	}
 
 	// ALERT (at_console, "vel: %f\n", vecVel.Length());
@@ -1975,30 +1975,30 @@ void CBasePlayer :: UpdateStepSound( void )
 		
 		fWalking = speed < velrun;		
 
-		center = knee = feet = (pev->absmin + pev->absmax) * 0.5;
+		center = knee = feet = (pev->absmin + pev->absmax) * 0.5f;
 		height = pev->absmax.z - pev->absmin.z;
 
-		knee.z = pev->absmin.z + height * 0.2;
+		knee.z = pev->absmin.z + height * 0.2f;
 		feet.z = pev->absmin.z;
 
 		// find out what we're stepping in or on...
 		if (fLadder)
 		{
 			step = STEP_LADDER;
-			fvol = 0.35;
-			m_flTimeStepSound = gpGlobals->time + 0.35;
+			fvol = 0.35f;
+			m_flTimeStepSound = gpGlobals->time + 0.35f;
 		}
 		else if ( UTIL_PointContents ( knee ) == CONTENTS_WATER )
 		{
 			step = STEP_WADE;
-			fvol = 0.65;
-			m_flTimeStepSound = gpGlobals->time + 0.6;
+			fvol = 0.65f;
+			m_flTimeStepSound = gpGlobals->time + 0.6f;
 		}
 		else if (UTIL_PointContents ( feet ) == CONTENTS_WATER )
 		{
 			step = STEP_SLOSH;
-			fvol = fWalking ? 0.2 : 0.5;
-			m_flTimeStepSound = fWalking ? gpGlobals->time + 0.4 : gpGlobals->time + 0.3;		
+			fvol = fWalking ? 0.2f : 0.5f;
+			m_flTimeStepSound = fWalking ? gpGlobals->time + 0.4f : gpGlobals->time + 0.3f;
 		}
 		else
 		{
@@ -2007,8 +2007,8 @@ void CBasePlayer :: UpdateStepSound( void )
 
 			start = end = center;							// center point of player BB
 			start.z = end.z = pev->absmin.z;				// copy zmin
-			start.z += 4.0;									// extend start up
-			end.z -= 24.0;									// extend end down
+			start.z += 4.0f;									// extend start up
+			end.z -= 24.0f;									// extend end down
 			
 			start.CopyToArray(rgfl1);
 			end.CopyToArray(rgfl2);
@@ -2043,38 +2043,38 @@ void CBasePlayer :: UpdateStepSound( void )
 			{
 			default:
 			case CHAR_TEX_CONCRETE:						
-				fvol = fWalking ? 0.2 : 0.5;
-				m_flTimeStepSound = fWalking ? gpGlobals->time + 0.4 : gpGlobals->time + 0.3;
+				fvol = fWalking ? 0.2f : 0.5f;
+				m_flTimeStepSound = fWalking ? gpGlobals->time + 0.4f : gpGlobals->time + 0.3f;
 				break;
 
 			case CHAR_TEX_METAL:	
-				fvol = fWalking ? 0.2 : 0.5;
-				m_flTimeStepSound = fWalking ? gpGlobals->time + 0.4 : gpGlobals->time + 0.3;
+				fvol = fWalking ? 0.2f : 0.5f;
+				m_flTimeStepSound = fWalking ? gpGlobals->time + 0.4f : gpGlobals->time + 0.3f;
 				break;
 
 			case CHAR_TEX_DIRT:	
-				fvol = fWalking ? 0.25 : 0.55;
-				m_flTimeStepSound = fWalking ? gpGlobals->time + 0.4 : gpGlobals->time + 0.3;
+				fvol = fWalking ? 0.25f : 0.55f;
+				m_flTimeStepSound = fWalking ? gpGlobals->time + 0.4f : gpGlobals->time + 0.3f;
 				break;
 
 			case CHAR_TEX_VENT:	
-				fvol = fWalking ? 0.4 : 0.7;
-				m_flTimeStepSound = fWalking ? gpGlobals->time + 0.4 : gpGlobals->time + 0.3;
+				fvol = fWalking ? 0.4f : 0.7f;
+				m_flTimeStepSound = fWalking ? gpGlobals->time + 0.4f : gpGlobals->time + 0.3f;
 				break;
 
 			case CHAR_TEX_GRATE:
-				fvol = fWalking ? 0.2 : 0.5;
-				m_flTimeStepSound = fWalking ? gpGlobals->time + 0.4 : gpGlobals->time + 0.3;
+				fvol = fWalking ? 0.2f : 0.5f;
+				m_flTimeStepSound = fWalking ? gpGlobals->time + 0.4f : gpGlobals->time + 0.3f;
 				break;
 
 			case CHAR_TEX_TILE:	
-				fvol = fWalking ? 0.2 : 0.5;
-				m_flTimeStepSound = fWalking ? gpGlobals->time + 0.4 : gpGlobals->time + 0.3;
+				fvol = fWalking ? 0.2f : 0.5f;
+				m_flTimeStepSound = fWalking ? gpGlobals->time + 0.4f : gpGlobals->time + 0.3f;
 				break;
 
 			case CHAR_TEX_SLOSH:
-				fvol = fWalking ? 0.2 : 0.5;
-				m_flTimeStepSound = fWalking ? gpGlobals->time + 0.4 : gpGlobals->time + 0.3;
+				fvol = fWalking ? 0.2f : 0.5f;
+				m_flTimeStepSound = fWalking ? gpGlobals->time + 0.4f : gpGlobals->time + 0.3f;
 				break;
 			}
 		}
@@ -2085,7 +2085,7 @@ void CBasePlayer :: UpdateStepSound( void )
 
 		// 35% volume if ducking
 		if ( pev->flags & FL_DUCKING )
-			fvol *= 0.35;
+			fvol *= 0.35f;
 
 		PlayStepSound(step, fvol);
 	}
@@ -2163,7 +2163,7 @@ void CBasePlayer::PreThink(void)
 			UTIL_TraceLine( pev->origin, pev->origin + Vector(0,0,-38), ignore_monsters, ENT(pev), &trainTrace );
 
 			// HACKHACK - Just look for the func_tracktrain classname
-			if ( trainTrace.flFraction != 1.0 && trainTrace.pHit )
+			if ( trainTrace.flFraction != 1.0f && trainTrace.pHit )
 			pTrain = CBaseEntity::Instance( trainTrace.pHit );
 
 
@@ -2319,13 +2319,13 @@ void CBasePlayer::CheckTimeBasedDamage()
 	int i;
 	BYTE bDuration = 0;
 
-	static float gtbdPrev = 0.0;
+	static float gtbdPrev = 0.0f;
 
 	if (!(m_bitsDamageType & DMG_TIMEBASED))
 		return;
 
 	// only check for time based damage approx. every 2 seconds
-	if (abs(gpGlobals->time - m_tbdPrev) < 2.0)
+	if (fabsf(gpGlobals->time - m_tbdPrev) < 2.0f)
 		return;
 	
 	m_tbdPrev = gpGlobals->time;
@@ -2481,7 +2481,7 @@ Things powered by the battery
 // if in range of radiation source, ping geiger counter
 int gmsgGeigerRange;
 
-#define GEIGERDELAY 0.25
+#define GEIGERDELAY 0.25f
 
 void CBasePlayer :: UpdateGeigerCounter( void )
 {
@@ -2520,8 +2520,8 @@ Play suit update if it's time
 ================
 */
 
-#define SUITUPDATETIME	3.5
-#define SUITFIRSTUPDATETIME 0.1
+#define SUITUPDATETIME	3.5f
+#define SUITFIRSTUPDATETIME 0.1f
 
 void CBasePlayer::CheckSuitUpdate()
 {
@@ -2636,7 +2636,7 @@ void CBasePlayer::SetSuitUpdate(char *name, int fgroup, int iNoRepeatTime)
 				{
 				// norepeat time has expired, clear it out
 				m_rgiSuitNoRepeat[i] = 0;
-				m_rgflSuitNoRepeatTime[i] = 0.0;
+				m_rgflSuitNoRepeatTime[i] = 0.0f;
 				iempty = i;
 				break;
 				}
@@ -2850,7 +2850,7 @@ void CBasePlayer::PostThink()
 
 	if ( (FBitSet(pev->flags, FL_ONGROUND)) && (pev->health > 0) && m_flFallVelocity >= PLAYER_FALL_PUNCH_THRESHHOLD )
 	{
-		float fvol = 0.5;
+		float fvol = 0.5f;
 
 		// ALERT ( at_console, "%f\n", m_flFallVelocity );
 
@@ -2884,19 +2884,19 @@ void CBasePlayer::PostThink()
 				TakeDamage(VARS(eoNullEntity), VARS(eoNullEntity), flFallDamage, DMG_FALL ); 
 			}
 
-			fvol = 1.0;
+			fvol = 1.0f;
 		}
 		else if ( m_flFallVelocity > PLAYER_MAX_SAFE_FALL_SPEED / 2 )
 		{
 			// EMIT_SOUND(ENT(pev), CHAN_VOICE, "player/pl_jumpland2.wav", 1, ATTN_NORM);
-			fvol = 0.85;
+			fvol = 0.85f;
 		}
 		else if ( m_flFallVelocity < PLAYER_MIN_BOUNCE_SPEED )
 		{
 			fvol = 0;
 		}
 
-		if ( fvol > 0.0 )
+		if ( fvol > 0.0f )
 		{
 			// get current texture under player right away
 			m_flTimeStepSound = 0;
@@ -2906,7 +2906,7 @@ void CBasePlayer::PostThink()
 			PlayStepSound(MapTextureTypeStepType(m_chTextureType), fvol);
 
 		// knock the screen around a little bit, temporary effect
-			pev->punchangle.x = m_flFallVelocity * 0.018;	// punch x axis
+			pev->punchangle.x = m_flFallVelocity * 0.018f;	// punch x axis
 
 			if ( pev->punchangle.x > 8 )
 			{
@@ -2915,7 +2915,7 @@ void CBasePlayer::PostThink()
 
 			if ( RANDOM_LONG(0,1) )
 			{
-				pev->punchangle.z = m_flFallVelocity * 0.009;
+				pev->punchangle.z = m_flFallVelocity * 0.009f;
 			}
 		
 		}
@@ -2930,7 +2930,7 @@ void CBasePlayer::PostThink()
 	{		
 		if (m_flFallVelocity > 64 && !g_pGameRules->IsMultiplayer())
 		{
-			CSoundEnt::InsertSound ( bits_SOUND_PLAYER, pev->origin, m_flFallVelocity, 0.2 );
+			CSoundEnt::InsertSound ( bits_SOUND_PLAYER, pev->origin, m_flFallVelocity, 0.2f );
 			// ALERT( at_console, "fall %f\n", m_flFallVelocity );
 		}
 		m_flFallVelocity = 0;
@@ -3104,12 +3104,12 @@ void CBasePlayer::Spawn( void )
 
 	m_flNextDecalTime	= 0;// let this player decal as soon as he spawns.
 
-	m_flgeigerDelay = gpGlobals->time + 2.0;	// wait a few seconds until user-defined message registrations
+	m_flgeigerDelay = gpGlobals->time + 2.0f;	// wait a few seconds until user-defined message registrations
 												// are recieved by all clients
 	
 	m_flTimeStepSound	= 0;
 	m_iStepLeft = 0;
-	m_flFieldOfView		= 0.5;// some monsters use this to determine whether or not the player is looking at them.
+	m_flFieldOfView		= 0.5f;// some monsters use this to determine whether or not the player is looking at them.
 
 	m_bloodColor	= BLOOD_COLOR_RED;
 	m_flNextAttack	= gpGlobals->time;
@@ -3474,7 +3474,7 @@ void CSprayCan::Spawn ( entvars_t *pevOwner )
 	pev->owner = ENT(pevOwner);
 	pev->frame = 0;
 
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 	EMIT_SOUND(ENT(pev), CHAN_VOICE, "player/sprayer.wav", 1, ATTN_NORM);
 }
 
@@ -3513,7 +3513,7 @@ void CSprayCan::Think( void )
 			UTIL_Remove( this );
 	}
 
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 class	CBloodSplat : public CBaseEntity
@@ -3532,7 +3532,7 @@ void CBloodSplat::Spawn ( entvars_t *pevOwner )
 	pev->owner = ENT(pevOwner);
 
 	SetThink ( Spray );
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 void CBloodSplat::Spray ( void )
@@ -3547,7 +3547,7 @@ void CBloodSplat::Spray ( void )
 		UTIL_BloodDecalTrace( &tr, BLOOD_COLOR_RED );
 	}
 	SetThink ( SUB_Remove );
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 //==============================================
@@ -3581,7 +3581,7 @@ CBaseEntity *FindEntityForward( CBaseEntity *pMe )
 
 	UTIL_MakeVectors(pMe->pev->v_angle);
 	UTIL_TraceLine(pMe->pev->origin + pMe->pev->view_ofs,pMe->pev->origin + pMe->pev->view_ofs + gpGlobals->v_forward * 8192,dont_ignore_monsters, pMe->edict(), &tr );
-	if ( tr.flFraction != 1.0 && !FNullEnt( tr.pHit) )
+	if ( tr.flFraction != 1.0f && !FNullEnt( tr.pHit) )
 	{
 		CBaseEntity *pHit = CBaseEntity::Instance( tr.pHit );
 		return pHit;
@@ -3605,7 +3605,7 @@ void CBasePlayer :: FlashlightTurnOn( void )
 
 	if ( (pev->weapons & (1<<WEAPON_SUIT)) )
 	{
-		EMIT_SOUND_DYN( ENT(pev), CHAN_WEAPON, SOUND_FLASHLIGHT_ON, 1.0, ATTN_NORM, 0, PITCH_NORM );
+		EMIT_SOUND_DYN( ENT(pev), CHAN_WEAPON, SOUND_FLASHLIGHT_ON, 1.0f, ATTN_NORM, 0, PITCH_NORM );
 		SetBits(pev->effects, EF_DIMLIGHT);
 		MESSAGE_BEGIN( MSG_ONE, gmsgFlashlight, NULL, pev );
 		WRITE_BYTE(1);
@@ -3620,7 +3620,7 @@ void CBasePlayer :: FlashlightTurnOn( void )
 
 void CBasePlayer :: FlashlightTurnOff( void )
 {
-	EMIT_SOUND_DYN( ENT(pev), CHAN_WEAPON, SOUND_FLASHLIGHT_OFF, 1.0, ATTN_NORM, 0, PITCH_NORM );
+	EMIT_SOUND_DYN( ENT(pev), CHAN_WEAPON, SOUND_FLASHLIGHT_OFF, 1.0f, ATTN_NORM, 0, PITCH_NORM );
     ClearBits(pev->effects, EF_DIMLIGHT);
 	MESSAGE_BEGIN( MSG_ONE, gmsgFlashlight, NULL, pev );
 	WRITE_BYTE(0);
@@ -3718,7 +3718,7 @@ void CBasePlayer::ImpulseCommands( )
 		UTIL_MakeVectors(pev->v_angle);
 		UTIL_TraceLine ( pev->origin + pev->view_ofs, pev->origin + pev->view_ofs + gpGlobals->v_forward * 128, ignore_monsters, ENT(pev), & tr);
 
-		if ( tr.flFraction != 1.0 )
+		if ( tr.flFraction != 1.0f )
 		{// line hit something, so paint a decal
 			m_flNextDecalTime = gpGlobals->time + CVAR_GET_FLOAT("decalfrequency");
 			CSprayCan *pCan = GetClassPtr((CSprayCan *)NULL);
@@ -3746,7 +3746,7 @@ extern "C" int gAlliesFriendly = FALSE;
 void CBasePlayer::CheatImpulseCommands( int iImpulse )
 {
 #if !defined( HLDEMO_BUILD )
-	if ( g_flWeaponCheat == 0.0 )
+	if ( g_flWeaponCheat == 0.0f )
 	{
 		return;
 	}
@@ -3902,7 +3902,7 @@ void CBasePlayer::CheatImpulseCommands( int iImpulse )
 		UTIL_MakeVectors(pev->v_angle);
 		UTIL_TraceLine ( pev->origin + pev->view_ofs, pev->origin + pev->view_ofs + gpGlobals->v_forward * 128, ignore_monsters, ENT(pev), & tr);
 
-		if ( tr.flFraction != 1.0 )
+		if ( tr.flFraction != 1.0f )
 		{// line hit something, so paint a decal
 			CBloodSplat *pBlood = GetClassPtr((CBloodSplat *)NULL);
 			pBlood->Spawn( pev );
@@ -4447,19 +4447,19 @@ void CBasePlayer :: EnableControl(BOOL fControl)
 }
 
 
-#define DOT_1DEGREE   0.9998476951564
-#define DOT_2DEGREE   0.9993908270191
-#define DOT_3DEGREE   0.9986295347546
-#define DOT_4DEGREE   0.9975640502598
-#define DOT_5DEGREE   0.9961946980917
-#define DOT_6DEGREE   0.9945218953683
-#define DOT_7DEGREE   0.9925461516413
-#define DOT_8DEGREE   0.9902680687416
-#define DOT_9DEGREE   0.9876883405951
-#define DOT_10DEGREE  0.9848077530122
-#define DOT_15DEGREE  0.9659258262891
-#define DOT_20DEGREE  0.9396926207859
-#define DOT_25DEGREE  0.9063077870367
+#define DOT_1DEGREE   0.9998476951564f
+#define DOT_2DEGREE   0.9993908270191f
+#define DOT_3DEGREE   0.9986295347546f
+#define DOT_4DEGREE   0.9975640502598f
+#define DOT_5DEGREE   0.9961946980917f
+#define DOT_6DEGREE   0.9945218953683f
+#define DOT_7DEGREE   0.9925461516413f
+#define DOT_8DEGREE   0.9902680687416f
+#define DOT_9DEGREE   0.9876883405951f
+#define DOT_10DEGREE  0.9848077530122f
+#define DOT_15DEGREE  0.9659258262891f
+#define DOT_20DEGREE  0.9396926207859f
+#define DOT_25DEGREE  0.9063077870367f
 
 //=========================================================
 // Autoaim
@@ -4518,11 +4518,11 @@ Vector CBasePlayer :: GetAutoaimVector( float flDelta )
 	// UNDONE: use sever variable to chose!
 	if (0 || g_iSkillLevel == SKILL_EASY)
 	{
-		m_vecAutoAim = m_vecAutoAim * 0.67 + angles * 0.33;
+		m_vecAutoAim = m_vecAutoAim * 0.67f + angles * 0.33f;
 	}
 	else
 	{
-		m_vecAutoAim = angles * 0.9;
+		m_vecAutoAim = angles * 0.9f;
 	}
 
 	// m_vecAutoAim = m_vecAutoAim * 0.99;
@@ -4625,17 +4625,17 @@ Vector CBasePlayer :: AutoaimDeflection( Vector &vecSrc, float flDist, float flD
 		if (DotProduct (dir, gpGlobals->v_forward ) < 0)
 			continue;
 
-		dot = fabs( DotProduct (dir, gpGlobals->v_right ) ) 
-			+ fabs( DotProduct (dir, gpGlobals->v_up ) ) * 0.5;
+		dot = fabsf( DotProduct (dir, gpGlobals->v_right ) )
+			+ fabsf( DotProduct (dir, gpGlobals->v_up ) ) * 0.5f;
 
 		// tweek for distance
-		dot *= 1.0 + 0.2 * ((center - vecSrc).Length() / flDist);
+		dot *= 1.0f + 0.2f * ((center - vecSrc).Length() / flDist);
 
 		if (dot > bestdot)
 			continue;	// to far to turn
 
 		UTIL_TraceLine( vecSrc, center, dont_ignore_monsters, edict(), &tr );
-		if (tr.flFraction != 1.0 && tr.pHit != pEdict)
+		if (tr.flFraction != 1.0f && tr.pHit != pEdict)
 		{
 			// ALERT( at_console, "hit %s, can't see %s\n", STRING( tr.pHit->v.classname ), STRING( pEdict->v.classname ) );
 			continue;

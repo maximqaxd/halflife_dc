@@ -227,7 +227,7 @@ void CBarney :: RunTask( Task_t *pTask )
 	case TASK_RANGE_ATTACK1:
 		if (m_hEnemy != NULL && (m_hEnemy->IsPlayer()))
 		{
-			pev->framerate = 1.5;
+			pev->framerate = 1.5f;
 		}
 		CTalkMonster::RunTask( pTask );
 		break;
@@ -273,7 +273,7 @@ void CBarney :: AlertSound( void )
 	{
 		if ( FOkToSpeak() )
 		{
-			PlaySentence( "BA_ATTACK", RANDOM_FLOAT(2.8, 3.2), VOL_NORM, ATTN_IDLE );
+			PlaySentence( "BA_ATTACK", RANDOM_FLOAT(2.8f, 3.2f), VOL_NORM, ATTN_IDLE );
 		}
 	}
 
@@ -313,7 +313,7 @@ void CBarney :: SetYawSpeed ( void )
 //=========================================================
 BOOL CBarney :: CheckRangeAttack1 ( float flDot, float flDist )
 {
-	if ( flDist <= 1024 && flDot >= 0.5 )
+	if ( flDist <= 1024 && flDot >= 0.5f )
 	{
 		if ( gpGlobals->time > m_checkAttackTime )
 		{
@@ -324,11 +324,11 @@ BOOL CBarney :: CheckRangeAttack1 ( float flDot, float flDist )
 			Vector shootTarget = ( (pEnemy->BodyTarget( shootOrigin ) - pEnemy->pev->origin) + m_vecEnemyLKP );
 			UTIL_TraceLine( shootOrigin, shootTarget, dont_ignore_monsters, ENT(pev), &tr );
 			m_checkAttackTime = gpGlobals->time + 1;
-			if ( tr.flFraction == 1.0 || (tr.pHit != NULL && CBaseEntity::Instance(tr.pHit) == pEnemy) )
+			if ( tr.flFraction == 1.0f || (tr.pHit != NULL && CBaseEntity::Instance(tr.pHit) == pEnemy) )
 				m_lastAttackCheck = TRUE;
 			else
 				m_lastAttackCheck = FALSE;
-			m_checkAttackTime = gpGlobals->time + 1.5;
+			m_checkAttackTime = gpGlobals->time + 1.5f;
 		}
 		return m_lastAttackCheck;
 	}
@@ -363,7 +363,7 @@ void CBarney :: BarneyFirePistol ( void )
 		pitchShift -= 5;
 	EMIT_SOUND_DYN( ENT(pev), CHAN_WEAPON, "barney/ba_attack2.wav", 1, ATTN_NORM, 0, 100 + pitchShift );
 
-	CSoundEnt::InsertSound ( bits_SOUND_COMBAT, pev->origin, 384, 0.3 );
+	CSoundEnt::InsertSound ( bits_SOUND_COMBAT, pev->origin, 384, 0.3f );
 
 	// UNDONE: Reload?
 	m_cAmmoLoaded--;// take away a bullet!
@@ -498,7 +498,7 @@ static BOOL IsFacing( entvars_t *pevTest, const Vector &reference )
 	angle.x = 0;
 	UTIL_MakeVectorsPrivate( angle, forward, NULL, NULL );
 	// He's facing me, he meant it
-	if ( DotProduct( forward, vecDir ) > 0.96 )	// +/- 15 degrees or so
+	if ( DotProduct( forward, vecDir ) > 0.96f )	// +/- 15 degrees or so
 	{
 		return TRUE;
 	}
@@ -555,7 +555,7 @@ void CBarney :: PainSound ( void )
 	if (gpGlobals->time < m_painTime)
 		return;
 	
-	m_painTime = gpGlobals->time + RANDOM_FLOAT(0.5, 0.75);
+	m_painTime = gpGlobals->time + RANDOM_FLOAT(0.5f, 0.75f);
 
 	switch (RANDOM_LONG(0,2))
 	{
@@ -596,8 +596,8 @@ void CBarney::TraceAttack( entvars_t *pevAttacker, float flDamage, Vector vecDir
 			flDamage -= 20;
 			if (flDamage <= 0)
 			{
-				UTIL_Ricochet( ptr->vecEndPos, 1.0 );
-				flDamage = 0.01;
+				UTIL_Ricochet( ptr->vecEndPos, 1.0f );
+				flDamage = 0.01f;
 			}
 		}
 		// always a head shot

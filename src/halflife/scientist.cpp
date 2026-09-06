@@ -336,7 +336,7 @@ Task_t	tlScientistHide[] =
 	{ TASK_STOP_MOVING,				(float)0					},
 	{ TASK_PLAY_SEQUENCE,			(float)ACT_CROUCH			},
 	{ TASK_SET_ACTIVITY,			(float)ACT_CROUCHIDLE		},	// FIXME: This looks lame
-	{ TASK_WAIT_RANDOM,				(float)10.0					},
+	{ TASK_WAIT_RANDOM,				10.0f						},
 };
 
 Schedule_t	slScientistHide[] =
@@ -359,12 +359,12 @@ Schedule_t	slScientistHide[] =
 Task_t	tlScientistStartle[] =
 {
 	{ TASK_SET_FAIL_SCHEDULE,		(float)SCHED_PANIC },		// If you fail, just panic!
-	{ TASK_RANDOM_SCREAM,			(float)0.3 },				// Scream 30% of the time
+	{ TASK_RANDOM_SCREAM,			0.3f },					// Scream 30% of the time
 	{ TASK_STOP_MOVING,				(float)0					},
 	{ TASK_PLAY_SEQUENCE_FACE_ENEMY,			(float)ACT_CROUCH			},
-	{ TASK_RANDOM_SCREAM,			(float)0.1 },				// Scream again 10% of the time
+	{ TASK_RANDOM_SCREAM,			0.1f },					// Scream again 10% of the time
 	{ TASK_PLAY_SEQUENCE_FACE_ENEMY,			(float)ACT_CROUCHIDLE		},
-	{ TASK_WAIT_RANDOM,				(float)1.0					},
+	{ TASK_WAIT_RANDOM,				1.0f						},
 };
 
 Schedule_t	slScientistStartle[] =
@@ -503,7 +503,7 @@ void CScientist :: StartTask( Task_t *pTask )
 			else
 			{
 				m_vecMoveGoal = m_hTargetEnt->pev->origin;
-				if ( !MoveToTarget( ACT_WALK_SCARED, 0.5 ) )
+				if ( !MoveToTarget( ACT_WALK_SCARED, 0.5f ) )
 					TaskFail();
 			}
 		}
@@ -541,7 +541,7 @@ void CScientist :: RunTask( Task_t *pTask )
 
 				distance = ( m_vecMoveGoal - pev->origin ).Length2D();
 				// Re-evaluate when you think your finished, or the target has moved too far
-				if ( (distance < pTask->flData) || (m_vecMoveGoal - m_hTargetEnt->pev->origin).Length() > pTask->flData * 0.5 )
+				if ( (distance < pTask->flData) || (m_vecMoveGoal - m_hTargetEnt->pev->origin).Length() > pTask->flData * 0.5f )
 				{
 					m_vecMoveGoal = m_hTargetEnt->pev->origin;
 					distance = ( m_vecMoveGoal - pev->origin ).Length2D();
@@ -790,7 +790,7 @@ void CScientist :: PainSound ( void )
 	if (gpGlobals->time < m_painTime )
 		return;
 	
-	m_painTime = gpGlobals->time + RANDOM_FLOAT(0.5, 0.75);
+	m_painTime = gpGlobals->time + RANDOM_FLOAT(0.5f, 0.75f);
 
 	switch (RANDOM_LONG(0,4))
 	{
@@ -1066,7 +1066,7 @@ MONSTERSTATE CScientist :: GetIdealState ( void )
 
 BOOL CScientist::CanHeal( void )
 { 
-	if ( (m_healTime > gpGlobals->time) || (m_hTargetEnt == NULL) || (m_hTargetEnt->pev->health > (m_hTargetEnt->pev->max_health * 0.5)) )
+	if ( (m_healTime > gpGlobals->time) || (m_hTargetEnt == NULL) || (m_hTargetEnt->pev->health > (m_hTargetEnt->pev->max_health * 0.5f)) )
 		return FALSE;
 
 	return TRUE;
@@ -1258,7 +1258,7 @@ void CSittingScientist :: Spawn( )
 	ResetSequenceInfo( );
 	
 	SetThink (SittingThink);
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 
 	DROP_TO_FLOOR ( ENT(pev) );
 }
@@ -1385,7 +1385,7 @@ void CSittingScientist :: SittingThink( void )
 		pev->frame = 0;
 		SetBoneController( 0, m_headTurn );
 	}
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 // prepare sitting scientist to answer a question
@@ -1409,7 +1409,7 @@ int CSittingScientist :: FIdleSpeak ( void )
 		return FALSE;
 
 	// set global min delay for next conversation
-	CTalkMonster::g_talkWaitTime = gpGlobals->time + RANDOM_FLOAT(4.8, 5.2);
+	CTalkMonster::g_talkWaitTime = gpGlobals->time + RANDOM_FLOAT(4.8f, 5.2f);
 
 	pitch = GetVoicePitch();
 		
@@ -1424,18 +1424,18 @@ int CSittingScientist :: FIdleSpeak ( void )
 		pTalkMonster->SetAnswerQuestion( this );
 		
 		IdleHeadTurn(pentFriend->pev->origin);
-		SENTENCEG_PlayRndSz( ENT(pev), m_szGrp[TLK_PQUESTION], 1.0, ATTN_IDLE, 0, pitch );
+		SENTENCEG_PlayRndSz( ENT(pev), m_szGrp[TLK_PQUESTION], 1.0f, ATTN_IDLE, 0, pitch );
 		// set global min delay for next conversation
-		CTalkMonster::g_talkWaitTime = gpGlobals->time + RANDOM_FLOAT(4.8, 5.2);
+		CTalkMonster::g_talkWaitTime = gpGlobals->time + RANDOM_FLOAT(4.8f, 5.2f);
 		return TRUE;
 	}
 
 	// otherwise, play an idle statement
 	if (RANDOM_LONG(0,1))
 	{
-		SENTENCEG_PlayRndSz( ENT(pev), m_szGrp[TLK_PIDLE], 1.0, ATTN_IDLE, 0, pitch );
+		SENTENCEG_PlayRndSz( ENT(pev), m_szGrp[TLK_PIDLE], 1.0f, ATTN_IDLE, 0, pitch );
 		// set global min delay for next conversation
-		CTalkMonster::g_talkWaitTime = gpGlobals->time + RANDOM_FLOAT(4.8, 5.2);
+		CTalkMonster::g_talkWaitTime = gpGlobals->time + RANDOM_FLOAT(4.8f, 5.2f);
 		return TRUE;
 	}
 

@@ -21,6 +21,10 @@
 */
 
 #include	"extdll.h"
+#ifdef fabs
+#undef fabs
+#endif
+#include	<floatmathlib.h>
 #include	"util.h"
 #include	"cbase.h"
 #include	"monsters.h"
@@ -81,7 +85,7 @@ public:
 
 	void EXPORT HitTouch( CBaseEntity *pOther );
 
-	float HearingSensitivity( void ) { return 2.0; };
+	float HearingSensitivity( void ) { return 2.0f; };
 
 	int TakeDamage( entvars_t* pevInflictor, entvars_t* pevAttacker, float flDamage, int bitsDamageType );
 	void HandleAnimEvent( MonsterEvent_t *pEvent );
@@ -286,7 +290,7 @@ void CTentacle :: Spawn( )
 	SetTouch( HitTouch );
 	SetUse( CommandUse );
 
-	pev->nextthink = gpGlobals->time + 0.2;
+	pev->nextthink = gpGlobals->time + 0.2f;
 
 	ResetSequenceInfo( );
 	m_iDir = 1;
@@ -349,7 +353,7 @@ void CTentacle::KeyValue( KeyValueData *pkvd )
 {
 	if (FStrEq(pkvd->szKeyName, "sweeparc"))
 	{
-		m_flMaxYaw = atof(pkvd->szValue) / 2.0;
+		m_flMaxYaw = (float)atof(pkvd->szValue) / 2.0f;
 		pkvd->fHandled = TRUE;
 	}
 	else if (FStrEq(pkvd->szKeyName, "sound"))
@@ -465,7 +469,7 @@ void CTentacle :: Test( void )
 	pev->sequence = TENTACLE_ANIM_Floor_Strike;
 	pev->framerate = 0;
 	StudioFrameAdvance( );
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 
@@ -476,7 +480,7 @@ void CTentacle :: Test( void )
 void CTentacle :: Cycle( void )
 {
 	// ALERT( at_console, "%s %.2f %d %d\n", STRING( pev->targetname ), pev->origin.z, m_MonsterState, m_IdealMonsterState );
-	pev->nextthink = gpGlobals-> time + 0.1;
+	pev->nextthink = gpGlobals-> time + 0.1f;
 
 	// ALERT( at_console, "%s %d %d %d %f %f\n", STRING( pev->targetname ), pev->sequence, m_iGoalAnim, m_iDir, pev->framerate, pev->health );
 
@@ -508,7 +512,7 @@ void CTentacle :: Cycle( void )
 	if ( pSound )
 	{
 		Vector vecDir;
-		if (gpGlobals->time - m_flPrevSoundTime < 0.5)
+		if (gpGlobals->time - m_flPrevSoundTime < 0.5f)
 		{
 			float dt = gpGlobals->time - m_flPrevSoundTime;
 			vecDir = pSound->m_vecOrigin + (pSound->m_vecOrigin - m_vecPrevSound) / dt - pev->origin;
@@ -542,7 +546,7 @@ void CTentacle :: Cycle( void )
 
 			// UTIL_EmitAmbientSound(ENT(pev), pev->origin + Vector( 0, 0, MyHeight()), sound, 1.0, ATTN_NORM, 0, 100);
 		}
-		m_flSoundTime = gpGlobals->time + RANDOM_FLOAT( 5.0, 10.0 );
+		m_flSoundTime = gpGlobals->time + RANDOM_FLOAT( 5.0f, 10.0f );
 	}
 
 	// clip ideal_yaw
@@ -636,7 +640,7 @@ void CTentacle :: Cycle( void )
 					case 1: sound = "tentacle/te_sing2.wav"; break;
 					}
 
-					EMIT_SOUND(ENT(pev), CHAN_VOICE, sound, 1.0, ATTN_NORM);
+					EMIT_SOUND(ENT(pev), CHAN_VOICE, sound, 1.0f, ATTN_NORM);
 
 					m_flNextSong = gpGlobals->time + RANDOM_FLOAT( 10, 20 );
 				}
@@ -676,8 +680,8 @@ void CTentacle :: Cycle( void )
 		}
 		ResetSequenceInfo( );
 
-		m_flFramerateAdj = RANDOM_FLOAT( -0.2, 0.2 );
-		pev->framerate = m_iDir * 1.0 + m_flFramerateAdj;
+		m_flFramerateAdj = RANDOM_FLOAT( -0.2f, 0.2f );
+		pev->framerate = m_iDir * 1.0f + m_flFramerateAdj;
 
 		switch( pev->sequence)
 		{
@@ -710,12 +714,12 @@ void CTentacle :: Cycle( void )
 		// ALERT( at_console, "seq %d\n", pev->sequence );
 	}
 
-	if (m_flPrevSoundTime + 2.0 > gpGlobals->time)
+	if (m_flPrevSoundTime + 2.0f > gpGlobals->time)
 	{
 		// 1.5 normal speed if hears sounds
-		pev->framerate = m_iDir * 1.5 + m_flFramerateAdj;
+		pev->framerate = m_iDir * 1.5f + m_flFramerateAdj;
 	}
-	else if (m_flPrevSoundTime + 5.0 > gpGlobals->time)
+	else if (m_flPrevSoundTime + 5.0f > gpGlobals->time)
 	{
 		// slowdown to normal
 		pev->framerate = m_iDir + m_iDir * (5 - (gpGlobals->time - m_flPrevSoundTime)) / 2 + m_flFramerateAdj;
@@ -738,7 +742,7 @@ void CTentacle::CommandUse( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_T
 		if (pActivator)
 		{
 			// ALERT( at_console, "insert sound\n");
-			CSoundEnt::InsertSound ( bits_SOUND_WORLD, pActivator->pev->origin, 1024, 1.0 );
+			CSoundEnt::InsertSound ( bits_SOUND_WORLD, pActivator->pev->origin, 1024, 1.0f );
 		}
 		break;
 	case USE_SET:
@@ -756,7 +760,7 @@ void CTentacle::CommandUse( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_T
 
 void CTentacle :: DieThink( void )
 {
-	pev->nextthink = gpGlobals-> time + 0.1;
+	pev->nextthink = gpGlobals-> time + 0.1f;
 
 	DispatchAnimEvents( );
 	StudioFrameAdvance( );
@@ -815,11 +819,11 @@ void CTentacle :: DieThink( void )
 		case TENTACLE_ANIM_Engine_Death1:
 		case TENTACLE_ANIM_Engine_Death2:
 		case TENTACLE_ANIM_Engine_Death3:
-			pev->framerate = RANDOM_FLOAT( m_iDir - 0.2, m_iDir + 0.2 );
+			pev->framerate = RANDOM_FLOAT( m_iDir - 0.2f, m_iDir + 0.2f );
 			dy = 180;
 			break;
 		default:
-			pev->framerate = 1.5;
+			pev->framerate = 1.5f;
 			dy = 0;
 			break;
 		}
@@ -846,15 +850,15 @@ void CTentacle :: HandleAnimEvent( MonsterEvent_t *pEvent )
 			switch( m_iTapSound )
 			{
 			case TE_SILO:
-				UTIL_EmitAmbientSound(ENT(pev), vecSrc, RANDOM_SOUND_ARRAY( pHitSilo ), 1.0, ATTN_NORM, 0, 100);
+				UTIL_EmitAmbientSound(ENT(pev), vecSrc, RANDOM_SOUND_ARRAY( pHitSilo ), 1.0f, ATTN_NORM, 0, 100);
 				break;
 			case TE_NONE:
 				break;
 			case TE_DIRT:
-				UTIL_EmitAmbientSound(ENT(pev), vecSrc, RANDOM_SOUND_ARRAY( pHitDirt ), 1.0, ATTN_NORM, 0, 100);
+				UTIL_EmitAmbientSound(ENT(pev), vecSrc, RANDOM_SOUND_ARRAY( pHitDirt ), 1.0f, ATTN_NORM, 0, 100);
 				break;
 			case TE_WATER:
-				UTIL_EmitAmbientSound(ENT(pev), vecSrc, RANDOM_SOUND_ARRAY( pHitWater ), 1.0, ATTN_NORM, 0, 100);
+				UTIL_EmitAmbientSound(ENT(pev), vecSrc, RANDOM_SOUND_ARRAY( pHitWater ), 1.0f, ATTN_NORM, 0, 100);
 				break;
 			}
           gpGlobals->force_retouch++;
@@ -877,11 +881,11 @@ void CTentacle :: HandleAnimEvent( MonsterEvent_t *pEvent )
 	case 2:	// tap scrape
 	case 6: // light tap
 		{
-			Vector vecSrc = pev->origin + m_flTapRadius * Vector( cos( pev->angles.y * (M_PI / 180.0) ), sin( pev->angles.y * (M_PI / 180.0) ), 0.0 );
+			Vector vecSrc = pev->origin + m_flTapRadius * Vector( cos( pev->angles.y * ((float)M_PI / 180.0f) ), sin( pev->angles.y * ((float)M_PI / 180.0f) ), 0.0f );
 
 			vecSrc.z += MyHeight( );
 
-			float flVol = RANDOM_FLOAT( 0.3, 0.5 );
+			float flVol = RANDOM_FLOAT( 0.3f, 0.5f );
 
 			switch( m_iTapSound )
 			{
@@ -908,7 +912,7 @@ void CTentacle :: HandleAnimEvent( MonsterEvent_t *pEvent )
 		case 1: sound = "tentacle/te_roar2.wav"; break;
 		}
 
-		UTIL_EmitAmbientSound(ENT(pev), pev->origin + Vector( 0, 0, MyHeight()), sound, 1.0, ATTN_NORM, 0, 100);
+		UTIL_EmitAmbientSound(ENT(pev), pev->origin + Vector( 0, 0, MyHeight()), sound, 1.0f, ATTN_NORM, 0, 100);
 		break;
 
 	case 8: // search
@@ -918,7 +922,7 @@ void CTentacle :: HandleAnimEvent( MonsterEvent_t *pEvent )
 		case 1: sound = "tentacle/te_search2.wav"; break;
 		}
 
-		UTIL_EmitAmbientSound(ENT(pev), pev->origin + Vector( 0, 0, MyHeight()), sound, 1.0, ATTN_NORM, 0, 100);
+		UTIL_EmitAmbientSound(ENT(pev), pev->origin + Vector( 0, 0, MyHeight()), sound, 1.0f, ATTN_NORM, 0, 100);
 		break;
 
 	case 9: // swing
@@ -928,7 +932,7 @@ void CTentacle :: HandleAnimEvent( MonsterEvent_t *pEvent )
 		case 1: sound = "tentacle/te_move2.wav"; break;
 		}
 
-		UTIL_EmitAmbientSound(ENT(pev), pev->origin + Vector( 0, 0, MyHeight()), sound, 1.0, ATTN_NORM, 0, 100);
+		UTIL_EmitAmbientSound(ENT(pev), pev->origin + Vector( 0, 0, MyHeight()), sound, 1.0f, ATTN_NORM, 0, 100);
 		break;
 
 	default:
@@ -957,7 +961,7 @@ void CTentacle :: Start( void )
 		g_fSquirmSound = TRUE;
 	}
 	
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 
@@ -992,7 +996,7 @@ void CTentacle :: HitTouch( CBaseEntity *pOther )
 		return; // Huh?
 	}
 
-	m_flHitTime = gpGlobals->time + 0.5;
+	m_flHitTime = gpGlobals->time + 0.5f;
 
 	// ALERT( at_console, "%s : ", STRING( tr.pHit->v.classname ) );
 

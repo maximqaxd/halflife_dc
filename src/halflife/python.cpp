@@ -137,7 +137,7 @@ void CPython::Holster( )
 		SecondaryAttack();
 	}
 
-	m_pPlayer->m_flNextAttack = gpGlobals->time + 1.0;
+	m_pPlayer->m_flNextAttack = gpGlobals->time + 1.0f;
 	m_flTimeWeaponIdle = gpGlobals->time + 10 + RANDOM_FLOAT ( 0, 5 );
 	SendWeaponAnim( PYTHON_HOLSTER );
 }
@@ -160,7 +160,7 @@ void CPython::SecondaryAttack( void )
 		m_pPlayer->m_iFOV = 40;
 	}
 
-	m_flNextSecondaryAttack = gpGlobals->time + 0.5;
+	m_flNextSecondaryAttack = gpGlobals->time + 0.5f;
 }
 
 void CPython::PrimaryAttack()
@@ -169,7 +169,7 @@ void CPython::PrimaryAttack()
 	if (m_pPlayer->pev->waterlevel == 3)
 	{
 		PlayEmptySound( );
-		m_flNextPrimaryAttack = gpGlobals->time + 0.15;
+		m_flNextPrimaryAttack = gpGlobals->time + 0.15f;
 		return;
 	}
 
@@ -183,7 +183,7 @@ void CPython::PrimaryAttack()
 			//PlayEmptySound( );
 
 			EMIT_SOUND(ENT(m_pPlayer->pev), CHAN_WEAPON, "weapons/357_cock1.wav", 0.8, ATTN_NORM);
-			m_flNextPrimaryAttack = gpGlobals->time + 0.15;
+			m_flNextPrimaryAttack = gpGlobals->time + 0.15f;
 		}
 
 		return;
@@ -235,7 +235,7 @@ void CPython::PrimaryAttack()
 		// HEV suit - indicate out of ammo condition
 		m_pPlayer->SetSuitUpdate("!HEV_AMO0", FALSE, 0);
 
-	m_flNextPrimaryAttack = gpGlobals->time + 0.75;
+	m_flNextPrimaryAttack = gpGlobals->time + 0.75f;
 	m_flTimeWeaponIdle = gpGlobals->time + RANDOM_FLOAT ( 10, 15 );
 
 	m_pPlayer->pev->punchangle.x -= 10;
@@ -252,7 +252,7 @@ void CPython::Reload( void )
 
 	if (DefaultReload( 6, PYTHON_RELOAD, 2.0 ))
 	{
-		m_flSoundDelay = gpGlobals->time + 1.5;
+		m_flSoundDelay = gpGlobals->time + 1.5f;
 	}
 }
 
@@ -284,25 +284,25 @@ void CPython::WeaponIdle( void )
 
 	int iAnim;
 	float flRand = RANDOM_FLOAT(0, 1);
-	if (flRand <= 0.5)
+	if (flRand <= 0.5f)
 	{
 		iAnim = PYTHON_IDLE1;
-		m_flTimeWeaponIdle = gpGlobals->time + (70.0/30.0);
+		m_flTimeWeaponIdle = gpGlobals->time + (70.0f/30.0f);
 	}
-	else if (flRand <= 0.7)
+	else if (flRand <= 0.7f)
 	{
 		iAnim = PYTHON_IDLE2;
-		m_flTimeWeaponIdle = gpGlobals->time + (60.0/30.0);
+		m_flTimeWeaponIdle = gpGlobals->time + (60.0f/30.0f);
 	}
-	else if (flRand <= 0.9)
+	else if (flRand <= 0.9f)
 	{
 		iAnim = PYTHON_IDLE3;
-		m_flTimeWeaponIdle = gpGlobals->time + (88.0/30.0);
+		m_flTimeWeaponIdle = gpGlobals->time + (88.0f/30.0f);
 	}
 	else
 	{
 		iAnim = PYTHON_FIDGET;
-		m_flTimeWeaponIdle = gpGlobals->time + (170.0/30.0);
+		m_flTimeWeaponIdle = gpGlobals->time + (170.0f/30.0f);
 	}
 	SendWeaponAnim( iAnim );
 }

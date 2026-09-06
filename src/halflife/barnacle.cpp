@@ -17,6 +17,10 @@
 //=========================================================
 
 #include	"extdll.h"
+#ifdef fabs
+#undef fabs
+#endif
+#include	<floatmathlib.h>
 #include	"util.h"
 #include	"cbase.h"
 #include	"monsters.h"
@@ -142,7 +146,7 @@ void CBarnacle :: Spawn()
 	SetActivity ( ACT_IDLE );
 
 	SetThink ( BarnacleThink );
-	pev->nextthink = gpGlobals->time + 0.5;
+	pev->nextthink = gpGlobals->time + 0.5f;
 
 	UTIL_SetOrigin ( pev, pev->origin );
 }
@@ -165,7 +169,7 @@ void CBarnacle :: BarnacleThink ( void )
 	CBaseMonster *pVictim;
 	float flLength;
 
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 
 	if ( m_hEnemy != NULL )
 	{
@@ -195,8 +199,8 @@ void CBarnacle :: BarnacleThink ( void )
 			vecNewEnemyOrigin.y = pev->origin.y;
 
 			// guess as to where their neck is
-			vecNewEnemyOrigin.x -= 6 * cos(m_hEnemy->pev->angles.y * M_PI/180.0);	
-			vecNewEnemyOrigin.y -= 6 * sin(m_hEnemy->pev->angles.y * M_PI/180.0);
+			vecNewEnemyOrigin.x -= 6 * cos(m_hEnemy->pev->angles.y * ((float)M_PI / 180.0f));
+			vecNewEnemyOrigin.y -= 6 * sin(m_hEnemy->pev->angles.y * ((float)M_PI / 180.0f));
 
 			m_flAltitude -= BARNACLE_PULL_SPEED;
 			vecNewEnemyOrigin.z += BARNACLE_PULL_SPEED;
@@ -365,7 +369,7 @@ void CBarnacle :: Killed( entvars_t *pevAttacker, int iGib )
 
 	StudioFrameAdvance( 0.1 );
 
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 	SetThink ( WaitTillDead );
 }
 
@@ -373,7 +377,7 @@ void CBarnacle :: Killed( entvars_t *pevAttacker, int iGib )
 //=========================================================
 void CBarnacle :: WaitTillDead ( void )
 {
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 
 	float flInterval = StudioFrameAdvance( 0.1 );
 	DispatchAnimEvents ( flInterval );

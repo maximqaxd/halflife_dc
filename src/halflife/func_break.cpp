@@ -271,7 +271,7 @@ void CBreakable::MaterialSoundRandom( edict_t *pEdict, Materials soundMaterial, 
 	pSoundList = MaterialSoundList( soundMaterial, soundCount );
 
 	if ( soundCount )
-		EMIT_SOUND( pEdict, CHAN_BODY, pSoundList[ RANDOM_LONG(0,soundCount-1) ], volume, 1.0 );
+		EMIT_SOUND( pEdict, CHAN_BODY, pSoundList[ RANDOM_LONG(0,soundCount-1) ], volume, 1.0f );
 }
 
 
@@ -364,7 +364,7 @@ void CBreakable::DamageSound( void )
 	else
 		pitch = 95 + RANDOM_LONG(0,34);
 
-	fvol = RANDOM_FLOAT(0.75, 1.0);
+	fvol = RANDOM_FLOAT(0.75f, 1.0f);
 
 	if (material == matComputer && RANDOM_LONG(0,1))
 		material = matMetal;
@@ -435,7 +435,7 @@ void CBreakable::BreakTouch( CBaseEntity *pOther )
 
 	if ( FBitSet ( pev->spawnflags, SF_BREAK_TOUCH ) )
 	{// can be broken when run into 
-		flDamage = pevToucher->velocity.Length() * 0.01;
+		flDamage = pevToucher->velocity.Length() * 0.01f;
 
 		if (flDamage >= pev->health)
 		{
@@ -458,7 +458,7 @@ void CBreakable::BreakTouch( CBaseEntity *pOther )
 		
 		if ( m_flDelay == 0 )
 		{// !!!BUGBUG - why doesn't zero delay work?
-			m_flDelay = 0.1;
+			m_flDelay = 0.1f;
 		}
 
 		pev->nextthink = pev->ltime + m_flDelay;
@@ -497,7 +497,7 @@ void CBreakable::TraceAttack( entvars_t *pevAttacker, float flDamage, Vector vec
 			{
 				UTIL_Sparks( ptr->vecEndPos );
 
-				float flVolume = RANDOM_FLOAT ( 0.7 , 1.0 );//random volume range
+				float flVolume = RANDOM_FLOAT ( 0.7f , 1.0f );//random volume range
 				switch ( RANDOM_LONG(0,1) )
 				{
 					case 0: EMIT_SOUND(ENT(pev), CHAN_VOICE, "buttons/spark5.wav", flVolume, ATTN_NORM);	break;
@@ -507,7 +507,7 @@ void CBreakable::TraceAttack( entvars_t *pevAttacker, float flDamage, Vector vec
 			break;
 			
 			case matUnbreakableGlass:
-				UTIL_Ricochet( ptr->vecEndPos, RANDOM_FLOAT(0.5,1.5) );
+				UTIL_Ricochet( ptr->vecEndPos, RANDOM_FLOAT(0.5f,1.5f) );
 			break;
 		}
 	}
@@ -528,7 +528,7 @@ int CBreakable :: TakeDamage( entvars_t* pevInflictor, entvars_t* pevAttacker, f
 	// (that is, no actual entity projectile was involved in the attack so use the shooter's origin). 
 	if ( pevAttacker == pevInflictor )	
 	{
-		vecTemp = pevInflictor->origin - ( pev->absmin + ( pev->size * 0.5 ) );
+		vecTemp = pevInflictor->origin - ( pev->absmin + ( pev->size * 0.5f ) );
 		
 		// if a client hit the breakable with a crowbar, and breakable is crowbar-sensitive, break it now.
 		if ( FBitSet ( pevAttacker->flags, FL_CLIENT ) &&
@@ -538,7 +538,7 @@ int CBreakable :: TakeDamage( entvars_t* pevInflictor, entvars_t* pevAttacker, f
 	else
 	// an actual missile was involved.
 	{
-		vecTemp = pevInflictor->origin - ( pev->absmin + ( pev->size * 0.5 ) );
+		vecTemp = pevInflictor->origin - ( pev->absmin + ( pev->size * 0.5f ) );
 	}
 	
 	if (!IsBreakable())
@@ -550,7 +550,7 @@ int CBreakable :: TakeDamage( entvars_t* pevInflictor, entvars_t* pevAttacker, f
 
 	// Boxes / glass / etc. don't take much poison damage, just the impact of the dart - consider that 10%
 	if ( bitsDamageType & DMG_POISON )
-		flDamage *= 0.1;
+		flDamage *= 0.1f;
 
 // this global is still used for glass and other non-monster killables, along with decals.
 	g_vecAttackDir = vecTemp.Normalize();
@@ -590,10 +590,10 @@ void CBreakable::Die( void )
 	// The more negative pev->health, the louder
 	// the sound should be.
 
-	fvol = RANDOM_FLOAT(0.85, 1.0) + (abs(pev->health) / 100.0);
+	fvol = RANDOM_FLOAT(0.85f, 1.0f) + (abs(pev->health) / 100.0f);
 
-	if (fvol > 1.0)
-		fvol = 1.0;
+	if (fvol > 1.0f)
+		fvol = 1.0f;
 
 
 	switch (m_Material)
@@ -670,7 +670,7 @@ void CBreakable::Die( void )
 		vecVelocity.z = 0;
 	}
 
-	vecSpot = pev->origin + (pev->mins + pev->maxs) * 0.5;
+	vecSpot = pev->origin + (pev->mins + pev->maxs) * 0.5f;
 	MESSAGE_BEGIN( MSG_PVS, SVC_TEMPENTITY, vecSpot );
 		WRITE_BYTE( TE_BREAKMODEL);
 
@@ -738,7 +738,7 @@ void CBreakable::Die( void )
 	SUB_UseTargets( NULL, USE_TOGGLE, 0 );
 
 	SetThink( SUB_Remove );
-	pev->nextthink = pev->ltime + 0.1;
+	pev->nextthink = pev->ltime + 0.1f;
 	if ( m_iszSpawnObject )
 		CBaseEntity::Create( (char *)STRING(m_iszSpawnObject), VecBModelOrigin(pev), pev->angles, edict() );
 
@@ -840,7 +840,7 @@ void CPushable :: Spawn( void )
 	UTIL_SetOrigin( pev, pev->origin );
 
 	// Multiply by area of the box's cross-section (assume 1000 units^3 standard volume)
-	pev->skin = ( pev->skin * (pev->maxs.x - pev->mins.x) * (pev->maxs.y - pev->mins.y) ) * 0.0005;
+	pev->skin = ( pev->skin * (pev->maxs.x - pev->mins.x) * (pev->maxs.y - pev->mins.y) ) * 0.0005f;
 	m_soundTime = 0;
 }
 
@@ -927,7 +927,7 @@ void CPushable :: Move( CBaseEntity *pOther, int push )
 	{
 		// Only push if floating
 		if ( pev->waterlevel > 0 )
-			pev->velocity.z += pevToucher->velocity.z * 0.1;
+			pev->velocity.z += pevToucher->velocity.z * 0.1f;
 
 		return;
 	}
@@ -949,13 +949,13 @@ void CPushable :: Move( CBaseEntity *pOther, int push )
 			if ( pev->waterlevel < 1 )
 				return;
 			else 
-				factor = 0.1;
+				factor = 0.1f;
 		}
 		else
 			factor = 1;
 	}
 	else 
-		factor = 0.25;
+		factor = 0.25f;
 
 	pev->velocity.x += pevToucher->velocity.x * factor;
 	pev->velocity.y += pevToucher->velocity.y * factor;
@@ -970,13 +970,13 @@ void CPushable :: Move( CBaseEntity *pOther, int push )
 	{
 		pevToucher->velocity.x = pev->velocity.x;
 		pevToucher->velocity.y = pev->velocity.y;
-		if ( (gpGlobals->time - m_soundTime) > 0.7 )
+		if ( (gpGlobals->time - m_soundTime) > 0.7f )
 		{
 			m_soundTime = gpGlobals->time;
 			if ( length > 0 && FBitSet(pev->flags,FL_ONGROUND) )
 			{
 				m_lastSound = RANDOM_LONG(0,2);
-				EMIT_SOUND(ENT(pev), CHAN_WEAPON, m_soundNames[m_lastSound], 0.5, ATTN_NORM);
+				EMIT_SOUND(ENT(pev), CHAN_WEAPON, m_soundNames[m_lastSound], 0.5f, ATTN_NORM);
 	//			SetThink( StopSound );
 	//			pev->nextthink = pev->ltime + 0.1;
 			}

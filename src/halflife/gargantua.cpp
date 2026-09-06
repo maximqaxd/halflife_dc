@@ -117,13 +117,13 @@ void CStomp::Spawn( void )
 }
 
 
-#define	STOMP_INTERVAL		0.025
+#define	STOMP_INTERVAL		0.025f
 
 void CStomp::Think( void )
 {
 	TraceResult tr;
 
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 
 	// Do damage for this frame
 	Vector vecStart = pev->origin;
@@ -160,7 +160,7 @@ void CStomp::Think( void )
 				pSprite->pev->origin = tr.vecEndPos;
 				pSprite->pev->velocity = Vector(RANDOM_FLOAT(-200,200),RANDOM_FLOAT(-200,200),175);
 				// pSprite->AnimateAndDie( RANDOM_FLOAT( 8.0, 12.0 ) );
-				pSprite->pev->nextthink = gpGlobals->time + 0.3;
+				pSprite->pev->nextthink = gpGlobals->time + 0.3f;
 				pSprite->SetThink( SUB_Remove );
 				pSprite->SetTransparency( kRenderTransAdd, 255, 255, 255, 255, kRenderFxFadeFast );
 			}
@@ -484,7 +484,7 @@ void CGargantua::StompAttack( void )
 	EMIT_SOUND_DYN ( edict(), CHAN_WEAPON, pStompSounds[ RANDOM_LONG(0,ARRAYSIZE(pStompSounds)-1) ], 1.0, ATTN_GARG, 0, PITCH_NORM + RANDOM_LONG(-10,10) );
 
 	UTIL_TraceLine( pev->origin, pev->origin - Vector(0,0,20), ignore_monsters, edict(), &trace );
-	if ( trace.flFraction < 1.0 )
+	if ( trace.flFraction < 1.0f )
 		UTIL_DecalTrace( &trace, DECAL_GARGSTOMP1 );
 }
 
@@ -575,7 +575,7 @@ void CGargantua :: FlameUpdate( void )
 			m_pFlame[i]->SetStartPos( trace.vecEndPos );
 			m_pFlame[i+2]->SetStartPos( (vecStart * 0.6) + (trace.vecEndPos * 0.4) );
 
-			if ( trace.flFraction != 1.0 && gpGlobals->time > m_streakTime )
+			if ( trace.flFraction != 1.0f && gpGlobals->time > m_streakTime )
 			{
 				StreakSplash( trace.vecEndPos, trace.vecPlaneNormal, 6, 20, 50, 400 );
 				streaks = TRUE;
@@ -641,14 +641,14 @@ void CGargantua :: FlameDamage( Vector vecStart, Vector vecEnd, entvars_t *pevIn
 
 			UTIL_TraceLine ( vecSrc, vecSpot, dont_ignore_monsters, ENT(pev), &tr );
 
-			if ( tr.flFraction == 1.0 || tr.pHit == pEntity->edict() )
+			if ( tr.flFraction == 1.0f || tr.pHit == pEntity->edict() )
 			{// the explosion can 'see' this entity, so hurt them!
 				// decrease damage for an ent that's farther from the flame.
 				dist = ( vecSrc - tr.vecEndPos ).Length();
 
 				if (dist > 64)
 				{
-					flAdjustedDamage = flDamage - (dist - 64) * 0.4;
+					flAdjustedDamage = flDamage - (dist - 64) * 0.4f;
 					if (flAdjustedDamage <= 0)
 						continue;
 				}
@@ -658,7 +658,7 @@ void CGargantua :: FlameDamage( Vector vecStart, Vector vecEnd, entvars_t *pevIn
 				}
 
 				// ALERT( at_console, "hit %s\n", STRING( pEntity->pev->classname ) );
-				if (tr.flFraction != 1.0)
+				if (tr.flFraction != 1.0f)
 				{
 					ClearMultiDamage( );
 					pEntity->TraceAttack( pevInflictor, flAdjustedDamage, (tr.vecEndPos - vecSrc).Normalize( ), &tr, bitsDamageType );
@@ -870,7 +870,7 @@ int CGargantua::TakeDamage( entvars_t *pevInflictor, entvars_t *pevAttacker, flo
 	if ( IsAlive() )
 	{
 		if ( !(bitsDamageType & GARG_DAMAGE) )
-			flDamage *= 0.01;
+			flDamage *= 0.01f;
 		if ( bitsDamageType & DMG_BLAST )
 			SetConditions( bits_COND_LIGHT_DAMAGE );
 	}
@@ -886,7 +886,7 @@ void CGargantua::DeathEffect( void )
 	Vector deathPos = pev->origin + gpGlobals->v_forward * 100;
 
 	// Create a spiral of streaks
-	CSpiral::Create( deathPos, (pev->absmax.z - pev->absmin.z) * 0.6, 125, 1.5 );
+	CSpiral::Create( deathPos, (pev->absmax.z - pev->absmin.z) * 0.6f, 125, 1.5f );
 
 	Vector position = pev->origin;
 	position.z += 32;
@@ -900,7 +900,7 @@ void CGargantua::DeathEffect( void )
 	pSmoker->pev->health = 1;	// 1 smoke balls
 	pSmoker->pev->scale = 46;	// 4.6X normal size
 	pSmoker->pev->dmg = 0;		// 0 radial distribution
-	pSmoker->pev->nextthink = gpGlobals->time + 2.5;	// Start in 2.5 seconds
+	pSmoker->pev->nextthink = gpGlobals->time + 2.5f;	// Start in 2.5 seconds
 }
 
 
@@ -921,7 +921,7 @@ BOOL CGargantua::CheckMeleeAttack1( float flDot, float flDist )
 {
 //	ALERT(at_aiconsole, "CheckMelee(%f, %f)\n", flDot, flDist);
 
-	if (flDot >= 0.7)
+	if (flDot >= 0.7f)
 	{
 		if (flDist <= GARG_ATTACKDIST)
 			return TRUE;
@@ -937,7 +937,7 @@ BOOL CGargantua::CheckMeleeAttack2( float flDot, float flDist )
 
 	if ( gpGlobals->time > m_flameTime )
 	{
-		if (flDot >= 0.8 && flDist > GARG_ATTACKDIST)
+		if (flDot >= 0.8f && flDist > GARG_ATTACKDIST)
 		{
 			if ( flDist <= GARG_FLAME_LENGTH )
 				return TRUE;
@@ -960,7 +960,7 @@ BOOL CGargantua::CheckRangeAttack1( float flDot, float flDist )
 {
 	if ( gpGlobals->time > m_seeTime )
 	{
-		if (flDot >= 0.7 && flDist > GARG_ATTACKDIST)
+		if (flDot >= 0.7f && flDist > GARG_ATTACKDIST)
 		{
 				return TRUE;
 		}
@@ -982,7 +982,7 @@ void CGargantua::HandleAnimEvent(MonsterEvent_t *pEvent)
 	case GARG_AE_SLASH_LEFT:
 		{
 			// HACKHACK!!!
-			CBaseEntity *pHurt = GargantuaCheckTraceHullAttack( GARG_ATTACKDIST + 10.0, gSkillData.gargantuaDmgSlash, DMG_SLASH );
+			CBaseEntity *pHurt = GargantuaCheckTraceHullAttack( GARG_ATTACKDIST + 10.0f, gSkillData.gargantuaDmgSlash, DMG_SLASH );
 			if (pHurt)
 			{
 				if ( pHurt->pev->flags & (FL_MONSTER|FL_CLIENT) )
@@ -1101,7 +1101,7 @@ void CGargantua::StartTask( Task_t *pTask )
 		break;
 	
 	case TASK_DIE:
-		m_flWaitFinished = gpGlobals->time + 1.6;
+		m_flWaitFinished = gpGlobals->time + 1.6f;
 		DeathEffect();
 		// FALL THROUGH
 	default: 
@@ -1125,7 +1125,7 @@ void CGargantua::RunTask( Task_t *pTask )
 			pev->rendercolor.y = 0;
 			pev->rendercolor.z = 0;
 			StopAnimation();
-			pev->nextthink = gpGlobals->time + 0.15;
+			pev->nextthink = gpGlobals->time + 0.15f;
 			SetThink( SUB_Remove );
 			int i;
 			int parts = MODEL_FRAMES( gGargGibModel );
@@ -1144,7 +1144,7 @@ void CGargantua::RunTask( Task_t *pTask )
 				pGib->m_material = matNone;
 				pGib->pev->origin = pev->origin;
 				pGib->pev->velocity = UTIL_RandomBloodVector() * RANDOM_FLOAT( 300, 500 );
-				pGib->pev->nextthink = gpGlobals->time + 1.25;
+				pGib->pev->nextthink = gpGlobals->time + 1.25f;
 				pGib->SetThink( SUB_FadeOut );
 			}
 			MESSAGE_BEGIN( MSG_PVS, SVC_TEMPENTITY, pev->origin );
@@ -1216,13 +1216,13 @@ void CGargantua::RunTask( Task_t *pTask )
 				if ( dir.Length() > 400 )
 					cancel = TRUE;
 			}
-			if ( fabs(angles.y) > 60 )
+			if ( fabsf(angles.y) > 60 )
 				cancel = TRUE;
 			
 			if ( cancel )
 			{
-				m_flWaitFinished -= 0.5;
-				m_flameTime -= 0.5;
+				m_flWaitFinished -= 0.5f;
+				m_flameTime -= 0.5f;
 			}
 			// FlameControls( angles.x + 2 * sin(gpGlobals->time*8), angles.y + 28 * sin(gpGlobals->time*8.5) );
 			FlameControls( angles.x, angles.y );
@@ -1265,7 +1265,7 @@ void CSmoker::Think( void )
 		WRITE_COORD( pev->origin.y + RANDOM_FLOAT( -pev->dmg, pev->dmg ));
 		WRITE_COORD( pev->origin.z);
 		WRITE_SHORT( g_sModelIndexSmoke );
-		WRITE_BYTE( RANDOM_LONG(pev->scale, pev->scale * 1.1) );
+		WRITE_BYTE( RANDOM_LONG(pev->scale, pev->scale * 1.1f) );
 		WRITE_BYTE( RANDOM_LONG(8,14)  ); // framerate
 	MESSAGE_END();
 
@@ -1306,7 +1306,7 @@ CSpiral *CSpiral::Create( const Vector &origin, float height, float radius, floa
 	return pSpiral;
 }
 
-#define SPIRAL_INTERVAL		0.1 //025
+#define SPIRAL_INTERVAL		0.1f //025
 
 void CSpiral::Think( void )
 {
@@ -1317,7 +1317,7 @@ void CSpiral::Think( void )
 		Vector position = pev->origin;
 		Vector direction = Vector(0,0,1);
 		
-		float fraction = 1.0 / pev->speed;
+		float fraction = 1.0f / pev->speed;
 
 		float radius = (pev->scale * pev->health) * fraction;
 

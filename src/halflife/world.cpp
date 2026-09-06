@@ -175,7 +175,7 @@ void CDecal :: TriggerDecal ( CBaseEntity *pActivator, CBaseEntity *pCaller, USE
 	MESSAGE_END();
 
 	SetThink( SUB_Remove );
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 
@@ -654,7 +654,7 @@ void CWorld :: Precache( void )
 			pEntity->SetThink( SUB_CallUseToggle );
 			pEntity->pev->message = pev->netname;
 			pev->netname = 0;
-			pEntity->pev->nextthink = gpGlobals->time + 0.3;
+			pEntity->pev->nextthink = gpGlobals->time + 0.3f;
 			pEntity->pev->spawnflags = SF_MESSAGE_ONCE;
 		}
 	}
@@ -699,7 +699,7 @@ void CWorld :: KeyValue( KeyValueData *pkvd )
 	else if ( FStrEq(pkvd->szKeyName, "WaveHeight") )
 	{
 		// Sent over net now.
-		pev->scale = atof(pkvd->szValue) * (1.0/8.0);
+		pev->scale = (float)atof(pkvd->szValue) * (1.0f/8.0f);
 		pkvd->fHandled = TRUE;
 		CVAR_SET_FLOAT( "sv_wateramp", pev->scale );
 	}

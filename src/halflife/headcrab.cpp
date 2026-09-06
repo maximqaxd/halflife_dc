@@ -35,7 +35,7 @@ Task_t	tlHCRangeAttack1[] =
 	{ TASK_RANGE_ATTACK1,		(float)0		},
 	{ TASK_SET_ACTIVITY,		(float)ACT_IDLE	},
 	{ TASK_FACE_IDEAL,			(float)0		},
-	{ TASK_WAIT_RANDOM,			(float)0.5		},
+	{ TASK_WAIT_RANDOM,			0.5f				},
 };
 
 Schedule_t	slHCRangeAttack1[] =
@@ -111,7 +111,7 @@ public:
 
 	virtual float GetDamageAmount( void ) { return gSkillData.headcrabDmgBite; }
 	virtual int GetVoicePitch( void ) { return 100; }
-	virtual float GetSoundVolue( void ) { return 1.0; }
+	virtual float GetSoundVolue( void ) { return 1.0f; }
 	Schedule_t* GetScheduleOfType ( int Type );
 
 	CUSTOM_SCHEDULES;
@@ -255,7 +255,7 @@ void CHeadCrab :: HandleAnimEvent( MonsterEvent_t *pEvent )
 
 				// Scale the sideways velocity to get there at the right time
 				vecJumpDir = (m_hEnemy->pev->origin + m_hEnemy->pev->view_ofs - pev->origin);
-				vecJumpDir = vecJumpDir * ( 1.0 / time );
+				vecJumpDir = vecJumpDir * ( 1.0f / time );
 
 				// Speed to offset gravity at the desired height
 				vecJumpDir.z = speed;
@@ -265,7 +265,7 @@ void CHeadCrab :: HandleAnimEvent( MonsterEvent_t *pEvent )
 				
 				if (distance > 650)
 				{
-					vecJumpDir = vecJumpDir * ( 650.0 / distance );
+					vecJumpDir = vecJumpDir * ( 650.0f / distance );
 				}
 			}
 			else
@@ -306,7 +306,7 @@ void CHeadCrab :: Spawn()
 	pev->health			= gSkillData.headcrabHealth;
 	pev->view_ofs		= Vector ( 0, 0, 20 );// position of the eyes relative to monster's origin.
 	pev->yaw_speed		= 5;//!!! should we put this in the monster's changeanim function since turn rates may vary with state/anim?
-	m_flFieldOfView		= 0.5;// indicates the width of this monster's forward view cone ( as a dotproduct result )
+	m_flFieldOfView		= 0.5f;// indicates the width of this monster's forward view cone ( as a dotproduct result )
 	m_MonsterState		= MONSTERSTATE_NONE;
 
 	MonsterInit();
@@ -386,7 +386,7 @@ void CHeadCrab :: LeapTouch ( CBaseEntity *pOther )
 void CHeadCrab :: PrescheduleThink ( void )
 {
 	// make the crab coo a little bit in combat state
-	if ( m_MonsterState == MONSTERSTATE_COMBAT && RANDOM_FLOAT( 0, 5 ) < 0.1 )
+	if ( m_MonsterState == MONSTERSTATE_COMBAT && RANDOM_FLOAT( 0, 5 ) < 0.1f )
 	{
 		IdleSound();
 	}
@@ -418,7 +418,7 @@ void CHeadCrab :: StartTask ( Task_t *pTask )
 //=========================================================
 BOOL CHeadCrab :: CheckRangeAttack1 ( float flDot, float flDist )
 {
-	if ( FBitSet( pev->flags, FL_ONGROUND ) && flDist <= 256 && flDot >= 0.65 )
+	if ( FBitSet( pev->flags, FL_ONGROUND ) && flDist <= 256 && flDot >= 0.65f )
 	{
 		return TRUE;
 	}
@@ -433,7 +433,7 @@ BOOL CHeadCrab :: CheckRangeAttack2 ( float flDot, float flDist )
 	return FALSE;
 	// BUGBUG: Why is this code here?  There is no ACT_RANGE_ATTACK2 animation.  I've disabled it for now.
 #if 0
-	if ( FBitSet( pev->flags, FL_ONGROUND ) && flDist > 64 && flDist <= 256 && flDot >= 0.5 )
+	if ( FBitSet( pev->flags, FL_ONGROUND ) && flDist > 64 && flDist <= 256 && flDot >= 0.5f )
 	{
 		return TRUE;
 	}
@@ -453,7 +453,7 @@ int CHeadCrab :: TakeDamage( entvars_t *pevInflictor, entvars_t *pevAttacker, fl
 //=========================================================
 // IdleSound
 //=========================================================
-#define CRAB_ATTN_IDLE (float)1.5
+#define CRAB_ATTN_IDLE 1.5f
 void CHeadCrab :: IdleSound ( void )
 {
 	EMIT_SOUND_DYN( edict(), CHAN_VOICE, RANDOM_SOUND_ARRAY(pIdleSounds), GetSoundVolue(), ATTN_IDLE, 0, GetVoicePitch() );
@@ -504,11 +504,11 @@ public:
 	void Spawn( void );
 	void Precache( void );
 	void SetYawSpeed ( void );
-	float GetDamageAmount( void ) { return gSkillData.headcrabDmgBite * 0.3; }
+	float GetDamageAmount( void ) { return gSkillData.headcrabDmgBite * 0.3f; }
 	BOOL CheckRangeAttack1 ( float flDot, float flDist );
 	Schedule_t* GetScheduleOfType ( int Type );
 	virtual int GetVoicePitch( void ) { return PITCH_NORM + RANDOM_LONG(40,50); }
-	virtual float GetSoundVolue( void ) { return 0.8; }
+	virtual float GetSoundVolue( void ) { return 0.8f; }
 };
 LINK_ENTITY_TO_CLASS( monster_babycrab, CBabyCrab );
 
@@ -520,7 +520,7 @@ void CBabyCrab :: Spawn( void )
 	pev->renderamt = 192;
 	UTIL_SetSize(pev, Vector(-12, -12, 0), Vector(12, 12, 24));
 	
-	pev->health	= gSkillData.headcrabHealth * 0.25;	// less health than full grown
+	pev->health	= gSkillData.headcrabHealth * 0.25f;	// less health than full grown
 }
 
 void CBabyCrab :: Precache( void )
@@ -544,7 +544,7 @@ BOOL CBabyCrab :: CheckRangeAttack1( float flDot, float flDist )
 			return TRUE;
 
 		// A little less accurate, but jump from closer
-		if ( flDist <= 180 && flDot >= 0.55 )
+		if ( flDist <= 180 && flDot >= 0.55f )
 			return TRUE;
 	}
 

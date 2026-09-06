@@ -227,7 +227,7 @@ void CFlockingFlyerFlock :: SpawnFlock( void )
 		pBoid->pev->angles	 = pev->angles;
 		
 		pBoid->pev->frame = 0;
-		pBoid->pev->nextthink = gpGlobals->time + 0.2;
+		pBoid->pev->nextthink = gpGlobals->time + 0.2f;
 		pBoid->SetThink( CFlockingFlyer :: IdleThink );
 
 		if ( pBoid != pLeader ) 
@@ -245,7 +245,7 @@ void CFlockingFlyer :: Spawn( )
 	SpawnCommonCode();
 	
 	pev->frame = 0;
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 	SetThink( IdleThink );
 }
 
@@ -310,7 +310,7 @@ void CFlockingFlyer :: Killed( entvars_t *pevAttacker, int iGib )
 	pev->movetype = MOVETYPE_TOSS;
 
 	SetThink ( FallHack );
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 }
 
 void CFlockingFlyer :: FallHack( void )
@@ -320,7 +320,7 @@ void CFlockingFlyer :: FallHack( void )
 		if ( !FClassnameIs ( pev->groundentity, "worldspawn" ) )
 		{
 			pev->flags &= ~FL_ONGROUND;
-			pev->nextthink = gpGlobals->time + 0.1;
+			pev->nextthink = gpGlobals->time + 0.1f;
 		}
 		else
 		{
@@ -342,7 +342,7 @@ void CFlockingFlyer :: SpawnCommonCode( )
 	pev->health		= 1;
 
 	m_fPathBlocked	= FALSE;// obstacles will be detected
-	m_flFieldOfView	= 0.2;
+	m_flFieldOfView	= 0.2f;
 
 	//SET_MODEL(ENT(pev), "models/aflock.mdl");
 	SET_MODEL(ENT(pev), "models/boid.mdl");
@@ -356,11 +356,11 @@ void CFlockingFlyer :: SpawnCommonCode( )
 void CFlockingFlyer :: BoidAdvanceFrame ( )
 {
 	float flapspeed = (pev->speed - pev->armorvalue) / AFLOCK_ACCELERATE;
-	pev->armorvalue = pev->armorvalue * .8 + pev->speed * .2;
+	pev->armorvalue = pev->armorvalue * .8f + pev->speed * .2f;
 
 	if (flapspeed < 0) flapspeed = -flapspeed;
-	if (flapspeed < 0.25) flapspeed = 0.25;
-	if (flapspeed > 1.9) flapspeed = 1.9;
+	if (flapspeed < 0.25f) flapspeed = 0.25f;
+	if (flapspeed > 1.9f) flapspeed = 1.9f;
 
 	pev->framerate = flapspeed;
 
@@ -371,20 +371,20 @@ void CFlockingFlyer :: BoidAdvanceFrame ( )
 	pev->avelocity.z = - (pev->angles.z + pev->avelocity.y);
 
 	// pev->framerate		= flapspeed;
-	StudioFrameAdvance( 0.1 );
+	StudioFrameAdvance( 0.1f );
 }
 
 //=========================================================
 //=========================================================
 void CFlockingFlyer :: IdleThink( void )
 {
-	pev->nextthink = gpGlobals->time + 0.2;
+	pev->nextthink = gpGlobals->time + 0.2f;
 
 	// see if there's a client in the same pvs as the monster
 	if ( !FNullEnt( FIND_CLIENT_IN_PVS( edict() ) ) )
 	{
 		SetThink( Start );
-		pev->nextthink = gpGlobals->time + 0.1;
+		pev->nextthink = gpGlobals->time + 0.1f;
 	}
 }
 
@@ -393,7 +393,7 @@ void CFlockingFlyer :: IdleThink( void )
 //=========================================================
 void CFlockingFlyer :: Start( void )
 {
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 
 	if ( IsLeader() )
 	{
@@ -480,7 +480,7 @@ void CFlockingFlyer :: SpreadFlock( )
 			// can average in a course that points away from the leader.
 			flSpeed = pList->pev->velocity.Length();
 			pList->pev->velocity = pList->pev->velocity.Normalize();
-			pList->pev->velocity = ( pList->pev->velocity + vecDir ) * 0.5;
+			pList->pev->velocity = ( pList->pev->velocity + vecDir ) * 0.5f;
 			pList->pev->velocity = pList->pev->velocity * flSpeed;
 		}
 
@@ -536,7 +536,7 @@ BOOL CFlockingFlyer :: FPathBlocked( )
 
 	// check for obstacle ahead
 	UTIL_TraceLine(pev->origin, pev->origin + gpGlobals->v_forward * AFLOCK_CHECK_DIST, ignore_monsters, ENT(pev), &tr);
-	if (tr.flFraction != 1.0)
+	if (tr.flFraction != 1.0f)
 	{
 		m_flLastBlockedTime = gpGlobals->time;
 		fBlocked = TRUE;
@@ -544,14 +544,14 @@ BOOL CFlockingFlyer :: FPathBlocked( )
 
 	// extra wide checks
 	UTIL_TraceLine(pev->origin + gpGlobals->v_right * 12, pev->origin + gpGlobals->v_right * 12 + gpGlobals->v_forward * AFLOCK_CHECK_DIST, ignore_monsters, ENT(pev), &tr);
-	if (tr.flFraction != 1.0)
+	if (tr.flFraction != 1.0f)
 	{
 		m_flLastBlockedTime = gpGlobals->time;
 		fBlocked = TRUE;
 	}
 
 	UTIL_TraceLine(pev->origin - gpGlobals->v_right * 12, pev->origin - gpGlobals->v_right * 12 + gpGlobals->v_forward * AFLOCK_CHECK_DIST, ignore_monsters, ENT(pev), &tr);
-	if (tr.flFraction != 1.0)
+	if (tr.flFraction != 1.0f)
 	{
 		m_flLastBlockedTime = gpGlobals->time;
 		fBlocked = TRUE;
@@ -580,7 +580,7 @@ void CFlockingFlyer :: FlockLeaderThink( void )
 	float			flRightSide;
 	
 
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 	
 	UTIL_MakeVectors ( pev->angles );
 
@@ -653,7 +653,7 @@ void CFlockingFlyer :: FlockLeaderThink( void )
 	
 	// check and make sure we aren't about to plow into the ground, don't let it happen
 	UTIL_TraceLine(pev->origin, pev->origin - gpGlobals->v_up * 16, ignore_monsters, ENT(pev), &tr);
-	if (tr.flFraction != 1.0 && pev->velocity.z < 0 )
+	if (tr.flFraction != 1.0f && pev->velocity.z < 0 )
 		pev->velocity.z = 0;
 
 	// maybe it did, though.
@@ -685,7 +685,7 @@ void CFlockingFlyer :: FlockFollowerThink( void )
 	Vector			vecDirToLeader;
 	float			flDistToLeader;
 
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 
 	if ( IsLeader() || !InSquad() )
 	{
@@ -708,19 +708,19 @@ void CFlockingFlyer :: FlockFollowerThink( void )
 		// if we're too far away, speed up
 		if ( flDistToLeader > AFLOCK_TOO_FAR )
 		{
-			m_flGoalSpeed = m_pSquadLeader->pev->velocity.Length() * 1.5;
+			m_flGoalSpeed = m_pSquadLeader->pev->velocity.Length() * 1.5f;
 		}
 
 		// if we're too close, slow down
 		else if ( flDistToLeader < AFLOCK_TOO_CLOSE )
 		{
-			m_flGoalSpeed = m_pSquadLeader->pev->velocity.Length() * 0.5;
+			m_flGoalSpeed = m_pSquadLeader->pev->velocity.Length() * 0.5f;
 		}
 	}
 	else
 	{
 		// wait up! the leader isn't out in front, so we slow down to let him pass
-		m_flGoalSpeed = m_pSquadLeader->pev->velocity.Length() * 0.5;
+		m_flGoalSpeed = m_pSquadLeader->pev->velocity.Length() * 0.5f;
 	}
 
 	SpreadFlock2();
@@ -732,7 +732,7 @@ void CFlockingFlyer :: FlockFollowerThink( void )
 	if ( flDistToLeader > AFLOCK_TOO_FAR )
 	{
 		vecDirToLeader = vecDirToLeader.Normalize();
-		pev->velocity = (pev->velocity + vecDirToLeader) * 0.5; 	
+		pev->velocity = (pev->velocity + vecDirToLeader) * 0.5f;
 	}
 
 	// clamp speeds and handle acceleration

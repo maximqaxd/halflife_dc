@@ -97,7 +97,7 @@ void CSatchelCharge :: Spawn( void )
 	SetTouch( SatchelSlide );
 	SetUse( DetonateUse );
 	SetThink( SatchelThink );
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 
 	pev->gravity = 0.5;
 	pev->friction = 0.8;
@@ -123,7 +123,7 @@ void CSatchelCharge::SatchelSlide( CBaseEntity *pOther )
 	TraceResult tr;
 	UTIL_TraceLine( pev->origin, pev->origin - Vector(0,0,10), ignore_monsters, edict(), &tr );
 
-	if ( tr.flFraction < 1.0 )
+	if ( tr.flFraction < 1.0f )
 	{
 		// add a bit of static friction
 		pev->velocity = pev->velocity * 0.95;
@@ -141,7 +141,7 @@ void CSatchelCharge::SatchelSlide( CBaseEntity *pOther )
 void CSatchelCharge :: SatchelThink( void )
 {
 	StudioFrameAdvance( );
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 
 	if (!IsInWorld())
 	{
@@ -349,7 +349,7 @@ BOOL CSatchel::Deploy( )
 		strcpy( m_pPlayer->m_szAnimExtention, "trip" );
 	}
 
-	m_pPlayer->m_flNextAttack = gpGlobals->time + 1.0;
+	m_pPlayer->m_flNextAttack = gpGlobals->time + 1.0f;
 	m_flTimeWeaponIdle = gpGlobals->time + RANDOM_FLOAT ( 10, 15 );
 	return TRUE;
 }
@@ -357,7 +357,7 @@ BOOL CSatchel::Deploy( )
 
 void CSatchel::Holster( )
 {
-	m_pPlayer->m_flNextAttack = gpGlobals->time + 0.5;
+	m_pPlayer->m_flNextAttack = gpGlobals->time + 0.5f;
 	
 	if (m_chargeReady)
 	{
@@ -373,7 +373,7 @@ void CSatchel::Holster( )
 	{
 		m_pPlayer->pev->weapons &= ~(1<<WEAPON_SATCHEL);
 		SetThink( DestroyItem );
-		pev->nextthink = gpGlobals->time + 0.1;
+		pev->nextthink = gpGlobals->time + 0.1f;
 	}
 }
 
@@ -418,9 +418,9 @@ void CSatchel::PrimaryAttack()
 		}
 
 		m_chargeReady = 2;
-		m_flNextPrimaryAttack = gpGlobals->time + 0.5;
-		m_flNextSecondaryAttack = gpGlobals->time + 0.5;
-		m_flTimeWeaponIdle = gpGlobals->time + 0.5;
+		m_flNextPrimaryAttack = gpGlobals->time + 0.5f;
+		m_flNextSecondaryAttack = gpGlobals->time + 0.5f;
+		m_flTimeWeaponIdle = gpGlobals->time + 0.5f;
 		break;
 		}
 
@@ -465,8 +465,8 @@ void CSatchel::Throw( void )
 		
 		m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType]--;
 
-		m_flNextPrimaryAttack = gpGlobals->time + 1.0;
-		m_flNextSecondaryAttack = gpGlobals->time + 0.5;
+		m_flNextPrimaryAttack = gpGlobals->time + 1.0f;
+		m_flNextSecondaryAttack = gpGlobals->time + 0.5f;
 	}
 }
 
@@ -503,8 +503,8 @@ void CSatchel::WeaponIdle( void )
 		// use tripmine animations
 		strcpy( m_pPlayer->m_szAnimExtention, "trip" );
 
-		m_flNextPrimaryAttack = gpGlobals->time + 0.5;
-		m_flNextSecondaryAttack = gpGlobals->time + 0.5;
+		m_flNextPrimaryAttack = gpGlobals->time + 0.5f;
+		m_flNextSecondaryAttack = gpGlobals->time + 0.5f;
 		m_chargeReady = 0;
 		break;
 	}

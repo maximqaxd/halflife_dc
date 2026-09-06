@@ -192,7 +192,7 @@ BOOL CHoundeye :: FCanActiveIdle ( void )
 //=========================================================
 BOOL CHoundeye :: CheckRangeAttack1 ( float flDot, float flDist )
 {
-	if ( flDist <= ( HOUNDEYE_MAX_ATTACK_RADIUS * 0.5 ) && flDot >= 0.3 )
+	if ( flDist <= ( HOUNDEYE_MAX_ATTACK_RADIUS * 0.5f ) && flDot >= 0.3f )
 	{
 		return TRUE;
 	}
@@ -291,7 +291,7 @@ void CHoundeye :: HandleAnimEvent( MonsterEvent_t *pEvent )
 				pev->flags &= ~FL_ONGROUND;
 
 				pev->velocity = gpGlobals->v_forward * -200;
-				pev->velocity.z += (0.6 * flGravity) * 0.5;
+				pev->velocity.z += (0.6f * flGravity) * 0.5f;
 
 				break;
 			}
@@ -575,7 +575,7 @@ void CHoundeye :: SonicAttack ( void )
 		WRITE_COORD( pev->origin.z + 16);
 		WRITE_COORD( pev->origin.x);
 		WRITE_COORD( pev->origin.y);
-		WRITE_COORD( pev->origin.z + 16 + HOUNDEYE_MAX_ATTACK_RADIUS / .2); // reach damage radius over .3 seconds
+		WRITE_COORD( pev->origin.z + 16 + HOUNDEYE_MAX_ATTACK_RADIUS / .2f); // reach damage radius over .3 seconds
 		WRITE_SHORT( m_iSpriteTexture );
 		WRITE_BYTE( 0 ); // startframe
 		WRITE_BYTE( 0 ); // framerate
@@ -596,7 +596,7 @@ void CHoundeye :: SonicAttack ( void )
 		WRITE_COORD( pev->origin.z + 16);
 		WRITE_COORD( pev->origin.x);
 		WRITE_COORD( pev->origin.y);
-		WRITE_COORD( pev->origin.z + 16 + ( HOUNDEYE_MAX_ATTACK_RADIUS / 2 ) / .2); // reach damage radius over .3 seconds
+		WRITE_COORD( pev->origin.z + 16 + ( HOUNDEYE_MAX_ATTACK_RADIUS / 2 ) / .2f); // reach damage radius over .3 seconds
 		WRITE_SHORT( m_iSpriteTexture );
 		WRITE_BYTE( 0 ); // startframe
 		WRITE_BYTE( 0 ); // framerate
@@ -646,7 +646,7 @@ void CHoundeye :: SonicAttack ( void )
 						// if this entity is a client, and is not in full view, inflict half damage. We do this so that players still 
 						// take the residual damage if they don't totally leave the houndeye's effective radius. We restrict it to clients
 						// so that monsters in other parts of the level don't take the damage and get pissed.
-						flAdjustedDamage *= 0.5;
+						flAdjustedDamage *= 0.5f;
 					}
 					else if ( !FClassnameIs( pEntity->pev, "func_breakable" ) && !FClassnameIs( pEntity->pev, "func_pushable" ) ) 
 					{
@@ -812,7 +812,7 @@ void CHoundeye :: RunTask ( Task_t *pTask )
 			
 			float life;
 			life = ((255 - pev->frame) / (pev->framerate * m_flFrameRate));
-			if (life < 0.1) life = 0.1;
+			if (life < 0.1f) life = 0.1f;
 
 			MESSAGE_BEGIN( MSG_PAS, SVC_TEMPENTITY, pev->origin );
 				WRITE_BYTE(  TE_IMPLOSION);
@@ -820,7 +820,7 @@ void CHoundeye :: RunTask ( Task_t *pTask )
 				WRITE_COORD( pev->origin.y);
 				WRITE_COORD( pev->origin.z + 16);
 				WRITE_BYTE( 50 * life + 100);  // radius
-				WRITE_BYTE( pev->frame / 25.0 ); // count
+				WRITE_BYTE( pev->frame / 25.0f ); // count
 				WRITE_BYTE( life * 10 ); // life
 			MESSAGE_END();
 			
@@ -846,7 +846,7 @@ void CHoundeye :: RunTask ( Task_t *pTask )
 void CHoundeye::PrescheduleThink ( void )
 {
 	// if the hound is mad and is running, make hunt noises.
-	if ( m_MonsterState == MONSTERSTATE_COMBAT && m_Activity == ACT_RUN && RANDOM_FLOAT( 0, 1 ) < 0.2 )
+	if ( m_MonsterState == MONSTERSTATE_COMBAT && m_Activity == ACT_RUN && RANDOM_FLOAT( 0, 1 ) < 0.2f )
 	{
 		WarnSound();
 	}
@@ -1270,13 +1270,13 @@ Schedule_t *CHoundeye :: GetSchedule( void )
 
 			if ( HasConditions( bits_COND_LIGHT_DAMAGE | bits_COND_HEAVY_DAMAGE ) )
 			{
-				if ( RANDOM_FLOAT( 0 , 1 ) <= 0.4 )
+				if ( RANDOM_FLOAT( 0 , 1 ) <= 0.4f )
 				{
 					TraceResult tr;
 					UTIL_MakeVectors( pev->angles );
 					UTIL_TraceHull( pev->origin, pev->origin + gpGlobals->v_forward * -128, dont_ignore_monsters, head_hull, ENT( pev ), &tr );
 
-					if ( tr.flFraction == 1.0 )
+					if ( tr.flFraction == 1.0f )
 					{
 						// it's clear behind, so the hound will jump
 						return GetScheduleOfType ( SCHED_HOUND_HOP_RETREAT );

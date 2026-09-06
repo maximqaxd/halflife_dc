@@ -361,7 +361,7 @@ int CSquadMonster :: SquadRecruit( int searchRadius, int maxMembers )
 				{
 					TraceResult tr;
 					UTIL_TraceLine( pev->origin + pev->view_ofs, pRecruit->pev->origin + pev->view_ofs, ignore_monsters, pRecruit->edict(), &tr );// try to hit recruit with a traceline.
-					if ( tr.flFraction == 1.0 )
+					if ( tr.flFraction == 1.0f )
 					{
 						if (!SquadAdd( pRecruit ))
 							break;
@@ -479,8 +479,8 @@ BOOL CSquadMonster :: NoFriendlyFire( void )
 
 	//UTIL_MakeVectors ( pev->angles );
 	
-	vecLeftSide = pev->origin - ( gpGlobals->v_right * ( pev->size.x * 1.5 ) );
-	vecRightSide = pev->origin + ( gpGlobals->v_right * ( pev->size.x * 1.5 ) );
+	vecLeftSide = pev->origin - ( gpGlobals->v_right * ( pev->size.x * 1.5f ) );
+	vecRightSide = pev->origin + ( gpGlobals->v_right * ( pev->size.x * 1.5f ) );
 	v_left = gpGlobals->v_right * -1;
 
 	leftPlane.InitializePlane ( gpGlobals->v_right, vecLeftSide );

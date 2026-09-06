@@ -89,7 +89,7 @@ void CCrossbowBolt::Spawn( )
 
 	SetTouch( BoltTouch );
 	SetThink( BubbleThink );
-	pev->nextthink = gpGlobals->time + 0.2;
+	pev->nextthink = gpGlobals->time + 0.2f;
 }
 
 
@@ -169,7 +169,7 @@ void CCrossbowBolt::BoltTouch( CBaseEntity *pOther )
 			pev->velocity = Vector( 0, 0, 0 );
 			pev->avelocity.z = 0;
 			pev->angles.z = RANDOM_LONG(0,360);
-			pev->nextthink = gpGlobals->time + 10.0;
+			pev->nextthink = gpGlobals->time + 10.0f;
 		}
 
 		if (UTIL_PointContents(pev->origin) != CONTENTS_WATER)
@@ -181,13 +181,13 @@ void CCrossbowBolt::BoltTouch( CBaseEntity *pOther )
 	if ( g_pGameRules->IsMultiplayer() )
 	{
 		SetThink( ExplodeThink );
-		pev->nextthink = gpGlobals->time + 0.1;
+		pev->nextthink = gpGlobals->time + 0.1f;
 	}
 }
 
 void CCrossbowBolt::BubbleThink( void )
 {
-	pev->nextthink = gpGlobals->time + 0.1;
+	pev->nextthink = gpGlobals->time + 0.1f;
 
 	if (pev->waterlevel == 0)
 		return;
@@ -343,7 +343,7 @@ void CCrossbow::Holster( )
 		SecondaryAttack( );
 	}
 
-	m_pPlayer->m_flNextAttack = gpGlobals->time + 0.5;
+	m_pPlayer->m_flNextAttack = gpGlobals->time + 0.5f;
 	if (m_iClip)
 		SendWeaponAnim( CROSSBOW_HOLSTER1 );
 	else
@@ -364,7 +364,7 @@ void CCrossbow::PrimaryAttack( void )
 // this function only gets called in multiplayer
 void CCrossbow::FireSniperBolt()
 {
-	m_flNextPrimaryAttack = gpGlobals->time + 0.75;
+	m_flNextPrimaryAttack = gpGlobals->time + 0.75f;
 
 	if (m_iClip == 0)
 	{
@@ -434,7 +434,7 @@ void CCrossbow::FireSniperBolt()
 		if ( FClassnameIs( tr.pHit, "worldspawn" ) )
 		{
 			// let the bolt sit around for a while if it hit static architecture
-			pBolt->pev->nextthink = gpGlobals->time + 5.0;
+			pBolt->pev->nextthink = gpGlobals->time + 5.0f;
 		}
 		else
 		{
@@ -504,11 +504,11 @@ void CCrossbow::FireBolt()
 		// HEV suit - indicate out of ammo condition
 		m_pPlayer->SetSuitUpdate("!HEV_AMO0", FALSE, 0);
 
-	m_flNextPrimaryAttack = gpGlobals->time + 0.75;
+	m_flNextPrimaryAttack = gpGlobals->time + 0.75f;
 
-	m_flNextSecondaryAttack = gpGlobals->time + 0.75;
+	m_flNextSecondaryAttack = gpGlobals->time + 0.75f;
 	if (m_iClip != 0)
-		m_flTimeWeaponIdle = gpGlobals->time + 5.0;
+		m_flTimeWeaponIdle = gpGlobals->time + 5.0f;
 	else
 		m_flTimeWeaponIdle = 0.75;
 
@@ -529,8 +529,8 @@ void CCrossbow::SecondaryAttack()
 		m_fInZoom = 1;
 	}
 	
-	pev->nextthink = gpGlobals->time + 0.1;
-	m_flNextSecondaryAttack = gpGlobals->time + 1.0;
+	pev->nextthink = gpGlobals->time + 0.1f;
+	m_flNextSecondaryAttack = gpGlobals->time + 1.0f;
 }
 
 
@@ -557,7 +557,7 @@ void CCrossbow::WeaponIdle( void )
 	if (m_flTimeWeaponIdle < gpGlobals->time)
 	{
 		float flRand = RANDOM_FLOAT(0, 1);
-		if (flRand <= 0.75)
+		if (flRand <= 0.75f)
 		{
 			if (m_iClip)
 			{
@@ -574,12 +574,12 @@ void CCrossbow::WeaponIdle( void )
 			if (m_iClip)
 			{
 				SendWeaponAnim( CROSSBOW_FIDGET1 );
-				m_flTimeWeaponIdle = gpGlobals->time + 90.0 / 30.0;
+				m_flTimeWeaponIdle = gpGlobals->time + 90.0f / 30.0f;
 			}
 			else
 			{
 				SendWeaponAnim( CROSSBOW_FIDGET2 );
-				m_flTimeWeaponIdle = gpGlobals->time + 80.0 / 30.0;
+				m_flTimeWeaponIdle = gpGlobals->time + 80.0f / 30.0f;
 			}
 		}
 	}

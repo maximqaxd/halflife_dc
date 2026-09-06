@@ -123,7 +123,7 @@ void CGlock::GlockFire( float flSpread , float flCycleTime, BOOL fUseAutoAim )
 		if (m_fFireOnEmpty)
 		{
 			PlayEmptySound();
-			m_flNextPrimaryAttack = gpGlobals->time + 0.2;
+			m_flNextPrimaryAttack = gpGlobals->time + 0.2f;
 		}
 
 		return;
@@ -229,20 +229,20 @@ void CGlock::WeaponIdle( void )
 	{
 		int iAnim;
 		float flRand = RANDOM_FLOAT(0, 1);
-		if (flRand <= 0.3 + 0 * 0.75)
+		if (flRand <= 0.3f + 0 * 0.75f)
 		{
 			iAnim = GLOCK_IDLE3;
-			m_flTimeWeaponIdle = gpGlobals->time + 49.0 / 16;
+			m_flTimeWeaponIdle = gpGlobals->time + 49.0f / 16;
 		}
-		else if (flRand <= 0.6 + 0 * 0.875)
+		else if (flRand <= 0.6f + 0 * 0.875f)
 		{
 			iAnim = GLOCK_IDLE1;
-			m_flTimeWeaponIdle = gpGlobals->time + 60.0 / 16.0;
+			m_flTimeWeaponIdle = gpGlobals->time + 60.0f / 16.0f;
 		}
 		else
 		{
 			iAnim = GLOCK_IDLE2;
-			m_flTimeWeaponIdle = gpGlobals->time + 40.0 / 16.0;
+			m_flTimeWeaponIdle = gpGlobals->time + 40.0f / 16.0f;
 		}
 		SendWeaponAnim( iAnim );
 	}
