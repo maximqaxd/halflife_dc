@@ -66,6 +66,7 @@ void	Text_DrawStringCentered( float sx, float sy, char* str, int x, int y, int b
 void	Text_DrawCenteredStatus( float sx, float sy, byte* str, int color );
 void	Text_LoadLangTags( void );
 char*	Text_ParseToken( char* in, char* out );
+void	Text_LoadAliases( char*** pppAliases, int* pnAliases, char* pszFile );
 
 #ifdef __cplusplus
 }

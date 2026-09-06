@@ -274,6 +274,51 @@ controlaction_t g_ControlActions[] =
 
 controlkey_t g_ControlKeys[MAX_MENU_CONTROL_KEYS];
 
+/*
+==================
+Text_LookupAlias
+
+Say what a button does. The key/command pairs come out of the preset script;
+find the one this button is named in, look its command up in the action list
+and hand back the wording for it. A button the script never mentions answers
+with its own name.
+==================
+*/
+char *Text_LookupAlias( char *pszKey, char **ppAliases, int *pnAliases, qboolean bLong )
+{
+	controlaction_t	*pAction;
+	char			*psz;
+	int				i;
+
+	for (i = 0; i < *pnAliases; i++)
+	{
+		if (!strcmp(pszKey, ppAliases[i * 2]))
+			break;
+	}
+
+	if (i == *pnAliases)
+		return pszKey;
+
+	for (pAction = g_ControlActions; pAction->pszCommand; pAction++)
+	{
+		if (!strcmp(ppAliases[i * 2 + 1], pAction->pszCommand))
+			break;
+	}
+
+	if (!pAction->pszCommand)
+		return pszKey;
+
+	psz = bLong ? pAction->pszDescription : pAction->pszLabel;
+
+	for (i = 0; i < g_nLangTags; i++)
+	{
+		if (!strcmp(psz, g_pLangTags[i].tag))
+			return g_pLangTags[i].string;
+	}
+
+	return psz;
+}
+
 static int M_BuildControlList( qboolean bKeyboard, qboolean bJoystick )
 {
 	controlaction_t	*pAction;
@@ -1341,7 +1386,7 @@ CMenuTitleItem::CMenuTitleItem( CMenu* pMenu )
 	m_width[0] = 700.0f;
 	m_width[1] = 512.0f;
 	m_xPulse[0] = 30.0f;
-	m_xPulse[1] = 16.0f;
+	m_xPulse[1] = 15.0f;
 	m_x[0] = -30.0f;
 	m_x[1] = 64.0f;
 	m_y[0] = 14.0f;
@@ -1360,6 +1405,7 @@ CMenuTitleItem::CMenuTitleItem( CMenu* pMenu )
 void CMenuTitleItem::Draw( float flFade, qboolean bSelected )
 {
 	float	width, x, y, alpha, time;
+	float	vbase, v0, v1;
 	int		i;
 
 	DCV_SetHudDepth(4.0f);
@@ -1386,11 +1432,17 @@ void CMenuTitleItem::Draw( float flFade, qboolean bSelected )
 		DCV_FlushIfLarge();
 		DCV_AddPolyIndices(DCV_GetVertCount(), 4);
 
+		// the artwork holds the title twice, the soft copy that spreads out
+		// behind the letters sitting under the sharp one
+		vbase = (i == 0) ? 0.5f : 0.0f;
+		v0 = vbase + 0.005f;
+		v1 = vbase + 0.495f;
+
 		y = m_y[i] + (float)scr_safe_y;
-		DCV_AddVertex(x, y, dc_depthhud.value, 0.0f, 0.0f);
-		DCV_AddVertex(x + width, y, dc_depthhud.value, 1.0f, 0.0f);
-		DCV_AddVertex(x, y + m_height[i], dc_depthhud.value, 0.0f, 1.0f);
-		DCV_AddVertex(x + width, y + m_height[i], dc_depthhud.value, 1.0f, 1.0f);
+		DCV_AddVertex(x, y, dc_depthhud.value, 0.0f, v0);
+		DCV_AddVertex(x + width, y, dc_depthhud.value, 1.0f, v0);
+		DCV_AddVertex(x, y + m_height[i], dc_depthhud.value, 0.0f, v1);
+		DCV_AddVertex(x + width, y + m_height[i], dc_depthhud.value, 1.0f, v1);
 	}
 }
 
@@ -2343,7 +2395,7 @@ CMenuOptionItem::CMenuOptionItem( CMenu* pMenu, menuoption_t* pOption, int x, in
 	m_piIndex = &pOption->iValue;
 	m_nValues = pOption->nValues;
 
-	m_pValues = (menuvalue_t *)malloc(m_nValues * sizeof(menuvalue_t));
+	m_pValues = new menuvalue_t[m_nValues];
 
 	for (i = 0; i < m_nValues; i++)
 	{
@@ -3143,7 +3195,7 @@ CMenuWordItem::CMenuWordItem( CMenu* pMenu, menuoption_t* pOption, int x, int y,
 	g_pszAccessCodeResult = NULL;
 
 	m_nValues = pOption->nValues;
-	m_pValues = (menuvalue_t *)malloc(m_nValues * sizeof(menuvalue_t));
+	m_pValues = new menuvalue_t[m_nValues];
 
 	for (i = 0; i < m_nValues; i++)
 	{
@@ -4526,6 +4578,8 @@ void CMenuSensitivitySlider::Right( void )
 CMenuPresetItem::CMenuPresetItem( CMenu* pMenu, int preset, int x, int y )
 	: CMenuTextItem()
 {
+	char	alias[13];
+
 	m_pMenu = pMenu;
 	m_align = 0;
 
@@ -4534,7 +4588,7 @@ CMenuPresetItem::CMenuPresetItem( CMenu* pMenu, int preset, int x, int y )
 	m_labelX = x - 15;
 	m_labelY = y;
 	m_flLabelScale = 0.7f;
-	m_flLabelAspect = 1.3333f;
+	m_flLabelAspect = 0.93331f;
 
 	sprintf(m_szDescription, "%%activate_cont_%c", preset);
 	m_pszDescription = m_szDescription;
@@ -4547,14 +4601,161 @@ CMenuPresetItem::CMenuPresetItem( CMenu* pMenu, int preset, int x, int y )
 	m_pszCommand = m_szCommand;
 	m_bEnabled = 1;
 	m_preset = (byte)preset;
-	m_ppAliases = NULL;
-	m_nAliases = 0;
 	m_iAlias = 0;
+
+	// the script the page runs also says what each button ends up doing
+	strncpy(alias, m_szCommand + 5, 12);
+	alias[12] = 0;
+	Text_LoadAliases(&m_ppAliases, &m_nAliases, alias);
 }
 
+// The buttons the preset page points out, down the left of the picture and
+// then down the right. A row with a caption instead of a button name is a
+// fixed line the preset cannot change.
+typedef struct presetcallout_s
+{
+	char*	pszJoyKey;
+	char*	pszKey;
+	char*	pszCaption;
+	short	y;
+	byte	right;
+	byte	centered;
+} presetcallout_t;
+
+static presetcallout_t g_PresetCallouts[] =
+{
+	{ "S1AUX6", "AUX6", NULL,          120, 0, 0 },
+	{ NULL,     NULL,   "%look",       168, 0, 0 },
+	{ "S1AUX4", "AUX4", NULL,          216, 0, 0 },
+	{ "S1AUX1", "AUX1", NULL,          248, 0, 0 },
+	{ "S1AUX3", "AUX3", NULL,          280, 0, 0 },
+	{ "S1AUX2", "AUX2", NULL,          312, 0, 0 },
+	{ NULL,     NULL,   "%pauseshort", 382, 0, 1 },
+	{ "S1AUX5", "AUX5", NULL,          120, 1, 0 },
+	{ "S1JOY4", "JOY4", NULL,          168, 1, 0 },
+	{ "S1JOY2", "JOY2", NULL,          216, 1, 0 },
+	{ "S1JOY1", "JOY1", NULL,          264, 1, 0 },
+	{ "S1JOY3", "JOY3", NULL,          312, 1, 0 },
+};
+
+#define PRESET_CALLOUTS		(sizeof(g_PresetCallouts) / sizeof(g_PresetCallouts[0]))
+
+/*
+==================
+CMenuPresetItem::DrawCallout
+
+One button on the picture: the plate it sits on, then what the button does
+under this preset. The shift button pulses so it stands out from the rest,
+and a button the preset leaves alone says so.
+==================
+*/
+void CMenuPresetItem::DrawCallout( struct presetcallout_s* pCallout, float flFade )
+{
+	char	*psz;
+	float	brightness;
+	float	base;
+	float	width;
+	int		x;
+
+	// longer translations get more room, and the plate grows with them
+	width = (sv_language.value != 0) ? 130.0f : 100.0f;
+	x = pCallout->right
+		? ((sv_language.value != 0) ? 528 : 488)
+		: ((sv_language.value != 0) ? 300 : 260);
+
+	base = pCallout->right ? (float)x : (float)x - width;
+
+	DCV_SetHudDepth(2.5f);
+	DCV_TexState_Blend();
+
+	if (m_iAlias == 0)
+		DCV_SetColor(50, 30, 0, (int)(flFade * 250.0f));
+	else
+		DCV_SetColor(20, 20, 50, (int)(flFade * 250.0f));
+
+	M_DrawMenuElementBox(m_pMenu, base - 5.0f, (float)pCallout->y,
+		base + width + 8.0f, (float)(pCallout->y + 28));
+
+	brightness = 254.0f;
+
+	if (pCallout->pszCaption)
+	{
+		psz = pCallout->pszCaption;
+	}
+	else
+	{
+		psz = Text_LookupAlias(m_iAlias ? pCallout->pszJoyKey : pCallout->pszKey,
+			m_ppAliases, &m_nAliases, 0);
+
+		// the shift button changes what all the others do, so it blinks
+		if (!strcmp(psz, Text_FindString("%shift")))
+			brightness = (coss(m_pMenu->m_state.flTime * 5.23f) + 1.0f) * 80.0f + 94.0f;
+
+		// nothing bound to it under this preset
+		if (!strcmp(psz, m_iAlias ? pCallout->pszJoyKey : pCallout->pszKey))
+			psz = Text_FindString("%bind_none");
+	}
+
+	if (pCallout->centered)
+	{
+		Text_DrawStringCentered(0.7f, 0.93331f, psz, 396, pCallout->y + 5,
+			(int)(flFade * brightness), 0, (int)width);
+	}
+	else if (pCallout->right)
+	{
+		Text_DrawStringLeft(0.7f, 0.93331f, psz, x, pCallout->y + 5,
+			(int)(flFade * brightness), 0, (int)width);
+	}
+	else
+	{
+		Text_DrawStringRight(0.7f, 0.93331f, psz, x, pCallout->y + 5,
+			(int)(flFade * brightness), 0, (int)width);
+	}
+}
+
+/*
+==================
+CMenuPresetItem::Draw
+
+The line itself, and when the stick is resting on it the controller picture
+with a line running out to every button it names.
+==================
+*/
 void CMenuPresetItem::Draw( float flFade, qboolean bSelected )
 {
+	int		base;
+	int		i;
+
 	CMenuTextItem::Draw(flFade, bSelected);
+
+	// the picture only belongs to the preset the stick is on
+	if (!bSelected)
+		return;
+
+	DCV_SetHudDepth(2.3f);
+	DCV_TexState_Additive();
+	DCV_SetColor(255, 255, 255, (int)(flFade * 255.0f));
+
+	M_DrawControllerIcon(m_pMenu, 266.0f, 120.0f, 522.0f, 376.0f);
+
+	// the lines that run from each button out to its caption
+	DCV_SetHudDepth(2.3f);
+	DCV_SetColor(255, 255, 255, (int)(flFade * 255.0f));
+
+	m_pMenu->m_state.iLinesTexture = M_LoadMenuTexture(m_pMenu, "gfx/menu_controllerlines.pvr");
+	GL_BindStage(m_pMenu->m_state.iLinesTexture, 0);
+
+	DCV_FlushIfLarge();
+	base = DCV_GetVertCount();
+	DCV_AddPolyIndices(base, 4);
+
+	DCV_AddVertex(266.0f, 120.0f, dc_depthhud.value, 0.0f, 0.0f);
+	DCV_AddVertex(522.0f, 120.0f, dc_depthhud.value, 1.0f, 0.0f);
+	DCV_AddVertex(266.0f, 376.0f, dc_depthhud.value, 0.0f, 1.0f);
+	DCV_AddVertex(522.0f, 376.0f, dc_depthhud.value, 1.0f, 1.0f);
+
+	for (i = 0; i < PRESET_CALLOUTS; i++)
+		DrawCallout(&g_PresetCallouts[i], flFade);
 }
 
 void CMenuPresetItem::Select( void )
@@ -4653,6 +4854,7 @@ CMenuBindItem::CMenuBindItem( CMenu* pMenu )
 	m_mode = 1;
 	m_selection = 0;
 	m_capturing = 0;
+	m_reserved18 = 0;
 	m_reserved28 = 0;
 	m_reserved24 = 0;
 }
@@ -4691,12 +4893,12 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 
 	if (m_reserved18)
 	{
-		m_nEntries = M_BuildControlList(keyboard, joystick);
+		m_nEntries = M_BuildControlList(IN_KeyboardActive(), IN_JoystickActive());
 		m_reserved18 = 0;
-
-		if (m_mode > m_nEntries + 6)
-			m_mode = m_nEntries + 6;
 	}
+
+	if (m_mode > m_nEntries + 6)
+		m_mode = m_nEntries + 6;
 
 	DCV_SetHudDepth(2.0f);
 	DCV_TexState_Blend();
@@ -4803,6 +5005,12 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 				alpha, 0, 230);
 		}
 	}
+
+	if (m_selection > 0)
+		M_DrawMenuElementQuad(m_pMenu, 3, 520.0f, 138.0f, 590.0f, 158.0f);
+
+	if (m_selection < m_nEntries - 2)
+		M_DrawMenuElementQuad(m_pMenu, 4, 520.0f, 401.0f, 590.0f, 421.0f);
 
 	capturedKey = Key_GetCapturedKey();
 	if (capturedKey)
@@ -5082,9 +5290,9 @@ int M_LoadMenuTexture( CMenu* pMenu, char* pszName )
 		pMenu->m_state.iTextures[slot] = DC_LoadTexture(pszName, GLT_WORLD,
 			pHeader->width, pHeader->height, pHeader, FALSE, TEX_TYPE_GBIX, NULL);
 		pMenu->m_state.pTextureNames[slot] = pszName;
-	}
 
-	COM_FreeFile();
+		COM_FreeTempFile();
+	}
 
 	return pMenu->m_state.iTextures[slot];
 }

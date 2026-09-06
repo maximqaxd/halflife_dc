@@ -38,7 +38,7 @@ extern qpic_t*	conback;
 #define MAX_MENU_ITEMS		90
 #define MAX_MENU_TEXTURES	32
 #define MAX_MENU_NAME		68
-#define MAX_MENU_COMMAND	532
+#define MAX_MENU_COMMAND	472
 #define MAX_MENU_COMMAND_TEXT	68
 #define MAX_MENU_PRESET_LABEL	32
 #define MAX_MENU_PRESET_DESCRIPTION	64
@@ -170,7 +170,8 @@ typedef struct menustate_s
 	int			reserved380;
 	int			iGordonTexture;
 	int			iControllerTexture;
-	byte		reserved392[8];
+	byte		reserved392[4];
+	int			iLinesTexture;
 
 	int			iSoundBlocked;
 	int			iTopItem;
@@ -631,10 +632,14 @@ public:
 };
 
 // One of the ready-made control layouts.
+struct presetcallout_s;
+
 class CMenuPresetItem : public CMenuTextItem
 {
 public:
 	CMenuPresetItem( CMenu* pMenu, int preset, int x, int y );
+
+	void DrawCallout( struct presetcallout_s* pCallout, float flFade );
 
 	virtual void Draw( float flFade, qboolean bSelected );
 	virtual void Select( void );

@@ -737,8 +737,12 @@ void Text_LoadLangTags( void )
 		} while (i < len);
 	}
 
+	// only the pairs that actually came out of the file are there to look at;
+	// the count taken off the '%' characters runs ahead of them
+	g_nLangTags = n;
+
 	if (buf)
-		COM_FreeFile();
+		COM_FreeFile(buf);
 }
 
 /*
@@ -779,6 +783,108 @@ char *Text_ParseToken( char *in, char *out )
 
 	*out = '\0';
 	return in;
+}
+
+/*
+================
+Text_LoadAliases
+
+Read the bind lines out of a config script and keep them as key/command pairs,
+so a page can put up what each button does without walking the key bindings.
+The shift button goes in twice, once under the name the script uses and once
+under the controller name for the same button.
+================
+*/
+void Text_LoadAliases( char*** pppAliases, int* pnAliases, char* pszFile )
+{
+	char	line[128];
+	char	command[128];
+	char	key[128];
+	char	binding[128];
+	char	*in;
+	char	*p;
+	byte	*buf;
+	int		length;
+	int		lines;
+	int		count;
+	int		n;
+	int		i;
+
+	length = 0;
+	buf = COM_LoadFileForMe(pszFile, &length);
+
+	*pnAliases = 0;
+
+	lines = 0;
+	for (i = 0; i < length; i++)
+	{
+		if (buf[i] == '\n')
+			lines++;
+	}
+
+	// two strings a line, and room for the pair the shift button adds
+	*pppAliases = new char*[(lines + 10) * 2];
+
+	count = 0;
+	n = 0;
+	p = (char *)buf;
+
+	for (i = 0; i < length + 1; i++, p++)
+	{
+		if (i != length && *p != '\n' && *p != '\r')
+		{
+			if (n < 127)
+				line[n++] = *p;
+
+			continue;
+		}
+
+		line[n] = '\0';
+		n = 0;
+
+		in = line;
+		while (*in == ' ' || *in == '\t')
+			in++;
+		in = Text_ParseToken(in, command);
+
+		while (*in == ' ' || *in == '\t')
+			in++;
+		in = Text_ParseToken(in, key);
+
+		while (*in == ' ' || *in == '\t')
+			in++;
+		Text_ParseToken(in, binding);
+
+		if (!Q_stricmp(command, "bind") && strlen(key) && strlen(binding))
+		{
+			(*pppAliases)[count * 2] = new char[strlen(key) + 1];
+			strcpy((*pppAliases)[count * 2], key);
+			(*pppAliases)[count * 2 + 1] = new char[strlen(binding) + 1];
+			strcpy((*pppAliases)[count * 2 + 1], binding);
+			count++;
+		}
+
+		// the shift button answers to both names
+		if (!Q_stricmp(command, "joyshift1") && strlen(key))
+		{
+			(*pppAliases)[count * 2] = new char[strlen(key) + 1];
+			strcpy((*pppAliases)[count * 2], key);
+			(*pppAliases)[count * 2 + 1] = new char[strlen("joyshift1") + 1];
+			strcpy((*pppAliases)[count * 2 + 1], "joyshift1");
+			count++;
+
+			(*pppAliases)[count * 2] = new char[strlen(key) + 3];
+			sprintf((*pppAliases)[count * 2], "S1%s", key);
+			(*pppAliases)[count * 2 + 1] = new char[strlen("joyshift1") + 1];
+			strcpy((*pppAliases)[count * 2 + 1], "joyshift1");
+			count++;
+		}
+	}
+
+	*pnAliases = count;
+
+	if (buf)
+		COM_FreeFile(buf);
 }
 
 } // extern "C"
