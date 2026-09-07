@@ -113,12 +113,16 @@ int CHudFlashlight::Draw(float flTime)
 	if (m_flBat < 0.20f)
 		UnpackRGB(r,g,b, RGB_REDISH);
 	else
-		UnpackRGB(r,g,b, RGB_YELLOWISH);
+	{
+		r = hud_color_r;
+		g = hud_color_g;
+		b = hud_color_b;
+	}
 
 	ScaleColors(r, g, b, a);
 
-	y = (m_prc1->bottom - m_prc2->top)/2;
-	x = ScreenWidth - m_iWidth - m_iWidth/2 ;
+	y = (m_prc1->bottom - m_prc2->top)/2 + scr_safe_y;
+	x = ScreenWidth - m_iWidth - m_iWidth/2 - scr_safe_x;
 
 	// Draw the flashlight casing
 	SPR_Set(m_hSprite1, r, g, b );
@@ -126,14 +130,14 @@ int CHudFlashlight::Draw(float flTime)
 
 	if ( m_fOn )
 	{  // draw the flashlight beam
-		x = ScreenWidth - m_iWidth/2;
+		x = ScreenWidth - m_iWidth/2 - scr_safe_x;
 
 		SPR_Set( m_hBeam, r, g, b );
 		SPR_DrawAdditive( 0, x, y, m_prcBeam );
 	}
 
 	// draw the flashlight energy level
-	x = ScreenWidth - m_iWidth - m_iWidth/2 ;
+	x = ScreenWidth - m_iWidth - m_iWidth/2 - scr_safe_x;
 	int iOffset = m_iWidth * (1.0f - m_flBat);
 	if (iOffset < m_iWidth)
 	{

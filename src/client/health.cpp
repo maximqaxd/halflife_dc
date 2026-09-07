@@ -156,7 +156,7 @@ void CHudHealth::GetPainColor( int &r, int &g, int &b )
 #else
 	if (m_iHealth > 25)
 	{
-		UnpackRGB(r,g,b, RGB_YELLOWISH);
+		r = hud_color_r; g = hud_color_g; b = hud_color_b;
 	}
 	else
 	{
@@ -213,13 +213,13 @@ int CHudHealth::Draw(float flTime)
 		HealthWidth = gHUD.GetSpriteRect(gHUD.m_HUD_number_0).right - gHUD.GetSpriteRect(gHUD.m_HUD_number_0).left;
 		int CrossWidth = gHUD.GetSpriteRect(m_HUD_cross).right - gHUD.GetSpriteRect(m_HUD_cross).left;
 
-		y = ScreenHeight - gHUD.m_iFontHeight - gHUD.m_iFontHeight / 2;
-		x = CrossWidth /2;
+		y = ScreenHeight - gHUD.m_iFontHeight - gHUD.m_iFontHeight / 2 - scr_safe_y;
+		x = CrossWidth /2 + scr_safe_x;
 
 		SPR_Set(gHUD.GetSprite(m_HUD_cross), r, g, b);
 		SPR_DrawAdditive(0, x, y, &gHUD.GetSpriteRect(m_HUD_cross));
 
-		x = CrossWidth + HealthWidth / 2;
+		x = CrossWidth + scr_safe_x + HealthWidth / 2;
 
 		x = gHUD.DrawHudNumber(x, y, DHN_3DIGITS | DHN_DRAWZERO, m_iHealth, r, g, b);
 
@@ -375,7 +375,7 @@ int CHudHealth::DrawDamage(float flTime)
 	if (!m_bitsDamage)
 		return 1;
 
-	UnpackRGB(r,g,b, RGB_YELLOWISH);
+	r = hud_color_r; g = hud_color_g; b = hud_color_b;
 	
 	a = (int)( fabs(sin(flTime * 2.0f)) * 256.0f);
 
@@ -451,8 +451,8 @@ void CHudHealth::UpdateTiles(float flTime, long bitsDamage)
 		if (bitsOn & giDmgFlags[i])
 		{
 			// put this one at the bottom
-			pdmg->x = giDmgWidth/8;
-			pdmg->y = ScreenHeight - giDmgHeight * 2;
+			pdmg->x = giDmgWidth/8 + scr_safe_x;
+			pdmg->y = ScreenHeight - giDmgHeight * 2 - scr_safe_y;
 			pdmg->fExpire=flTime + DMG_IMAGE_LIFE;
 			
 			// move everyone else up

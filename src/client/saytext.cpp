@@ -80,7 +80,7 @@ void ScrollTextUp( void )
 
 int CHudSayText :: Draw( float flTime )
 {
-	int y = Y_START;
+	int y = Y_START + scr_safe_y;
 
 	// make sure the scrolltime is within reasonable bounds,  to guard against the clock being reset
 	flScrollTime = min( flScrollTime, flTime + SCROLL_SPEED );

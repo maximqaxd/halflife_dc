@@ -56,6 +56,9 @@ extern int hud_color_r;
 extern int hud_color_g;
 extern int hud_color_b;
 
+extern "C" int scr_safe_x;
+extern "C" int scr_safe_y;
+
 #define MAX_PLAYER_NAME_LENGTH		32
 
 //

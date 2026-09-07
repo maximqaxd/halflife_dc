@@ -96,15 +96,15 @@ int	CHudMessage::XPosition( float x, int width, int totalWidth )
 	else
 	{
 		if ( x < 0 )
-			xPos = (1.0f + x) * ScreenWidth - totalWidth;	// Alight right
+			xPos = (1.0f + x) * ScreenWidth - totalWidth - scr_safe_x;	// Alight right
 		else
-			xPos = x * ScreenWidth;
+			xPos = x * ScreenWidth + scr_safe_x;
 	}
 
-	if ( xPos + width > ScreenWidth )
-		xPos = ScreenWidth - width;
-	else if ( xPos < 0 )
-		xPos = 0;
+	if ( xPos + width > ScreenWidth - scr_safe_x )
+		xPos = ScreenWidth - width - scr_safe_x;
+	else if ( xPos < scr_safe_x )
+		xPos = scr_safe_x;
 
 	return xPos;
 }
@@ -120,15 +120,15 @@ int CHudMessage::YPosition( float y, int height )
 	{
 		// Alight bottom?
 		if ( y < 0 )
-			yPos = (1.0f + y) * ScreenHeight - height;	// Alight bottom
+			yPos = (1.0f + y) * ScreenHeight - height - scr_safe_y;	// Alight bottom
 		else // align top
-			yPos = y * ScreenHeight;
+			yPos = y * ScreenHeight + scr_safe_y;
 	}
 
-	if ( yPos + height > ScreenHeight )
-		yPos = ScreenHeight - height;
-	else if ( yPos < 0 )
-		yPos = 0;
+	if ( yPos + height > ScreenHeight - scr_safe_y )
+		yPos = ScreenHeight - height - scr_safe_y;
+	else if ( yPos < scr_safe_y )
+		yPos = scr_safe_y;
 
 	return yPos;
 }

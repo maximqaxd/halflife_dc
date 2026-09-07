@@ -60,7 +60,9 @@ int CHudAmmoSecondary :: Draw(float flTime)
 
 	// draw secondary ammo icons above normal ammo readout
 	int a, x, y, r, g, b, AmmoWidth;
-	UnpackRGB( r, g, b, RGB_YELLOWISH );
+	r = hud_color_r;
+	g = hud_color_g;
+	b = hud_color_b;
 	a = (int) max( MIN_ALPHA, m_fFade );
 	if (m_fFade > 0)
 		m_fFade -= (gHUD.m_flTimeDelta * 20.0f);  // slowly lower alpha to fade out icons
@@ -68,8 +70,8 @@ int CHudAmmoSecondary :: Draw(float flTime)
 
 	AmmoWidth = gHUD.GetSpriteRect(gHUD.m_HUD_number_0).right - gHUD.GetSpriteRect(gHUD.m_HUD_number_0).left;
 
-	y = ScreenHeight - (gHUD.m_iFontHeight*4);  // this is one font height higher than the weapon ammo values
-	x = ScreenWidth - AmmoWidth;
+	y = ScreenHeight - (gHUD.m_iFontHeight*4) - scr_safe_y;  // this is one font height higher than the weapon ammo values
+	x = ScreenWidth - AmmoWidth - scr_safe_x;
 
 	if ( m_HUD_ammoicon )
 	{

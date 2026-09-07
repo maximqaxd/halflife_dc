@@ -52,14 +52,13 @@ int CHudTrain::Draw(float fTime)
 
 	if (m_iPos)
 	{
-		int r, g, b, x, y;
+		int x, y;
 
-		UnpackRGB(r,g,b, RGB_YELLOWISH);
-		SPR_Set(m_hSprite, r, g, b );
+		SPR_Set(m_hSprite, hud_color_r, hud_color_g, hud_color_b );
 
 		// This should show up to the right and part way up the armor number
-		y = ScreenHeight - SPR_Height(m_hSprite,0) - gHUD.m_iFontHeight;
-		x = ScreenWidth/3 + SPR_Width(m_hSprite,0)/4;
+		y = ScreenHeight - SPR_Height(m_hSprite,0) - gHUD.m_iFontHeight - scr_safe_y;
+		x = ScreenWidth/3 + scr_safe_x + SPR_Width(m_hSprite,0)/4;
 
 		SPR_DrawAdditive( m_iPos - 1,  x, y, NULL);
 

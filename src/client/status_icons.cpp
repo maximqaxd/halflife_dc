@@ -50,7 +50,7 @@ void CHudStatusIcons::Reset( void )
 int CHudStatusIcons::Draw( float flTime )
 {
 	// find starting position to draw from, along right-hand side of screen
-	int x = 5;
+	int x = scr_safe_x + 5;
 	int y = ScreenHeight / 2;
 	
 	// loop through icon list, and draw any valid icons drawing up from the middle of screen

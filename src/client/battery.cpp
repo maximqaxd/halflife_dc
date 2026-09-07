@@ -83,7 +83,9 @@ int CHudBattery::Draw(float flTime)
 	rc = *m_prc2;
 	rc.top  += m_iHeight * ((float)(100-(min(100,m_iBat))) * 0.01f);	// battery can go from 0 to 100 so * 0.01 goes from 0 to 1
 
-	UnpackRGB(r,g,b, RGB_YELLOWISH);
+	r = hud_color_r;
+	g = hud_color_g;
+	b = hud_color_b;
 
 	if (!(gHUD.m_iWeaponBits & (1<<(WEAPON_SUIT)) ))
 		return 1;
@@ -113,8 +115,8 @@ int CHudBattery::Draw(float flTime)
 	
 	int iOffset = (m_prc1->bottom - m_prc1->top)/6;
 
-	y = ScreenHeight - gHUD.m_iFontHeight - gHUD.m_iFontHeight / 2;
-	x = ScreenWidth/5;
+	y = ScreenHeight - gHUD.m_iFontHeight - gHUD.m_iFontHeight / 2 - scr_safe_y;
+	x = ScreenWidth/5 + scr_safe_x;
 
 	// make sure we have the right sprite handles
 	if ( !m_hSprite1 )
