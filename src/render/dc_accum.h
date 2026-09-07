@@ -35,7 +35,6 @@ void          DCV_AddStudioMeshChrome( int count, const short *pCmds, const byte
 void          DCV_AddStudioMeshTagged( int count, const short *pCmds, const byte *pVertices, const byte *pNormals, const byte *pVertTag );
 void          DCV_AddStudioMeshChromeTagged( int count, const short *pCmds, const byte *pVertices, const byte *pNormals, const byte *pVertTag );
 void          DCV_AddPolyIndices( int base, int numverts );
-void          DCV_AddIndicesFan( int base, int numverts );
 void          DCV_AddIndicesQuad( int i0, int i1, int i2, int i3 );
 void          DCV_AddIndicesStrip( int base, int count );
 void          DCV_AddIndicesFan( int base, int count );

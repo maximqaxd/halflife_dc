@@ -867,22 +867,6 @@ void DCV_AddStudioMeshChromeTagged( int count, const short *pCmds, const byte *p
 	}
 }
 
-void DCV_AddIndicesFan( int base, int numverts )
-{
-	WORD *p = &g_pAccumIndex[g_nAccumIndexCount];
-	int  n = numverts - 2;
-	short v = (short)(base + 1);
-
-	while (n--)
-	{
-		*p++ = v;
-		v++;
-		*p++ = v;
-		*p++ = (short)base;
-	}
-	g_nAccumIndexCount += (numverts - 2) * 3;
-}
-
 void DCV_AddPolyIndices( int base, int numverts )
 {
 	WORD *p = &g_pAccumIndex[g_nAccumIndexCount];
