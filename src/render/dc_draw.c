@@ -2490,11 +2490,11 @@ void Draw_FillRGBA( int x, int y, int w, int h, int r, int g, int b, int a )
 	DCV_SetColor(r, g, b, a);
 	DCV_FlushIfLarge();
 	base = DCV_GetVertCount();
-	DCV_AddPolyIndices(base, 4);
+	DCV_AddIndicesFan(base, 4);
 	DCV_AddVertex((float)x,         (float)y,         1.0f, 0.0f, 0.0f);
 	DCV_AddVertex((float)(x + w),   (float)y,         1.0f, 1.0f, 0.0f);
-	DCV_AddVertex((float)x,         (float)(y + h),   1.0f, 0.0f, 1.0f);
 	DCV_AddVertex((float)(x + w),   (float)(y + h),   1.0f, 1.0f, 1.0f);
+	DCV_AddVertex((float)x,         (float)(y + h),   1.0f, 0.0f, 1.0f);
 	DCV_SetPackedColor(0xFFFFFFFF);
 	DCV_FlushApplyRenderState((D3DRENDERSTATETYPE)0x1b, 0);
 }
