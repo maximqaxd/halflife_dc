@@ -12,6 +12,8 @@
 *   without written permission from Valve LLC.
 *
 ****/
+
+#ifdef HLDC_MP
 //
 // MOTD.cpp
 //
@@ -139,3 +141,5 @@ int CHudMOTD :: MsgFunc_MOTD( const char *pszName, int iSize, void *pbuf )
 	return 1;
 }
 
+
+#endif // HLDC_MP

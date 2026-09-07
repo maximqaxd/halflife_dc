@@ -12,6 +12,8 @@
 *   without written permission from Valve LLC.
 *
 ****/
+
+#ifdef HLDC_MP
 //
 // death notice
 //
@@ -221,3 +223,5 @@ int CHudDeathNotice :: MsgFunc_DeathMsg( const char *pszName, int iSize, void *p
 
 
 
+
+#endif // HLDC_MP

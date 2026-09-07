@@ -27,6 +27,7 @@
 extern DLL_GLOBAL CGameRules	*g_pGameRules;
 extern DLL_GLOBAL BOOL	g_fGameOver;
 extern int gmsgDeathMsg;	// client dll messages
+extern int gmsgHudColor;
 extern int gmsgScoreInfo;
 extern int gmsgMOTD;
 
@@ -99,6 +100,22 @@ BOOL CHalfLifeRules :: ClientConnected( edict_t *pEntity, const char *pszName, c
 
 void CHalfLifeRules :: InitHUD( CBasePlayer *pl )
 {
+	MESSAGE_BEGIN( MSG_ONE, gmsgHudColor, NULL, pl->pev );
+		if (!strncmp( STRING(gpGlobals->mapname), "ba_", 3 ))
+		{
+			// barney
+			WRITE_BYTE( 95 );
+			WRITE_BYTE( 95 );
+			WRITE_BYTE( 255 );
+		}
+		else
+		{
+			// gordon
+			WRITE_BYTE( 255 );
+			WRITE_BYTE( 160 );
+			WRITE_BYTE( 0 );
+		}
+	MESSAGE_END();
 }
 
 //=========================================================

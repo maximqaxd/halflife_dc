@@ -59,6 +59,18 @@ void CHud :: MsgFunc_InitHUD( const char *pszName, int iSize, void *pbuf )
 }
 
 
+int CHud :: MsgFunc_HudColor(const char *pszName, int iSize, void *pbuf )
+{
+	BEGIN_READ( pbuf, iSize );
+
+	hud_color_r = READ_BYTE();
+	hud_color_g = READ_BYTE();
+	hud_color_b = READ_BYTE();
+
+	return 1;
+}
+
+#ifdef HLDC_MP
 int CHud :: MsgFunc_GameMode(const char *pszName, int iSize, void *pbuf )
 {
 	BEGIN_READ( pbuf, iSize );
@@ -91,6 +103,8 @@ int CHud :: MsgFunc_Damage(const char *pszName, int iSize, void *pbuf )
 
 	return 1;
 }
+
+#endif // HLDC_MP
 
 int CHud :: MsgFunc_Concuss( const char *pszName, int iSize, void *pbuf )
 {

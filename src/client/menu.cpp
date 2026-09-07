@@ -72,9 +72,11 @@ int CHudMenu :: Draw( float flTime )
 		}
 	}
 
+#ifdef HLDC_MP
 	// don't draw the menu if the scoreboard is being shown
 	if ( gHUD.m_Scoreboard.m_iShowscoresHeld )
 		return 1;
+#endif // HLDC_MP
 
 	// draw the menu, along the left-hand side of the screen
 

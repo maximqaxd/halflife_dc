@@ -161,6 +161,8 @@ int gmsgFlashlight = 0;
 int gmsgFlashBattery = 0;
 int gmsgResetHUD = 0;
 int gmsgInitHUD = 0;
+int gmsgHudColor = 0;
+int gmsgCrouchState = 0;
 int gmsgShowGameTitle = 0;
 int gmsgCurWeapon = 0;
 int gmsgHealth = 0;
@@ -1021,15 +1023,27 @@ void CBasePlayer::SetAnimation( PLAYER_ANIM playerAnim )
 	else if ( speed > 220 )
 	{
 		pev->gaitsequence	= LookupActivity( ACT_RUN );
+
+		MESSAGE_BEGIN( MSG_ONE, gmsgCrouchState, NULL, pev );
+			WRITE_BYTE( STANCE_RUN );
+		MESSAGE_END();
 	}
 	else if (speed > 0)
 	{
 		pev->gaitsequence	= LookupActivity( ACT_WALK );
+
+		MESSAGE_BEGIN( MSG_ONE, gmsgCrouchState, NULL, pev );
+			WRITE_BYTE( STANCE_WALK );
+		MESSAGE_END();
 	}
 	else
 	{
 		// pev->gaitsequence	= LookupActivity( ACT_WALK );
 		pev->gaitsequence	= LookupSequence( "deep_idle" );
+
+		MESSAGE_BEGIN( MSG_ONE, gmsgCrouchState, NULL, pev );
+			WRITE_BYTE( STANCE_WALK );
+		MESSAGE_END();
 	}
 
 
@@ -1652,6 +1666,10 @@ void CBasePlayer::Duck( )
 				pev->view_ofs = VEC_DUCK_VIEW;
 				SetBits(pev->flags,FL_DUCKING);				// Hull is duck hull
 				ClearBits(m_afPhysicsFlags,PFLAG_DUCKING);	// Done ducking (don't ease-in when the player hits the ground)
+
+				MESSAGE_BEGIN( MSG_ONE, gmsgCrouchState, NULL, pev );
+					WRITE_BYTE( STANCE_CROUCH );
+				MESSAGE_END();
 			}
 			else
 			{
@@ -1681,6 +1699,10 @@ void CBasePlayer::Duck( )
 			pev->view_ofs = VEC_VIEW;
 			UTIL_SetSize(pev, VEC_HULL_MIN, VEC_HULL_MAX);
 			pev->origin = newOrigin;
+
+			MESSAGE_BEGIN( MSG_ONE, gmsgCrouchState, NULL, pev );
+				WRITE_BYTE( STANCE_WALK );
+			MESSAGE_END();
 		}
 #endif
 	}
@@ -3213,6 +3235,8 @@ void CBasePlayer :: Precache( void )
 	gmsgWeaponList = REG_USER_MSG("WeaponList", -1);
 	gmsgResetHUD = REG_USER_MSG("ResetHUD", 1);		// called every respawn
 	gmsgInitHUD = REG_USER_MSG("InitHUD", 0 );		// called every time a new player joins the server
+	gmsgHudColor = REG_USER_MSG("HudColor", 3 );	// tint the HUD is drawn in
+	gmsgCrouchState = REG_USER_MSG("CrouchState", 1 );	// stance the player is in
 	gmsgShowGameTitle = REG_USER_MSG("GameTitle", 1);
 	gmsgDeathMsg = REG_USER_MSG( "DeathMsg", -1 );
 	gmsgScoreInfo = REG_USER_MSG( "ScoreInfo", 5 );

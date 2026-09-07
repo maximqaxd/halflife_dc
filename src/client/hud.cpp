@@ -26,6 +26,10 @@
 
 extern client_sprite_t *GetSpriteList(client_sprite_t *pList, const char *psz, int iRes, int iCount);
 
+int hud_color_r;
+int hud_color_g;
+int hud_color_b;
+
 //DECLARE_MESSAGE(m_Logo, Logo)
 int __MsgFunc_Logo(const char *pszName, int iSize, void *pbuf)
 {
@@ -54,9 +58,16 @@ int __MsgFunc_Concuss(const char *pszName, int iSize, void *pbuf)
 	return gHUD.MsgFunc_Concuss( pszName, iSize, pbuf );
 }
 
+#ifdef HLDC_MP
 int __MsgFunc_GameMode(const char *pszName, int iSize, void *pbuf )
 {
 	return gHUD.MsgFunc_GameMode( pszName, iSize, pbuf );
+}
+#endif // HLDC_MP
+
+int __MsgFunc_HudColor(const char *pszName, int iSize, void *pbuf )
+{
+	return gHUD.MsgFunc_HudColor( pszName, iSize, pbuf );
 }
 
 
@@ -65,7 +76,10 @@ void CHud :: Init( void )
 {
 	HOOK_MESSAGE( Logo );
 	HOOK_MESSAGE( ResetHUD );
+#ifdef HLDC_MP
 	HOOK_MESSAGE( GameMode );
+#endif // HLDC_MP
+	HOOK_MESSAGE( HudColor );
 	HOOK_MESSAGE( InitHUD );
 	HOOK_MESSAGE( SetFOV );
 	HOOK_MESSAGE( Concuss );
@@ -100,11 +114,14 @@ void CHud :: Init( void )
 	m_Train.Init();
 	m_Battery.Init();
 	m_Flash.Init();
+	m_CrouchState.Init();
 	m_Message.Init();
+#ifdef HLDC_MP
 	m_Scoreboard.Init();
 	m_MOTD.Init();
 	m_StatusBar.Init();
 	m_DeathNotice.Init();
+#endif // HLDC_MP
 	m_AmmoSecondary.Init();
 	m_TextMessage.Init();
 	m_StatusIcons.Init();
@@ -230,11 +247,14 @@ void CHud :: VidInit( void )
 	m_Train.VidInit();
 	m_Battery.VidInit();
 	m_Flash.VidInit();
+	m_CrouchState.VidInit();
 	m_Message.VidInit();
+#ifdef HLDC_MP
 	m_Scoreboard.VidInit();
 	m_MOTD.VidInit();
 	m_StatusBar.VidInit();
 	m_DeathNotice.VidInit();
+#endif // HLDC_MP
 	m_SayText.VidInit();
 	m_Menu.VidInit();
 	m_AmmoSecondary.VidInit();

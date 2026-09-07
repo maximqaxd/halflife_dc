@@ -12,6 +12,8 @@
 *   without written permission from Valve LLC.
 *
 ****/
+
+#ifdef HLDC_MP
 //
 // statusbar.cpp
 //
@@ -250,3 +252,5 @@ int CHudStatusBar :: MsgFunc_StatusValue( const char *pszName, int iSize, void *
 	
 	return 1;
 }
+
+#endif // HLDC_MP

@@ -52,6 +52,10 @@ typedef struct {
 #define HUD_ACTIVE	1
 #define HUD_INTERMISSION 2
 
+extern int hud_color_r;
+extern int hud_color_g;
+extern int hud_color_b;
+
 #define MAX_PLAYER_NAME_LENGTH		32
 
 //
@@ -186,6 +190,7 @@ private:
 
 };
 
+#ifdef HLDC_MP
 //
 //-----------------------------------------------------
 //
@@ -307,6 +312,7 @@ public:
 private:
 	int m_HUD_d_skull;  // sprite index of skull icon
 };
+#endif // HLDC_MP
 
 //
 //-----------------------------------------------------
@@ -391,6 +397,29 @@ private:
 	int	  m_fOn;
 	float m_fFade;
 	int	  m_iWidth;		// width of the battery innards
+};
+
+//
+//-----------------------------------------------------
+//
+class CHudCrouchState: public CHudBase
+{
+public:
+	int Init( void );
+	int VidInit( void );
+	int Draw( float flTime );
+	void Reset( void );
+	int MsgFunc_CrouchState( const char *pszName, int iSize, void *pbuf );
+
+private:
+	HSPRITE m_hCrouch;
+	HSPRITE m_hWalk;
+	HSPRITE m_hRun;
+	wrect_t *m_prcCrouch;
+	wrect_t *m_prcWalk;
+	wrect_t *m_prcRun;
+	int	  m_iState;		// stance the player is currently in
+	int	  m_iWidth;		// width of the stance icon
 };
 
 //
@@ -530,6 +559,12 @@ public:
 	int		m_iFOV;
 	int		m_Teamplay;
 	int		m_iRes;
+	int		m_iWeaponBits;
+	int		m_fPlayerDead;
+	int		m_iIntermission;
+
+	// sprite indexes
+	int m_HUD_number_0;
 
 	int m_iFontHeight;
 	int DrawHudNumber(int x, int y, int iFlags, int iNumber, int r, int g, int b );
@@ -565,11 +600,14 @@ public:
 	CHudBattery	m_Battery;
 	CHudTrain	m_Train;
 	CHudFlashlight m_Flash;
+	CHudCrouchState m_CrouchState;
 	CHudMessage m_Message;
+#ifdef HLDC_MP
 	CHudScoreboard m_Scoreboard;
 	CHudMOTD    m_MOTD;
 	CHudStatusBar    m_StatusBar;
 	CHudDeathNotice m_DeathNotice;
+#endif // HLDC_MP
 	CHudSayText m_SayText;
 	CHudMenu	m_Menu;
 	CHudAmmoSecondary	m_AmmoSecondary;
@@ -587,7 +625,10 @@ public:
 
 	// user messages
 	int _cdecl MsgFunc_Damage(const char *pszName, int iSize, void *pbuf );
+#ifdef HLDC_MP
 	int _cdecl MsgFunc_GameMode(const char *pszName, int iSize, void *pbuf );
+#endif // HLDC_MP
+	int _cdecl MsgFunc_HudColor(const char *pszName, int iSize, void *pbuf );
 	int _cdecl MsgFunc_Logo(const char *pszName,  int iSize, void *pbuf);
 	int _cdecl MsgFunc_ResetHUD(const char *pszName,  int iSize, void *pbuf);
 	void _cdecl MsgFunc_InitHUD( const char *pszName, int iSize, void *pbuf );
@@ -595,14 +636,6 @@ public:
 	int  _cdecl MsgFunc_Concuss( const char *pszName, int iSize, void *pbuf );
 	// Screen information
 	SCREENINFO	m_scrinfo;
-
-	int	m_iWeaponBits;
-	int	m_fPlayerDead;
-	int m_iIntermission;
-
-	// sprite indexes
-	int m_HUD_number_0;
-
 
 	void AddHudElem(CHudBase *p);
 

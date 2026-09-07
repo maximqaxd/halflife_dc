@@ -12,6 +12,8 @@
 *   without written permission from Valve LLC.
 *
 ****/
+
+#ifdef HLDC_MP
 //
 // Scoreboard.cpp
 //
@@ -526,3 +528,5 @@ void CHudScoreboard :: UserCmd_HideScores( void )
 {
 	m_iShowscoresHeld = FALSE;
 }
+
+#endif // HLDC_MP

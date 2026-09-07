@@ -334,6 +334,10 @@ DEP_CPP_CDLL_=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\client\crouchstate.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\client\death.cpp
 
 !IF  "$(CFG)" == "client - Win32 (WCE SH4) Release"

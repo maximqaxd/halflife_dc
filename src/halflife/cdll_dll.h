@@ -43,4 +43,9 @@
 
 #define WEAPON_SUIT			31
 
+// stances reported to the HUD
+#define STANCE_WALK			0
+#define STANCE_RUN			1
+#define STANCE_CROUCH		2
+
 #endif
