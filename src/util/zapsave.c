@@ -766,6 +766,18 @@ int Zap_EncodeKeyvalueSection( void *handle, int count, zapentity_t *pEntities,
 										cost += pEntities[i].pKeys[j].size + 5;
 									}
 								}
+#if HLDC_FIXES
+								else
+								{
+									// A key whose length changed is written out
+									// again in full, so it has to be paid for
+									// here as well. Costing it at nothing lets
+									// the search settle on a base entity that is
+									// more expensive to describe than one it
+									// passed over.
+									cost += pEntities[i].pKeys[j].size + 5;
+								}
+#endif
 								break;
 							}
 						}

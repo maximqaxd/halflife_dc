@@ -28,7 +28,7 @@ public:
 		name = n;
 	}
 	virtual ~KZapCodec() {}
-	virtual float Measure( byte *start, byte *cur, int remaining ) { return 1e30f; }
+	virtual float Measure( byte *start, byte *cur, int remaining ) { return g_zapNoFit; }
 	virtual int   Encode( byte **src, byte **dst, int count )      { return 0; }
 	virtual int   Decode( byte **src, byte **dst )                 { return 0; }
 	virtual int   Finish( byte **dst )                             { return 0; }

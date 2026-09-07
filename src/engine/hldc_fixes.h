@@ -12,7 +12,7 @@
 // be turned off again when tracking down a difference in behaviour.
 //
 #ifndef HLDC_FIXES
-#define HLDC_FIXES 0
+#define HLDC_FIXES 1
 #endif
 
 #endif // HLDC_FIXES_H

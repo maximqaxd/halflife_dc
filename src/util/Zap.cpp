@@ -181,7 +181,23 @@ bfile_t *Bopen( char *path, char *mode )
 			ZlibDecompress(e->data, buf);
 			MnemoFree(e->data);
 			e->data = buf;
+#if HLDC_FIXES
+			// The buffer that was just handed out is size bytes long, so say so;
+			// capacity still described the compressed copy that was thrown away.
+			e->capacity = e->size;
+#endif
 		}
+#if HLDC_FIXES
+		// Opening for writing starts the file over. Without this the length only
+		// ever grows: a save that writes fewer bytes than the last one leaves the
+		// file at its old length, and everything past the new data - stale records,
+		// or uninitialised buffer once the file has been through a compress and a
+		// decompress - is carried into the save bundle and out to the memory card.
+		// That is what makes a saved game cost several times the blocks it should,
+		// and what makes the cost drift with whatever the engine last did.
+		if (strchr(mode, 'w'))
+			e->size = 0;
+#endif
 		e->position = 0;
 		e->open = 1;
 		return e;
