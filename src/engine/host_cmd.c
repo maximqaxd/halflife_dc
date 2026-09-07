@@ -1195,9 +1195,23 @@ void Host_Restart_f( void )
 
 	strcpy(name, sv.name);	// must copy out, because it gets cleared
 							// in sv_spawnserver
+
+	// Make room for the new level
+	Cache_FlushToDisk();
+	Cache_FreeAll();
+	Bshrink_all();
+	CompactAllHeaps();
+
 	SV_SpawnServer(FALSE, name, NULL);
 	SV_LoadEntities();
 	SV_ActivateServer(TRUE);
+
+	// And drop everything the old level left behind
+	Cache_FreeStale();
+	Cache_FlushToDisk();
+	Cache_FreeAll();
+	Cache_FlushUnlocked();
+	GL_UnloadTextures();
 }
 
 /*

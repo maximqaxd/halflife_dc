@@ -59,6 +59,7 @@ on the hunk where appropriate;
 #define MNEMO_SLOPPY_MAX   1000		// smaller hunk/zone allocations bump off the sloppy pool
 #define MNEMO_SLOPPY_CHUNK 0x1000	// sloppy pool replenish size
 #define CACHE_FREE_MIN     0x800	// Cache_FreeLRU skips smaller blocks unless aggressive
+#define CACHE_FLUSH_MAX    50	// Cache_FlushToDisk writes back at most this many blocks
 #define CACHE_NAME_LEN     15		// chars kept of a resource name in a cache block
 
 #define MNEMO_FIT_SLACK    0x1020	// a free block within this of the request is "good enough"
@@ -1666,6 +1667,9 @@ int Cache_FreeAll( void )
 	return 0;
 }
 
+static int MnemoCacheMove( cache_system_t* cs );
+static __forceinline int MnemoCacheRelocate( cache_system_t* cs );
+
 /*
 ============
 Cache_FlushToDisk
@@ -1676,7 +1680,33 @@ be dropped now and reloaded later instead of holding on to arena space.
 */
 int Cache_FlushToDisk( void )
 {
-	return 0;
+	cache_system_t* cs;
+	cache_system_t* next;
+	int count;
+
+	count = 0;
+
+	for (cs = g_mnemo.cache_lru; cs != NULL; cs = next)
+	{
+		/* The move frees this block, so remember the link first. */
+		next = cs->lru_next;
+
+		if (((unsigned int)*cs->user & 1u) == 0)
+		{
+			/* Park the payload in audio-block memory when there is somewhere
+			   to put it, otherwise just shuffle the block up so the space it
+			   leaves behind joins the hole next to it. */
+			if (AFile_HasRoomFor(cs->size))
+				count += MnemoCacheMove(cs);
+			else
+				count += MnemoCacheRelocate(cs);
+		}
+
+		if (count > CACHE_FLUSH_MAX)
+			break;
+	}
+
+	return count;
 }
 
 int Cache_FreeAllLRU( void )
@@ -1825,6 +1855,48 @@ static int MnemoCacheMove( cache_system_t* cs )
 
 	*newcs->user = (void*)((byte*)newcs + sizeof(cache_system_t));
 	*(unsigned int*)newcs->user |= 1u;
+
+	Cache_UnlinkLRU(newcs);
+	Cache_MoveToMRU(newcs);
+
+	newcs->timestamp = gHostSpawnCount;
+	newcs->frame = host_framecount;
+
+	return 1;
+}
+
+/*
+ * MnemoCacheRelocate
+ *
+ * Move a cache block to a fresh spot of the same size and free the old one, so
+ * the space it was sitting on can merge with whatever is next to it. The block
+ * keeps its payload, so nothing has to be read back in later. Returns 1 if the
+ * block was moved.
+ */
+static __forceinline int MnemoCacheRelocate( cache_system_t* cs )
+{
+	cache_system_t* newcs;
+
+	if (cs->flags & CACHE_LOCKED)
+		return 0;
+
+	if (((unsigned int)*cs->user & 1u) != 0)
+		return 0;
+
+	newcs = (cache_system_t*)MnemoAlloc(cs->size, MNEMO_FLAG_CACHE | MNEMO_FLAG_NO_RECLAIM,
+	                                    0, (char*)cs);
+	if (newcs == NULL)
+		return 0;
+
+	memcpy(newcs, cs, cs->size);
+	g_mnemo.cache_bytes += newcs->size;
+	newcs->lru_next = NULL;
+	newcs->lru_prev = NULL;
+	g_mnemo.cache_epoch_bytes += newcs->size;
+
+	Cache_Free((cache_user_t*)cs->user, 1);
+
+	*newcs->user = (void*)((byte*)newcs + sizeof(cache_system_t));
 
 	Cache_UnlinkLRU(newcs);
 	Cache_MoveToMRU(newcs);
