@@ -102,6 +102,7 @@ int MSG_ReadLong( void );
 float MSG_ReadFloat( void );
 int MSG_ReadBuf( int iSize, void* pbuf );
 char* MSG_ReadString( void );
+char* MSG_ReadStringUntil( int terminator );
 char* MSG_ReadStringLine( void );
 float MSG_ReadCoord( void );
 float MSG_ReadAngle( void );
@@ -119,6 +120,7 @@ unsigned char MSG_ReadBitField8( unsigned int numbits );
 unsigned short MSG_ReadBitField16( unsigned int numbits );
 unsigned int MSG_ReadBitField32( unsigned int numbits );
 unsigned int MSG_PeekBits( unsigned int numbits );
+unsigned int MSG_PeekByteBits( unsigned int numbits );
 float MSG_ReadScaledBitValue( unsigned int numbits );
 int MSG_ReadSignMagnitude8( int numbits );
 short MSG_ReadSignMagnitude16( int numbits );
@@ -152,6 +154,8 @@ int Q_strncasecmp( const char* s1, const char* s2, int n );
 int	Q_atoi( char* str );
 float Q_atof( char* str );
 int Q_FileNameCmp( char* file1, char* file2 );
+int Q_FileNameSuffixCmp( char* suffix, char* filename );
+char* COM_BinPrintf( byte* buf, int nLen );
 
 extern qboolean gfExtendedError;
 extern char gszDisconnectReason[256];
@@ -212,6 +216,9 @@ void COM_CloseUnusedFiles( FileList_t* list );
 void COM_DestroyMultipleFileList( FileList_t** ppList );
 
 void COM_CreatePath( char* path );
+void COM_FreeSearchPath( void );
+void COM_SetFileLog( int level );
+void COM_LogFileOpen( char* source, char* filename, int offset, int size );
 int COM_OpenFile( char* filename, int* hndl );
 void COM_LoadFileChunk( char* path, byte* dest, int offset, int length );
 int COM_OpenFileByName( char* gamedir, char* filename, int* hndl );
@@ -235,8 +242,15 @@ void COM_FileSeek( int filepos, int filelen, int handle, int pos );
 int Sys_CompareFileTime( int* ft1, int* ft2 );
 int COM_CompareFileTime( char* filename1, char* filename2, int* iCompare );
 
+struct resource_s;
+qboolean COM_CreateCustomization( struct customization_s* pListHead, struct resource_s* pResource, int playernumber, int flags, struct customization_s** pCustomization, int* nLumps );
 void COM_ClearCustomizationList( struct customization_s* pHead, qboolean bCleanDecals );
 
+int COM_FileTell( int filepos, int filelen, int handle, ... );
+struct qpic_s* COM_LoadBMP( char* filename, int textureMode, int firstRow, int endRow );
+byte* LoadBMP16( void* fin, qboolean is15bit );
+void LoadBMP8( int* phFile, byte** pPalette, int* nPalette, byte** pImage );
+void COM_Log( char* pszFile, char* fmt, ... );
 void COM_ListMaps( char* pszSubString );
 
 unsigned char COM_Nibble( char c );

@@ -488,3 +488,23 @@ void Cvar_CmdInit( void )
 {
 	Cmd_AddCommand("cvarlist", Cmd_CvarList_f);
 }
+
+/*
+============
+Cvar_UnlinkExternals
+============
+*/
+void Cvar_UnlinkExternals( void )
+{
+	cvar_t *var = cvar_vars;
+	cvar_t **link = &cvar_vars;
+
+	while (*link)
+	{
+		if (var->flags & FCVAR_EXTDLL)
+			*link = var->next;
+		else
+			link = &var->next;
+		var = var->next;
+	}
+}

@@ -18,5 +18,7 @@ void  Info_SetValueForKey( char* s, char* key, char* value, int maxsize );
 void  Info_Print( char* s );
 char* Info_Serverinfo( void );
 void  Info_WriteVars( void* f );
+int Info_IsKeyImportant( char* key );
+char* Info_AlphaName( char* name );
 
 #endif

@@ -53,6 +53,7 @@ typedef struct
 } physent_t;
 
 
+// Player movement state, sizeof(playermove_t) == 0x16114.
 typedef struct
 {
 	int			player_index;	// So we don't try to run the PM_CheckStuck nudging too quickly.
@@ -67,7 +68,16 @@ typedef struct
 
 	// For ducking/dead
 	vec3_t		view_ofs;		// Our eye position.
-	int			reserved[2];
+	union
+	{
+		int reserved[2];
+		struct
+		{
+			float time;
+			qboolean active;
+			short pad;
+		} duck;
+	};
 
 	int			flags;			// FL_ONGROUND, FL_DUCKING, etc.
 	int			usehull;		// 0 = regular player hull, 1 = ducked player hull, 2 = point hull
@@ -145,6 +155,10 @@ extern	cvar_t	pm_nostucktouch;
 
 void PlayerMove( qboolean server );
 void Pmove_Init( void );
+float PM_SplineFraction( float value, float scale );
+char* PM_MoveStateString( char* label );
+void PM_FixPlayerCrouchStuck( void );
+void PM_Duck( void );
 
 void PM_Accelerate( vec_t* wishdir, float wishspeed, float accel );
 void PM_CheckVelocity( void );

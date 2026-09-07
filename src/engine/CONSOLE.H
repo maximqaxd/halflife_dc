@@ -21,3 +21,6 @@ void Con_Clear_f( void );
 void Con_DrawNotify( void );
 void Con_ClearNotify( void );
 void Con_ToggleConsole_f( void );
+void Con_GetInput( char* text, int linepos );
+int Con_InputLineY( int y );
+void Con_NotifyBox( char* text );

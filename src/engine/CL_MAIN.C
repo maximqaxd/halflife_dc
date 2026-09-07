@@ -55,6 +55,7 @@ cvar_t	cl_spectator_password = { "cl_spectator_password", "0" };
 cvar_t	lookspring = { "lookspring", "0", TRUE };
 cvar_t	lookstrafe = { "lookstrafe", "0", TRUE };
 cvar_t	sensitivity = { "sensitivity", "3", TRUE };
+float gMouseSensitivity;
 
 cvar_t	cl_skyname = { "cl_skyname", "desert", TRUE };
 cvar_t	cl_skycolor_r = { "cl_skycolor_r", "0" };
@@ -88,6 +89,25 @@ cvar_t	rcon_port = { "rcon_port", "0" };
 
 cvar_t	cl_resend = { "cl_resend", "6.0" };
 cvar_t	cl_downloadinterval = { "cl_downloadinterval", "1.0" };
+
+void CL_RecordDownloadStats (void)
+{
+	downloadtime_t *sample;
+
+	if (!cl_downloadinterval.value)
+		return;
+	if (cl_downloadinterval.value < 0)
+		Cvar_SetValue ("cl_downloadinterval", 1.0f);
+	if (realtime - cls.fLastDownloadTime < cl_downloadinterval.value)
+		return;
+
+	cls.fLastDownloadTime = realtime;
+	sample = &cls.rgDownloads[cls.downloadnumber & (MAX_DL_STATS - 1)];
+	sample->bUsed = true;
+	sample->fTime = realtime;
+	sample->nBytesRemaining = cls.nRemainingToTransfer;
+	cls.downloadnumber++;
+}
 cvar_t	cl_slisttimeout = { "cl_slist", "10.0" };
 cvar_t	cl_allowdownload = { "cl_allowdownload", "0" };
 cvar_t	cl_allowupload = { "cl_allowupload", "0" };
@@ -947,11 +967,6 @@ void CL_ClearClientState( void )
 		free(cl.frames);
 	cl.frames = NULL;
 
-	for (i = 0; i < MAX_CLIENTS; i++)
-	{
-		COM_ClearCustomizationList(&cl.players[i].customdata, FALSE);
-	}
-
 	Q_memset(&cl, 0, (int)((byte*)&cl.frames - (byte*)&cl));
 
 	cl.resourcesneeded.pPrev = &cl.resourcesneeded;
@@ -959,12 +974,11 @@ void CL_ClearClientState( void )
 	cl.resourcesonhand.pPrev = &cl.resourcesonhand;
 	cl.resourcesonhand.pNext = &cl.resourcesonhand;
 
-	CL_CreateResourceList();
-
 	cl.frames = (frame_t*)MnemoAllocDbg(sizeof(frame_t) * cl_update_backup, __FILE__, __LINE__);
 	if (!cl.frames)
 		Sys_Error("Unable to allocate %i client frames", cl_update_backup);
 	memset(cl.frames, 0, sizeof(frame_t) * cl_update_backup);
+	CL_CreateResourceList();
 }
 
 /*
@@ -2279,7 +2293,7 @@ void CL_CreateResourceList( void )
 
 	memset(rgucMD5_hash, 0, sizeof(rgucMD5_hash));
 
-	nSize = COM_FindFile(szFileName, NULL, &fp);
+	nSize = COM_FOpenFile(szFileName, &fp);
 	if (nSize == -1)
 	{
 		nSize = 0;
@@ -2299,7 +2313,7 @@ void CL_CreateResourceList( void )
 	}
 
 	if (fp)
-		fclose(fp);
+		Sys_CloseHandle(fp);
 }
 
 /*

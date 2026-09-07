@@ -463,3 +463,46 @@ void Info_WriteVars( void* f )
 	}
 }
 #pragma optimize("", on)
+
+int Info_IsKeyImportant( char* key )
+{
+	if (*key == '*')
+		return TRUE;
+	if (!strcmp(key, "name"))
+		return TRUE;
+	if (!strcmp(key, "model"))
+		return TRUE;
+	if (!strcmp(key, "rate"))
+		return TRUE;
+	if (!strcmp(key, "topcolor"))
+		return TRUE;
+	return !strcmp(key, "bottomcolor");
+}
+
+char* Info_AlphaName( char* name )
+{
+	static char text[9];
+	char* out;
+	char* src;
+	int count;
+
+	memset(text, 0, sizeof(text));
+	if (strlen(name) < 1)
+		return "Noname";
+	src = name;
+	out = text;
+	count = 0;
+	while (*src && count < 8)
+	{
+		if (isalpha(*src))
+		{
+			count++;
+			*out++ = *src;
+		}
+		src++;
+	}
+	*out = 0;
+	if (strlen(text) < 1)
+		return "Noname";
+	return text;
+}

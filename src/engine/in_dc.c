@@ -24,7 +24,7 @@ extern keydest_t key_dest;
 extern client_state_t cl;
 extern client_static_t cls;
 extern server_t sv;
-extern kbutton_t in_speed, in_mlook, in_strafe;
+extern kbutton_t in_speed, in_mlook, in_jlook, in_strafe;
 extern cvar_t m_pitch, m_yaw, m_side, m_forward;
 extern cvar_t cl_movespeedkey, cl_pitchdown, cl_pitchup, cl_forwardspeed, cl_sidespeed,
 	cl_yawspeed, cl_pitchspeed, cl_anglespeedkey, lookspring, lookstrafe;
@@ -149,8 +149,7 @@ int			joy_centerx, joy_centery;
 // Where the pointing device is sitting this frame
 POINT		mouse_pos;
 
-// Set from the client's client_data_t every frame
-float		gMouseSensitivity;
+// Scale applied to joystick look movement
 float		gJoySensitivity = 1.0f;
 
 // Which way the pad is pushing this frame, so the walk cycle can lean the
@@ -1129,7 +1128,7 @@ IN_Move
 */
 void IN_Move( usercmd_t* cmd )
 {
-	if (mouseactive)
+	if (pMouseDevice)
 		IN_MouseMove(cmd);
 
 	IN_JoyMove(cmd);
@@ -1682,7 +1681,7 @@ void IN_JoyMove( usercmd_t *cmd )
 		switch (dwAxisMap[i])
 		{
 		case AxisTurn:
-			if ((in_strafe.state & 1) || (lookstrafe.value && (in_mlook.state & 1)))
+			if ((in_strafe.state & 1) || (lookstrafe.value && (in_jlook.state & 1)))
 			{
 				// user wants turn control to become side control
 				if (fabs(fAxisValue) > joy_sidethreshold.value)
@@ -1707,7 +1706,7 @@ void IN_JoyMove( usercmd_t *cmd )
 			}
 			break;
 		case AxisForward:
-			if (!(in_mlook.state & 1))
+			if (!(in_jlook.state & 1))
 			{
 				// user wants forward control to become look control
 				if (fabs(fAxisValue) > joy_pitchthreshold.value)
@@ -1744,7 +1743,7 @@ void IN_JoyMove( usercmd_t *cmd )
 			}
 			break;
 		case AxisLook:
-			if (in_mlook.state & 1)
+			if (in_jlook.state & 1)
 			{
 				if (fabs(fAxisValue) > joy_pitchthreshold.value)
 				{

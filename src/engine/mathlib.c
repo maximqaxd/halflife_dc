@@ -12,6 +12,12 @@ void Sys_Error( char* error, ... );
 vec3_t vec3_origin = { 0, 0, 0 };
 int nanmask = 255 << 23;
 
+void BOPS_Error( void )
+{
+	Sys_Error("BoxOnPlaneSide:  Bad signbits");
+}
+
+
 
 float anglemod( float a )
 {
@@ -27,12 +33,12 @@ float anglemod( float a )
 
 /*
 ==================
-BOPS_Error
+BoxOnPlaneSide_mclip
 
 General-side test for compact BSP planes.
 ==================
 */
-int BOPS_Error( vec_t* emins, vec_t* emaxs, mclipplane_t* p )
+int BoxOnPlaneSide_mclip( vec_t* emins, vec_t* emaxs, mclipplane_t* p )
 {
 	vec_t* normal;
 	float dist1, dist2;
@@ -779,3 +785,126 @@ float ShortToFloat( unsigned short value )
 short new_cw = 0xC7F, old_cw;
 
 DLONG dlong;
+
+static unsigned int s_color5To8[32] =
+{
+	0, 8, 16, 25, 33, 41, 49, 58, 66, 74, 82, 90, 99, 107, 115, 123,
+	132, 140, 148, 156, 165, 173, 181, 189, 197, 206, 214, 222, 230, 239, 247, 255
+};
+
+static unsigned int s_color6To8[64] =
+{
+	0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 45, 49, 53, 57, 61,
+	65, 69, 73, 77, 81, 85, 89, 93, 97, 101, 105, 109, 113, 117, 121, 125,
+	130, 134, 138, 142, 146, 150, 154, 158, 162, 166, 170, 174, 178, 182, 186, 190,
+	194, 198, 202, 206, 210, 215, 219, 223, 227, 231, 235, 239, 243, 247, 251, 255
+};
+
+unsigned short Color8888To4444( int color )
+{
+	int a = (color & 0xff000000) >> 28;
+	int r = (color & 0x00ff0000) >> 20;
+	int g = (color & 0x0000ff00) >> 12;
+	int b = (color & 0x000000ff) >> 4;
+	return (a << 12) | (r << 8) | (g << 4) | b;
+}
+
+unsigned short Color24To565( color24* color )
+{
+	unsigned int r = color->r;
+	unsigned int g = color->g;
+	unsigned int b = color->b;
+	r >>= 3;
+	g >>= 2;
+	b >>= 3;
+	return (r << 11) | (g << 5) | b;
+}
+
+void Color565To24( int color, color24* out )
+{
+	unsigned int r = s_color5To8[(color & 0xf800) >> 11];
+	unsigned int g = s_color6To8[(color & 0x07e0) >> 5];
+	unsigned int b = s_color5To8[color & 0x001f];
+	out->r = r;
+	out->g = g;
+	out->b = b;
+}
+
+unsigned short ColorVecTo4444( colorVec* pcv )
+{
+	byte* color = (byte*)pcv;
+	unsigned int a = color[12];
+	unsigned int r = color[0];
+	unsigned int g = color[4];
+	unsigned int b = color[8];
+	a >>= 4;
+	r >>= 4;
+	g >>= 4;
+	b >>= 4;
+	return (a << 12) | (r << 8) | (g << 4) | b;
+}
+
+/* Expand a four-bit color component to the full byte range. */
+static unsigned int s_color4To8[16] =
+{
+	0x00, 0x11, 0x22, 0x33,
+	0x44, 0x55, 0x66, 0x77,
+	0x88, 0x99, 0xAA, 0xBB,
+	0xCC, 0xDD, 0xEE, 0xFF
+};
+
+void GetRGB16( int color, colorVec16* out )
+{
+	unsigned int a = s_color4To8[(color & 0xf000) >> 12];
+	unsigned int r = s_color4To8[(color & 0x0f00) >> 8];
+	unsigned int g = s_color4To8[(color & 0x00f0) >> 4];
+	unsigned int b = s_color4To8[color & 0x000f];
+	out->a = a;
+	out->r = r;
+	out->g = g;
+	out->b = b;
+}
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+unsigned short PutRGB( colorVec* pcv )
+{
+	byte* color = (byte*)pcv;
+	unsigned int alpha = color[12];
+	unsigned int red = color[0];
+	unsigned int green = color[4];
+	unsigned int blue = color[8];
+
+	alpha >>= 4;
+	red >>= 4;
+	green >>= 4;
+	blue >>= 4;
+
+	return (unsigned short)((alpha << 12) | (red << 8) |
+		(green << 4) | blue);
+}
+
+void GetRGB( unsigned short color, colorVec* pcv )
+{
+	unsigned int alpha;
+	unsigned int red;
+	unsigned int green;
+	unsigned int blue;
+	unsigned int* color4To8 = s_color4To8;
+
+	alpha = color4To8[(color & 0xF000) >> 12];
+	red = color4To8[(color & 0x0F00) >> 8];
+	green = color4To8[(color & 0x00F0) >> 4];
+	blue = color4To8[color & 0x000F];
+
+	pcv->a = alpha;
+	pcv->r = red;
+	pcv->g = green;
+	pcv->b = blue;
+}
+
+#ifdef __cplusplus
+}
+#endif

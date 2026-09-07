@@ -5,6 +5,7 @@
 #include "pr_cmds.h"
 #include "decal.h"
 #include "info.h"
+#include "color.h"
 
 #define NUM_SAFE_ARGVS  7
 
@@ -427,8 +428,8 @@ float Q_atof( char* str )
 Q_FileNameCmp
 
 this is a specific string compare to use for filenames.
- it treats all slashes as the same character. so you can compare
-paths.  (Quake uses / internally, while NT uses \ for it's path-seperator thing)
+ It accepts a forward slash in the first path in place of a backslash
+in the second path.
 NOTE: this function uses the same return value conventions as strcmp.
 so 0 signals a match.
 NOTE: HLDC pak has forward slashes internaly 
@@ -436,30 +437,16 @@ NOTE: HLDC pak has forward slashes internaly
 */
 int Q_FileNameCmp( char* file1, char* file2 )
 {
-	for ( ;; )
+	do
 	{
-		char c1 = *file1;
-		char c2 = *file2;
-
-		// Treat both '/' and '\' as equivalent path separators.
-		if ((c1 == '/' || c1 == '\\') && (c2 == '/' || c2 == '\\'))
-		{
-			if (!c1)
-				return 0;
-			file1++;
-			file2++;
+		if (*file1 == '/' && *file2 == '\\')
 			continue;
-		}
-
-		if (tolower((unsigned char)c1) != tolower((unsigned char)c2))
+		if (tolower(*file1) != tolower(*file2))
 			return -1;
-
-		if (!c1)
+		if (!*file1)
 			return 0;
-
-		file1++;
-		file2++;
-	}
+	} while (*file1++ && *file2++);
+	return 0; // fixed bogus warning
 }
 
 /*
@@ -1122,6 +1109,23 @@ char* MSG_ReadString( void )
 
 	string[l] = 0;
 
+	return string;
+}
+
+char* MSG_ReadStringUntil( int terminator )
+{
+	static char string[1024];
+	int l, c;
+
+	l = 0;
+	do
+	{
+		c = MSG_ReadChar();
+		if (c == -1 || c == 0 || c == terminator)
+			break;
+		string[l++] = c;
+	} while (l < sizeof(string) - 1);
+	string[l] = 0;
 	return string;
 }
 
@@ -1829,6 +1833,22 @@ float MSG_ReadScaledBitValue( unsigned int numbits )
 	}
 }
 
+unsigned int MSG_PeekByteBits( unsigned int numbits )
+{
+	bitread_t saved;
+	unsigned int value;
+
+	saved = bitread;
+	value = 0;
+	while ((int)numbits-- > 0)
+	{
+		if (MSG_ReadOneBit())
+			value |= (1 << numbits) & 0xff;
+	}
+	bitread = saved;
+	return value;
+}
+
 unsigned int MSG_PeekBits( unsigned int numbits )
 {
 	bitread_t		saved;
@@ -2394,6 +2414,36 @@ byte	swaptest[2] = { 1, 0 };
 
 int		filelog_level;
 HANDLE	filelog_handle;
+static int filelog_lastend;
+
+void COM_SetFileLog( int level )
+{
+	filelog_level = level;
+	if (level == 0)
+	{
+		Sys_CloseHandle(filelog_handle);
+		filelog_handle = 0;
+	}
+	else
+	{
+		filelog_handle = Sys_OpenHandle("\\PC\\action.log", "wt");
+	}
+}
+
+void COM_LogFileOpen( char* source, char* filename, int offset, int size )
+{
+	int seek;
+
+	if (filelog_level && filelog_handle)
+	{
+		seek = 0;
+		if (offset && filelog_lastend)
+			seek = offset - filelog_lastend;
+		filelog_lastend = offset + size;
+		Sys_FPrintf(filelog_handle, "Opened %s from %s: offset %d, size %d, seek %d\n",
+			filename, source, offset, size, seek);
+	}
+}
 
 void Cmd_filelog_f( void )
 {
@@ -2566,6 +2616,33 @@ typedef struct searchpath_s
 
 searchpath_t* com_searchpaths;
 
+void COM_FreeSearchPathEntry( searchpath_t* search )
+{
+	if (search)
+	{
+		if (search->pack)
+		{
+			Sys_FileClose(search->pack->handle);
+			if (search->pack->files)
+				MnemoFree(search->pack->files);
+			MnemoFree(search->pack);
+		}
+		free(search);
+	}
+}
+
+void COM_FreeSearchPath( void )
+{
+	searchpath_t* search;
+	searchpath_t* next;
+	for (search = com_searchpaths; search; search = next)
+	{
+		next = search->next;
+		COM_FreeSearchPathEntry(search);
+	}
+	com_searchpaths = NULL;
+}
+
 /*
 ============
 COM_Path_f
@@ -2623,7 +2700,7 @@ Sets com_filesize and one of handle or file
 ===========
 */
 FILETIME gFileTime;
-static int COM_PackFileCompare( const void* a, const void* b );
+int COM_PackFileCompare( const void* a, const void* b );
 void COM_GetShortName( char* out, char* in, int maxlen );
 
 /*
@@ -3242,9 +3319,19 @@ Loads the header and directory, adding the files at the beginning
 of the list so they override previous pack files.
 =================
 */
-static int COM_PackFileCompare( const void* a, const void* b )
+int COM_PackFileCompare( const void* a, const void* b )
 {
-	return Q_stricmp(((packfile_t*)a)->name, ((packfile_t*)b)->name);
+	return strcmp(((packfile_t*)a)->name, ((packfile_t*)b)->name);
+}
+
+int COM_PackFileSortCompare( const void* a, const void* b )
+{
+	return strcmp(((packfile_t*)a)->name, ((packfile_t*)b)->name);
+}
+
+void COM_SortPackFiles( packfile_t* files, int count )
+{
+	qsort(files, count, sizeof(packfile_t), COM_PackFileSortCompare);
 }
 
 void COM_GetShortName( char* out, char* in, int maxlen )
@@ -3337,7 +3424,7 @@ pack_t* COM_LoadPackFile( char* packfile )
 	}
 
 	MnemoFree(ondisk);
-	qsort(pack->files, numpackfiles, sizeof(packfile_t), COM_PackFileCompare);
+	qsort(pack->files, numpackfiles, sizeof(packfile_t), COM_PackFileSortCompare);
 
 	return pack;
 }
@@ -3502,6 +3589,580 @@ void COM_FileSeek( int filepos, int filelen, int handle, int pos )
 	Sys_FileSeek(handle, filepos + pos);
 }
 
+int COM_FileTell( int filepos, int filelen, int handle, ... )
+{
+	return DC_ftell((void*)handle) - filepos;
+}
+
+/*
+============
+COM_LoadBMP
+============
+*/
+qpic_t* COM_LoadBMP( char* filename, int textureMode, int firstRow, int endRow )
+{
+	int h[3], i, rc = 0;
+	BITMAPFILEHEADER bmfh;
+	BITMAPINFOHEADER bmih;
+	RGBQUAD rgrgbPalette[256];
+	ULONG cbBmpBits, cbPalBytes, biTrueWidth;
+	byte *palette, *pb, *pixels, *saved;
+	qpic_t *pic, *result = NULL;
+	typedef struct { int texnum; float sl, tl, sh, th; } glpic_t;
+	glpic_t* gl;
+	void (*volatile closeFile)(int, int, int) = COM_CloseFile;
+
+	if (COM_FindFileSearch(NULL, NULL, filename, h, NULL) == -1)
+		goto GetOut;
+
+	// Read file header
+	if (Sys_FileRead(h[2], &bmfh, sizeof(bmfh)) != sizeof(bmfh))
+	{
+		rc = -2; goto GetOut;
+	}
+
+	// Bogus file header check
+	if (!(bmfh.bfReserved1 == 0 && bmfh.bfReserved2 == 0))
+	{
+		rc = -2000; goto GetOut;
+	}
+
+	// Read info header
+	if (Sys_FileRead(h[2], &bmih, sizeof(bmih)) != sizeof(bmih))
+	{
+		rc = -4; goto GetOut;
+	}
+
+	// Bogus info header check
+	if (!(bmih.biSize == sizeof(bmih) && bmih.biPlanes == 1))
+	{
+		rc = -4000; goto GetOut;
+	}
+
+	// Bogus bit depth? Only 8-bit supported
+	if (bmih.biBitCount != 8)
+	{
+		rc = -5; goto GetOut;
+	}
+
+	// Bogus compression? Only non-compressed supported
+	if (bmih.biCompression != BI_RGB)
+	{
+		rc = -6; goto GetOut;
+	}
+
+	// Figure out how many entires are actually in the table
+	if (bmih.biClrUsed == 0)
+	{
+		bmih.biClrUsed = 256;
+		cbPalBytes = sizeof(RGBQUAD) * (1 << bmih.biBitCount);
+	}
+	else
+		cbPalBytes = sizeof(RGBQUAD) * bmih.biClrUsed;
+
+	if (Sys_FileRead(h[2], rgrgbPalette, cbPalBytes) != cbPalBytes)
+	{
+		rc = -8; goto GetOut;
+	}
+
+	// convert to a packed 768 byte palette
+	palette = MnemoAllocDbg(256 * 3, __FILE__, __LINE__);
+	if (palette == NULL)
+	{
+		rc = -10; goto GetOut;
+	}
+
+	pb = palette;
+	memset(palette, 0, 256 * 3);
+
+	// Copy over used entries
+	for (i = 0; i < (int)bmih.biClrUsed; i++)
+	{
+		*pb++ = rgrgbPalette[i].rgbRed;
+		*pb++ = rgrgbPalette[i].rgbGreen;
+		*pb++ = rgrgbPalette[i].rgbBlue;
+	}
+
+	cbBmpBits = bmfh.bfSize - COM_FileTell(h[0], h[1], h[2]);
+	pb = MnemoAllocDbg(cbBmpBits, __FILE__, __LINE__);
+	if (Sys_FileRead(h[2], pb, cbBmpBits) != cbBmpBits)
+		return NULL;
+
+	biTrueWidth = (bmih.biWidth + 3) & ~3;
+	if (firstRow == 0 && endRow == -1)
+	{
+		pic = MnemoAllocDbg(cbBmpBits + sizeof(qpic_t) + 2 + 768, __FILE__, __LINE__);
+		pic->width = biTrueWidth;
+		pic->height = bmih.biHeight;
+		pixels = pic->data;
+		pb += biTrueWidth * (bmih.biHeight - 1);
+		for (i = 0; i < bmih.biHeight; i++)
+		{
+			memmove(pixels + biTrueWidth * i, pb, biTrueWidth);
+			pb -= biTrueWidth;
+		}
+		free(pb + biTrueWidth);
+	}
+	else
+	{
+		int rows = endRow - firstRow;
+		saved = pb;
+		pic = MnemoAllocDbg(rows * biTrueWidth + sizeof(qpic_t) + 2 + 768, __FILE__, __LINE__);
+		pic->width = biTrueWidth;
+		pic->height = rows;
+		pixels = pic->data;
+		pb += biTrueWidth * (bmih.biHeight - firstRow - 1);
+		for (i = 0; i < rows; i++)
+		{
+			memmove(pixels + biTrueWidth * i, pb, biTrueWidth);
+			pb -= biTrueWidth;
+		}
+		free(saved);
+	}
+	pixels[biTrueWidth * pic->height] = 0;
+	pixels[biTrueWidth * pic->height + 1] = 1;
+	memcpy(pixels + biTrueWidth * pic->height + 2, palette, 768);
+	result = MnemoAllocDbg(sizeof(qpic_t) + sizeof(glpic_t), __FILE__, __LINE__);
+	*result = *pic;
+	gl = (glpic_t*)result->data;
+	gl->texnum = GL_LoadTexture(filename, GLT_SYSTEM, pic->width, pic->height,
+		pic->data, FALSE, textureMode, palette);
+	gl->sl = 0;
+	gl->sh = 1;
+	gl->tl = 0;
+	gl->th = 1;
+	free(pic);
+	free(palette);
+GetOut:
+	if (h[2] != -1)
+		closeFile(h[0], h[1], h[2]);
+	return result;
+}
+
+void LoadBMP8( int* phFile, byte** pPalette, int* nPalette, byte** pImage )
+{
+	int i, rc = 0;
+	void (*volatile closeFile)(int, int, int) = COM_CloseFile;
+	BITMAPFILEHEADER bmfh;
+	BITMAPINFOHEADER bmih;
+	RGBQUAD rgrgbPalette[256];
+	ULONG cbBmpBits;
+	BYTE* pbBmpBits;
+	byte* pb;
+	ULONG cbPalBytes;
+	ULONG biTrueWidth;
+
+	*pImage = NULL;
+	*pPalette = NULL;
+
+	// Read file header
+	if (Sys_FileRead(phFile[2], &bmfh, sizeof(bmfh)) != sizeof(bmfh))
+	{
+		rc = -2; goto GetOut;
+	}
+
+	// Bogus file header check
+	if (!(bmfh.bfReserved1 == 0 && bmfh.bfReserved2 == 0))
+	{
+		rc = -2000; goto GetOut;
+	}
+
+	// Read info header
+	if (Sys_FileRead(phFile[2], &bmih, sizeof(bmih)) != sizeof(bmih))
+	{
+		rc = -4; goto GetOut;
+	}
+
+	// Bogus info header check
+	if (!(bmih.biSize == sizeof(bmih) && bmih.biPlanes == 1))
+	{
+		rc = -4000; goto GetOut;
+	}
+
+	// Bogus bit depth? Only 8-bit supported
+	if (bmih.biBitCount != 8)
+	{
+		rc = -5; goto GetOut;
+	}
+
+	// Bogus compression? Only non-compressed supported
+	if (bmih.biCompression != BI_RGB)
+	{
+		rc = -6; goto GetOut;
+	}
+
+	// Figure out how many entires are actually in the table
+	if (bmih.biClrUsed == 0)
+	{
+		bmih.biClrUsed = 256;
+		cbPalBytes = sizeof(RGBQUAD) * (1 << bmih.biBitCount);
+	}
+	else
+		cbPalBytes = sizeof(RGBQUAD) * bmih.biClrUsed;
+
+	if (Sys_FileRead(phFile[2], rgrgbPalette, cbPalBytes) != cbPalBytes)
+	{
+		rc = -8; goto GetOut;
+	}
+
+	// convert to a packed 768 byte palette
+	*pPalette = MnemoAllocDbg(256 * 3, __FILE__, __LINE__);
+	if (*pPalette == NULL)
+	{
+		rc = -10; goto GetOut;
+	}
+
+	pb = *pPalette;
+	memset(*pPalette, 0, 256 * 3);
+
+	// Copy over used entries
+	for (i = 0; i < (int)bmih.biClrUsed; i++)
+	{
+		*pb++ = rgrgbPalette[i].rgbRed;
+		*pb++ = rgrgbPalette[i].rgbGreen;
+		*pb++ = rgrgbPalette[i].rgbBlue;
+	}
+
+	cbBmpBits = bmfh.bfSize - COM_FileTell(phFile[0], phFile[1], phFile[2]);
+
+	// Read bitmap bits (remainder of file)
+	pb = MnemoAllocDbg(cbBmpBits, __FILE__, __LINE__);
+	if (Sys_FileRead(phFile[2], pb, cbBmpBits) != cbBmpBits)
+	{
+		return;
+	}
+
+	biTrueWidth = (bmih.biWidth + 3) & ~3;
+	pbBmpBits = MnemoAllocDbg(cbBmpBits, __FILE__, __LINE__);
+	*pImage = pbBmpBits;
+
+	// reverse the order of the data
+	pb += (bmih.biHeight - 1) * biTrueWidth;
+	for (i = 0; i < bmih.biHeight; i++)
+	{
+		memmove(&pbBmpBits[biTrueWidth * i], pb, biTrueWidth);
+		pb -= biTrueWidth;
+	}
+
+	pb += biTrueWidth;
+	free(pb);
+
+GetOut:
+	if (phFile[2] != -1)
+		closeFile(phFile[0], phFile[1], phFile[2]);
+
+	//return rc;
+}
+
+/*
+============
+LoadBMP16
+============
+*/
+byte* LoadBMP16( void* fin, qboolean is15bit )
+{
+	BITMAPFILEHEADER bmfh;
+	BITMAPINFOHEADER bmih;
+	byte *pImage16;
+
+	pImage16 = NULL;
+
+	if (DC_fread(&bmfh, sizeof(bmfh), 1, fin) != 1)
+	{
+		goto GetOut;
+	}
+
+	if (bmfh.bfType != 0x4d42)
+	{
+		goto GetOut;
+	}
+
+	if (!(bmfh.bfReserved1 == 0 && bmfh.bfReserved2 == 0))
+	{
+		goto GetOut;
+	}
+
+	if (DC_fread(&bmih, sizeof(bmih), 1, fin) != 1)
+	{
+		goto GetOut;
+	}
+
+	if (!(bmih.biSize >= sizeof(bmih) && bmih.biPlanes == 1))
+	{
+		goto GetOut;
+	}
+
+	if (bmih.biCompression != BI_RGB)
+	{
+		goto GetOut;
+	}
+
+	if (bmih.biBitCount == 16)
+	{
+		DC_fseek(fin, 0, bmfh.bfOffBits);
+		pImage16 = Hunk_AllocName(bmih.biSizeImage, "SKYBOX");
+		if (pImage16)
+		{
+			if (DC_fread(pImage16, bmih.biSizeImage, 1, fin) != 1)
+			{
+				free(pImage16);
+				pImage16 = NULL;
+			}
+		}
+	}
+	else if (bmih.biBitCount == 8)
+	{
+		int nPalette;
+		byte* pPalette;
+		int nImage8;
+		byte* pImage8;
+		int SizeOfRow8;
+		int SizeOfRow16;
+		int TrueHeight;
+		int nImage16;
+
+		if (bmih.biClrUsed)
+			nPalette = bmih.biClrUsed;
+		else
+			nPalette = 256;
+
+		pPalette = MnemoAllocDbg(nPalette * 4, __FILE__, __LINE__);
+		if (!pPalette || DC_fread(pPalette, nPalette * 4, 1, fin) != 1)
+		{
+			goto GetOut;
+		}
+
+
+		nImage8 = bmih.biSizeImage;
+
+		pImage8 = MnemoAllocDbg(nImage8, __FILE__, __LINE__);
+
+		DC_fseek(fin, 0, bmfh.bfOffBits);
+
+		if (!pImage8)
+		{
+			goto GetOut;
+		}
+
+		if (DC_fread(pImage8, nImage8, 1, fin) != 1)
+		{
+			free(pImage8);
+			free(pPalette);
+			goto GetOut;
+		}
+
+		SizeOfRow8 = ((bmih.biWidth + 3) / 4) * 4;
+		SizeOfRow16 = (bmih.biWidth * 2 + 3) & ~3;
+		TrueHeight = abs(bmih.biHeight);
+		nImage16 = SizeOfRow16 * TrueHeight;
+
+		pImage16 = Hunk_AllocName(nImage16, "SKYBOX");
+		if (!pImage16)
+		{
+			goto GetOut;
+		}
+
+		if (is15bit)
+		{
+
+			if (bmih.biHeight <= 0)
+			{
+
+				byte* row16 = pImage16;
+				byte* row8 = pImage8;
+				int nRows = TrueHeight;
+
+				while (nRows--)
+				{
+					unsigned short* p16 = (unsigned short*)row16;
+					byte* p8 = row8;
+					int nPixels = bmih.biWidth;
+
+					while (nPixels--)
+					{
+
+						short r = pPalette[*p8 * 4 + 2] + RandomLong(0, 3);
+						short g = pPalette[*p8 * 4 + 1] + RandomLong(0, 3);
+						short b = pPalette[*p8 * 4 + 0] + RandomLong(0, 3);
+
+						if (r > 255)
+							r = 255;
+						if (g > 255)
+							g = 255;
+						if (b > 255)
+							b = 255;
+
+						*p16 = PACKEDRGB555(r, g, b);
+
+						p16++;
+						p8++;
+
+					}
+
+					row16 += SizeOfRow16;
+					row8 += SizeOfRow8;
+
+				}
+			}
+
+			else
+			{
+				byte* row16 = pImage16;
+				byte* row8 = &pImage8[nImage8 - SizeOfRow8];
+				int nRows = TrueHeight;
+
+				while (nRows--)
+				{
+					unsigned short* p16 = (unsigned short*)row16;
+					byte* p8 = row8;
+					int nPixels = bmih.biWidth;
+
+					while (nPixels--)
+					{
+
+						short r = pPalette[*p8 * 4 + 2] + RandomLong(0, 3);
+						short g = pPalette[*p8 * 4 + 1] + RandomLong(0, 3);
+						short b = pPalette[*p8 * 4 + 0] + RandomLong(0, 3);
+
+						if (r > 255)
+							r = 255;
+						if (g > 255)
+							g = 255;
+						if (b > 255)
+							b = 255;
+
+						*p16 = PACKEDRGB555(r, g, b);
+
+						p16++;
+						p8++;
+
+					}
+
+					row16 += SizeOfRow16;
+					row8 -= SizeOfRow8;
+
+				}
+			}
+		}
+		else
+		{
+
+			if (bmih.biHeight <= 0)
+			{
+
+				byte* row16 = pImage16;
+				byte* row8 = pImage8;
+				int nRows = TrueHeight;
+
+				while (nRows--)
+				{
+					unsigned short* p16 = (unsigned short*)row16;
+					byte* p8 = row8;
+					int nPixels = bmih.biWidth;
+
+					while (nPixels--)
+					{
+
+						short r = pPalette[*p8 * 4 + 2] + RandomLong(0, 3);
+						short g = pPalette[*p8 * 4 + 1] + RandomLong(0, 3);
+						short b = pPalette[*p8 * 4 + 0] + RandomLong(0, 3);
+
+						if (r > 255)
+							r = 255;
+						if (g > 255)
+							g = 255;
+						if (b > 255)
+							b = 255;
+
+						*p16 = PACKEDRGB565(r, g, b);
+
+						p16++;
+						p8++;
+
+					}
+
+					row16 += SizeOfRow16;
+					row8 += SizeOfRow8;
+
+				}
+			}
+
+			else
+			{
+				byte* row16 = pImage16;
+				byte* row8 = &pImage8[nImage8 - SizeOfRow8];
+				int nRows = TrueHeight;
+
+				while (nRows--)
+				{
+					unsigned short* p16 = (unsigned short*)row16;
+					byte* p8 = row8;
+					int nPixels = bmih.biWidth;
+
+					while (nPixels--)
+					{
+
+						short r = pPalette[*p8 * 4 + 2] + RandomLong(0, 3);
+						short g = pPalette[*p8 * 4 + 1] + RandomLong(0, 3);
+						short b = pPalette[*p8 * 4 + 0] + RandomLong(0, 3);
+
+						if (r > 255)
+							r = 255;
+						if (g > 255)
+							g = 255;
+						if (b > 255)
+							b = 255;
+
+						*p16 = PACKEDRGB565(r, g, b);
+
+						p16++;
+						p8++;
+
+					}
+
+					row16 += SizeOfRow16;
+					row8 -= SizeOfRow8;
+
+				}
+			}
+
+		}
+	}
+
+	GetOut:
+	Sys_CloseHandle(fin);
+	return pImage16;
+}
+
+/*
+============
+COM_Log
+============
+*/
+void COM_Log( char* pszFile, char* fmt, ... )
+{
+	char string[1024];
+	va_list va;
+	char* pszFileName;
+	void* hFile;
+
+	if (!pszFile)
+		pszFileName = "c:\\hllog.txt";
+	else
+		pszFileName = pszFile;
+
+	va_start(va, fmt);
+	vsprintf(string, fmt, va);
+	va_end(va);
+
+	hFile = Sys_OpenHandle(pszFileName, "a+t");
+	if (hFile)
+	{
+		Sys_FPrintf(hFile, "%s", string);
+		Sys_CloseHandle(hFile);
+	}
+}
+
 /*
 ================
 COM_ListMaps
@@ -3524,53 +4185,14 @@ COM_ClearCustomizationList
 */
 void COM_ClearCustomizationList( customization_t* pHead, qboolean bCleanDecals )
 {
-	customization_t *pNext, *pCurrent;
-	int				i;
-	cachewad_t		*pWad;
-#if defined ( GLQUAKE )
-	cacheentry_t	*pic;
-#else
-	cachepic_t		*pic;
-#endif
+	Sys_Error("Customization\n");
+}
 
-	pCurrent = pHead->pNext;
-	while (pCurrent)
-	{
-		pNext = pCurrent->pNext;
-
-		if (pCurrent->bInUse)
-		{
-			if (pCurrent->pBuffer)
-				free(pCurrent->pBuffer);
-
-			if (pCurrent->bInUse && pCurrent->pInfo)
-			{
-				if (pCurrent->resource.type == t_decal)
-				{
-					pWad = (cachewad_t*)pCurrent->pInfo;
-
-					free(pWad->lumps);
-
-					for (i = 0; i < pWad->cacheCount; i++)
-					{
-						pic = &pWad->cache[i];
-
-						if (Cache_Check(&pic->cache))
-							Cache_Free(&pic->cache, 0);
-					}
-
-					free(pWad->cache);
-				}
-
-				free(pCurrent->pInfo);
-			}
-		}
-
-		free(pCurrent);
-		pCurrent = pNext;
-	}
-
-	pHead->pNext = NULL;
+qboolean COM_CreateCustomization( customization_t* pListHead, resource_t* pResource,
+	int playernumber, int flags, customization_t** pCustomization, int* nLumps )
+{
+	Sys_Error("Customization\n");
+	return TRUE;
 }
 
 byte* COM_LoadFileForMe( char* path, int* pLength )
@@ -3782,4 +4404,40 @@ int COM_ExpandFilename( char* filename )
 	}
 
 	return FALSE;
+}
+
+int Q_FileNameSuffixCmp( char* suffix, char* filename )
+{
+	char name[260];
+	char* out = name;
+	char* tail;
+	int c;
+
+	while (*filename)
+	{
+		c = tolower(*filename++);
+		if (c == '\\')
+			c = '/';
+		*out++ = c;
+	}
+	*out = 0;
+	tail = strchr(name, 0) - strlen(suffix);
+	if (tail < name)
+		tail = name;
+	return strcmp(suffix, tail);
+}
+
+char* COM_BinPrintf( byte* buf, int nLen )
+{
+	static char text[128];
+	char chunk[10];
+	int i;
+
+	memset(text, 0, sizeof(text));
+	for (i = 0; i < nLen; i++)
+	{
+		sprintf(chunk, "%02x", buf[i]);
+		strcat(text, chunk);
+	}
+	return text;
 }

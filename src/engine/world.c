@@ -652,6 +652,11 @@ Returns the CONTENTS_* value from the world at the given point.
 does not check any entities at all
 ==================
 */
+int SV_TruePointContents( const vec_t* p )
+{
+	return SV_HullPointContents(sv.worldmodel->hulls, 0, p);
+}
+
 int SV_PointContents( const vec_t* p )
 {
 	int		cont, entityContents;

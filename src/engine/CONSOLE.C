@@ -765,3 +765,49 @@ void Con_DrawConsole( int lines, qboolean drawinput )
 }
 
 
+
+/*
+============
+Con_GetInput
+============
+*/
+void Con_GetInput( char* text, int linepos )
+{
+	strncpy(text, key_lines[edit_line], min(linepos, con_linewidth));
+	text[min(linepos, con_linewidth) - 1] = 0;
+}
+
+int Con_InputLineY( int y )
+{
+	if (y > 480 - scr_safe_y)
+		y = 480 - scr_safe_y;
+	y -= Font_CharHeight(draw_chars) + 4;
+	if (y < scr_safe_y + 4)
+		y = scr_safe_y + 4;
+	return y;
+}
+
+void Con_NotifyBox( char* text )
+{
+	float t1, t2;
+
+	Con_Printf("\n\n\35\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\37\n");
+	Con_Printf(text);
+	Con_Printf("Press a key.\n");
+	Con_Printf("\35\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\37\n");
+	key_count = -2;
+	con_backscroll = 0;
+	key_dest = key_console;
+	do
+	{
+		t1 = Sys_FloatTime();
+		SCR_UpdateScreen();
+		Sys_SendKeyEvents();
+		t2 = Sys_FloatTime();
+		realtime += t2 - t1;
+	} while (key_count < 0);
+	Con_Printf("\n");
+	con_backscroll = 0;
+	key_dest = key_game;
+	realtime = 0;
+}

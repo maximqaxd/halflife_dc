@@ -12,12 +12,28 @@
 
 TEMPENTITY gTempEnts[MAX_TEMP_ENTITIES], * gpTempEntFree, * gpTempEntActive;
 
-static TEMPENTITY* CL_TempEntNext( TEMPENTITY* pTemp )
+TEMPENTITY* CL_TempEntNext( TEMPENTITY* pTemp )
 {
 	if (pTemp->next == -1)
 		return NULL;
 
 	return &gTempEnts[pTemp->next];
+}
+
+void R_KillAttachedTents( int client )
+{
+	TEMPENTITY* pTemp;
+
+	if (client < 0 || client > cl.maxclients)
+	{
+		Con_Printf("Bad client in KillAttachedTents()!\n");
+		return;
+	}
+	for (pTemp = gpTempEntActive; pTemp; pTemp = CL_TempEntNext(pTemp))
+	{
+		if ((pTemp->flags & FTENT_PLYRATTACHMENT) && pTemp->clientIndex == client)
+			pTemp->die = cl.time;
+	}
 }
 
 static short CL_TempEntIndex( TEMPENTITY* pTemp )
@@ -1557,14 +1573,14 @@ void R_Sprite_WallPuff( TEMPENTITY* pTemp, float scale )
 
 	pTemp->entity.rendermode = kRenderTransAlpha;
 	pTemp->entity.renderamt = 255;
+	pTemp->entity.renderfx = kRenderFxNone;
 	pTemp->entity.rendercolor.r = 0;
 	pTemp->entity.rendercolor.g = 0;
 	pTemp->entity.rendercolor.b = 0;
-	pTemp->entity.renderfx = kRenderFxNone;
 	pTemp->entity.scale = scale;
-	pTemp->entity.frame = 0;
-	pTemp->entity.angles[ROLL] = RandomLong(0, 359);
 	pTemp->die = cl.time + 0.01f;
+	pTemp->entity.angles[ROLL] = RandomLong(0, 359);
+	pTemp->entity.frame = 0;
 }
 
 /*
@@ -2584,23 +2600,8 @@ void CL_ParseTEnt( void )
 		break;
 
 	case TE_KILLPLAYERATTACHMENTS:
-	{
-		TEMPENTITY* pTemp;
-
-		entnumber = MSG_ReadByte();
-		if (entnumber < 0 || entnumber > cl.maxclients)
-		{
-			Sys_Error("Bad client in R_KillAttachedTents()!\n");
-			break;
-		}
-
-		for (pTemp = gpTempEntActive; pTemp; pTemp = CL_TempEntNext(pTemp))
-		{
-			if ((pTemp->flags & FTENT_PLYRATTACHMENT) && pTemp->clientIndex == entnumber)
-				pTemp->die = cl.time;
-		}
+		R_KillAttachedTents(MSG_ReadByte());
 		break;
-	}
 
 	case TE_MULTIGUNSHOT:
 	{

@@ -994,8 +994,8 @@ void PM_MinMaxForRay( vec_t* inmin, vec_t* inmax, vec_t* outmin, vec_t* outmax )
 
 	for (i = 0; i < 3; i++)
 	{
-		outmin[i] = (inmin[i] <= inmax[i]) ? inmin[i] : inmax[i];
-		outmax[i] = (inmin[i] >= inmax[i]) ? inmin[i] : inmax[i];
+		outmin[i] = (inmin[i] < inmax[i]) ? inmin[i] : inmax[i];
+		outmax[i] = (inmin[i] > inmax[i]) ? inmin[i] : inmax[i];
 	}
 }
 

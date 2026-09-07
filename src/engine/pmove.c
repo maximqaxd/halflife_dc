@@ -51,6 +51,139 @@ void Pmove_Init( void )
 	CreateStuckTable();
 }
 
+float PM_SplineFraction( float value, float scale )
+{
+	float squared;
+	value *= scale;
+	squared = value * value;
+	return 3.0f * squared - 2.0f * squared * value;
+}
+
+char* PM_MoveStateString( char* label )
+{
+	static char text[2048];
+	char line[256];
+
+	memset(text, 0, sizeof(text));
+	if (pmove.server)
+		sprintf(text, "%s server {\n", label);
+	else
+		sprintf(text, "%s player {\n", label);
+	sprintf(line, "\torigin   = %s\n", vstr(pmove.origin));
+	strcat(text, line);
+	sprintf(line, "\tangles   = %s\n", vstr(pmove.angles));
+	strcat(text, line);
+	sprintf(line, "\tvel      = %s\n", vstr(pmove.velocity));
+	strcat(text, line);
+	sprintf(line, "\tfriction = %.2f\n", pmove.friction);
+	strcat(text, line);
+	sprintf(line, "\tmovetype = %i\n", pmove.movetype);
+	strcat(text, line);
+	sprintf(line, "\tcmd.f    = %.2f\n", pmove.cmd.forwardmove);
+	strcat(text, line);
+	sprintf(line, "\tcmd.ms   = %i\n", pmove.cmd.msec);
+	strcat(text, line);
+	sprintf(line, "}\n");
+	strcat(text, line);
+	return text;
+}
+
+void PM_FixPlayerCrouchStuck( void )
+{
+	vec3_t org;
+	int i;
+
+	if (PM_TestPlayerPosition(pmove.origin) == -1)
+		return;
+	VectorCopy(pmove.origin, org);
+	for (i = 0; i < 18; i++)
+	{
+		pmove.origin[2] += 1.0f;
+		if (PM_TestPlayerPosition(pmove.origin) == -1)
+		{
+			Con_Printf(" fix %i", i);
+			return;
+		}
+	}
+	Con_Printf(" stuck");
+	VectorCopy(org, pmove.origin);
+}
+
+void PM_Duck( void )
+{
+	int buttonsChanged = pmove.oldbuttons ^ pmove.cmd.buttons;
+	int buttonsPressed = buttonsChanged & pmove.cmd.buttons;
+	float elapsed, fraction, offset;
+	vec3_t newOrigin;
+	pmtrace_t trace;
+	int i;
+
+	Con_Printf("btn %i bInDuck %i FL_DUCKING %i ofs %.2f h %i ch %i pr %i",
+		(pmove.cmd.buttons & IN_DUCK) != 0, pmove.duck.active != 0,
+		(pmove.flags & FL_DUCKING) != 0, pmove.view_ofs[2], pmove.usehull,
+		(buttonsChanged & IN_DUCK) != 0, (buttonsPressed & IN_DUCK) != 0);
+	if ((pmove.cmd.buttons & IN_DUCK) || pmove.duck.active || (pmove.flags & FL_DUCKING))
+	{
+		if (pmove.cmd.buttons & IN_DUCK)
+		{
+			pmove.cmd.forwardmove *= PLAYER_DUCKING_MULTIPLIER;
+			pmove.cmd.sidemove *= PLAYER_DUCKING_MULTIPLIER;
+			pmove.cmd.upmove *= PLAYER_DUCKING_MULTIPLIER;
+			if ((buttonsPressed & IN_DUCK) && !(pmove.flags & FL_DUCKING))
+			{
+				pmove.duck.time = pmove.time;
+				pmove.duck.active = TRUE;
+				Con_Printf("(new)");
+			}
+			elapsed = (pmove.time - pmove.duck.time) / 1000.0f;
+			Con_Printf("e %.2f", elapsed);
+			if (pmove.duck.active)
+			{
+				if (elapsed >= 0.4f || onground == -1)
+				{
+					if (onground != -1)
+					{
+						for (i = 0; i < 3; i++)
+							pmove.origin[i] -= player_mins[1][i] - player_mins[0][i];
+						PM_FixPlayerCrouchStuck();
+					}
+					pmove.usehull = 1;
+					pmove.view_ofs[2] = 12.0f;
+					pmove.flags |= FL_DUCKING;
+					pmove.duck.active = FALSE;
+				}
+				else
+				{
+					offset = pmove.server ? 18.0f : 0.0f;
+					fraction = PM_SplineFraction(elapsed, 2.5f);
+					pmove.view_ofs[2] = (12.0f - offset) * fraction + (1.0f - fraction) * 28.0f;
+				}
+			}
+		}
+		else
+		{
+			VectorCopy(pmove.origin, newOrigin);
+			if (onground != -1)
+			{
+				for (i = 0; i < 3; i++)
+					newOrigin[i] += player_mins[1][i] - player_mins[0][i];
+			}
+			trace = PM_PlayerMove(newOrigin, newOrigin, PM_NORMAL);
+			if (!trace.startsolid)
+			{
+				pmove.flags &= ~FL_DUCKING;
+				pmove.duck.active = FALSE;
+				pmove.view_ofs[2] = 28.0f;
+				pmove.usehull = 0;
+				VectorCopy(newOrigin, pmove.origin);
+			}
+			else
+				Con_Printf("Stuck on up\n");
+		}
+	}
+	Con_Printf("\n");
+}
+
 /*
 ===============
 char* PM_NameForContents( int contents )

@@ -22,6 +22,38 @@ predicted_player predicted_players[MAX_CLIENTS];
 
 int packet_flags[166];
 
+void CL_ClearPacket (packet_entities_t *packet)
+{
+	if (packet->entities)
+		free (packet->entities);
+	packet->entities = NULL;
+	packet->num_entities = 0;
+}
+
+void CL_PrintPlayerHistory (player_state_t *state, int playernum)
+{
+	int i;
+	player_state_t *pstate;
+	extern int parsecountmod;
+
+	for (i = 0; i < cl_update_backup - 1; i++)
+	{
+		pstate = &cl.frames[(parsecountmod - i) & cl_update_mask].playerstate[playernum];
+		if (pstate == state)
+			Con_Printf ("*");
+		Con_Printf ("%s", vstr (pstate->origin));
+		Con_Printf (" pred %s\n", vstr (pstate->prevorigin));
+	}
+}
+
+char *CL_UsercmdString (usercmd_t *cmd)
+{
+	static char text[256];
+
+	sprintf (text, "for %i, time %i ms\n", (int)cmd->forwardmove, cmd->msec);
+	return text;
+}
+
 /*
 =========================================================================
 
@@ -1540,7 +1572,6 @@ void CL_GetPredictedOrigin( int playernum, vec_t* origin )
 	if (playernum < 0 || playernum >= MAX_CLIENTS)
 	{
 		VectorCopy(vec3_origin, origin);
-		Con_DPrintf("CL_GetPredictedOrigin called with bogus player # %i\n", playernum);
 		return;
 	}
 
@@ -1548,7 +1579,6 @@ void CL_GetPredictedOrigin( int playernum, vec_t* origin )
 	if (!pplayer->active)
 	{
 		VectorCopy(vec3_origin, origin);
-		Con_DPrintf("CL_GetPredictedOrigin called on inactive player # %i\n", playernum);
 		return;
 	}
 

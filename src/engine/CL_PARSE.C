@@ -1559,6 +1559,11 @@ void CL_ParseRestoreDecals( char* fileName )
 	}
 }
 
+void CL_ParseCustomization( void )
+{
+	Sys_Error("Customization\n");
+}
+
 void CL_PlayerDropped( int nPlayerNumber )
 {
 	COM_ClearCustomizationList(&cl.players[nPlayerNumber].customdata, TRUE);

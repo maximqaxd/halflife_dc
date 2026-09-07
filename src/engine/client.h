@@ -440,6 +440,7 @@ extern	cvar_t	cl_spectator_password;
 extern	cvar_t	lookspring;
 extern	cvar_t	lookstrafe;
 extern	cvar_t	sensitivity;
+extern float gMouseSensitivity;
 
 extern	cvar_t	cl_skyname;
 extern	cvar_t	cl_skycolor_r;
@@ -684,6 +685,11 @@ void R_GetSpriteAxes( cl_entity_t* pEntity, int type, vec_t* forward, vec_t* rig
 void R_SpriteColor( colorVec* pColor, cl_entity_t* pEntity, int alpha );
 float* R_GetAttachmentPoint( int entity, int attachment );
 void R_UpdateAdaptive( void );
+
+void CL_ClearPacket (packet_entities_t *packet);
+void CL_PrintPlayerHistory (player_state_t *state, int playernum);
+char *CL_UsercmdString (usercmd_t *cmd);
+void CL_RecordDownloadStats (void);
 
 #ifdef __cplusplus
 }

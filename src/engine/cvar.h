@@ -82,6 +82,7 @@ int		Cvar_CountServerVariables( void );
 void	Cvar_CmdInit( void );
 
 cvar_t* Cvar_FindVar( char* var_name );
+void Cvar_UnlinkExternals( void );
 
 extern cvar_t* cvar_vars;
 

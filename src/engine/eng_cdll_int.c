@@ -22,6 +22,7 @@ extern int HUD_VidInit( void );
 extern int HUD_Init( void );
 extern int HUD_Redraw( float flTime, int intermission );
 extern int HUD_UpdateClientData( client_data_t *cdata, float flTime );
+extern int HUD_Reset( void );
 extern void SPR_Shutdown( void );
 extern void Cvar_RemoveHudCvars( void );
 extern void Cmd_RemoveHudCmds( void );
@@ -172,12 +173,30 @@ void ClientDLL_UpdateClientData( void )
 			VectorCopy(cdat.punchangle, cl.punchangle);
 
 			scr_fov_value = cdat.fov;
-			sensitivity.value = cdat.mouse_sensitivity;
+			gMouseSensitivity = cdat.mouse_sensitivity;
 			v_idlescale = cdat.view_idlescale;
 
 			CL_ResetButtonBits(cdat.iKeyBits);
 		}
 	}
+}
+
+void ClientDLL_DemoUpdateClientData( client_data_t* cdat )
+{
+	if (HUD_UpdateClientData(cdat, cl.time))
+	{
+		cl.viewheight = cdat->viewheight;
+		cl.maxspeed = cdat->maxspeed;
+		VectorCopy(cdat->viewangles, cl.viewangles);
+		VectorCopy(cdat->punchangle, cl.punchangle);
+		CL_ResetButtonBits(cdat->iKeyBits);
+		scr_fov_value = cdat->fov;
+	}
+}
+
+void ClientDLL_HudReset( void )
+{
+	HUD_Reset();
 }
 
 /*

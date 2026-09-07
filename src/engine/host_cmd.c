@@ -181,14 +181,15 @@ void SV_InactivateClients( void )
 		if (!cl->active && !cl->connected && !cl->spawned)
 			continue;
 
-		SZ_Clear(&cl->netchan.message);
-
 		cl->active = FALSE;
 		cl->connected = TRUE;
 		cl->spawned = FALSE;
 
-		COM_ClearCustomizationList(&cl->customdata, FALSE);
-		cl->maxspeed = 0.0;
+		if (!cl->fakeclient)
+		{
+			SZ_Clear(&cl->netchan.message);
+			cl->maxspeed = 0.0;
+		}
 	}
 }
 
@@ -261,12 +262,20 @@ void Host_EndRedirect( void )
 	sv_redirected = RD_NONE;
 }
 
-static int Rcon_Validate( void )
+int Rcon_Validate( void )
 {
 	if (!strlen(rcon_password.string))
 		return 0;
 
 	return !strcmp(Cmd_Argv(1), rcon_password.string);
+}
+
+void Host_InitializeGameDLL( void )
+{
+	Cbuf_Execute();
+	gpGlobals = &gGlobalVariables;
+	GameDLLInit();
+	Cbuf_Execute();
 }
 
 /*

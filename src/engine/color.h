@@ -52,6 +52,17 @@ extern "C" {
 #endif
 unsigned short PutRGB( colorVec* pcv );
 void GetRGB( unsigned short color, colorVec* pcv );
+/* Four 16-bit components, sizeof(colorVec16) == 8. */
+typedef struct
+{
+	unsigned short r, g, b, a;
+} colorVec16;
+
+unsigned short Color8888To4444( int color );
+unsigned short Color24To565( color24* color );
+void Color565To24( int color, color24* out );
+unsigned short ColorVecTo4444( colorVec* pcv );
+void GetRGB16( int color, colorVec16* out );
 #ifdef __cplusplus
 }
 #endif

@@ -38,6 +38,7 @@ void SV_LinkEdict( edict_t* ent, qboolean touch_triggers );
 // if touchtriggers, calls prog functions for the intersected triggers
 
 int SV_PointContents( const vec_t* p );
+int SV_TruePointContents( const vec_t* p );
 // returns the CONTENTS_* value from the world at the given point.
 // does not check any entities at all
 
