@@ -6766,6 +6766,8 @@ SOURCE=..\src\engine\in_dc.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
+# ADD CPP /Ob1
+
 DEP_CPP_IN_DC=\
 	"..\src\common\dll_state.h"\
 	"..\src\common\platform.h"\
@@ -12007,6 +12009,8 @@ SOURCE=..\src\util\vmu.cpp
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
+# ADD CPP /Ob1
+
 DEP_CPP_VMU_C=\
 	"..\src\common\dll_state.h"\
 	"..\src\common\platform.h"\
@@ -12720,6 +12724,8 @@ NODEP_CPP_ZAP_C=\
 SOURCE=..\src\util\zapsave.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
+
+# ADD CPP /Ob1
 
 DEP_CPP_ZAPSA=\
 	"..\src\common\dll_state.h"\
