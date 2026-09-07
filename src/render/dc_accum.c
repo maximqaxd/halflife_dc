@@ -474,23 +474,6 @@ void DCV_SetNoClip( void )
 	g_dwAccumFlushFlags = D3DDP_DONOTUPDATEEXTENTS | D3DDP_DONOTCLIP;
 }
 
-qboolean DCV_EnsureSpace( int add_verts, int add_indices )
-{
-	if (add_verts < 0 || add_indices < 0)
-		return FALSE;
-
-	if (add_verts > DCV_GetMaxVertCount() || add_indices > DCV_GetMaxIndexCount())
-		return FALSE;
-
-	if (g_nAccumVertCount + add_verts > DCV_GetMaxVertCount() ||
-		g_nAccumIndexCount + add_indices > DCV_GetMaxIndexCount())
-	{
-		DCV_FlushInline();
-	}
-
-	return TRUE;
-}
-
 int DCV_GetVertCount( void )
 {
 	return g_nAccumVertCount;
@@ -707,7 +690,7 @@ void DCV_AccumScrollPoly( const void *poly )
 
 void DCV_AddLVertex( const D3DLVERTEX* v )
 {
-	if (!v || !DCV_EnsureSpace(1, 0))
+	if (!v)
 		return;
 
 	g_pAccumVerts[g_nAccumVertCount++] = *v;
@@ -943,9 +926,6 @@ void DCV_AddIndicesStrip( int base, int count )
 		return;
 
 	n = (count - 2) * 3;
-
-	if (!DCV_EnsureSpace(0, n))
-		return;
 
 	for (i = 0; i < count - 2; ++i)
 	{

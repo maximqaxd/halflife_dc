@@ -347,7 +347,7 @@ void R_RotateForEntity( cl_entity_t* e )
 
 	DCV_Translate(D3DTRANSFORMSTATE_WORLD, modelpos[0], modelpos[1], modelpos[2]);
 	DCV_Rotate(D3DTRANSFORMSTATE_WORLD, angles[1], 0.0f, 0.0f, 1.0f);
-	DCV_Rotate(D3DTRANSFORMSTATE_WORLD, -angles[0], 0.0f, 1.0f, 0.0f);
+	DCV_Rotate(D3DTRANSFORMSTATE_WORLD, angles[0], 0.0f, 1.0f, 0.0f);
 	DCV_Rotate(D3DTRANSFORMSTATE_WORLD, angles[2], 1.0f, 0.0f, 0.0f);
 }
 

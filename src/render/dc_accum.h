@@ -25,7 +25,6 @@ void          DCV_FlushIfLarge( void );
 void          DCV_SubmitBatchCopy( void );
 void          DCV_SubmitBatchGuarded( void );
 void          DCV_SetupStudioLighting( const float (*boneMatrices)[4][4], int count );
-qboolean      DCV_EnsureSpace( int add_verts, int add_indices );
 int           DCV_GetVertCount( void );
 int           DCV_AddVertex( float x, float y, float z, float tu, float tv );
 void          DCV_AddLVertex( const D3DLVERTEX* v );
