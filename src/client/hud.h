@@ -52,9 +52,9 @@ typedef struct {
 #define HUD_ACTIVE	1
 #define HUD_INTERMISSION 2
 
-extern int hud_color_r;
-extern int hud_color_g;
-extern int hud_color_b;
+extern byte hud_color_r;
+extern byte hud_color_g;
+extern byte hud_color_b;
 
 extern "C" int scr_safe_x;
 extern "C" int scr_safe_y;

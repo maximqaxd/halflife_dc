@@ -26,9 +26,9 @@
 
 extern client_sprite_t *GetSpriteList(client_sprite_t *pList, const char *psz, int iRes, int iCount);
 
-int hud_color_r;
-int hud_color_g;
-int hud_color_b;
+byte hud_color_r;
+byte hud_color_g;
+byte hud_color_b;
 
 //DECLARE_MESSAGE(m_Logo, Logo)
 int __MsgFunc_Logo(const char *pszName, int iSize, void *pbuf)
