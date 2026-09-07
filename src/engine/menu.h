@@ -646,6 +646,8 @@ public:
 	virtual void Cancel( void );
 	virtual void Up( void );
 	virtual void Down( void );
+	virtual void Left( void );
+	virtual void Right( void );
 	virtual int  IsActive( void );
 
 	char		m_szLabel[MAX_MENU_PRESET_LABEL];

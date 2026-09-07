@@ -27,8 +27,9 @@ int  DCV_AddVertex( float x, float y, float z, float tu, float tv );
 void DCV_AddPolyIndices( int base, int count );
 qboolean IN_KeyboardActive( void );
 qboolean IN_JoystickActive( void );
-cvar_t joyshift1;
 }
+
+extern cvar_t joyshift1;
 
 
 CMenu*	gpActiveMenu;		// page currently open, NULL if none
@@ -52,6 +53,13 @@ int		g_iInvertPad;
 #define MENU_LOAD_SLOT		0xe7
 #define MENU_SAVE_SLOT		0xe8
 #define MENU_OPTION_VALUE_X	404
+#define MENU_SENSITIVITY_BAR_LEFT	260
+#define MENU_SENSITIVITY_BAR_WIDTH	330
+#define MENU_SENSITIVITY_SEGMENT_WIDTH	30
+#define MENU_SENSITIVITY_MIDDLE_SEGMENTS	9
+#define MENU_SENSITIVITY_THUMB_LEFT	284
+#define MENU_SENSITIVITY_THUMB_STEP	15
+#define MENU_SENSITIVITY_THUMB_WIDTH	12
 
 typedef struct menusave_s
 {
@@ -273,6 +281,50 @@ controlaction_t g_ControlActions[] =
 };
 
 controlkey_t g_ControlKeys[MAX_MENU_CONTROL_KEYS];
+
+static char *g_ControlKeyNames[][2] =
+{
+	{ "JOY4", "%pad_y" },
+	{ "JOY1", "%pad_a" },
+	{ "JOY3", "%pad_x" },
+	{ "JOY2", "%pad_b" },
+	{ "AUX5", "%trigger_right" },
+	{ "AUX6", "%trigger_left" },
+	{ "AUX4", "%dir_up" },
+	{ "AUX3", "%dir_down" },
+	{ "AUX2", "%dir_right" },
+	{ "AUX1", "%dir_left" },
+	{ "AUX7", "%start" },
+	{ "S1AUX7", "%shiftstart" },
+	{ "S1AUX6", "%shiftrigger_l" },
+	{ "S1AUX5", "%shifttrigger_r" },
+	{ "S1AUX4", "%shiftdir_up" },
+	{ "S1AUX3", "%shiftdir_down" },
+	{ "S1AUX2", "%shiftdir_right" },
+	{ "S1AUX1", "%shiftdir_left" },
+	{ "S1JOY4", "%shiftpad_y" },
+	{ "S1JOY1", "%shiftpad_a" },
+	{ "S1JOY3", "%shiftpad_x" },
+	{ "S1JOY2", "%shiftpad_b" },
+	{ "MOUSE1", "%mouse1" },
+	{ "MOUSE2", "%mouse2" },
+	{ "MOUSE3", "%mouse3" },
+	{ "MWHEELDOWN", "%wheelup" },
+	{ "MWHEELUP", "%wheeldown" },
+	{ NULL, NULL }
+};
+
+static char *M_ControlKeyName( char *pszKey )
+{
+	int i;
+
+	for (i = 0; g_ControlKeyNames[i][0]; i++)
+	{
+		if (!strcmp(g_ControlKeyNames[i][0], pszKey))
+			return Text_FindString(g_ControlKeyNames[i][1]);
+	}
+	return pszKey;
+}
 
 /*
 ==================
@@ -592,12 +644,12 @@ menucode_t g_MenuCodes[] =
 	{ 45,  1, 15, "%level_c4a2", FALSE, 0 },
 	{ 23,  1,  9, "%level_c4a3", FALSE, 0 },
 	{  2,  4, 28, "%level_c5a1", FALSE, 0 },
-	{  3, 12, 43, "%level_ba_security1", FALSE, 0 },
-	{ 31, 17, 35, "%level_ba_canal1", FALSE, 0 },
-	{  7,  1, 41, "%level_ba_yard1", FALSE, 0 },
-	{  3, 23, 44, "%level_ba_xen1", FALSE, 0 },
-	{ 26, 17, 27, "%level_ba_power1", FALSE, 0 },
-	{ 25, 17,  4, "%level_ba_teleport2", FALSE, 0 },
+	{  3, 12, 43, "%level_ba_s1", FALSE, 0 },
+	{ 31, 17, 35, "%level_ba_c1", FALSE, 0 },
+	{  7,  1, 41, "%level_ba_y1", FALSE, 0 },
+	{  3, 23, 44, "%level_ba_x1", FALSE, 0 },
+	{ 26, 17, 27, "%level_ba_p1", FALSE, 0 },
+	{ 25, 17,  4, "%level_ba_t2", FALSE, 0 },
 	{ -1,  0,  0, NULL, FALSE, 0 },
 };
 
@@ -1558,15 +1610,6 @@ void CMenuCodeTextItem::Draw( float flFade, qboolean bSelected )
 
 	if (bSelected)
 	{
-		g_flTextScaleX = m_flLabelScale;
-		g_flTextScaleY = m_flLabelAspect;
-
-		if (sv_language.value != 0.0f)
-		{
-			g_flTextScaleX *= 0.83f;
-			g_flTextScaleY *= 0.83f;
-		}
-
 		psz = m_pszLabel;
 		if (psz && *psz == '%' && g_nLangTags > 0)
 		{
@@ -1608,8 +1651,8 @@ void CMenuCodeTextItem::Draw( float flFade, qboolean bSelected )
 		DCV_FlushIfLarge();
 		DCV_AddPolyIndices(DCV_GetVertCount(), 4);
 
-		x1 = (float)(m_labelX - 15);
-		x2 = (float)(m_labelX + width + 15);
+		x1 = (float)(m_labelX + 350 - 15);
+		x2 = (float)(m_labelX + 350 + width + 15);
 		y1 = (float)(m_labelY - 14);
 		y2 = (float)(m_labelY + 40);
 
@@ -1650,14 +1693,14 @@ void CMenuCodeTextItem::Draw( float flFade, qboolean bSelected )
 			g_flTextScaleY *= 0.83f;
 		}
 
-		Text_DrawStringShadow(m_pszLabel, m_labelX, m_labelY,
+		Text_DrawStringShadow(m_pszLabel, m_labelX + 350, m_labelY,
 			(int)(flFade * (bSelected ? 255.0f : 128.0f)), m_align);
 	}
 
 	if (m_pszDescription)
 	{
-		g_flTextScaleX = m_flDescScale;
-		g_flTextScaleY = m_flDescAspect;
+		g_flTextScaleX = m_flLabelScale;
+		g_flTextScaleY = m_flLabelAspect;
 
 		if (sv_language.value != 0.0f)
 		{
@@ -1665,7 +1708,7 @@ void CMenuCodeTextItem::Draw( float flFade, qboolean bSelected )
 			g_flTextScaleY *= 0.83f;
 		}
 
-		Text_DrawStringShadow(m_pszDescription, m_descX, m_descY,
+		Text_DrawStringShadow(m_pszDescription, m_labelX, m_labelY,
 			(int)(flFade * (bSelected ? 192.0f : 128.0f)), 0);
 	}
 
@@ -1688,10 +1731,10 @@ void CMenuCodeTextItem::Up( void )
 			count++;
 	}
 
-	if (pMenu->m_state.iTopItem > 0)
+	if (pMenu->m_state.iSelectedRow > 0)
 	{
 		if (count - 3 > 7
-			&& ((pMenu->m_state.iTopItem - 1 + count - 3) % (count - 3)) < pMenu->m_state.iTopItem)
+			&& ((pMenu->m_state.iSelectedRow - 1 + count - 3) % (count - 3)) < pMenu->m_state.iTopItem)
 		{
 			pMenu->m_state.iTopItem--;
 		}
@@ -2429,8 +2472,8 @@ void CMenuOptionItem::Draw( float flFade, qboolean bSelected )
 
 	if (sv_language.value)
 	{
-		g_flTextScaleX = pValue->flScale * 0.75f;
-		g_flTextScaleY = pValue->flAspect * 0.75f;
+		g_flTextScaleX = pValue->flScale * 0.83f;
+		g_flTextScaleY = pValue->flAspect * 0.83f;
 	}
 	else
 	{
@@ -2664,7 +2707,7 @@ void CMenuStereoItem::Draw( float flFade, qboolean bSelected )
 			g_flTextScaleY *= 0.83f;
 		}
 		Text_DrawStringShadow(m_pszDescription, pValue->x, pValue->y,
-			(int)(flFade * 255.0f), 0);
+			(int)(flFade * (bSelected ? 255.0f : 128.0f)), 0);
 	}
 
 	if (pValue->pszText)
@@ -2773,10 +2816,10 @@ void CMenuCheatItem::Draw( float flFade, qboolean bSelected )
 		DCV_FlushIfLarge();
 		DCV_AddPolyIndices(DCV_GetVertCount(), 4);
 
-		x1 = (float)(pValue->x - 15);
-		x2 = (float)(pValue->x + width + 15);
-		y1 = (float)(pValue->y - 14);
-		y2 = (float)(pValue->y + 40);
+		x1 = (float)(pValue->x + 350 - 15);
+		x2 = (float)(pValue->x + 350 + width + 15);
+		y1 = (float)(pValue->y - 10);
+		y2 = (float)(pValue->y + 36);
 
 		DCV_AddVertex(x1, y1, dc_depthhud.value, 0.059f, 0.559f);
 		DCV_AddVertex(x2, y1, dc_depthhud.value, 0.446f, 0.559f);
@@ -2822,14 +2865,14 @@ void CMenuCheatItem::Draw( float flFade, qboolean bSelected )
 			g_flTextScaleY *= 0.83f;
 		}
 
-		Text_DrawStringShadow(pValue->pszText, pValue->x, pValue->y,
+		Text_DrawStringShadow(pValue->pszText, pValue->x + 350, pValue->y,
 			(int)(flFade * (bSelected ? 255.0f : 128.0f)), 0);
 	}
 
 	if (m_pszDescription)
 	{
-		g_flTextScaleX = m_flDescScale;
-		g_flTextScaleY = m_flDescAspect;
+		g_flTextScaleX = pValue->flScale;
+		g_flTextScaleY = pValue->flAspect;
 
 		if (sv_language.value != 0.0f)
 		{
@@ -2837,7 +2880,7 @@ void CMenuCheatItem::Draw( float flFade, qboolean bSelected )
 			g_flTextScaleY *= 0.83f;
 		}
 
-		Text_DrawStringShadow(m_pszDescription, m_descX, m_descY,
+		Text_DrawStringShadow(m_pszDescription, pValue->x, pValue->y,
 			(int)(flFade * (bSelected ? 192.0f : 128.0f)), 0);
 	}
 
@@ -3070,8 +3113,8 @@ void CMenuToggleItem::Draw( float flFade, qboolean bSelected )
 
 	if (m_pszDescription)
 	{
-		g_flTextScaleX = m_flDescScale;
-		g_flTextScaleY = m_flDescAspect;
+		g_flTextScaleX = pValue->flScale;
+		g_flTextScaleY = pValue->flAspect;
 
 		if (sv_language.value != 0.0f)
 		{
@@ -3257,11 +3300,15 @@ void CMenuWordItem::Draw( float flFade, qboolean bSelected )
 	}
 
 	pValue = &m_pValues[*m_piIndex];
-	M_DrawMenuElementBox(m_pMenu,
-		(float)(pValue->x - 87), 152.0f,
-		(float)(pValue->x + 87), 384.0f);
+	DCV_SetColor(255, 144, 0, (int)(flFade * (bSelected ? 120.0f : 80.0f)));
+	if (m_piValue == &g_iAccessVerb)
+		M_DrawMenuElementBox(m_pMenu, 304.0f, 152.0f, 432.0f, 384.0f);
+	else if (m_piValue == &g_iAccessNoun1 || m_piValue == &g_iAccessNoun2)
+		M_DrawMenuElementBox(m_pMenu,
+			(float)(pValue->x - 87), 152.0f,
+			(float)(pValue->x + 87), 384.0f);
 
-	for (offset = -2; offset <= 0; offset++)
+	for (offset = -2; offset <= 2; offset++)
 	{
 		index = (*m_piIndex + offset + m_nValues) % m_nValues;
 		pValue = &m_pValues[index];
@@ -3295,9 +3342,9 @@ void CMenuWordItem::Draw( float flFade, qboolean bSelected )
 		}
 
 		if (bSelected)
-			brightness = (offset == 0) ? (int)(flFade * 205.0f) : (int)(flFade * 128.0f);
+			brightness = (offset == 0) ? (int)(flFade * 255.0f) : (int)(flFade * 180.0f);
 		else
-			brightness = (offset == 0) ? (int)(flFade * 180.0f) : (int)(flFade * 128.0f);
+			brightness = (offset == 0) ? (int)(flFade * 205.0f) : (int)(flFade * 128.0f);
 
 		if (bSelected && offset == 0)
 		{
@@ -3311,10 +3358,10 @@ void CMenuWordItem::Draw( float flFade, qboolean bSelected )
 			DCV_FlushIfLarge();
 			DCV_AddPolyIndices(DCV_GetVertCount(), 4);
 
-			x1 = (float)(pValue->x - width / 2 - 15);
-			x2 = (float)(pValue->x + width / 2 + 15);
-			y1 = (float)(pValue->y - 14);
-			y2 = (float)(pValue->y + 40);
+			x1 = pValue->x - (width / 2) * 1.2f;
+			x2 = pValue->x + (width / 2) * 1.2f;
+			y1 = (float)(pValue->y - 10);
+			y2 = (float)(pValue->y + 36);
 			DCV_AddVertex(x1, y1, dc_depthhud.value, 0.059f, 0.559f);
 			DCV_AddVertex(x2, y1, dc_depthhud.value, 0.446f, 0.559f);
 			DCV_AddVertex(x1, y2, dc_depthhud.value, 0.059f, 0.946f);
@@ -3329,15 +3376,19 @@ void CMenuWordItem::Draw( float flFade, qboolean bSelected )
 			pValue->y + offset * 40, brightness, 0);
 	}
 
-	if (g_bAccessCodeResult && g_pszAccessCodeResult)
+	if (m_piValue == &g_iAccessNoun1)
 	{
-		Text_DrawCenteredStatus(m_flDescScale, m_flDescAspect,
-			(byte *)g_pszAccessCodeResult, (int)(flFade * 192.0f));
-	}
-	else if (bSelected && m_pszDescription)
-	{
-		Text_DrawCenteredStatus(m_flDescScale, m_flDescAspect,
-			(byte *)m_pszDescription, (int)(flFade * 192.0f));
+		if (g_bAccessCodeResult && g_pszAccessCodeResult)
+		{
+			brightness = (int)(g_flAccessCodeTime * 192.0f);
+			if (brightness > 192)
+				brightness = 192;
+			Text_DrawCenteredStatus(m_flDescScale, m_flDescAspect,
+				(byte *)g_pszAccessCodeResult, brightness);
+		}
+		else if (m_pszDescription)
+			Text_DrawCenteredStatus(m_flDescScale, m_flDescAspect,
+				(byte *)m_pszDescription, (int)(flFade * 192.0f));
 	}
 }
 
@@ -3472,6 +3523,7 @@ void CMenuSaveSlotItem::Draw( float flFade, qboolean bSelected )
 	int			y;
 	int			iconY;
 	int			device;
+	int			deviceAlpha[2];
 	qboolean		anyDevice;
 	char			label[MAX_MENU_SAVE_LABEL];
 	char			*text;
@@ -3484,7 +3536,12 @@ void CMenuSaveSlotItem::Draw( float flFade, qboolean bSelected )
 	if (m_scanPending)
 	{
 		m_frame++;
-		if (m_frame == 4)
+		if (m_frame == 6)
+		{
+			m_scanPending = 0;
+			m_frame = 0;
+		}
+		if (m_frame == 4 && (m_mode == MENU_SAVE_SLOT || m_mode == MENU_LOAD_SLOT))
 		{
 			m_noSpace = VMU_GetFreeBlocks() < Host_SaveGameSize();
 			M_InitSaveList(m_mode == MENU_SAVE_SLOT);
@@ -3499,12 +3556,6 @@ void CMenuSaveSlotItem::Draw( float flFade, qboolean bSelected )
 					m_fileCount++;
 			}
 		}
-
-		if (m_frame == 6)
-		{
-			m_scanPending = 0;
-			m_frame = 0;
-		}
 	}
 
 	if (m_savePending && !m_ready)
@@ -3512,13 +3563,10 @@ void CMenuSaveSlotItem::Draw( float flFade, qboolean bSelected )
 		m_frame++;
 		if (m_frame == 3)
 		{
+			char command[MAX_MENU_SAVE_COMMAND];
 			GDROM_SetDoorBehavior();
-			if (m_selectedFile < m_fileCount)
-			{
-				char command[MAX_MENU_SAVE_COMMAND];
-				sprintf(command, "save %s\n", g_MenuSaves[m_selectedFile].pszName);
-				Cbuf_AddText(command);
-			}
+			sprintf(command, "save %s\n", g_MenuSaves[m_selectedFile].pszName);
+			Cbuf_AddText(command);
 		}
 
 		if (m_frame == 6)
@@ -3539,11 +3587,36 @@ void CMenuSaveSlotItem::Draw( float flFade, qboolean bSelected )
 		}
 	}
 
+	alpha = (int)(flFade * (bSelected ? 255.0f : 128.0f));
 	if (!anyDevice)
 	{
-		Text_DrawCenteredStatus(1.0f, 1.3333f,
-			(byte *)(m_mode == MENU_LOAD_SLOT ? "%novmuload1" : "%novmusave1"),
-			(int)(flFade * 255.0f));
+		if (bSelected)
+		{
+			char message[128];
+			char *output = message;
+			for (i = 0; i < 3; i++)
+			{
+				sprintf(label, m_mode == MENU_LOAD_SLOT ? "%%novmuload%d" : "%%novmusave%d", i + 1);
+				text = Text_FindString(label);
+				if (m_mode != MENU_LOAD_SLOT)
+				{
+					if (strchr(text, '@'))
+					{
+						while (*text != '@')
+							*output++ = *text++;
+						sprintf(output, "%d", (Host_SaveGameSize() + 511) / 512);
+						strcat(output, text + 1);
+					}
+					else
+						strcpy(message, text);
+					text = message;
+				}
+				y = 320 - Font_StringWidth((dcfont_t *)draw_chars, (byte *)text) / 2;
+				g_flTextScaleX = sv_language.value ? 0.83f : 1.0f;
+				g_flTextScaleY = sv_language.value ? 1.106639f : 1.3333f;
+				Text_DrawStringShadow(text, y, 176 + i * 40, alpha, 0);
+			}
+		}
 		return;
 	}
 
@@ -3551,25 +3624,27 @@ void CMenuSaveSlotItem::Draw( float flFade, qboolean bSelected )
 	alpha = bSelected ? (int)(flFade * 255.0f) : (int)(flFade * 128.0f);
 	dimAlpha = (int)(flFade * 128.0f);
 
-	DCV_SetHudDepth(3.0f);
-	DCV_SetColor(255, 255, 255, alpha);
-	M_DrawControllerIcon(m_pMenu, (float)(pValue->x - 32), 130.0f,
-		(float)(pValue->x + 32), 194.0f);
+	deviceAlpha[0] = deviceAlpha[1] = alpha;
+	if (bSelected)
+	{
+		deviceAlpha[*m_piIndex] = (int)(alpha * flFade);
+		deviceAlpha[1 - *m_piIndex] = (int)(alpha * flFade * 0.5f);
+	}
 
 	for (device = 0; device < 2; device++)
 	{
 		DCV_SetHudDepth(2.0f);
 		DCV_SetColor(255, 144, 0,
-			(int)(flFade * (bSelected && device == *m_piIndex ? 255.0f : 128.0f)));
+			deviceAlpha[device]);
 		M_DrawMenuElementBox(m_pMenu, (float)(pValue->x - 20),
 			200.0f + (float)(device * 64), (float)(pValue->x + 20),
-			260.0f + (float)(device * 65));
+			260.0f + (float)(device * 64));
 
 		if (!VMU_IsDevicePresent(m_slot * 2 + device))
 			continue;
 
-		DCV_SetHudDepth(3.0f);
-		DCV_SetColor(255, 255, 255, alpha);
+		DCV_SetHudDepth(4.0f);
+		DCV_SetColor(255, 255, 255, deviceAlpha[device]);
 		m_pMenu->m_state.iVMUTexture = M_LoadMenuTexture(m_pMenu, "gfx/menu_vmu.pvr");
 		GL_BindStage(m_pMenu->m_state.iVMUTexture, 0);
 		DCV_FlushIfLarge();
@@ -3580,86 +3655,96 @@ void CMenuSaveSlotItem::Draw( float flFade, qboolean bSelected )
 		DCV_AddVertex((float)(pValue->x + 12), 255.0f + (float)(device * 64), dc_depthhud.value, 1.0f, 1.0f);
 	}
 
-	if (VMU_IsDevicePresent(m_slot * 2 + *m_piIndex))
+	DCV_SetHudDepth(4.0f);
+	DCV_SetColor(255, 255, 255, (int)(alpha * flFade));
+	M_DrawControllerIcon(m_pMenu, (float)(pValue->x - 32), 130.0f,
+		(float)(pValue->x + 32), 194.0f);
+
+	if (bSelected)
 	{
-		text = Text_FindString("%port");
-		sprintf(label, "%s %c", text, m_slot + 'A');
-		textScaleX = sv_language.value ? 0.664f : 0.8f;
-		textScaleY = sv_language.value ? 0.88531f : 1.06664f;
-		g_flTextScaleX = textScaleX;
-		g_flTextScaleY = textScaleY;
-		Text_DrawStringShadow(label, 54,
-			cls.state == ca_active ? 160 : 176, alpha, 0);
-
-		text = Text_FindString("%slot");
-		sprintf(label, "%s %c", text, *m_piIndex + '1');
-		Text_DrawStringShadow(label, cls.state == ca_active ? 54 : 62,
-			cls.state == ca_active ? 200 : 216, alpha, 0);
-	}
-
-	DCV_SetHudDepth(2.0f);
-	if (m_visibleRow == 0 && m_loaded && !m_scanPending)
-		DCV_SetColor(255, 144, 0, (int)(flFade * 255.0f));
-	else
-		DCV_SetColor(255, 144, 0, dimAlpha);
-	M_DrawMenuElementBox(m_pMenu, 150.0f, 344.0f, 580.0f, 374.0f);
-
-	if (m_visibleRow == 1 && m_loaded && !m_scanPending)
-		DCV_SetColor(255, 144, 0, (int)(flFade * 255.0f));
-	else
-		DCV_SetColor(255, 144, 0, dimAlpha);
-	M_DrawMenuElementBox(m_pMenu, 150.0f, 378.0f, 580.0f, 408.0f);
-
-	if (m_scrollTop < 1)
-		DCV_SetColor(255, 144, 0, (int)(flFade * 64.0f));
-	else
-		DCV_SetColor(255, 144, 0, dimAlpha);
-	M_DrawMenuElementQuad(m_pMenu, 3, 590.0f, 344.0f, 620.0f, 372.0f);
-
-	if (m_scrollTop + 2 < m_fileCount)
-		DCV_SetColor(255, 144, 0, dimAlpha);
-	else
-		DCV_SetColor(255, 144, 0, (int)(flFade * 64.0f));
-	M_DrawMenuElementQuad(m_pMenu, 4, 590.0f, 380.0f, 620.0f, 408.0f);
-
-	if (m_loaded)
-	{
-		for (i = 0; i < m_fileCount; i++)
+		if (VMU_IsDevicePresent(m_slot * 2 + *m_piIndex))
 		{
-			if (i - m_scrollTop < 0 || i - m_scrollTop > 1)
-				continue;
-
-			y = i - m_scrollTop;
-			if (y == 0)
-			{
-				y = 348;
-				iconY = 347;
-			}
-			else
-			{
-				y = 383;
-				iconY = 381;
-			}
-
-			DCV_SetHudDepth(3.0f);
-			DCV_SetColor(255, 255, 255, alpha);
-
-			if (g_MenuSaves[i].character == 2)
-				M_DrawGordonIcon(m_pMenu, 151.0f, (float)iconY, 175.0f, (float)(iconY + 24));
-			else if (g_MenuSaves[i].character == 4)
-				M_DrawBarneyIcon(m_pMenu, 151.0f, (float)iconY, 175.0f, (float)(iconY + 24));
-
-			Font_FitScale(m_flDescScale * 0.65f, m_flDescAspect * 0.65f, 390.0f,
-				(byte *)g_MenuSaves[i].pszDescription, &textScaleX, &textScaleY);
-			if (sv_language.value)
-			{
-				textScaleX *= 0.83f;
-				textScaleY *= 0.83f;
-			}
+			text = Text_FindString("%port");
+			sprintf(label, "%s %c", text, m_slot + 'A');
+			textScaleX = sv_language.value ? 0.66399997f : 0.8f;
+			textScaleY = sv_language.value ? 0.88531119f : 1.06664f;
 			g_flTextScaleX = textScaleX;
 			g_flTextScaleY = textScaleY;
-			Text_DrawStringShadow(g_MenuSaves[i].pszDescription,
-				176, y, alpha, 0);
+			Text_DrawStringShadow(label, 54,
+				cls.state == ca_active ? 160 : 176, alpha, 0);
+
+			text = Text_FindString("%slot");
+			sprintf(label, "%s %c", text, *m_piIndex + '1');
+			Text_DrawStringShadow(label, cls.state == ca_active ? 54 : 62,
+				cls.state == ca_active ? 200 : 216, alpha, 0);
+		}
+
+		DCV_SetHudDepth(2.0f);
+		if (m_visibleRow == 0 && m_loaded && !m_scanPending)
+			DCV_SetColor(255, 144, 0, (int)(flFade * 255.0f));
+		else
+			DCV_SetColor(255, 144, 0, dimAlpha);
+		M_DrawMenuElementBox(m_pMenu, 150.0f, 344.0f, 580.0f, 374.0f);
+
+		if (m_visibleRow == 1 && m_loaded && !m_scanPending)
+			DCV_SetColor(255, 144, 0, (int)(flFade * 255.0f));
+		else
+			DCV_SetColor(255, 144, 0, dimAlpha);
+		M_DrawMenuElementBox(m_pMenu, 150.0f, 378.0f, 580.0f, 408.0f);
+
+		if (m_scrollTop < 1)
+			DCV_SetColor(255, 144, 0, (int)(flFade * 64.0f));
+		else
+			DCV_SetColor(255, 144, 0, dimAlpha);
+		M_DrawMenuElementQuad(m_pMenu, 3, 590.0f, 344.0f, 620.0f, 372.0f);
+
+		if (m_scrollTop + 2 < m_fileCount)
+			DCV_SetColor(255, 144, 0, dimAlpha);
+		else
+			DCV_SetColor(255, 144, 0, (int)(flFade * 64.0f));
+		M_DrawMenuElementQuad(m_pMenu, 4, 590.0f, 380.0f, 620.0f, 408.0f);
+
+		if (VMU_IsDevicePresent(m_slot * 2 + *m_piIndex))
+		{
+			for (i = 0; i < m_fileCount; i++)
+			{
+				if (!g_MenuSaves[i].pszDescription || i - m_scrollTop < 0 || i - m_scrollTop > 1)
+					continue;
+
+				y = i - m_scrollTop;
+				if (y == 0)
+				{
+					y = 348;
+					iconY = 347;
+				}
+				else
+				{
+					y = 383;
+					iconY = 381;
+				}
+
+				DCV_SetHudDepth(3.0f);
+				DCV_TexState_Blend();
+				DCV_SetColor(255, 255, 255, (int)(flFade * 255.0f));
+
+				if (g_MenuSaves[i].character == 2)
+					M_DrawGordonIcon(m_pMenu, 151.0f, (float)iconY, 175.0f, (float)(iconY + 24));
+				else if (g_MenuSaves[i].character == 4)
+					M_DrawBarneyIcon(m_pMenu, 151.0f, (float)iconY, 175.0f, (float)(iconY + 24));
+
+				Font_FitScale(m_flDescScale * 0.65f, m_flDescAspect * 0.65f, 390.0f,
+					(byte *)g_MenuSaves[i].pszDescription, &textScaleX, &textScaleY);
+				if (sv_language.value)
+				{
+					textScaleX *= 0.83f;
+					textScaleY *= 0.83f;
+				}
+				g_flTextScaleX = textScaleX;
+				g_flTextScaleY = textScaleY;
+				Text_DrawStringShadow(g_MenuSaves[i].pszDescription,
+					176, y, alpha, 0);
+			}
+
 		}
 
 	}
@@ -3690,9 +3775,9 @@ void CMenuSaveSlotItem::Draw( float flFade, qboolean bSelected )
 					status = VMU_MarkSlotSaved();
 					if (!VMU_GetCurrentDevice())
 					{
-						m_pMenu->m_state.iSoundBlocked =
-							strstr(m_pMenu->m_state.pszCommand, "menu") != NULL;
-						Cbuf_AddText(m_pMenu->m_state.pszCommand);
+						gfDrawMenu = 0;
+						m_pMenu->m_state.iSoundBlocked = 0;
+						Cbuf_AddText("");
 						Cbuf_AddText("\n");
 					}
 				}
@@ -3703,7 +3788,7 @@ void CMenuSaveSlotItem::Draw( float flFade, qboolean bSelected )
 			}
 		}
 
-		Text_DrawCenteredStatus(m_flDescScale, m_flDescAspect, (byte *)status, alpha);
+		Text_DrawCenteredStatus(m_flDescScale, m_flDescAspect, (byte *)status, (int)(flFade * 192.0f));
 	}
 }
 
@@ -3713,72 +3798,78 @@ void CMenuSaveSlotItem::Select( void )
 	{
 		m_ready = 0;
 		m_fileCount = 0;
-		return;
 	}
-
-	if (!VMU_SelectDeviceIfPresent(m_slot * 2 + *m_piIndex))
-		return;
-
-	if (!m_loaded)
+	else if (m_mode == MENU_SAVE_SLOT)
 	{
-		if (!m_scanPending)
+		if (VMU_SelectDeviceIfPresent(m_slot * 2 + *m_piIndex))
 		{
+			if (!m_loaded && !m_scanPending)
+			{
+				m_scrollTop = 0;
+				m_selectedFile = 0;
+				m_visibleRow = 0;
+				m_scanPending = 1;
+				m_frame = 0;
+				m_loaded = 1;
+			}
+			else if (m_selectedFile < m_fileCount)
+			{
+				if (!m_noSpace)
+				{
+					if (m_selectedFile)
+						m_ready = 1;
+					m_savePending = 1;
+					m_frame = 0;
+				}
+				else if (m_selectedFile > 0)
+				{
+					VMU_DeleteFile(g_MenuSaves[m_selectedFile].pszName);
+					m_scrollTop = 0;
+					m_selectedFile = 0;
+					m_visibleRow = 0;
+					m_scanPending = 1;
+					m_frame = 0;
+					m_loaded = 1;
+				}
+			}
+		}
+	}
+	else if (m_mode == MENU_LOAD_SLOT && VMU_SelectDeviceIfPresent(m_slot * 2 + *m_piIndex))
+	{
+		if (!m_loaded && !m_scanPending)
+		{
+			m_loaded = 1;
 			m_visibleRow = 0;
 			m_scrollTop = 0;
 			m_selectedFile = 0;
 			m_scanPending = 1;
 			m_frame = 0;
-			m_loaded = 1;
 		}
-		return;
-	}
-
-	if (m_scanPending || m_selectedFile >= m_fileCount)
-		return;
-
-	if (m_mode == MENU_SAVE_SLOT)
-	{
-		if (m_noSpace && m_selectedFile > 0)
+		else if (m_selectedFile < m_fileCount)
 		{
-			VMU_DeleteFile(g_MenuSaves[m_selectedFile].pszName);
-			m_visibleRow = 0;
-			m_scrollTop = 0;
-			m_selectedFile = 0;
-			m_loaded = 1;
-			m_scanPending = 1;
-			m_frame = 0;
+			if (g_MenuSaves[m_selectedFile].character == VMU_FILE_HALFLIFE)
+			{
+				sprintf(g_szMenuLoadCommand, "startgame valve\nload %s\n",
+					g_MenuSaves[m_selectedFile].pszName);
+				strcpy(m_pMenu->m_szCommand, g_szMenuLoadCommand);
+				m_pMenu->m_state.flAnimating = 1.0f;
+				m_pMenu->m_state.flFade = 1.0f;
+				m_pMenu->m_state.flFadeFrom = 1.0f;
+				m_pMenu->m_state.flFadeTo = 0.0f;
+				m_pMenu->m_state.flAnimStart = Sys_FloatTime();
+			}
+			if (g_MenuSaves[m_selectedFile].character == VMU_FILE_BARNEY)
+			{
+				sprintf(g_szMenuLoadCommand, "startgame barney\nload %s\n",
+					g_MenuSaves[m_selectedFile].pszName);
+				strcpy(m_pMenu->m_szCommand, g_szMenuLoadCommand);
+				m_pMenu->m_state.flAnimating = 1.0f;
+				m_pMenu->m_state.flFade = 1.0f;
+				m_pMenu->m_state.flFadeFrom = 1.0f;
+				m_pMenu->m_state.flFadeTo = 0.0f;
+				m_pMenu->m_state.flAnimStart = Sys_FloatTime();
+			}
 		}
-		else
-		{
-			if (m_selectedFile)
-				m_ready = 1;
-
-			m_savePending = 1;
-			m_frame = 0;
-			VMU_SetDeviceIconState(m_slot * 2 + *m_piIndex, 2, 0);
-		}
-	}
-	else if (g_MenuSaves[m_selectedFile].character == VMU_FILE_HALFLIFE)
-	{
-		sprintf(g_szMenuLoadCommand, "startgame valve\nload %s\n",
-			g_MenuSaves[m_selectedFile].pszName);
-		strcpy(m_pMenu->m_szCommand, g_szMenuLoadCommand);
-		m_pMenu->m_state.flAnimating = 1.0f;
-		m_pMenu->m_state.flFade = 1.0f;
-		m_pMenu->m_state.flFadeFrom = 1.0f;
-		m_pMenu->m_state.flFadeTo = 0.0f;
-		m_pMenu->m_state.flAnimStart = Sys_FloatTime();
-	}
-	else if (g_MenuSaves[m_selectedFile].character == VMU_FILE_BARNEY)
-	{
-		sprintf(g_szMenuLoadCommand, "startgame barney\nload %s\n",
-			g_MenuSaves[m_selectedFile].pszName);
-		strcpy(m_pMenu->m_szCommand, g_szMenuLoadCommand);
-		m_pMenu->m_state.flAnimating = 1.0f;
-		m_pMenu->m_state.flFade = 1.0f;
-		m_pMenu->m_state.flFadeFrom = 1.0f;
-		m_pMenu->m_state.flFadeTo = 0.0f;
-		m_pMenu->m_state.flAnimStart = Sys_FloatTime();
 	}
 }
 
@@ -3964,7 +4055,7 @@ void CMenuVolumeSlider::Draw( float flFade, qboolean bSelected )
 		g_flTextScaleY *= 0.83f;
 	}
 
-	labelAlpha = (int)(flFade * (bSelected ? 120.0f : 128.0f));
+	labelAlpha = (int)(flFade * (bSelected ? 255.0f : 128.0f));
 	if (bSelected)
 	{
 		psz = m_pszLabel;
@@ -4031,7 +4122,7 @@ void CMenuVolumeSlider::Draw( float flFade, qboolean bSelected )
 			(byte *)m_pszDescription, (int)(flFade * 192.0f));
 
 	DCV_SetHudDepth(2.0f);
-	DCV_SetColor(255, 144, 0, (int)(flFade * 128.0f));
+	DCV_SetColor(255, 144, 0, 128);
 	DCV_TexState_Blend();
 
 	barY = (float)(m_y + 40);
@@ -4048,10 +4139,10 @@ void CMenuVolumeSlider::Draw( float flFade, qboolean bSelected )
 	x = (float)(m_x + 390);
 	M_DrawMenuElementQuad2(m_pMenu, 2, x, barY, x + 30.0f, barBottom);
 
-	DCV_SetColor(255, 144, 0, (int)(flFade * 192.0f));
+	DCV_SetColor(255, 144, 0, 192);
 	DCV_SetHudDepth(3.0f);
-	x = (float)(m_x + *m_piValue * 40);
-	M_DrawMenuElementBox(m_pMenu, x, barY, x + 30.0f, barBottom);
+	x = (float)(m_x + 22 + *m_piValue * 40);
+	M_DrawMenuElementBox(m_pMenu, x, barY - 5.0f, x + 16.0f, barBottom + 5.0f);
 
 	if (m_piToggle)
 	{
@@ -4070,7 +4161,7 @@ void CMenuVolumeSlider::Draw( float flFade, qboolean bSelected )
 
 		DCV_SetHudDepth(3.0f);
 		DCV_TexState_Blend();
-		DCV_SetColor(255, 144, 200, 255);
+		DCV_SetColor(255, 144, 0, 200);
 		m_pMenu->m_state.iElementTexture =
 			M_LoadMenuTexture(m_pMenu, "gfx/menu_elements_alpha.pvr");
 		GL_BindStage(m_pMenu->m_state.iElementTexture, 0);
@@ -4088,9 +4179,9 @@ void CMenuVolumeSlider::Draw( float flFade, qboolean bSelected )
 
 		if (*m_piToggle)
 		{
-			DCV_SetHudDepth(3.0f);
+			DCV_SetHudDepth(2.0f);
 			DCV_TexState_Additive();
-			DCV_SetColor(144, 255, 255, 255);
+			DCV_SetColor(255, 144, 0, 255);
 			DCV_FlushIfLarge();
 			DCV_AddPolyIndices(DCV_GetVertCount(), 4);
 
@@ -4492,27 +4583,34 @@ void CMenuSensitivitySlider::Draw( float flFade, qboolean bSelected )
 			(byte *)m_pszDescription, (int)(flFade * 192.0f));
 
 	DCV_SetHudDepth(2.0f);
-	DCV_SetColor(255, 144, 0, (int)(flFade * 128.0f));
+	DCV_SetColor(255, 144, 0, 128);
 	DCV_TexState_Blend();
 
 	barY = (float)m_y;
 	barBottom = barY + 28.0f;
-	x = (float)m_x;
-	M_DrawMenuElementQuad2(m_pMenu, 1, x, barY, x + 30.0f, barBottom);
+	x = (float)MENU_SENSITIVITY_BAR_LEFT;
+	M_DrawMenuElementQuad2(m_pMenu, 1, x, barY,
+		x + (float)MENU_SENSITIVITY_SEGMENT_WIDTH, barBottom);
 
-	for (step = 1; step < 11; step++)
+	for (step = 1; step <= MENU_SENSITIVITY_MIDDLE_SEGMENTS; step++)
 	{
-		x = (float)(m_x + step * 30);
-		M_DrawMenuElementQuad2(m_pMenu, 0, x, barY, x + 30.0f, barBottom);
+		x = (float)(MENU_SENSITIVITY_BAR_LEFT +
+			step * MENU_SENSITIVITY_SEGMENT_WIDTH);
+		M_DrawMenuElementQuad2(m_pMenu, 0, x, barY,
+			x + (float)MENU_SENSITIVITY_SEGMENT_WIDTH, barBottom);
 	}
 
-	x = (float)(m_x + 330);
-	M_DrawMenuElementQuad2(m_pMenu, 2, x, barY, x + 30.0f, barBottom);
+	x = (float)(MENU_SENSITIVITY_BAR_LEFT + MENU_SENSITIVITY_BAR_WIDTH -
+		MENU_SENSITIVITY_SEGMENT_WIDTH);
+	M_DrawMenuElementQuad2(m_pMenu, 2, x, barY,
+		x + (float)MENU_SENSITIVITY_SEGMENT_WIDTH, barBottom);
 
-	DCV_SetColor(255, 144, 0, (int)(flFade * 192.0f));
+	DCV_SetColor(255, 144, 0, 192);
 	DCV_SetHudDepth(3.0f);
-	x = (float)(m_x + 24 + *m_piValue * 15);
-	M_DrawMenuElementBox(m_pMenu, x, barY - 4.0f, x + 12.0f, barY + 32.0f);
+	x = (float)(MENU_SENSITIVITY_THUMB_LEFT +
+		*m_piValue * MENU_SENSITIVITY_THUMB_STEP);
+	M_DrawMenuElementBox(m_pMenu, x, barY - 4.0f,
+		x + (float)MENU_SENSITIVITY_THUMB_WIDTH, barY + 32.0f);
 }
 
 void CMenuSensitivitySlider::Left( void )
@@ -4638,14 +4736,12 @@ static presetcallout_t g_PresetCallouts[] =
 	{ "S1JOY3", "JOY3", NULL,          312, 1, 0 },
 };
 
-#define PRESET_CALLOUTS		(sizeof(g_PresetCallouts) / sizeof(g_PresetCallouts[0]))
-
 /*
 ==================
 CMenuPresetItem::DrawCallout
 
 One button on the picture: the plate it sits on, then what the button does
-under this preset. The shift button pulses so it stands out from the rest,
+under this preset. In shifted mode the shift button pulses,
 and a button the preset leaves alone says so.
 ==================
 */
@@ -4660,21 +4756,12 @@ void CMenuPresetItem::DrawCallout( struct presetcallout_s* pCallout, float flFad
 	// longer translations get more room, and the plate grows with them
 	width = (sv_language.value != 0) ? 130.0f : 100.0f;
 	x = pCallout->right
-		? ((sv_language.value != 0) ? 528 : 488)
+		? ((sv_language.value != 0) ? 488 : 528)
 		: ((sv_language.value != 0) ? 300 : 260);
 
-	base = pCallout->right ? (float)x : (float)x - width;
+	base = pCallout->centered ? 396.0f - width * 0.5f
+		: (pCallout->right ? (float)x : (float)x - width);
 
-	DCV_SetHudDepth(2.5f);
-	DCV_TexState_Blend();
-
-	if (m_iAlias == 0)
-		DCV_SetColor(50, 30, 0, (int)(flFade * 250.0f));
-	else
-		DCV_SetColor(20, 20, 50, (int)(flFade * 250.0f));
-
-	M_DrawMenuElementBox(m_pMenu, base - 5.0f, (float)pCallout->y,
-		base + width + 8.0f, (float)(pCallout->y + 28));
 
 	brightness = 254.0f;
 
@@ -4687,30 +4774,42 @@ void CMenuPresetItem::DrawCallout( struct presetcallout_s* pCallout, float flFad
 		psz = Text_LookupAlias(m_iAlias ? pCallout->pszJoyKey : pCallout->pszKey,
 			m_ppAliases, &m_nAliases, 0);
 
-		// the shift button changes what all the others do, so it blinks
-		if (!strcmp(psz, Text_FindString("%shift")))
+		// mark the shift button while showing the shifted bindings
+		if (m_iAlias && !strcmp(psz, Text_FindString("%shift")))
 			brightness = (coss(m_pMenu->m_state.flTime * 5.23f) + 1.0f) * 80.0f + 94.0f;
 
 		// nothing bound to it under this preset
-		if (!strcmp(psz, m_iAlias ? pCallout->pszJoyKey : pCallout->pszKey))
+		if (m_iAlias && !strcmp(psz, pCallout->pszJoyKey))
 			psz = Text_FindString("%bind_none");
 	}
 
 	if (pCallout->centered)
 	{
 		Text_DrawStringCentered(0.7f, 0.93331f, psz, 396, pCallout->y + 5,
-			(int)(flFade * brightness), 0, (int)width);
+			(int)(flFade * brightness), m_iAlias, (int)width);
 	}
 	else if (pCallout->right)
 	{
 		Text_DrawStringLeft(0.7f, 0.93331f, psz, x, pCallout->y + 5,
-			(int)(flFade * brightness), 0, (int)width);
+			(int)(flFade * brightness), m_iAlias, (int)width);
 	}
 	else
 	{
 		Text_DrawStringRight(0.7f, 0.93331f, psz, x, pCallout->y + 5,
-			(int)(flFade * brightness), 0, (int)width);
+			(int)(flFade * brightness), m_iAlias, (int)width);
 	}
+
+	DCV_SetHudDepth(2.5f);
+	DCV_TexState_Blend();
+
+	if (m_iAlias == 0)
+		DCV_SetColor(50, 30, 0, (int)(flFade * 250.0f));
+	else
+		DCV_SetColor(20, 20, 50, (int)(flFade * 250.0f));
+
+	M_DrawMenuElementBox(m_pMenu, base - 5.0f, (float)pCallout->y,
+		base + width + 8.0f, (float)(pCallout->y + 28));
+
 }
 
 /*
@@ -4724,38 +4823,142 @@ with a line running out to every button it names.
 void CMenuPresetItem::Draw( float flFade, qboolean bSelected )
 {
 	int		base;
-	int		i;
+	char	*psz;
+	int		width;
+	int		advance;
+	int		ch;
+	float	x1, x2;
+	float	y1, y2;
 
-	CMenuTextItem::Draw(flFade, bSelected);
+	DCV_TexState_Blend();
 
-	// the picture only belongs to the preset the stick is on
-	if (!bSelected)
-		return;
+	if (bSelected)
+	{
+		g_flTextScaleX = m_flLabelScale;
+		g_flTextScaleY = m_flLabelAspect;
 
-	DCV_SetHudDepth(2.3f);
-	DCV_TexState_Additive();
-	DCV_SetColor(255, 255, 255, (int)(flFade * 255.0f));
+		if (sv_language.value != 0.0f)
+		{
+			g_flTextScaleX *= 0.83f;
+			g_flTextScaleY *= 0.83f;
+		}
 
-	M_DrawControllerIcon(m_pMenu, 266.0f, 120.0f, 522.0f, 376.0f);
+		psz = m_pszLabel;
+		if (psz && g_nLangTags > 0)
+		{
+			for (ch = 0; ch < g_nLangTags; ch++)
+			{
+				if (!strcmp(psz, g_pLangTags[ch].tag))
+				{
+					psz = g_pLangTags[ch].string;
+					break;
+				}
+			}
+		}
 
-	// the lines that run from each button out to its caption
-	DCV_SetHudDepth(2.3f);
-	DCV_SetColor(255, 255, 255, (int)(flFade * 255.0f));
+		width = 0;
+		if (psz)
+		{
+			while (*psz)
+			{
+				ch = (byte)*psz++;
+				if (ch >= 192)
+					ch -= 64;
 
-	m_pMenu->m_state.iLinesTexture = M_LoadMenuTexture(m_pMenu, "gfx/menu_controllerlines.pvr");
-	GL_BindStage(m_pMenu->m_state.iLinesTexture, 0);
+				advance = (int)(g_flTextScaleX * (float)((dcfont_t *)draw_chars)->fontinfo[ch].charwidth + 1.4f);
+				if (advance < 2)
+					advance = 2;
+				if (advance > 40)
+					advance = 40;
+				width += advance;
+			}
+		}
 
-	DCV_FlushIfLarge();
-	base = DCV_GetVertCount();
-	DCV_AddPolyIndices(base, 4);
+		if (m_align == 0)
+			DCV_SetColor(255, 144, 0, (int)(flFade * 100.0f));
+		else
+			DCV_SetColor(95, 95, 255, (int)(flFade * 120.0f));
+		DCV_SetHudDepth(2.0f);
+		DCV_TexState_Additive();
 
-	DCV_AddVertex(266.0f, 120.0f, dc_depthhud.value, 0.0f, 0.0f);
-	DCV_AddVertex(522.0f, 120.0f, dc_depthhud.value, 1.0f, 0.0f);
-	DCV_AddVertex(266.0f, 376.0f, dc_depthhud.value, 0.0f, 1.0f);
-	DCV_AddVertex(522.0f, 376.0f, dc_depthhud.value, 1.0f, 1.0f);
+		m_pMenu->m_state.iElementTexture = M_LoadMenuTexture(m_pMenu, "gfx/menu_elements_alpha.pvr");
+		GL_BindStage(m_pMenu->m_state.iElementTexture, 0);
 
-	for (i = 0; i < PRESET_CALLOUTS; i++)
-		DrawCallout(&g_PresetCallouts[i], flFade);
+		DCV_FlushIfLarge();
+		DCV_AddPolyIndices(DCV_GetVertCount(), 4);
+
+		x1 = (float)(m_labelX - 15);
+		x2 = (float)(m_labelX + width + 15);
+		y1 = (float)(m_labelY - 14);
+		y2 = (float)(m_labelY + 40);
+
+		DCV_AddVertex(x1, y1, dc_depthhud.value, 0.059f, 0.559f);
+		DCV_AddVertex(x2, y1, dc_depthhud.value, 0.446f, 0.559f);
+		DCV_AddVertex(x1, y2, dc_depthhud.value, 0.059f, 0.946f);
+		DCV_AddVertex(x2, y2, dc_depthhud.value, 0.446f, 0.946f);
+
+		DCV_TexState_Blend();
+		DCV_SetHudDepth(4.0f);
+		DCV_SetColor(255, 144, 0, (int)(flFade * 120.0f));
+
+		DCV_SetHudDepth(2.3f);
+		DCV_TexState_Blend();
+		DCV_SetColor(255, 255, 255, (int)(flFade * 255.0f));
+
+		M_DrawControllerIcon(m_pMenu, 266.0f, 120.0f, 522.0f, 376.0f);
+
+		// the lines that run from each button out to its caption
+		DCV_SetHudDepth(2.3f);
+		DCV_SetColor(255, 255, 255, (int)(flFade * 220.0f));
+
+		m_pMenu->m_state.iLinesTexture = M_LoadMenuTexture(m_pMenu, "gfx/menu_controllerlines.pvr");
+		GL_BindStage(m_pMenu->m_state.iLinesTexture, 0);
+
+		DCV_FlushIfLarge();
+		base = DCV_GetVertCount();
+		DCV_AddPolyIndices(base, 4);
+
+		DCV_AddVertex(266.0f, 120.0f, dc_depthhud.value, 0.0f, 0.0f);
+		DCV_AddVertex(522.0f, 120.0f, dc_depthhud.value, 1.0f, 0.0f);
+		DCV_AddVertex(266.0f, 376.0f, dc_depthhud.value, 0.0f, 1.0f);
+		DCV_AddVertex(522.0f, 376.0f, dc_depthhud.value, 1.0f, 1.0f);
+
+		DrawCallout(&g_PresetCallouts[0], flFade);
+		DrawCallout(&g_PresetCallouts[1], flFade);
+		DrawCallout(&g_PresetCallouts[2], flFade);
+		DrawCallout(&g_PresetCallouts[3], flFade);
+		DrawCallout(&g_PresetCallouts[4], flFade);
+		DrawCallout(&g_PresetCallouts[5], flFade);
+		DrawCallout(&g_PresetCallouts[6], flFade);
+		DrawCallout(&g_PresetCallouts[7], flFade);
+		DrawCallout(&g_PresetCallouts[8], flFade);
+		DrawCallout(&g_PresetCallouts[9], flFade);
+		DrawCallout(&g_PresetCallouts[10], flFade);
+		DrawCallout(&g_PresetCallouts[11], flFade);
+	}
+
+	if (m_pszLabel)
+	{
+		g_flTextScaleX = m_flLabelScale;
+		g_flTextScaleY = m_flLabelAspect;
+
+		if (sv_language.value != 0.0f)
+		{
+			g_flTextScaleX *= 0.83f;
+			g_flTextScaleY *= 0.83f;
+		}
+
+		Text_DrawStringShadow(m_pszLabel, m_labelX, m_labelY,
+			(int)(flFade * (bSelected ? 255.0f : 128.0f)), m_align);
+	}
+
+	if (bSelected && m_pszDescription)
+	{
+		Text_DrawCenteredStatus(m_flDescScale, m_flDescAspect, (byte *)m_pszDescription,
+			(int)(flFade * 192.0f));
+	}
+
+	g_nTextCharGap = 0;
 }
 
 void CMenuPresetItem::Select( void )
@@ -4845,6 +5048,16 @@ int CMenuPresetItem::IsActive( void )
 	return 1;
 }
 
+void CMenuPresetItem::Left( void )
+{
+	m_iAlias = 1 - m_iAlias;
+}
+
+void CMenuPresetItem::Right( void )
+{
+	m_iAlias = 1 - m_iAlias;
+}
+
 CMenuBindItem::CMenuBindItem( CMenu* pMenu )
 {
 	m_pMenu = pMenu;
@@ -4872,7 +5085,6 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 	int			control;
 	int			key;
 	int			capturedKey;
-	int			tag;
 	char		*pszKey;
 	char		*pszCommand;
 	char		bindCommand[MAX_QPATH];
@@ -4910,6 +5122,7 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 	Text_DrawStringLeft(0.7f, 0.93331f, "%keybutton", 370, 134,
 		alpha, 0, 230);
 
+	DCV_SetColor(255, 144, 0, (int)(flFade * 128.0f));
 	y = 164;
 	for (slot = 0; slot < 8; slot++, y += 30)
 	{
@@ -4925,8 +5138,11 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 			DCV_SetColor(255, 144, 0, (int)(flFade * 198.0f));
 
 		DCV_SetHudDepth(2.0f);
+		if (row == 0 || row == 3 || row == 5)
+			DCV_SetColor(255, 144, 0, (int)(flFade * 70.0f));
 		M_DrawMenuElementBox(m_pMenu, 160.0f, (float)(y - 4),
-			604.0f, (float)(y + 24));
+			610.0f, (float)(y + 24));
+		DCV_SetHudDepth(3.0f);
 
 		if (row == 0)
 		{
@@ -4957,15 +5173,7 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 			Text_DrawStringLeft(0.7f, 0.93331f, "%shift", 170, y,
 				alpha, 0, 190);
 
-			pszKey = joyshift1.string;
-			for (tag = 0; tag < g_nLangTags; tag++)
-			{
-				if (!strcmp(pszKey, g_pLangTags[tag].tag))
-				{
-					pszKey = g_pLangTags[tag].string;
-					break;
-				}
-			}
+			pszKey = M_ControlKeyName(joyshift1.string);
 
 			Text_DrawStringLeft(0.7f, 0.93331f, pszKey, 370, y,
 				alpha, 0, 230);
@@ -4983,27 +5191,21 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 			if (row == 6 || g_ControlKeys[row - 7].control != control)
 			{
 				Text_DrawStringLeft(0.7f, 0.93331f,
-					g_ControlActions[control].pszLabel, 170, y, alpha, 0, 190);
+					g_ControlActions[control].pszDescription, 170, y, alpha, 0, 190);
 			}
 
 			if (key < 0)
 				pszKey = "---";
 			else
 			{
-				pszKey = Key_KeynumToString(key);
-				for (tag = 0; tag < g_nLangTags; tag++)
-				{
-					if (!strcmp(pszKey, g_pLangTags[tag].tag))
-					{
-						pszKey = g_pLangTags[tag].string;
-						break;
-					}
-				}
+				pszKey = M_ControlKeyName(Key_KeynumToString(key));
 			}
 
 			Text_DrawStringLeft(0.7f, 0.93331f, pszKey, 370, y,
 				alpha, 0, 230);
 		}
+
+		DCV_SetColor(255, 144, 0, (int)(flFade * 128.0f));
 	}
 
 	if (m_selection > 0)
@@ -5290,9 +5492,11 @@ int M_LoadMenuTexture( CMenu* pMenu, char* pszName )
 		pMenu->m_state.iTextures[slot] = DC_LoadTexture(pszName, GLT_WORLD,
 			pHeader->width, pHeader->height, pHeader, FALSE, TEX_TYPE_GBIX, NULL);
 		pMenu->m_state.pTextureNames[slot] = pszName;
-
-		COM_FreeTempFile();
 	}
+
+	// A failed lookup did not create a temporary block.
+	if (pHeader)
+		COM_FreeTempFile();
 
 	return pMenu->m_state.iTextures[slot];
 }
@@ -6245,7 +6449,7 @@ void UI_MenuDraw( CMenu* pMenu )
 
 	if (!strcmp(pMenu->m_szName, "activate"))
 	{
-		// the save slots scroll behind three fixed items
+		// the codes scroll behind three fixed items
 		if (pMenu->m_pItems[0])
 			pMenu->m_pItems[0]->Draw(pMenu->m_state.flFade, pMenu->m_state.iSelected == 0);
 
@@ -6262,7 +6466,7 @@ void UI_MenuDraw( CMenu* pMenu )
 		{
 			pItem = pMenu->m_pItems[i];
 			if (!pItem)
-				break;
+				continue;
 
 			if (skip > 0)
 			{
