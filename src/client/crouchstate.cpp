@@ -25,7 +25,8 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "screen.h"
+extern "C" int scr_safe_x;
+extern "C" int scr_safe_y;
 
 DECLARE_MESSAGE(m_CrouchState, CrouchState)
 
