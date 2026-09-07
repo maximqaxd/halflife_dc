@@ -73,7 +73,7 @@ qboolean Cvar_Command( void );
 // command.  Returns true if the command was a variable reference that
 // was handled. (print or change)
 
-void 	Cvar_WriteVariables( FILE* f );
+void 	Cvar_WriteVariables( void* f );
 // Writes lines containing "set variable value" for all variables
 // with the archive flag set to true.
 
