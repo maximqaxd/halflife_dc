@@ -2707,7 +2707,6 @@ static float (*R_DecalComputeVertices(
 	float  scalex, scaley;
 	float* v;
 	int    j, outCount;
-	int    numverts;
 
 	scalex = (ShortToFloat(plist->scale) * (float)psurf->texinfo->texture->width)
 		/ (float)ptexture->width;
@@ -2718,7 +2717,7 @@ static float (*R_DecalComputeVertices(
 		pout = gDecalClipA;
 
 	v = psurf->polys->verts[0];
-	for (j = 0; j < numverts; j++, v += VERTEXSIZE)
+	for (j = 0; j < psurf->polys->numverts; j++, v += VERTEXSIZE)
 	{
 		VectorCopy(v, gDecalClipA[j]);
 		gDecalClipA[j][4] = (v[4] - plist->dx) * scalex;
@@ -2731,7 +2730,7 @@ static float (*R_DecalComputeVertices(
 			gDecalClipA[j][5] = 1.0f - gDecalClipA[j][5];
 	}
 
-	outCount = SHClip(gDecalClipA[0], numverts, gDecalClipB[0], LEFT_EDGE);
+	outCount = SHClip(gDecalClipA[0], psurf->polys->numverts, gDecalClipB[0], LEFT_EDGE);
 	outCount = SHClip(gDecalClipB[0], outCount, gDecalClipA[0], RIGHT_EDGE);
 	outCount = SHClip(gDecalClipA[0], outCount, gDecalClipB[0], TOP_EDGE);
 	outCount = SHClip(gDecalClipB[0], outCount, pout[0], BOTTOM_EDGE);

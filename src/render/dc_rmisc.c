@@ -389,7 +389,6 @@ void R_NewMap( void )
 	r_viewleaf = NULL;
 	R_ClearParticles();
 
-	R_DecalInit();
 	V_InitLevel();
 	DC_BuildLightmaps();
 
