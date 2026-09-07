@@ -20,7 +20,7 @@ and read back directly instead of locking around every transfer.
 */
 static byte *AFile_BlockData (LPDIRECTSOUNDBUFFER block)
 {
-	return (byte *)(*(dsbufmem_t **)((byte *)block + DSBUF_MEMOFS))->data;
+	return (byte *)(*(dsbufmem_t **)((byte *)block + DSBUF_MEMOFS))->owner->data;
 }
 
 /*
