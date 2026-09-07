@@ -94,8 +94,8 @@ unsigned short  g_GammaTable[1024];
 byte            g_GammaTable256[256];
 
 // overscan margins for the TV; VGA output needs none
-int             g_nOverscanX;
-int             g_nOverscanY;
+extern int      scr_safe_x;
+extern int      scr_safe_y;
 
 
 // screen saver: fade the frame out after five minutes without input
@@ -274,8 +274,8 @@ void DCV_BuildGammaTable( float lo, float hi )
 __inline void DCV_RefreshGamma( void )
 {
 	DCV_BuildGammaTable(0.9f, 0.58f);
-	g_nOverscanX = 8;
-	g_nOverscanY = 24;
+	scr_safe_x = 8;
+	scr_safe_y = 24;
 }
 
 /*
@@ -309,13 +309,13 @@ void DCV_GammaRefresh_f( void )
 		break;
 	case 0x40:
 		DCV_BuildGammaTable(0.9f, 0.8f);
-		g_nOverscanX = 0;
-		g_nOverscanY = 0;
+		scr_safe_x = 0;
+		scr_safe_y = 0;
 		break;
 	default:
 		DCV_BuildGammaTable(1.0f, 1.0f);
-		g_nOverscanX = 8;
-		g_nOverscanY = 24;
+		scr_safe_x = 8;
+		scr_safe_y = 24;
 		break;
 	}
 
@@ -432,7 +432,7 @@ void DCV_FB_BackgroundRect( WORD color )
 
 	for (i = 0; i < 32; i++)
 	{
-		p = (WORD *)ddsd.lpSurface + (ddsd.lPitch * (g_nOverscanY + i) + 640 - 128) / 2;
+		p = (WORD *)ddsd.lpSurface + (ddsd.lPitch * (scr_safe_y + i) + 640 - 128) / 2;
 		for (x = 0; x < 128; x++)
 			*p++ = color;
 	}
