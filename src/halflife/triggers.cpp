@@ -2563,6 +2563,46 @@ void CTriggerCamera::Move()
 	pev->velocity = ((pev->movedir * pev->speed) * fraction) + (pev->velocity * (1-fraction));
 }
 
+
+//=========================================================
+// Locks the player in place while a scripted scene plays
+// out around him.  Toggled by whatever fires it.
+//=========================================================
+class CTriggerPlayerFreeze : public CBaseDelay
+{
+public:
+	virtual void Spawn( void );
+	virtual void Use( CBaseEntity* pActivator, CBaseEntity* pCaller, USE_TYPE useType, float value );
+
+public:
+	bool m_bUnFrozen;
+};
+
+LINK_ENTITY_TO_CLASS( trigger_playerfreeze, CTriggerPlayerFreeze );
+
+void CTriggerPlayerFreeze::Spawn()
+{
+	if (g_pGameRules->IsDeathmatch())
+	{
+		REMOVE_ENTITY(edict());
+	}
+	else
+	{
+		m_bUnFrozen = TRUE;
+	}
+}
+
+void CTriggerPlayerFreeze::Use( CBaseEntity* pActivator, CBaseEntity* pCaller, USE_TYPE useType, float value )
+{
+	edict_t* pentPlayer;
+	CBasePlayer* pPlayer;
+
+	m_bUnFrozen = !m_bUnFrozen;
+	pentPlayer = INDEXENT(1);
+	pPlayer = GetClassPtr((CBasePlayer*)&pentPlayer->v);
+	pPlayer->EnableControl(m_bUnFrozen);
+}
+
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
 void SR_Register_triggers( void )
 {

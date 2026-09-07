@@ -50,6 +50,7 @@ void SR_Register_tentacle( void );
 void SR_Register_triggers( void );
 void SR_Register_tripmine( void );
 void SR_Register_turret( void );
+void SR_Register_warp( void );
 void SR_Register_weapons( void );
 void SR_Register_world( void );
 
@@ -102,6 +103,7 @@ extern "C" void GameDLL_RegisterSaveExports( void )
 	SR_Register_triggers();
 	SR_Register_tripmine();
 	SR_Register_turret();
+	SR_Register_warp();
 	SR_Register_weapons();
 	SR_Register_world();
 }

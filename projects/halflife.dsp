@@ -5657,6 +5657,18 @@ SOURCE=..\src\halflife\teamplay_gamerules.cpp
 
 SOURCE=..\src\halflife\saveexports.cpp
 # End Source File
+# Begin Source File
+
+SOURCE=..\src\halflife\playermonster.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\halflife\rosenberg.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\halflife\warp.cpp
+# End Source File
 # End Group
 # Begin Group "Header Files"
 

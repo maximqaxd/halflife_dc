@@ -13,7 +13,7 @@
 *
 ****/
 //=========================================================
-// human scientist (passive lab worker)
+// rosenberg.cpp
 //=========================================================
 
 #include	"extdll.h"
@@ -63,7 +63,7 @@ enum
 // Scientist
 //=======================================================
 
-class CScientist : public CTalkMonster
+class CRosenberg : public CTalkMonster
 {
 public:
 	void Spawn( void );
@@ -75,7 +75,6 @@ public:
 	void RunTask( Task_t *pTask );
 	void StartTask( Task_t *pTask );
 	int	ObjectCaps( void ) { return CTalkMonster :: ObjectCaps() | FCAP_IMPULSE_USE; }
-	int TakeDamage( entvars_t* pevInflictor, entvars_t* pevAttacker, float flDamage, int bitsDamageType);
 	virtual int FriendNumber( int arrayNumber );
 	void SetActivity ( Activity newActivity );
 	Activity GetStoppedActivity( void );
@@ -114,33 +113,33 @@ private:
 	float m_coverTime;
 };
 
-LINK_ENTITY_TO_CLASS( monster_scientist, CScientist );
+LINK_ENTITY_TO_CLASS( monster_rosenberg, CRosenberg );
 
-TYPEDESCRIPTION	CScientist::m_SaveData[] = 
+TYPEDESCRIPTION	CRosenberg::m_SaveData[] =
 {
-	DEFINE_FIELD( CScientist, m_painTime, FIELD_TIME ),
-	DEFINE_FIELD( CScientist, m_healTime, FIELD_TIME ),
-	DEFINE_FIELD( CScientist, m_fearTime, FIELD_TIME ),
-	DEFINE_FIELD( CScientist, m_coverTime, FIELD_TIME ),
+	DEFINE_FIELD( CRosenberg, m_painTime, FIELD_TIME ),
+	DEFINE_FIELD( CRosenberg, m_healTime, FIELD_TIME ),
+	DEFINE_FIELD( CRosenberg, m_fearTime, FIELD_TIME ),
+	DEFINE_FIELD( CRosenberg, m_coverTime, FIELD_TIME ),
 };
 
-IMPLEMENT_SAVERESTORE( CScientist, CTalkMonster );
+IMPLEMENT_SAVERESTORE( CRosenberg, CTalkMonster );
 
 //=========================================================
 // AI Schedules Specific to this monster
 //=========================================================
-Task_t	tlFollow[] =
+Task_t	tlRoFollow[] =
 {
 	{ TASK_SET_FAIL_SCHEDULE,	(float)SCHED_CANT_FOLLOW },	// If you fail, bail out of follow
 	{ TASK_MOVE_TO_TARGET_RANGE,(float)128		},	// Move within 128 of target ent (client)
 //	{ TASK_SET_SCHEDULE,		(float)SCHED_TARGET_FACE },
 };
 
-Schedule_t	slFollow[] =
+Schedule_t	slRoFollow[] =
 {
 	{
-		tlFollow,
-		ARRAYSIZE ( tlFollow ),
+		tlRoFollow,
+		ARRAYSIZE ( tlRoFollow ),
 		bits_COND_NEW_ENEMY |
 		bits_COND_LIGHT_DAMAGE |
 		bits_COND_HEAVY_DAMAGE |
@@ -151,18 +150,18 @@ Schedule_t	slFollow[] =
 	},
 };
 
-Task_t	tlFollowScared[] =
+Task_t	tlRoFollowScared[] =
 {
 	{ TASK_SET_FAIL_SCHEDULE,	(float)SCHED_TARGET_CHASE },// If you fail, follow normally
 	{ TASK_MOVE_TO_TARGET_RANGE_SCARED,(float)128		},	// Move within 128 of target ent (client)
 //	{ TASK_SET_SCHEDULE,		(float)SCHED_TARGET_FACE_SCARED },
 };
 
-Schedule_t	slFollowScared[] =
+Schedule_t	slRoFollowScared[] =
 {
 	{
-		tlFollowScared,
-		ARRAYSIZE ( tlFollowScared ),
+		tlRoFollowScared,
+		ARRAYSIZE ( tlRoFollowScared ),
 		bits_COND_NEW_ENEMY |
 		bits_COND_HEAR_SOUND |
 		bits_COND_LIGHT_DAMAGE |
@@ -172,18 +171,18 @@ Schedule_t	slFollowScared[] =
 	},
 };
 
-Task_t	tlFaceTargetScared[] =
+Task_t	tlRoFaceTargetScared[] =
 {
 	{ TASK_FACE_TARGET,			(float)0		},
 	{ TASK_SET_ACTIVITY,		(float)ACT_CROUCHIDLE },
 	{ TASK_SET_SCHEDULE,		(float)SCHED_TARGET_CHASE_SCARED },
 };
 
-Schedule_t	slFaceTargetScared[] =
+Schedule_t	slRoFaceTargetScared[] =
 {
 	{
-		tlFaceTargetScared,
-		ARRAYSIZE ( tlFaceTargetScared ),
+		tlRoFaceTargetScared,
+		ARRAYSIZE ( tlRoFaceTargetScared ),
 		bits_COND_HEAR_SOUND |
 		bits_COND_NEW_ENEMY,
 		bits_SOUND_DANGER,
@@ -191,16 +190,16 @@ Schedule_t	slFaceTargetScared[] =
 	},
 };
 
-Task_t	tlStopFollowing[] =
+Task_t	tlRoStopFollowing[] =
 {
 	{ TASK_CANT_FOLLOW,		(float)0 },
 };
 
-Schedule_t	slStopFollowing[] =
+Schedule_t	slRoStopFollowing[] =
 {
 	{
-		tlStopFollowing,
-		ARRAYSIZE ( tlStopFollowing ),
+		tlRoStopFollowing,
+		ARRAYSIZE ( tlRoStopFollowing ),
 		0,
 		0,
 		"StopFollowing"
@@ -208,7 +207,7 @@ Schedule_t	slStopFollowing[] =
 };
 
 
-Task_t	tlHeal[] =
+Task_t	tlRoHeal[] =
 {
 	{ TASK_MOVE_TO_TARGET_RANGE,(float)50		},	// Move within 60 of target ent (client)
 	{ TASK_SET_FAIL_SCHEDULE,	(float)SCHED_TARGET_CHASE },	// If you fail, catch up with that guy! (change this to put syringe away and then chase)
@@ -219,11 +218,11 @@ Task_t	tlHeal[] =
 	{ TASK_PLAY_SEQUENCE_FACE_TARGET,		(float)ACT_DISARM	},			// Put away the needle
 };
 
-Schedule_t	slHeal[] =
+Schedule_t	slRoHeal[] =
 {
 	{
-		tlHeal,
-		ARRAYSIZE ( tlHeal ),
+		tlRoHeal,
+		ARRAYSIZE ( tlRoHeal ),
 		0,	// Don't interrupt or he'll end up running around with a needle all the time
 		0,
 		"Heal"
@@ -231,7 +230,7 @@ Schedule_t	slHeal[] =
 };
 
 
-Task_t	tlFaceTarget[] =
+Task_t	tlRoFaceTarget[] =
 {
 	{ TASK_STOP_MOVING,			(float)0		},
 	{ TASK_FACE_TARGET,			(float)0		},
@@ -239,11 +238,11 @@ Task_t	tlFaceTarget[] =
 	{ TASK_SET_SCHEDULE,		(float)SCHED_TARGET_CHASE },
 };
 
-Schedule_t	slFaceTarget[] =
+Schedule_t	slRoFaceTarget[] =
 {
 	{
-		tlFaceTarget,
-		ARRAYSIZE ( tlFaceTarget ),
+		tlRoFaceTarget,
+		ARRAYSIZE ( tlRoFaceTarget ),
 		bits_COND_CLIENT_PUSH |
 		bits_COND_NEW_ENEMY |
 		bits_COND_HEAR_SOUND,
@@ -254,7 +253,7 @@ Schedule_t	slFaceTarget[] =
 };
 
 
-Task_t	tlSciPanic[] =
+Task_t	tlRoSciPanic[] =
 {
 	{ TASK_STOP_MOVING,			(float)0		},
 	{ TASK_FACE_ENEMY,			(float)0		},
@@ -263,11 +262,11 @@ Task_t	tlSciPanic[] =
 	{ TASK_SET_ACTIVITY,		(float)ACT_IDLE	},
 };
 
-Schedule_t	slSciPanic[] =
+Schedule_t	slRoSciPanic[] =
 {
 	{
-		tlSciPanic,
-		ARRAYSIZE ( tlSciPanic ),
+		tlRoSciPanic,
+		ARRAYSIZE ( tlRoSciPanic ),
 		0,
 		0,
 		"SciPanic"
@@ -275,7 +274,7 @@ Schedule_t	slSciPanic[] =
 };
 
 
-Task_t	tlIdleSciStand[] =
+Task_t	tlRoIdleSciStand[] =
 {
 	{ TASK_STOP_MOVING,			0				},
 	{ TASK_SET_ACTIVITY,		(float)ACT_IDLE },
@@ -283,11 +282,11 @@ Task_t	tlIdleSciStand[] =
 	{ TASK_TLK_HEADRESET,		(float)0		}, // reset head position
 };
 
-Schedule_t	slIdleSciStand[] =
+Schedule_t	slRoIdleSciStand[] =
 {
 	{ 
-		tlIdleSciStand,
-		ARRAYSIZE ( tlIdleSciStand ), 
+		tlRoIdleSciStand,
+		ARRAYSIZE ( tlRoIdleSciStand ),
 		bits_COND_NEW_ENEMY		|
 		bits_COND_LIGHT_DAMAGE	|
 		bits_COND_HEAVY_DAMAGE	|
@@ -309,7 +308,7 @@ Schedule_t	slIdleSciStand[] =
 };
 
 
-Task_t	tlScientistCover[] =
+Task_t	tlRoScientistCover[] =
 {
 	{ TASK_SET_FAIL_SCHEDULE,		(float)SCHED_PANIC },		// If you fail, just panic!
 	{ TASK_STOP_MOVING,				(float)0					},
@@ -319,11 +318,11 @@ Task_t	tlScientistCover[] =
 	{ TASK_SET_SCHEDULE,			(float)SCHED_HIDE			},
 };
 
-Schedule_t	slScientistCover[] =
+Schedule_t	slRoScientistCover[] =
 {
 	{ 
-		tlScientistCover,
-		ARRAYSIZE ( tlScientistCover ), 
+		tlRoScientistCover,
+		ARRAYSIZE ( tlRoScientistCover ),
 		bits_COND_NEW_ENEMY,
 		0,
 		"ScientistCover"
@@ -332,20 +331,20 @@ Schedule_t	slScientistCover[] =
 
 
 
-Task_t	tlScientistHide[] =
+Task_t	tlRoScientistHide[] =
 {
 	{ TASK_SET_FAIL_SCHEDULE,		(float)SCHED_PANIC },		// If you fail, just panic!
 	{ TASK_STOP_MOVING,				(float)0					},
 	{ TASK_PLAY_SEQUENCE,			(float)ACT_CROUCH			},
 	{ TASK_SET_ACTIVITY,			(float)ACT_CROUCHIDLE		},	// FIXME: This looks lame
-	{ TASK_WAIT_RANDOM,				10.0f						},
+	{ TASK_WAIT_RANDOM,				(float)10.0					},
 };
 
-Schedule_t	slScientistHide[] =
+Schedule_t	slRoScientistHide[] =
 {
 	{ 
-		tlScientistHide,
-		ARRAYSIZE ( tlScientistHide ), 
+		tlRoScientistHide,
+		ARRAYSIZE ( tlRoScientistHide ),
 		bits_COND_NEW_ENEMY |
 		bits_COND_HEAR_SOUND |
 		bits_COND_SEE_ENEMY |
@@ -358,22 +357,22 @@ Schedule_t	slScientistHide[] =
 };
 
 
-Task_t	tlScientistStartle[] =
+Task_t	tlRoScientistStartle[] =
 {
 	{ TASK_SET_FAIL_SCHEDULE,		(float)SCHED_PANIC },		// If you fail, just panic!
-	{ TASK_RANDOM_SCREAM,			0.3f },					// Scream 30% of the time
+	{ TASK_RANDOM_SCREAM,			(float)0.3 },				// Scream 30% of the time
 	{ TASK_STOP_MOVING,				(float)0					},
 	{ TASK_PLAY_SEQUENCE_FACE_ENEMY,			(float)ACT_CROUCH			},
-	{ TASK_RANDOM_SCREAM,			0.1f },					// Scream again 10% of the time
+	{ TASK_RANDOM_SCREAM,			(float)0.1 },				// Scream again 10% of the time
 	{ TASK_PLAY_SEQUENCE_FACE_ENEMY,			(float)ACT_CROUCHIDLE		},
-	{ TASK_WAIT_RANDOM,				1.0f						},
+	{ TASK_WAIT_RANDOM,				(float)1.0					},
 };
 
-Schedule_t	slScientistStartle[] =
+Schedule_t	slRoScientistStartle[] =
 {
 	{ 
-		tlScientistStartle,
-		ARRAYSIZE ( tlScientistStartle ), 
+		tlRoScientistStartle,
+		ARRAYSIZE ( tlRoScientistStartle ),
 		bits_COND_NEW_ENEMY |
 		bits_COND_SEE_ENEMY |
 		bits_COND_SEE_HATE |
@@ -386,7 +385,7 @@ Schedule_t	slScientistStartle[] =
 
 
 
-Task_t	tlFear[] =
+Task_t	tlRoFear[] =
 {
 	{ TASK_STOP_MOVING,				(float)0					},
 	{ TASK_FACE_ENEMY,				(float)0					},
@@ -394,11 +393,11 @@ Task_t	tlFear[] =
 //	{ TASK_PLAY_SEQUENCE,			(float)ACT_FEAR_DISPLAY		},
 };
 
-Schedule_t	slFear[] =
+Schedule_t	slRoFear[] =
 {
 	{ 
-		tlFear,
-		ARRAYSIZE ( tlFear ), 
+		tlRoFear,
+		ARRAYSIZE ( tlRoFear ),
 		bits_COND_NEW_ENEMY,
 		0,
 		"Fear"
@@ -406,46 +405,46 @@ Schedule_t	slFear[] =
 };
 
 
-DEFINE_CUSTOM_SCHEDULES( CScientist )
+DEFINE_CUSTOM_SCHEDULES( CRosenberg )
 {
-	slFollow,
-	slFaceTarget,
-	slIdleSciStand,
-	slFear,
-	slScientistCover,
-	slScientistHide,
-	slScientistStartle,
-	slHeal,
-	slStopFollowing,
-	slSciPanic,
-	slFollowScared,
-	slFaceTargetScared,
+	slRoFollow,
+	slRoFaceTarget,
+	slRoIdleSciStand,
+	slRoFear,
+	slRoScientistCover,
+	slRoScientistHide,
+	slRoScientistStartle,
+	slRoHeal,
+	slRoStopFollowing,
+	slRoSciPanic,
+	slRoFollowScared,
+	slRoFaceTargetScared,
 };
 
 
-IMPLEMENT_CUSTOM_SCHEDULES( CScientist, CTalkMonster );
+IMPLEMENT_CUSTOM_SCHEDULES( CRosenberg, CTalkMonster );
 
 
-void CScientist::DeclineFollowing( void )
+void CRosenberg::DeclineFollowing( void )
 {
 	Talk( 10 );
 	m_hTalkTarget = m_hEnemy;
-	PlaySentence( "SC_POK", 2, VOL_NORM, ATTN_NORM );
+	PlaySentence( "RO_POK", 2, VOL_NORM, ATTN_NORM );
 }
 
 
-void CScientist :: Scream( void )
+void CRosenberg :: Scream( void )
 {
 	if ( FOkToSpeak() )
 	{
 		Talk( 10 );
 		m_hTalkTarget = m_hEnemy;
-		PlaySentence( "SC_SCREAM", RANDOM_FLOAT(3, 6), VOL_NORM, ATTN_NORM );
+		PlaySentence( "RO_SCREAM", RANDOM_FLOAT(3, 6), VOL_NORM, ATTN_NORM );
 	}
 }
 
 
-Activity CScientist::GetStoppedActivity( void )
+Activity CRosenberg::GetStoppedActivity( void )
 { 
 	if ( m_hEnemy != NULL ) 
 		return ACT_EXCITED;
@@ -453,7 +452,7 @@ Activity CScientist::GetStoppedActivity( void )
 }
 
 
-void CScientist :: StartTask( Task_t *pTask )
+void CRosenberg :: StartTask( Task_t *pTask )
 {
 	switch( pTask->iTask )
 	{
@@ -461,7 +460,7 @@ void CScientist :: StartTask( Task_t *pTask )
 //		if ( FOkToSpeak() )
 		Talk( 2 );
 		m_hTalkTarget = m_hTargetEnt;
-		PlaySentence( "SC_HEAL", 2, VOL_NORM, ATTN_IDLE );
+		PlaySentence( "RO_HEAL", 2, VOL_NORM, ATTN_IDLE );
 
 		TaskComplete();
 		break;
@@ -483,9 +482,9 @@ void CScientist :: StartTask( Task_t *pTask )
 			Talk( 2 );
 			m_hTalkTarget = m_hEnemy;
 			if ( m_hEnemy->IsPlayer() )
-				PlaySentence( "SC_PLFEAR", 5, VOL_NORM, ATTN_NORM );
+				PlaySentence( "RO_PLFEAR", 5, VOL_NORM, ATTN_NORM );
 			else
-				PlaySentence( "SC_FEAR", 5, VOL_NORM, ATTN_NORM );
+				PlaySentence( "RO_FEAR", 5, VOL_NORM, ATTN_NORM );
 		}
 		TaskComplete();
 		break;
@@ -517,7 +516,7 @@ void CScientist :: StartTask( Task_t *pTask )
 	}
 }
 
-void CScientist :: RunTask( Task_t *pTask )
+void CRosenberg :: RunTask( Task_t *pTask )
 {
 	switch ( pTask->iTask )
 	{
@@ -588,7 +587,7 @@ void CScientist :: RunTask( Task_t *pTask )
 // Classify - indicates this monster's place in the 
 // relationship table.
 //=========================================================
-int	CScientist :: Classify ( void )
+int	CRosenberg :: Classify ( void )
 {
 	return	CLASS_HUMAN_PASSIVE;
 }
@@ -598,7 +597,7 @@ int	CScientist :: Classify ( void )
 // SetYawSpeed - allows each sequence to have a different
 // turn rate associated with it.
 //=========================================================
-void CScientist :: SetYawSpeed ( void )
+void CRosenberg :: SetYawSpeed ( void )
 {
 	int ys;
 
@@ -628,7 +627,7 @@ void CScientist :: SetYawSpeed ( void )
 // HandleAnimEvent - catches the monster-specific messages
 // that occur when tagged animation frames are played.
 //=========================================================
-void CScientist :: HandleAnimEvent( MonsterEvent_t *pEvent )
+void CRosenberg :: HandleAnimEvent( MonsterEvent_t *pEvent )
 {
 	switch( pEvent->event )
 	{		
@@ -656,7 +655,7 @@ void CScientist :: HandleAnimEvent( MonsterEvent_t *pEvent )
 //=========================================================
 // Spawn
 //=========================================================
-void CScientist :: Spawn( void )
+void CRosenberg :: Spawn( void )
 {
 	Precache( );
 
@@ -688,20 +687,22 @@ void CScientist :: Spawn( void )
 		pev->skin = 1;
 	
 	MonsterInit();
-	SetUse( FollowerUse );
+
+	if (!(pev->spawnflags & SF_MONSTER_PREDISASTER))
+		SetUse( FollowerUse );
 }
 
 //=========================================================
 // Precache - precaches all resources this monster needs
 //=========================================================
-void CScientist :: Precache( void )
+void CRosenberg :: Precache( void )
 {
 	PRECACHE_MODEL("models/scientist.mdl");
-	PRECACHE_SOUND("scientist/sci_pain1.wav");
-	PRECACHE_SOUND("scientist/sci_pain2.wav");
-	PRECACHE_SOUND("scientist/sci_pain3.wav");
-	PRECACHE_SOUND("scientist/sci_pain4.wav");
-	PRECACHE_SOUND("scientist/sci_pain5.wav");
+	PRECACHE_SOUND("rosenberg/ro_pain1.wav");
+	PRECACHE_SOUND("rosenberg/ro_pain2.wav");
+	PRECACHE_SOUND("rosenberg/ro_pain3.wav");
+	PRECACHE_SOUND("rosenberg/ro_pain4.wav");
+	PRECACHE_SOUND("rosenberg/ro_pain5.wav");
 
 	// every new scientist must call this, otherwise
 	// when a level is loaded, nobody will talk (time is reset to 0)
@@ -711,7 +712,7 @@ void CScientist :: Precache( void )
 }	
 
 // Init talk data
-void CScientist :: TalkInit()
+void CRosenberg :: TalkInit()
 {
 	
 	CTalkMonster::TalkInit();
@@ -724,59 +725,36 @@ void CScientist :: TalkInit()
 
 	// scientists speach group names (group names are in sentences.txt)
 
-	m_szGrp[TLK_ANSWER]  =	"SC_ANSWER";
-	m_szGrp[TLK_QUESTION] =	"SC_QUESTION";
-	m_szGrp[TLK_IDLE] =		"SC_IDLE";
-	m_szGrp[TLK_STARE] =	"SC_STARE";
-	m_szGrp[TLK_USE] =		"SC_OK";
-	m_szGrp[TLK_UNUSE] =	"SC_WAIT";
-	m_szGrp[TLK_STOP] =		"SC_STOP";
-	m_szGrp[TLK_NOSHOOT] =	"SC_SCARED";
-	m_szGrp[TLK_HELLO] =	"SC_HELLO";
+	m_szGrp[TLK_ANSWER]  =	"RO_ANSWER";
+	m_szGrp[TLK_QUESTION] =	"RO_QUESTION";
+	m_szGrp[TLK_IDLE] =		"RO_IDLE";
+	m_szGrp[TLK_STARE] =	"RO_STARE";
+	m_szGrp[TLK_USE] =		"RO_OK";
+	m_szGrp[TLK_UNUSE] =	"RO_WAIT";
+	m_szGrp[TLK_STOP] =		"RO_STOP";
+	m_szGrp[TLK_NOSHOOT] =	"RO_SCARED";
+	m_szGrp[TLK_HELLO] =	"RO_HELLO";
 
-	m_szGrp[TLK_PLHURT1] =	"!SC_CUREA";
-	m_szGrp[TLK_PLHURT2] =	"!SC_CUREB"; 
-	m_szGrp[TLK_PLHURT3] =	"!SC_CUREC";
+	m_szGrp[TLK_PLHURT1] =	"!RO_CUREA";
+	m_szGrp[TLK_PLHURT2] =	"!RO_CUREB"; 
+	m_szGrp[TLK_PLHURT3] =	"!RO_CUREC";
 
-	m_szGrp[TLK_PHELLO] =	"SC_PHELLO";
-	m_szGrp[TLK_PIDLE] =	"SC_PIDLE";
-	m_szGrp[TLK_PQUESTION] = "SC_PQUEST";
-	m_szGrp[TLK_SMELL] =	"SC_SMELL";
+	m_szGrp[TLK_PHELLO] =	"RO_PHELLO";
+	m_szGrp[TLK_PIDLE] =	"RO_PIDLE";
+	m_szGrp[TLK_PQUESTION] = "RO_PQUEST";
+	m_szGrp[TLK_SMELL] =	"RO_SMELL";
 	
-	m_szGrp[TLK_WOUND] =	"SC_WOUND";
-	m_szGrp[TLK_MORTAL] =	"SC_MORTAL";
+	m_szGrp[TLK_WOUND] =	"RO_WOUND";
+	m_szGrp[TLK_MORTAL] =	"RO_MORTAL";
 
-	// get voice for head
-	switch (pev->body % 3)
-	{
-	default:
-	case HEAD_GLASSES:	m_voicePitch = 105; break;	//glasses
-	case HEAD_EINSTEIN: m_voicePitch = 100; break;	//einstein
-	case HEAD_LUTHER:	m_voicePitch = 95;  break;	//luther
-	case HEAD_SLICK:	m_voicePitch = 100;  break;//slick
-	}
+	m_voicePitch = 100;
 }
-
-int CScientist :: TakeDamage( entvars_t *pevInflictor, entvars_t *pevAttacker, float flDamage, int bitsDamageType)
-{
-
-	if ( pevInflictor && pevInflictor->flags & FL_CLIENT )
-	{
-		Remember( bits_MEMORY_PROVOKED );
-		StopFollowing( TRUE );
-	}
-
-	// make sure friends talk about it if player hurts scientist...
-	return CTalkMonster::TakeDamage(pevInflictor, pevAttacker, flDamage, bitsDamageType);
-}
-
 
 //=========================================================
 // ISoundMask - returns a bit mask indicating which types
-// of sounds this monster regards. In the base class implementation,
-// monsters care about all sounds, but no scents.
+// of sounds this monster regards.
 //=========================================================
-int CScientist :: ISoundMask ( void )
+int CRosenberg :: ISoundMask ( void )
 {
 	return	bits_SOUND_WORLD	|
 			bits_SOUND_COMBAT	|
@@ -787,7 +765,7 @@ int CScientist :: ISoundMask ( void )
 //=========================================================
 // PainSound
 //=========================================================
-void CScientist :: PainSound ( void )
+void CRosenberg :: PainSound ( void )
 {
 	if (gpGlobals->time < m_painTime )
 		return;
@@ -796,31 +774,31 @@ void CScientist :: PainSound ( void )
 
 	switch (RANDOM_LONG(0,4))
 	{
-	case 0: EMIT_SOUND_DYN( ENT(pev), CHAN_VOICE, "scientist/sci_pain1.wav", 1, ATTN_NORM, 0, GetVoicePitch()); break;
-	case 1: EMIT_SOUND_DYN( ENT(pev), CHAN_VOICE, "scientist/sci_pain2.wav", 1, ATTN_NORM, 0, GetVoicePitch()); break;
-	case 2: EMIT_SOUND_DYN( ENT(pev), CHAN_VOICE, "scientist/sci_pain3.wav", 1, ATTN_NORM, 0, GetVoicePitch()); break;
-	case 3: EMIT_SOUND_DYN( ENT(pev), CHAN_VOICE, "scientist/sci_pain4.wav", 1, ATTN_NORM, 0, GetVoicePitch()); break;
-	case 4: EMIT_SOUND_DYN( ENT(pev), CHAN_VOICE, "scientist/sci_pain5.wav", 1, ATTN_NORM, 0, GetVoicePitch()); break;
+	case 0: EMIT_SOUND( ENT(pev), CHAN_VOICE, "rosenberg/ro_pain1.wav", 1, ATTN_NORM ); break;
+	case 1: EMIT_SOUND( ENT(pev), CHAN_VOICE, "rosenberg/ro_pain2.wav", 1, ATTN_NORM ); break;
+	case 2: EMIT_SOUND( ENT(pev), CHAN_VOICE, "rosenberg/ro_pain3.wav", 1, ATTN_NORM ); break;
+	case 3: EMIT_SOUND( ENT(pev), CHAN_VOICE, "rosenberg/ro_pain4.wav", 1, ATTN_NORM ); break;
+	case 4: EMIT_SOUND( ENT(pev), CHAN_VOICE, "rosenberg/ro_pain5.wav", 1, ATTN_NORM ); break;
 	}
 }
 
 //=========================================================
 // DeathSound 
 //=========================================================
-void CScientist :: DeathSound ( void )
+void CRosenberg :: DeathSound ( void )
 {
 	PainSound();
 }
 
 
-void CScientist::Killed( entvars_t *pevAttacker, int iGib )
+void CRosenberg::Killed( entvars_t *pevAttacker, int iGib )
 {
 	SetUse( NULL );	
 	CTalkMonster::Killed( pevAttacker, iGib );
 }
 
 
-void CScientist :: SetActivity ( Activity newActivity )
+void CRosenberg :: SetActivity ( Activity newActivity )
 {
 	int	iSequence;
 
@@ -833,7 +811,7 @@ void CScientist :: SetActivity ( Activity newActivity )
 }
 
 
-Schedule_t* CScientist :: GetScheduleOfType ( int Type )
+Schedule_t* CRosenberg :: GetScheduleOfType ( int Type )
 {
 	Schedule_t *psched;
 
@@ -846,24 +824,24 @@ Schedule_t* CScientist :: GetScheduleOfType ( int Type )
 		psched = CTalkMonster::GetScheduleOfType(Type);
 
 		if (psched == slIdleStand)
-			return slFaceTarget;	// override this for different target face behavior
+			return slRoFaceTarget;	// override this for different target face behavior
 		else
 			return psched;
 
 	case SCHED_TARGET_CHASE:
-		return slFollow;
+		return slRoFollow;
 	
 	case SCHED_CANT_FOLLOW:
-		return slStopFollowing;
+		return slRoStopFollowing;
 
 	case SCHED_PANIC:
-		return slSciPanic;
+		return slRoSciPanic;
 
 	case SCHED_TARGET_CHASE_SCARED:
-		return slFollowScared;
+		return slRoFollowScared;
 
 	case SCHED_TARGET_FACE_SCARED:
-		return slFaceTargetScared;
+		return slRoFaceTargetScared;
 
 	case SCHED_IDLE_STAND:
 		// call base class default so that scientist will talk
@@ -871,24 +849,24 @@ Schedule_t* CScientist :: GetScheduleOfType ( int Type )
 		psched = CTalkMonster::GetScheduleOfType(Type);
 
 		if (psched == slIdleStand)
-			return slIdleSciStand;
+			return slRoIdleSciStand;
 		else
 			return psched;
 
 	case SCHED_HIDE:
-		return slScientistHide;
+		return slRoScientistHide;
 
 	case SCHED_STARTLE:
-		return slScientistStartle;
+		return slRoScientistStartle;
 
 	case SCHED_FEAR:
-		return slFear;
+		return slRoFear;
 	}
 
 	return CTalkMonster::GetScheduleOfType( Type );
 }
 
-Schedule_t *CScientist :: GetSchedule ( void )
+Schedule_t *CRosenberg :: GetSchedule ( void )
 {
 	// so we don't keep calling through the EHANDLE stuff
 	CBaseEntity *pEnemy = m_hEnemy;
@@ -973,7 +951,7 @@ Schedule_t *CScientist :: GetSchedule ( void )
 				if ( TargetDistance() <= 128 )
 				{
 					if ( CanHeal() )	// Heal opportunistically
-						return slHeal;
+						return slRoHeal;
 					if ( HasConditions( bits_COND_CLIENT_PUSH ) )	// Player wants me to move
 						return GetScheduleOfType( SCHED_MOVE_AWAY_FOLLOW );
 				}
@@ -995,7 +973,7 @@ Schedule_t *CScientist :: GetSchedule ( void )
 		break;
 	case MONSTERSTATE_COMBAT:
 		if ( HasConditions( bits_COND_NEW_ENEMY ) )
-			return slFear;					// Point and scream!
+			return slRoFear;					// Point and scream!
 
 		// Just took cover, so stay put and stew for a few seconds instead of
 		// bolting for a new hiding place every frame
@@ -1012,7 +990,7 @@ Schedule_t *CScientist :: GetSchedule ( void )
 		if ( HasConditions( bits_COND_SEE_ENEMY ) )
 		{
 			m_coverTime = gpGlobals->time;
-			return slScientistCover;		// Take Cover
+			return slRoScientistCover;		// Take Cover
 		}
 
 		if ( HasConditions( bits_COND_HEAR_SOUND ) )
@@ -1022,14 +1000,14 @@ Schedule_t *CScientist :: GetSchedule ( void )
 		}
 
 		m_coverTime = gpGlobals->time;
-		return slScientistCover;			// Run & Cower
+		return slRoScientistCover;			// Run & Cower
 		break;
 	}
 	
 	return CTalkMonster::GetSchedule();
 }
 
-MONSTERSTATE CScientist :: GetIdealState ( void )
+MONSTERSTATE CRosenberg :: GetIdealState ( void )
 {
 	switch ( m_MonsterState )
 	{
@@ -1092,7 +1070,7 @@ MONSTERSTATE CScientist :: GetIdealState ( void )
 }
 
 
-BOOL CScientist::CanHeal( void )
+BOOL CRosenberg::CanHeal( void )
 { 
 	if ( (m_healTime > gpGlobals->time) || (m_hTargetEnt == NULL) || (m_hTargetEnt->pev->health > (m_hTargetEnt->pev->max_health * 0.5f)) )
 		return FALSE;
@@ -1100,7 +1078,7 @@ BOOL CScientist::CanHeal( void )
 	return TRUE;
 }
 
-void CScientist::Heal( void )
+void CRosenberg::Heal( void )
 {
 	if ( !CanHeal() )
 		return;
@@ -1114,367 +1092,10 @@ void CScientist::Heal( void )
 	m_healTime = gpGlobals->time + 60;
 }
 
-int CScientist::FriendNumber( int arrayNumber )
+int CRosenberg::FriendNumber( int arrayNumber )
 {
 	static int array[3] = { 1, 2, 0 };
 	if ( arrayNumber < 3 )
 		return array[ arrayNumber ];
 	return arrayNumber;
 }
-
-
-//=========================================================
-// Dead Scientist PROP
-//=========================================================
-class CDeadScientist : public CBaseMonster
-{
-public:
-	void Spawn( void );
-	int	Classify ( void ) { return	CLASS_HUMAN_PASSIVE; }
-
-	void KeyValue( KeyValueData *pkvd );
-	int	m_iPose;// which sequence to display
-	static char *m_szPoses[7];
-};
-char *CDeadScientist::m_szPoses[] = { "lying_on_back", "lying_on_stomach", "dead_sitting", "dead_hang", "dead_table1", "dead_table2", "dead_table3" };
-
-void CDeadScientist::KeyValue( KeyValueData *pkvd )
-{
-	if (FStrEq(pkvd->szKeyName, "pose"))
-	{
-		m_iPose = atoi(pkvd->szValue);
-		pkvd->fHandled = TRUE;
-	}
-	else
-		CBaseMonster::KeyValue( pkvd );
-}
-LINK_ENTITY_TO_CLASS( monster_scientist_dead, CDeadScientist );
-
-//
-// ********** DeadScientist SPAWN **********
-//
-void CDeadScientist :: Spawn( )
-{
-	PRECACHE_MODEL("models/scientist.mdl");
-	SET_MODEL(ENT(pev), "models/scientist.mdl");
-	
-	pev->effects		= 0;
-	pev->sequence		= 0;
-	// Corpses have less health
-	pev->health			= 8;//gSkillData.scientistHealth;
-	
-	m_bloodColor = BLOOD_COLOR_RED;
-
-	if ( pev->body == -1 )
-	{// -1 chooses a random head
-		pev->body = RANDOM_LONG(0, NUM_SCIENTIST_HEADS-1);// pick a head, any head
-	}
-	// Luther is black, make his hands black
-	if ( pev->body == HEAD_LUTHER )
-		pev->skin = 1;
-	else
-		pev->skin = 0;
-
-	pev->sequence = LookupSequence( m_szPoses[m_iPose] );
-	if (pev->sequence == -1)
-	{
-		ALERT ( at_console, "Dead scientist with bad pose\n" );
-	}
-
-	//	pev->skin += 2; // use bloody skin -- UNDONE: Turn this back on when we have a bloody skin again!
-	MonsterInitDead();
-}
-
-
-//=========================================================
-// Sitting Scientist PROP
-//=========================================================
-
-class CSittingScientist : public CScientist // kdb: changed from public CBaseMonster so he can speak
-{
-	friend void SR_Register_scientist( void ); //SR_FRIEND
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-public:
-	void Spawn( void );
-	void  Precache( void );
-
-	void EXPORT SittingThink( void );
-	int	Classify ( void );
-	virtual int		Save( CSave &save );
-	virtual int		Restore( CRestore &restore );
-	static	TYPEDESCRIPTION m_SaveData[];
-
-	virtual void SetAnswerQuestion( CTalkMonster *pSpeaker );
-	int FriendNumber( int arrayNumber );
-
-	int FIdleSpeak ( void );
-	int		m_baseSequence;	
-	int		m_headTurn;
-	float	m_flResponseDelay;
-};
-
-LINK_ENTITY_TO_CLASS( monster_sitting_scientist, CSittingScientist );
-TYPEDESCRIPTION	CSittingScientist::m_SaveData[] = 
-{
-	// Don't need to save/restore m_baseSequence (recalced)
-	DEFINE_FIELD( CSittingScientist, m_headTurn, FIELD_INTEGER ),
-	DEFINE_FIELD( CSittingScientist, m_flResponseDelay, FIELD_FLOAT ),
-};
-
-IMPLEMENT_SAVERESTORE( CSittingScientist, CScientist );
-
-// animation sequence aliases 
-typedef enum
-{
-SITTING_ANIM_sitlookleft,
-SITTING_ANIM_sitlookright,
-SITTING_ANIM_sitscared,
-SITTING_ANIM_sitting2,
-SITTING_ANIM_sitting3
-} SITTING_ANIM;
-
-
-//
-// ********** Scientist SPAWN **********
-//
-void CSittingScientist :: Spawn( )
-{
-	PRECACHE_MODEL("models/scientist.mdl");
-	SET_MODEL(ENT(pev), "models/scientist.mdl");
-	Precache();
-	InitBoneControllers();
-
-	UTIL_SetSize(pev, Vector(-14, -14, 0), Vector(14, 14, 36));
-
-	pev->solid			= SOLID_SLIDEBOX;
-	pev->movetype		= MOVETYPE_STEP;
-	pev->effects		= 0;
-	pev->health			= 50;
-	
-	m_bloodColor = BLOOD_COLOR_RED;
-	m_flFieldOfView		= VIEW_FIELD_WIDE; // indicates the width of this monster's forward view cone ( as a dotproduct result )
-
-	m_afCapability		= bits_CAP_HEAR | bits_CAP_TURN_HEAD;
-
-	SetBits(pev->spawnflags, SF_MONSTER_PREDISASTER); // predisaster only!
-
-	if ( pev->body == -1 )
-	{// -1 chooses a random head
-		pev->body = RANDOM_LONG(0, NUM_SCIENTIST_HEADS-1);// pick a head, any head
-	}
-	// Luther is black, make his hands black
-	if ( pev->body == HEAD_LUTHER )
-		pev->skin = 1;
-	
-	m_baseSequence = LookupSequence( "sitlookleft" );
-	pev->sequence = m_baseSequence + RANDOM_LONG(0,4);
-	ResetSequenceInfo( );
-	
-	SetThink (SittingThink);
-	pev->nextthink = gpGlobals->time + 0.1f;
-
-	DROP_TO_FLOOR ( ENT(pev) );
-}
-
-void CSittingScientist :: Precache( void )
-{
-	m_baseSequence = LookupSequence( "sitlookleft" );
-	TalkInit();
-}
-
-//=========================================================
-// ID as a passive human
-//=========================================================
-int	CSittingScientist :: Classify ( void )
-{
-	return	CLASS_HUMAN_PASSIVE;
-}
-
-
-int CSittingScientist::FriendNumber( int arrayNumber )
-{
-	static int array[3] = { 2, 1, 0 };
-	if ( arrayNumber < 3 )
-		return array[ arrayNumber ];
-	return arrayNumber;
-}
-
-
-
-//=========================================================
-// sit, do stuff
-//=========================================================
-void CSittingScientist :: SittingThink( void )
-{
-	CBaseEntity *pent;	
-
-	StudioFrameAdvance( );
-
-	// try to greet player
-	if (FIdleHello())
-	{
-		pent = FindNearestFriend(TRUE);
-		if (pent)
-		{
-			float yaw = VecToYaw(pent->pev->origin - pev->origin) - pev->angles.y;
-
-			if (yaw > 180) yaw -= 360;
-			if (yaw < -180) yaw += 360;
-				
-			if (yaw > 0)
-				pev->sequence = m_baseSequence + SITTING_ANIM_sitlookleft;
-			else
-				pev->sequence = m_baseSequence + SITTING_ANIM_sitlookright;
-		
-		ResetSequenceInfo( );
-		pev->frame = 0;
-		SetBoneController( 0, 0 );
-		}
-	}
-	else if (m_fSequenceFinished)
-	{
-		int i = RANDOM_LONG(0,99);
-		m_headTurn = 0;
-		
-		if (m_flResponseDelay && gpGlobals->time > m_flResponseDelay)
-		{
-			// respond to question
-			IdleRespond();
-			pev->sequence = m_baseSequence + SITTING_ANIM_sitscared;
-			m_flResponseDelay = 0;
-		}
-		else if (i < 30)
-		{
-			pev->sequence = m_baseSequence + SITTING_ANIM_sitting3;	
-
-			// turn towards player or nearest friend and speak
-
-			if (!FBitSet(m_bitsSaid, bit_saidHelloPlayer))
-				pent = FindNearestFriend(TRUE);
-			else
-				pent = FindNearestFriend(FALSE);
-
-			if (!FIdleSpeak() || !pent)
-			{	
-				m_headTurn = RANDOM_LONG(0,8) * 10 - 40;
-				pev->sequence = m_baseSequence + SITTING_ANIM_sitting3;
-			}
-			else
-			{
-				// only turn head if we spoke
-				float yaw = VecToYaw(pent->pev->origin - pev->origin) - pev->angles.y;
-
-				if (yaw > 180) yaw -= 360;
-				if (yaw < -180) yaw += 360;
-				
-				if (yaw > 0)
-					pev->sequence = m_baseSequence + SITTING_ANIM_sitlookleft;
-				else
-					pev->sequence = m_baseSequence + SITTING_ANIM_sitlookright;
-
-				//ALERT(at_console, "sitting speak\n");
-			}
-		}
-		else if (i < 60)
-		{
-			pev->sequence = m_baseSequence + SITTING_ANIM_sitting3;	
-			m_headTurn = RANDOM_LONG(0,8) * 10 - 40;
-			if (RANDOM_LONG(0,99) < 5)
-			{
-				//ALERT(at_console, "sitting speak2\n");
-				FIdleSpeak();
-			}
-		}
-		else if (i < 80)
-		{
-			pev->sequence = m_baseSequence + SITTING_ANIM_sitting2;
-		}
-		else if (i < 100)
-		{
-			pev->sequence = m_baseSequence + SITTING_ANIM_sitscared;
-		}
-
-		ResetSequenceInfo( );
-		pev->frame = 0;
-		SetBoneController( 0, m_headTurn );
-	}
-	pev->nextthink = gpGlobals->time + 0.1f;
-}
-
-// prepare sitting scientist to answer a question
-void CSittingScientist :: SetAnswerQuestion( CTalkMonster *pSpeaker )
-{
-	m_flResponseDelay = gpGlobals->time + RANDOM_FLOAT(3, 4);
-	m_hTalkTarget = (CBaseMonster *)pSpeaker;
-}
-
-
-//=========================================================
-// FIdleSpeak
-// ask question of nearby friend, or make statement
-//=========================================================
-int CSittingScientist :: FIdleSpeak ( void )
-{ 
-	// try to start a conversation, or make statement
-	int pitch;
-	
-	if (!FOkToSpeak())
-		return FALSE;
-
-	// set global min delay for next conversation
-	CTalkMonster::g_talkWaitTime = gpGlobals->time + RANDOM_FLOAT(4.8f, 5.2f);
-
-	pitch = GetVoicePitch();
-		
-	// if there is a friend nearby to speak to, play sentence, set friend's response time, return
-
-	// try to talk to any standing or sitting scientists nearby
-	CBaseEntity *pentFriend = FindNearestFriend(FALSE);
-
-	if (pentFriend && RANDOM_LONG(0,1))
-	{
-		CTalkMonster *pTalkMonster = GetClassPtr((CTalkMonster *)pentFriend->pev);
-		pTalkMonster->SetAnswerQuestion( this );
-		
-		IdleHeadTurn(pentFriend->pev->origin);
-		SENTENCEG_PlayRndSz( ENT(pev), m_szGrp[TLK_PQUESTION], 1.0f, ATTN_IDLE, 0, pitch );
-		// set global min delay for next conversation
-		CTalkMonster::g_talkWaitTime = gpGlobals->time + RANDOM_FLOAT(4.8f, 5.2f);
-		return TRUE;
-	}
-
-	// otherwise, play an idle statement
-	if (RANDOM_LONG(0,1))
-	{
-		SENTENCEG_PlayRndSz( ENT(pev), m_szGrp[TLK_PIDLE], 1.0f, ATTN_IDLE, 0, pitch );
-		// set global min delay for next conversation
-		CTalkMonster::g_talkWaitTime = gpGlobals->time + RANDOM_FLOAT(4.8f, 5.2f);
-		return TRUE;
-	}
-
-	// never spoke
-	CTalkMonster::g_talkWaitTime = 0;
-	return FALSE;
-}
-
-// BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_scientist( void )
-{
-	SR_REGISTER( "GV", CSittingScientist, SittingThink );
-}
-// END GENERATED SAVE-RESTORE EXPORTS

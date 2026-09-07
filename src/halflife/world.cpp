@@ -756,7 +756,7 @@ void CWorld :: KeyValue( KeyValueData *pkvd )
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
 void SR_Register_world( void )
 {
-	SR_REGISTER( "JF", CDecal, StaticDecal );
-	SR_REGISTER( "JG", CDecal, TriggerDecal );
+	SR_REGISTER( "JH", CDecal, StaticDecal );
+	SR_REGISTER( "JI", CDecal, TriggerDecal );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

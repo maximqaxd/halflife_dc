@@ -1449,13 +1449,13 @@ void CWeaponBox::SetObjectCollisionBox( void )
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
 void SR_Register_weapons( void )
 {
-	SR_REGISTER( "JB", CBasePlayerItem, DestroyItem );
-	SR_REGISTER( "JA", CBasePlayerItem, DefaultTouch );
-	SR_REGISTER( "JC", CBasePlayerItem, FallThink );
-	SR_REGISTER( "JD", CBasePlayerItem, Materialize );
-	SR_REGISTER( "IZ", CBasePlayerItem, AttemptToMaterialize );
-	SR_REGISTER( "IX", CBasePlayerAmmo, DefaultTouch );
-	SR_REGISTER( "IY", CBasePlayerAmmo, Materialize );
-	SR_REGISTER( "JE", CWeaponBox, Kill );
+	SR_REGISTER( "JD", CBasePlayerItem, DestroyItem );
+	SR_REGISTER( "JC", CBasePlayerItem, DefaultTouch );
+	SR_REGISTER( "JE", CBasePlayerItem, FallThink );
+	SR_REGISTER( "JF", CBasePlayerItem, Materialize );
+	SR_REGISTER( "JB", CBasePlayerItem, AttemptToMaterialize );
+	SR_REGISTER( "IZ", CBasePlayerAmmo, DefaultTouch );
+	SR_REGISTER( "JA", CBasePlayerAmmo, Materialize );
+	SR_REGISTER( "JG", CWeaponBox, Kill );
 }
 // END GENERATED SAVE-RESTORE EXPORTS
