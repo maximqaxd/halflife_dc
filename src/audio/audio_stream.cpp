@@ -15,10 +15,43 @@
 #include "audio_static.h"
 #include "audio_stream.h"
 
-// Reverb selection for the streaming mixer.
-cvar_t room_type = { "room_type", "0" };
-cvar_t waterroom_type = { "waterroom_type", "14" };
-cvar_t room_off = { "room_off", "0" };
+void CAudioStream::CheckOpen (void)
+{
+	if (!m_ready && COM_OpenFileAsync (m_path, m_file, &m_async) == 0)
+		m_ready = true;
+}
+
+qboolean CAudioStream::PlayFromOffset (void)
+{
+	HRESULT hr = m_pBuffer->SetCurrentPosition (m_dataofs);
+	if (hr != DS_OK)
+	{
+		S_DSoundError (hr);
+		return false;
+	}
+	return CAudio::Play ();
+}
+
+void CAudioStream::FreeMouth (void)
+{
+	if (m_mouth)
+	{
+		MnemoFree (m_mouth);
+		m_mouth = NULL;
+		m_mouthsize = 0;
+		if (m_entnum > 0 && (m_entchannel == CHAN_VOICE || m_entchannel == CHAN_STREAM))
+			cl_entities[m_entnum].mouth.mouthopen = 0;
+	}
+}
+
+void CAudioStream::FreeBuffer (void)
+{
+	if (m_pBuffer)
+	{
+		m_pBuffer->Release ();
+		m_pBuffer = NULL;
+	}
+}
 
 cvar_t	mouthdelay	= {"mouthdelay", "0.066"};
 cvar_t	mouthrate	= {"mouthrate", "1000"};
@@ -79,7 +112,7 @@ CAudioStream::CAudioStream (int buffersize) : CAudio ()
 	m_filedata = NULL;
 
 	m_playpos = 0;
-	m_half = 0;
+	m_suspended = 0;
 	m_pending = 0;
 	m_fill = 0;
 
@@ -169,7 +202,7 @@ void CAudioStream::Suspend (void)
 	if (hr != DS_OK)
 		Stop ();
 
-	m_stopping = true;
+	m_suspended = true;
 }
 
 /*
@@ -179,7 +212,12 @@ CAudioStream::Restore
 */
 void CAudioStream::Restore (void)
 {
-	Restart ();
+	if (m_suspended)
+	{
+		m_suspended = 0;
+		if (!CAudio::Play ())
+			Stop ();
+	}
 }
 
 /*

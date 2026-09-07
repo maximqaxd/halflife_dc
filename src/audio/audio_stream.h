@@ -43,6 +43,10 @@ public:
 	qboolean	LockAndCopy (int half, int leadin, int fadeout);
 	qboolean	LockCopyTail (int offset, int bytes);
 	void		ReadAhead (int offset);
+	void		CheckOpen (void);
+	qboolean	PlayFromOffset (void);
+	void		FreeMouth (void);
+	void		FreeBuffer (void);
 
 	int		m_state;
 	float		m_timeleft;
@@ -62,7 +66,7 @@ public:
 	int		m_dataofs;		// Data chunk offset inside m_filedata.
 	byte		*m_filedata;
 
-	byte		m_half;			// Half of the ring being filled.
+	byte		m_suspended;		// Resume playback when sound is restored.
 	int		m_playpos;
 	byte		m_fill;
 	int		m_pending;

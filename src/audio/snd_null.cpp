@@ -20,6 +20,42 @@
 #pragma optimize( "", off )
 #pragma inline_depth( 0 )
 
+cvar_t room_type = { "room_type", "0" };
+cvar_t waterroom_type = { "waterroom_type", "14" };
+cvar_t room_off = { "room_off", "0" };
+
+void SX_Init (void)
+{
+	Cvar_RegisterVariable (&room_type);
+	Cvar_RegisterVariable (&waterroom_type);
+	Cvar_RegisterVariable (&room_off);
+}
+
+char *VOX_GetDirectory (char *szpath, char *psz)
+{
+	char c;
+	int cb = 0;
+	char *pszscan = psz + Q_strlen (psz) - 1;
+
+	c = *pszscan;
+	while (pszscan > psz && c != '/')
+	{
+		c = *(--pszscan);
+		cb++;
+	}
+
+	if (c != '/')
+	{
+		Q_strcpy (szpath, "vox/");
+		return psz;
+	}
+
+	cb = Q_strlen (psz) - cb;
+	Q_memcpy (szpath, psz, cb);
+	szpath[cb] = 0;
+	return pszscan + 1;
+}
+
 extern "C" HWND	g_hWnd;
 
 // Sounds started from the console are not attached to anything in the world,

@@ -61,6 +61,42 @@ void AFile_Init (void)
 
 /*
 ==================
+AFile_FlushCache
+==================
+*/
+void AFile_FlushCache (void)
+{
+	int i;
+
+	for (i = 0 ; i < MAX_AFILES ; i++)
+	{
+		if (afiles[i] && afiles[i]->usage)
+			AFile_Free (afiles[i]);
+	}
+}
+
+/*
+==================
+AFile_EvictCache
+==================
+*/
+void AFile_EvictCache (void)
+{
+	int i, oldest;
+
+	oldest = afile_serial + 1;
+	for (i = 0 ; i < MAX_AFILES ; i++)
+	{
+		if (afiles[i] && afiles[i]->id < oldest && afiles[i]->usage)
+			oldest = afiles[i]->id;
+	}
+
+	if (oldest <= afile_serial)
+		AFile_Free (afiles[i]);
+}
+
+/*
+==================
 AFile_FreeSoundRam
 ==================
 */
@@ -76,6 +112,25 @@ int AFile_FreeSoundRam (void)
 		S_DSoundError (hr);
 
 	return caps.dwFreeHwMemBytes;
+}
+
+/*
+==================
+AFile_MaxContiguousSoundRam
+==================
+*/
+int AFile_MaxContiguousSoundRam (void)
+{
+	DSCAPS caps;
+	HRESULT hr;
+
+	memset (&caps, 0, sizeof(caps));
+
+	hr = lpDS->GetCaps (&caps);
+	if (hr != DS_OK)
+		S_DSoundError (hr);
+
+	return caps.dwMaxContigFreeHwMemBytes;
 }
 
 /*
@@ -395,4 +450,15 @@ void AFile_Free (afile_t *af)
 	}
 
 	MnemoFree (af);
+}
+
+/*
+==================
+AFile_Touch
+==================
+*/
+void AFile_Touch (afile_t *af)
+{
+	if (af)
+		af->id = afile_serial++;
 }

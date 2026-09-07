@@ -110,6 +110,9 @@ extern cvar_t mouthdelay;
 extern cvar_t mouthrate;
 extern cvar_t mouthscale;
 
+void SX_Init (void);
+char *VOX_GetDirectory (char *szpath, char *psz);
+
 #ifdef __cplusplus
 }
 #endif

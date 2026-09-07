@@ -35,10 +35,13 @@ extern "C" {
 #endif
 
 void		AFile_Init( void );
+void		AFile_FlushCache( void );
+void		AFile_EvictCache( void );
 
 // Free audio RAM as reported by the driver, and whether a resource of the
 // given size still leaves the reserve intact.
 int			AFile_FreeSoundRam( void );
+int			AFile_MaxContiguousSoundRam( void );
 qboolean	AFile_HasRoomFor( int size );
 
 // Total bytes of all resident resources.
@@ -57,6 +60,7 @@ int			AFile_ReadBlocksOffset( afile_t* af, byte* dest, int offset, int size );
 
 int			AFile_GetSize( afile_t* af );
 void		AFile_Free( afile_t* af );
+void		AFile_Touch( afile_t* af );
 
 void		AFile_CopyWords( void* dest, void* src, int count );
 
