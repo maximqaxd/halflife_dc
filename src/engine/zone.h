@@ -172,6 +172,7 @@ void CompactAllHeaps( void );
 void Cache_Report( void );
 
 void Mnemo_ReportToFile( void );
+qboolean Mnemo_IsInArena( void *p );
 
 char* CommatizeNumber( int num, char* pout );
 
