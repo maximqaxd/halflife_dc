@@ -31,8 +31,8 @@ CRC32_t LoadUnalignedLong( const void* p );
 int Zip_GetUncompressedSize( void* pHeader );
 int Zip_CompressFile( char* pszFileName, int level );
 int Zip_DecompressFile( char* pszFileName, char* pszOutName );
-void UnzipSaveGame( char* pszDir, char* pszName );
-void ZipSaveGame( char* pszDir, const char* pszName );
+void ZipSaveGame( char* pszDir, char* pszName );
+void UnzipSaveGame( char* pszDir, const char* pszName );
 void GrowOutBuffer( void* pStream, void** ppOutBuffer, int* pnOutSize );
 
 #endif

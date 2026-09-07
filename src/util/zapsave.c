@@ -228,8 +228,8 @@ __inline int Zap_FileExists( char *pszName )
 }
 
 
-// Decompress and re-expand a Dreamcast savegame from the memory card.
-void UnzipSaveGame( char *pszDir, char *pszName )
+// Delta-compress the level save against its dictionary into a .HL4 file.
+void ZipSaveGame( char *pszDir, char *pszName )
 {
 	zapsave_t	save;
 	zapsave_t	base;
@@ -264,7 +264,7 @@ void UnzipSaveGame( char *pszDir, char *pszName )
 
 // Expand the compressed level save on the card back out to a plain .HL1 the
 // save/restore code can read, using the dictionary save as the baseline.
-void ZipSaveGame( char *pszDir, const char *pszName )
+void UnzipSaveGame( char *pszDir, const char *pszName )
 {
 	zapsave_t	save;
 	char		szDicts[256];

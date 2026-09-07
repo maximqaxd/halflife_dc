@@ -2238,7 +2238,7 @@ SAVERESTOREDATA* SaveGamestate( void )
 
 	Bclose(pFile);
 
-	UnzipSaveGame(Host_SaveGameDirectory(), sv.name);
+	ZipSaveGame(Host_SaveGameDirectory(), sv.name);
 	Zip_CompressFile(name, 5);
 
 	EntityPatchWrite(pSaveData, sv.name);
@@ -2330,7 +2330,7 @@ SAVERESTOREDATA* LoadSaveData( const char* level )
 	if (!pFile)
 	{
 		// Not unpacked yet - pull it back out of the save bundle
-		ZipSaveGame(Host_SaveGameDirectory(), level);
+		UnzipSaveGame(Host_SaveGameDirectory(), level);
 
 		pFile = Sys_OpenHandle(name, "rb");
 		if (!pFile)
