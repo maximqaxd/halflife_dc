@@ -40,3 +40,8 @@ __pycache__/
 
 # RE symbol export backups
 *.tsv.bak
+
+# Some other stuff
+*.ps
+*.prp
+*.dat
