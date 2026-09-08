@@ -123,6 +123,20 @@ char* NET_AdrToString( netadr_t a )
 	return s;
 }
 
+char *NET_BaseAdrToString( netadr_t address )
+{
+	static char text[64];
+	memset(text, 0, sizeof(text));
+	sprintf(text, "loopback");
+	return text;
+}
+
+void SCR_DrawGraphRect( vrect_t *rect, byte *color )
+{
+	Draw_FillRGBA(rect->x, rect->y, rect->width, rect->height,
+		color[0], color[1], color[2], 128);
+}
+
 /*
 =============
 NET_StringToAdr
@@ -574,7 +588,12 @@ SCR_ClampHeight
 */
 int SCR_ClampHeight( float value )
 {
-	return max(0.0f, min(scr_graphheight.value * value, scr_graphheight.value));
+	int height = (int)(scr_graphheight.value * value);
+	if (height < 0)
+		height = 0;
+	if ((int)scr_graphheight.value < height)
+		height = (int)scr_graphheight.value;
+	return height;
 }
 
 /*
