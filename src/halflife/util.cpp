@@ -154,7 +154,7 @@ edict_t *DBG_EntOfVars( const entvars_t *pev )
 	if (pev->pContainingEntity != NULL)
 		return pev->pContainingEntity;
 	ALERT(at_console, "entvars_t pContainingEntity is NULL, calling into engine");
-	edict_t* pent = (*g_engfuncs.pfnFindEntityByVars)((entvars_t*)pev);
+	edict_t* pent = FindEntityByVars((entvars_t*)pev);
 	if (pent == NULL)
 		ALERT(at_console, "DAMN!  Even the engine couldn't FindEntityByVars!");
 	((entvars_t *)pev)->pContainingEntity = pent;
@@ -235,7 +235,7 @@ void UTIL_MoveToOrigin( edict_t *pent, const Vector &vecGoal, float flDist, int 
 
 int UTIL_EntitiesInBox( CBaseEntity **pList, int listMax, const Vector &mins, const Vector &maxs, int flagMask )
 {
-	edict_t		*pEdict = g_engfuncs.pfnPEntityOfEntIndex( 1 );
+	edict_t		*pEdict = PEntityOfEntIndex( 1 );
 	CBaseEntity *pEntity;
 	int			count;
 
@@ -277,7 +277,7 @@ int UTIL_EntitiesInBox( CBaseEntity **pList, int listMax, const Vector &mins, co
 
 int UTIL_MonstersInSphere( CBaseEntity **pList, int listMax, const Vector &center, float radius )
 {
-	edict_t		*pEdict = g_engfuncs.pfnPEntityOfEntIndex( 1 );
+	edict_t		*pEdict = PEntityOfEntIndex( 1 );
 	CBaseEntity *pEntity;
 	int			count;
 	float		distance, delta;
@@ -799,7 +799,7 @@ void UTIL_TraceHull( const Vector &vecStart, const Vector &vecEnd, IGNORE_MONSTE
 
 void UTIL_TraceModel( const Vector &vecStart, const Vector &vecEnd, int hullNumber, edict_t *pentModel, TraceResult *ptr )
 {
-	g_engfuncs.pfnTraceModel( vecStart, vecEnd, hullNumber, pentModel, ptr );
+	TraceModel( vecStart, vecEnd, hullNumber, pentModel, ptr );
 }
 
 

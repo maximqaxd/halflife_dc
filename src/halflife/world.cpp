@@ -192,7 +192,7 @@ void CDecal :: StaticDecal( void )
 	else
 		modelIndex = 0;
 
-	g_engfuncs.pfnStaticDecal( pev->origin, (int)pev->skin, entityIndex, modelIndex );
+	PF_StaticDecal( pev->origin, (int)pev->skin, entityIndex, modelIndex );
 
 	SUB_Remove();
 }

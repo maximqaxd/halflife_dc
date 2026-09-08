@@ -300,7 +300,7 @@ void Host_Say( edict_t *pEntity, int teamonly )
 	MESSAGE_END();
 
 	// echo to server console
-	g_engfuncs.pfnServerPrint( text );
+	ServerPrint( text );
 }
 
 
@@ -397,16 +397,16 @@ void ClientUserInfoChanged( edict_t *pEntity, char *infobuffer )
 		return;
 
 	// msg everyone if someone changes their name,  and it isn't the first time (changing no name to current name)
-	if ( pEntity->v.netname && STRING(pEntity->v.netname)[0] != 0 && !FStrEq( STRING(pEntity->v.netname), g_engfuncs.pfnInfoKeyValue( infobuffer, "name" )) )
+	if ( pEntity->v.netname && STRING(pEntity->v.netname)[0] != 0 && !FStrEq( STRING(pEntity->v.netname), PF_InfoKeyValue( infobuffer, "name" )) )
 	{
 		char text[256];
-		sprintf( text, "* %s changed name to %s\n", STRING(pEntity->v.netname), g_engfuncs.pfnInfoKeyValue( infobuffer, "name" ) );
+		sprintf( text, "* %s changed name to %s\n", STRING(pEntity->v.netname), PF_InfoKeyValue( infobuffer, "name" ) );
 		MESSAGE_BEGIN( MSG_ALL, gmsgSayText, NULL );
 			WRITE_BYTE( ENTINDEX(pEntity) );
 			WRITE_STRING( text );
 		MESSAGE_END();
 
-		UTIL_LogPrintf( "\"%s<%i>\" changed name to \"%s<%i>\"\n", STRING( pEntity->v.netname ), GETPLAYERUSERID( pEntity ), g_engfuncs.pfnInfoKeyValue( infobuffer, "name" ), GETPLAYERUSERID( pEntity ) );
+		UTIL_LogPrintf( "\"%s<%i>\" changed name to \"%s<%i>\"\n", STRING( pEntity->v.netname ), GETPLAYERUSERID( pEntity ), PF_InfoKeyValue( infobuffer, "name" ), GETPLAYERUSERID( pEntity ) );
 	}
 
 	g_pGameRules->ClientUserInfoChanged( GetClassPtr((CBasePlayer *)&pEntity->v), infobuffer );

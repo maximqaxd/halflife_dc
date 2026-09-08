@@ -198,13 +198,13 @@ void CBeam::Precache( void )
 void CBeam::SetStartEntity( int entityIndex ) 
 { 
 	pev->sequence = (entityIndex & 0x0FFF) | ((pev->sequence&0xF000)<<12); 
-	pev->owner = g_engfuncs.pfnPEntityOfEntIndex( entityIndex );
+	pev->owner = PEntityOfEntIndex( entityIndex );
 }
 
 void CBeam::SetEndEntity( int entityIndex ) 
 { 
 	pev->skin = (entityIndex & 0x0FFF) | ((pev->skin&0xF000)<<12); 
-	pev->aiment = g_engfuncs.pfnPEntityOfEntIndex( entityIndex );
+	pev->aiment = PEntityOfEntIndex( entityIndex );
 }
 
 
@@ -213,7 +213,7 @@ const Vector &CBeam::GetStartPos( void )
 {
 	if ( GetType() == BEAM_ENTS )
 	{
-		edict_t *pent =  g_engfuncs.pfnPEntityOfEntIndex( GetStartEntity() );
+		edict_t *pent =  PEntityOfEntIndex( GetStartEntity() );
 		return pent->v.origin;
 	}
 	return pev->origin;
@@ -228,7 +228,7 @@ const Vector &CBeam::GetEndPos( void )
 		return pev->angles;
 	}
 
-	edict_t *pent =  g_engfuncs.pfnPEntityOfEntIndex( GetEndEntity() );
+	edict_t *pent =  PEntityOfEntIndex( GetEndEntity() );
 	if ( pent )
 		return pent->v.origin;
 	return pev->angles;
@@ -1812,7 +1812,7 @@ Vector CBlood::BloodPosition( CBaseEntity *pActivator )
 			pPlayer = pActivator->edict();
 		}
 		else
-			pPlayer = g_engfuncs.pfnPEntityOfEntIndex( 1 );
+			pPlayer = PEntityOfEntIndex( 1 );
 		if ( pPlayer )
 			return (pPlayer->v.origin + pPlayer->v.view_ofs) + Vector( RANDOM_FLOAT(-10,10), RANDOM_FLOAT(-10,10), RANDOM_FLOAT(-10,10) );
 	}
@@ -2082,7 +2082,7 @@ void CMessage::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useT
 			pPlayer = pActivator;
 		else
 		{
-			pPlayer = CBaseEntity::Instance( g_engfuncs.pfnPEntityOfEntIndex( 1 ) );
+			pPlayer = CBaseEntity::Instance( PEntityOfEntIndex( 1 ) );
 		}
 		if ( pPlayer )
 			UTIL_ShowMessage( STRING(pev->message), pPlayer );

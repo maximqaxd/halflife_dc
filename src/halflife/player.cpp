@@ -3889,7 +3889,7 @@ void CBasePlayer::CheatImpulseCommands( int iImpulse )
 		{
 			TraceResult tr;
 
-			edict_t		*pWorld = g_engfuncs.pfnPEntityOfEntIndex( 0 );
+			edict_t		*pWorld = PEntityOfEntIndex( 0 );
 
 			Vector start = pev->origin + pev->view_ofs;
 			Vector end = start + gpGlobals->v_forward * 1024;
@@ -4573,7 +4573,7 @@ Vector CBasePlayer :: GetAutoaimVector( float flDelta )
 
 Vector CBasePlayer :: AutoaimDeflection( Vector &vecSrc, float flDist, float flDelta  )
 {
-	edict_t		*pEdict = g_engfuncs.pfnPEntityOfEntIndex( 1 );
+	edict_t		*pEdict = PEntityOfEntIndex( 1 );
 	CBaseEntity	*pEntity;
 	float		bestdot;
 	Vector		bestdir;
@@ -4979,7 +4979,7 @@ void CStripWeapons :: Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TY
 	}
 	else if ( !g_pGameRules->IsDeathmatch() )
 	{
-		pPlayer = (CBasePlayer *)CBaseEntity::Instance( g_engfuncs.pfnPEntityOfEntIndex( 1 ) );
+		pPlayer = (CBasePlayer *)CBaseEntity::Instance( PEntityOfEntIndex( 1 ) );
 	}
 
 	if ( pPlayer )

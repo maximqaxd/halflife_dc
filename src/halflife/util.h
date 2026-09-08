@@ -101,7 +101,7 @@ typedef int BOOL;
 	inline edict_t *ENT(const entvars_t *pev)	{ return pev->pContainingEntity; }
 #endif
 inline edict_t *ENT(edict_t *pent)		{ return pent; }
-inline edict_t *ENT(EOFFSET eoffset)			{ return (*g_engfuncs.pfnPEntityOfEntOffset)(eoffset); }
+inline edict_t *ENT(EOFFSET eoffset)			{ return PEntityOfEntOffset(eoffset); }
 inline EOFFSET OFFSET(EOFFSET eoffset)			{ return eoffset; }
 inline EOFFSET OFFSET(const edict_t *pent)	
 { 
@@ -109,7 +109,7 @@ inline EOFFSET OFFSET(const edict_t *pent)
 	if ( !pent )
 		ALERT( at_error, "Bad ent in OFFSET()\n" );
 #endif
-	return (*g_engfuncs.pfnEntOffsetOfPEntity)(pent); 
+	return EntOffsetOfPEntity(pent);
 }
 inline EOFFSET OFFSET(entvars_t *pev)				
 { 
@@ -130,10 +130,10 @@ inline entvars_t *VARS(edict_t *pent)
 }
 
 inline entvars_t* VARS(EOFFSET eoffset)				{ return VARS(ENT(eoffset)); }
-inline int	  ENTINDEX(edict_t *pEdict)			{ return (*g_engfuncs.pfnIndexOfEdict)(pEdict); }
-inline edict_t* INDEXENT( int iEdictNum )		{ return (*g_engfuncs.pfnPEntityOfEntIndex)(iEdictNum); }
+inline int	  ENTINDEX(edict_t *pEdict)			{ return IndexOfEdict(pEdict); }
+inline edict_t* INDEXENT( int iEdictNum )		{ return PEntityOfEntIndex(iEdictNum); }
 inline void MESSAGE_BEGIN( int msg_dest, int msg_type, const float *pOrigin, entvars_t *ent ) {
-	(*g_engfuncs.pfnMessageBegin)(msg_dest, msg_type, pOrigin, ENT(ent));
+	PF_MessageBegin_I(msg_dest, msg_type, pOrigin, ENT(ent));
 }
 
 // Testing the three types of "entity" for nullity
@@ -214,7 +214,7 @@ extern CBaseEntity	*UTIL_FindEntityGeneric(const char *szName, Vector &vecSrc, f
 // Index is 1 based
 extern CBaseEntity	*UTIL_PlayerByIndex( int playerIndex );
 
-#define UTIL_EntitiesInPVS(pent)			(*g_engfuncs.pfnEntitiesInPVS)(pent)
+#define UTIL_EntitiesInPVS(pent)			PVSFindEntities(pent)
 extern void			UTIL_MakeVectors		(const Vector &vecAngles);
 
 // Pass in an array of pointers and an array size, it fills the array and returns the number inserted
@@ -223,7 +223,7 @@ extern int			UTIL_EntitiesInBox( CBaseEntity **pList, int listMax, const Vector 
 
 inline void UTIL_MakeVectorsPrivate( const Vector &vecAngles, float *p_vForward, float *p_vRight, float *p_vUp )
 {
-	g_engfuncs.pfnAngleVectors( vecAngles, p_vForward, p_vRight, p_vUp );
+	AngleVectors( vecAngles, p_vForward, p_vRight, p_vUp );
 }
 
 extern void			UTIL_MakeAimVectors		( const Vector &vecAngles ); // like MakeVectors, but assumes pitch isn't inverted

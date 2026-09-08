@@ -1,9 +1,8 @@
 /***
 *
-*  Prototypes for the engine service routines the game DLL calls through
-*  g_engfuncs.  On the Dreamcast the engine and game link into one image,
-*  so these resolve to the real engine functions at link time and each
-*  g_engfuncs call folds to a direct call.
+*  Prototypes for the engine service routines used by the game DLL.
+*  The Dreamcast links the engine and game into one image, so these
+*  callbacks resolve directly to the engine functions.
 *
 ****/
 #ifndef ENG_BUILTINS_H

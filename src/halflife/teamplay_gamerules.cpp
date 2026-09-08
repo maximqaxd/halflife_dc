@@ -137,7 +137,7 @@ void CHalfLifeTeamplay :: UpdateGameMode( CBasePlayer *pPlayer )
 const char *CHalfLifeTeamplay::SetDefaultPlayerTeam( CBasePlayer *pPlayer )
 {
 	// copy out the team name from the model
-	char *mdls = g_engfuncs.pfnInfoKeyValue( g_engfuncs.pfnGetInfoKeyBuffer( pPlayer->edict() ), "model" );
+	char *mdls = PF_InfoKeyValue( PF_GetInfoKeyBuffer_I( pPlayer->edict() ), "model" );
 	strncpy( pPlayer->m_szTeamName, mdls, TEAM_NAME_LENGTH );
 
 	RecountTeams();
@@ -172,7 +172,7 @@ void CHalfLifeTeamplay::InitHUD( CBasePlayer *pPlayer )
 
 	RecountTeams();
 
-	char *mdls = g_engfuncs.pfnInfoKeyValue( g_engfuncs.pfnGetInfoKeyBuffer( pPlayer->edict() ), "model" );
+	char *mdls = PF_InfoKeyValue( PF_GetInfoKeyBuffer_I( pPlayer->edict() ), "model" );
 	// update the current player of the team he is joining
 	char text[1024];
 	if ( !strcmp( mdls, pPlayer->m_szTeamName ) )
@@ -234,8 +234,8 @@ void CHalfLifeTeamplay::ChangePlayerTeam( CBasePlayer *pPlayer, const char *pTea
 	// copy out the team name from the model
 	strncpy( pPlayer->m_szTeamName, pTeamName, TEAM_NAME_LENGTH );
 
-	g_engfuncs.pfnSetClientKeyValue( clientIndex, g_engfuncs.pfnGetInfoKeyBuffer( pPlayer->edict() ), "model", pPlayer->m_szTeamName );
-	g_engfuncs.pfnSetClientKeyValue( clientIndex, g_engfuncs.pfnGetInfoKeyBuffer( pPlayer->edict() ), "team", pPlayer->m_szTeamName );
+	PF_SetClientKeyValue( clientIndex, PF_GetInfoKeyBuffer_I( pPlayer->edict() ), "model", pPlayer->m_szTeamName );
+	PF_SetClientKeyValue( clientIndex, PF_GetInfoKeyBuffer_I( pPlayer->edict() ), "team", pPlayer->m_szTeamName );
 
 	// notify everyone's HUD of the team change
 	MESSAGE_BEGIN( MSG_ALL, gmsgTeamInfo );
@@ -253,7 +253,7 @@ void CHalfLifeTeamplay::ClientUserInfoChanged( CBasePlayer *pPlayer, char *infob
 	char text[1024];
 
 	// prevent skin/color/model changes
-	char *mdls = g_engfuncs.pfnInfoKeyValue( infobuffer, "model" );
+	char *mdls = PF_InfoKeyValue( infobuffer, "model" );
 
 	if ( !stricmp( mdls, pPlayer->m_szTeamName ) )
 		return;
@@ -262,8 +262,8 @@ void CHalfLifeTeamplay::ClientUserInfoChanged( CBasePlayer *pPlayer, char *infob
 	{
 		int clientIndex = pPlayer->entindex();
 
-		g_engfuncs.pfnSetClientKeyValue( clientIndex, g_engfuncs.pfnGetInfoKeyBuffer( pPlayer->edict() ), "model", pPlayer->m_szTeamName );
-		g_engfuncs.pfnSetClientKeyValue( clientIndex, g_engfuncs.pfnGetInfoKeyBuffer( pPlayer->edict() ), "team", pPlayer->m_szTeamName );
+		PF_SetClientKeyValue( clientIndex, PF_GetInfoKeyBuffer_I( pPlayer->edict() ), "model", pPlayer->m_szTeamName );
+		PF_SetClientKeyValue( clientIndex, PF_GetInfoKeyBuffer_I( pPlayer->edict() ), "team", pPlayer->m_szTeamName );
 		sprintf( text, "* Not allowed to change teams in this game!\n" );
 		UTIL_SayText( text, pPlayer );
 		return;
@@ -273,7 +273,7 @@ void CHalfLifeTeamplay::ClientUserInfoChanged( CBasePlayer *pPlayer, char *infob
 	{
 		int clientIndex = pPlayer->entindex();
 
-		g_engfuncs.pfnSetClientKeyValue( clientIndex, g_engfuncs.pfnGetInfoKeyBuffer( pPlayer->edict() ), "model", pPlayer->m_szTeamName );
+		PF_SetClientKeyValue( clientIndex, PF_GetInfoKeyBuffer_I( pPlayer->edict() ), "model", pPlayer->m_szTeamName );
 		sprintf( text, "* Can't change team to \'%s\'\n", mdls );
 		UTIL_SayText( text, pPlayer );
 		sprintf( text, "* Server limits teams to \'%s\'\n", m_szTeamList );

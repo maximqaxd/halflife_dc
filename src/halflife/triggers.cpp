@@ -750,7 +750,7 @@ void PlayCDTrack( int iTrack )
 	edict_t *pClient;
 	
 	// manually find the single player. 
-	pClient = g_engfuncs.pfnPEntityOfEntIndex( 1 );
+	pClient = PEntityOfEntIndex( 1 );
 	
 	// Can't play if the client is not connected!
 	if ( !pClient )
@@ -831,7 +831,7 @@ void CTargetCDAudio::Think( void )
 	edict_t *pClient;
 	
 	// manually find the single player. 
-	pClient = g_engfuncs.pfnPEntityOfEntIndex( 1 );
+	pClient = PEntityOfEntIndex( 1 );
 	
 	// Can't play if the client is not connected!
 	if ( !pClient )
@@ -1549,7 +1549,7 @@ void CChangeLevel :: ChangeLevelNow( CBaseEntity *pActivator )
 	pev->dmgtime = gpGlobals->time;
 
 
-	CBaseEntity *pPlayer = CBaseEntity::Instance( g_engfuncs.pfnPEntityOfEntIndex( 1 ) );
+	CBaseEntity *pPlayer = CBaseEntity::Instance( PEntityOfEntIndex( 1 ) );
 	if ( !InTransitionVolume( pPlayer, m_szLandmarkName ) )
 	{
 		ALERT( at_aiconsole, "Player isn't in the transition volume %s, aborting\n", m_szLandmarkName );
@@ -2099,7 +2099,7 @@ void CTriggerEndSection::EndSectionUse( CBaseEntity *pActivator, CBaseEntity *pC
 
 	if ( pev->message )
 	{
-		g_engfuncs.pfnEndSection(STRING(pev->message));
+		Host_EndSection(STRING(pev->message));
 	}
 	UTIL_Remove( this );
 }
@@ -2130,7 +2130,7 @@ void CTriggerEndSection::EndSectionTouch( CBaseEntity *pOther )
 
 	if (pev->message)
 	{
-		g_engfuncs.pfnEndSection(STRING(pev->message));
+		Host_EndSection(STRING(pev->message));
 	}
 	UTIL_Remove( this );
 }
@@ -2384,7 +2384,7 @@ void CTriggerCamera::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYP
 	}
 	if ( !pActivator || !pActivator->IsPlayer() )
 	{
-		pActivator = CBaseEntity::Instance(g_engfuncs.pfnPEntityOfEntIndex( 1 ));
+		pActivator = CBaseEntity::Instance(PEntityOfEntIndex( 1 ));
 	}
 		
 	m_hPlayer = pActivator;

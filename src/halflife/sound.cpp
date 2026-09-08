@@ -1297,7 +1297,7 @@ void SENTENCEG_Init()
 
 	
 	int filePos = 0, fileSize;
-	byte *pMemFile = g_engfuncs.pfnLoadFileForMe( "sound/new_sentences.txt", &fileSize );
+	byte *pMemFile = COM_LoadFileForMe( "sound/new_sentences.txt", &fileSize );
 	if ( !pMemFile )
 		return;
 
@@ -1382,7 +1382,7 @@ void SENTENCEG_Init()
 		}
 	}
 
-	g_engfuncs.pfnFreeFile( pMemFile );
+	COM_FreeFile( pMemFile );
 	
 	fSentencesInit = TRUE;
 
@@ -1569,7 +1569,7 @@ void TEXTURETYPE_Init()
 	gcTextures = 0;
 	memset(buffer, 0, 512);
 
-	pMemFile = g_engfuncs.pfnLoadFileForMe( "sound/materials.txt", &fileSize );
+	pMemFile = COM_LoadFileForMe( "sound/materials.txt", &fileSize );
 	if ( !pMemFile )
 		return;
 
@@ -1612,7 +1612,7 @@ void TEXTURETYPE_Init()
 		strcpy(&(grgszTextureName[gcTextures++][0]), &(buffer[i]));
 	}
 
-	g_engfuncs.pfnFreeFile( pMemFile );
+	COM_FreeFile( pMemFile );
 	
 	fTextureTypeInit = TRUE;
 }
