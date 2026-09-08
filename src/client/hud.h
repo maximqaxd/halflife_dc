@@ -492,6 +492,8 @@ private:
 
 	int m_HUD_title_life;
 	int m_HUD_title_half;
+	int m_HUD_title_blue;
+	int m_HUD_title_shift;
 };
 
 //
