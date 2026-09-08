@@ -6,7 +6,7 @@
 #endif
 
 #define	MAX_SIGNON_BUFFERS	16
-#define MAX_SOUND_PRECACHE_BYTES	0x800
+#define MAX_SOUNDS_HASHLOOKUP_SIZE	(MAX_SOUNDS * 2 - 1)
 #define MAX_GENERIC_PRECACHE_BYTES	0x800
 #define CLIENT_RESERVED_STATE_BYTES	48
 
@@ -101,10 +101,10 @@ typedef enum server_state_e
 
 typedef struct
 {
-	qboolean	active;				// false if only a net client
-	qboolean	paused;				// are we paused?
+	short		active;				// false if only a net client
+	short		paused;				// are we paused?
 
-	qboolean	loadgame;			// handle connections specially
+	short		loadgame;			// handle connections specially
 
 	float		time;
 
@@ -125,7 +125,8 @@ typedef struct
 	char*		model_precache[MAX_MODELS];	
 	struct model_s*	models[MAX_MODELS];
 	char*		sound_precache[MAX_SOUNDS];
-	byte		reserved_sound_precache[MAX_SOUND_PRECACHE_BYTES];
+	short		sound_precache_hashedlookup[MAX_SOUNDS_HASHLOOKUP_SIZE];
+	short		sound_precache_hashedlookup_built;
 	char*		generic_precache[MAX_GENERIC];
 	byte		reserved_generic_precache[MAX_GENERIC_PRECACHE_BYTES];
 	char*		lightstyles[MAX_LIGHTSTYLES];
