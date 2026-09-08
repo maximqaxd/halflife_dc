@@ -9,6 +9,7 @@
 *.ncb
 *.opt
 *.pdb
+*.obj
 ~$*.xlsx
 __pycache__/
 .claude/
@@ -18,15 +19,28 @@ __pycache__/
 /projects/zlib.old
 /projects/~VCE*.tmp
 
-# /utils holds deploy tooling (ignored) except the RE toolkit
+# Deployment utilities and content-tool sources
 /utils/*
 !/utils/re/
+!/utils/common/
+!/utils/makels/
+!/utils/qlumpy/
+!/utils/studiomdl/
+!/utils/build_tools.bat
+!/utils/hltools.dsw
+/utils/build/
+
+# Keep only Python scripts from the RE utilities
+/utils/re/**
+!/utils/re/**/
+!/utils/re/**/*.py
 /utils/re/build/
 
-# large regenerable Ghidra instruction dump (ExportInsns.java)
-/utils/re/bin_insns.tsv
-
-# cross-binary symbol-port intermediates (ExportFingerprints.py output)
+# Local notes, diagnostics and symbol-port data
+*.[mM][dD]
+/crash.txt
+/dbgeng_dump.obj
+/portdata/
 /utils/re/portdata/
 
 # recoverable Ghidra project backups (not versioned)

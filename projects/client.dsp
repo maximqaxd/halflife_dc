@@ -3,7 +3,6 @@
 # ** DO NOT EDIT **
 
 # TARGTYPE "Win32 (WCE SH4) Static Library" 0x8604
-# TARGTYPE "Win32 (x86) Static Library" 0x0104
 
 CFG=client - Win32 (WCE SH4) Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
@@ -20,8 +19,6 @@ CFG=client - Win32 (WCE SH4) Debug
 !MESSAGE 
 !MESSAGE "client - Win32 (WCE SH4) Release" (based on "Win32 (WCE SH4) Static Library")
 !MESSAGE "client - Win32 (WCE SH4) Debug" (based on "Win32 (WCE SH4) Static Library")
-!MESSAGE "client - Win32 Release" (based on "Win32 (x86) Static Library")
-!MESSAGE "client - Win32 Debug" (based on "Win32 (x86) Static Library")
 !MESSAGE 
 
 # Begin Project
@@ -74,62 +71,12 @@ LIB32=link.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo
 
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-# PROP BASE Use_MFC 0
-# PROP BASE Use_Debug_Libraries 0
-# PROP BASE Output_Dir "../obj/Win32Rel"
-# PROP BASE Intermediate_Dir "../obj/Win32Rel"
-# PROP Use_MFC 0
-# PROP Use_Debug_Libraries 0
-# PROP Output_Dir "../obj/Win32Rel"
-# PROP Intermediate_Dir "../obj/Win32Rel"
-# PROP Target_Dir ""
-CPP=cl.exe
-# ADD BASE CPP /nologo /W3 /GX /O2 /I "../src/engine" /I "../src/common" /I "../src/util" /I "../src/halflife" /I "../src/client" /I "../dx6sdk/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "CLIENT_DLL" /YX /FD /c
-# ADD CPP /nologo /W3 /GX /O2 /I "../src/engine" /I "../src/common" /I "../src/util" /I "../src/halflife" /I "../src/client" /I "../dx6sdk/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "CLIENT_DLL" /YX /FD /c
-RSC=rc.exe
-# ADD BASE RSC /l 0x419
-# ADD RSC /l 0x419
-BSC32=bscmake.exe
-# ADD BASE BSC32 /nologo
-# ADD BSC32 /nologo
-LIB32=link.exe -lib
-# ADD BASE LIB32 /nologo
-# ADD LIB32 /nologo
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
-
-# PROP BASE Use_MFC 0
-# PROP BASE Use_Debug_Libraries 1
-# PROP BASE Output_Dir "../obj/Win32Dbg"
-# PROP BASE Intermediate_Dir "../obj/Win32Dbg"
-# PROP Use_MFC 0
-# PROP Use_Debug_Libraries 1
-# PROP Output_Dir "../obj/Win32Dbg"
-# PROP Intermediate_Dir "../obj/Win32Dbg"
-# PROP Target_Dir ""
-CPP=cl.exe
-# ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /I "../src/engine" /I "../src/common" /I "../src/util" /I "../src/halflife" /I "../src/client" /I "../dx6sdk/include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "CLIENT_DLL" /FR /YX /FD /GZ /c
-# ADD CPP /nologo /W3 /Gm /GX /ZI /Od /I "../src/engine" /I "../src/common" /I "../src/util" /I "../src/halflife" /I "../src/client" /I "../dx6sdk/include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "CLIENT_DLL" /FR /YX /FD /GZ /c
-RSC=rc.exe
-# ADD BASE RSC /l 0x419
-# ADD RSC /l 0x419
-BSC32=bscmake.exe
-# ADD BASE BSC32 /nologo
-# ADD BSC32 /nologo
-LIB32=link.exe -lib
-# ADD BASE LIB32 /nologo
-# ADD LIB32 /nologo
-
 !ENDIF 
 
 # Begin Target
 
 # Name "client - Win32 (WCE SH4) Release"
 # Name "client - Win32 (WCE SH4) Debug"
-# Name "client - Win32 Release"
-# Name "client - Win32 Debug"
 # Begin Group "Source Files"
 
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
@@ -166,10 +113,6 @@ DEP_CPP_AMMO_=\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
 	
-
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
 
 !ENDIF 
 
@@ -208,10 +151,6 @@ DEP_CPP_AMMO_S=\
 	"..\src\util\dreamcast_crt.h"\
 	
 
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -249,10 +188,6 @@ DEP_CPP_AMMOH=\
 	"..\src\halflife\cdll_dll.h"\
 	
 
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -288,10 +223,6 @@ DEP_CPP_BATTE=\
 	"..\src\halflife\cdll_dll.h"\
 	
 
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -324,10 +255,6 @@ DEP_CPP_CDLL_=\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
 	
-
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
 
 !ENDIF 
 
@@ -368,16 +295,13 @@ DEP_CPP_DEATH=\
 	"..\src\halflife\cdll_dll.h"\
 	
 
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\util\dreamcast_crt.cpp
+SOURCE=..\src\util\dreamcast_crt.c
+# ADD CPP /TP
 
 !IF  "$(CFG)" == "client - Win32 (WCE SH4) Release"
 
@@ -390,10 +314,6 @@ DEP_CPP_DREAM=\
 DEP_CPP_DREAM=\
 	"..\src\util\dreamcast_crt.h"\
 	
-
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
 
 !ENDIF 
 
@@ -429,10 +349,6 @@ DEP_CPP_FLASH=\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
 	
-
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
 
 !ENDIF 
 
@@ -470,10 +386,6 @@ DEP_CPP_GEIGE=\
 	"..\src\util\dreamcast_crt.h"\
 	
 
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -508,10 +420,6 @@ DEP_CPP_HEALT=\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
 	
-
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
 
 !ENDIF 
 
@@ -548,10 +456,6 @@ DEP_CPP_HUD_C=\
 	"..\src\halflife\cdll_dll.h"\
 	
 
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -587,10 +491,6 @@ DEP_CPP_HUD_M=\
 	"..\src\halflife\cdll_dll.h"\
 	
 
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -624,10 +524,6 @@ DEP_CPP_HUD_R=\
 	"..\src\halflife\cdll_dll.h"\
 	
 
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -660,10 +556,6 @@ DEP_CPP_HUD_U=\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
 	
-
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
 
 !ENDIF 
 
@@ -702,10 +594,6 @@ DEP_CPP_MENU_=\
 	"..\src\util\dreamcast_crt.h"\
 	
 
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -741,16 +629,12 @@ DEP_CPP_MESSA=\
 	"..\src\halflife\cdll_dll.h"\
 	
 
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\client\MOTD.cpp
+SOURCE=..\src\client\motd.cpp
 
 !IF  "$(CFG)" == "client - Win32 (WCE SH4) Release"
 
@@ -780,10 +664,6 @@ DEP_CPP_MOTD_=\
 	"..\src\halflife\cdll_dll.h"\
 	
 
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -794,10 +674,6 @@ SOURCE=..\src\client\parsemsg.cpp
 !IF  "$(CFG)" == "client - Win32 (WCE SH4) Release"
 
 !ELSEIF  "$(CFG)" == "client - Win32 (WCE SH4) Debug"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
 
 !ENDIF 
 
@@ -834,10 +710,6 @@ DEP_CPP_SAYTE=\
 	"..\src\halflife\cdll_dll.h"\
 	
 
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -872,10 +744,6 @@ DEP_CPP_SCORE=\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
 	
-
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
 
 !ENDIF 
 
@@ -914,10 +782,6 @@ DEP_CPP_STATU=\
 	"..\src\util\dreamcast_crt.h"\
 	
 
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -954,10 +818,6 @@ DEP_CPP_STATUS=\
 	"..\src\halflife\cdll_dll.h"\
 	"..\src\util\dreamcast_crt.h"\
 	
-
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
 
 !ENDIF 
 
@@ -996,10 +856,6 @@ DEP_CPP_TEXT_=\
 	"..\src\util\dreamcast_crt.h"\
 	
 
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -1035,10 +891,6 @@ DEP_CPP_TRAIN=\
 	"..\src\halflife\cdll_dll.h"\
 	
 
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -1071,10 +923,6 @@ DEP_CPP_UTIL_=\
 	"..\src\engine\cdll_int.h"\
 	"..\src\halflife\cdll_dll.h"\
 	
-
-!ELSEIF  "$(CFG)" == "client - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "client - Win32 Debug"
 
 !ENDIF 
 

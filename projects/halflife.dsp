@@ -3,7 +3,6 @@
 # ** DO NOT EDIT **
 
 # TARGTYPE "Win32 (WCE SH4) Static Library" 0x8604
-# TARGTYPE "Win32 (x86) Static Library" 0x0104
 
 CFG=halflife - Win32 (WCE SH4) Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
@@ -20,8 +19,6 @@ CFG=halflife - Win32 (WCE SH4) Debug
 !MESSAGE 
 !MESSAGE "halflife - Win32 (WCE SH4) Release" (based on "Win32 (WCE SH4) Static Library")
 !MESSAGE "halflife - Win32 (WCE SH4) Debug" (based on "Win32 (WCE SH4) Static Library")
-!MESSAGE "halflife - Win32 Release" (based on "Win32 (x86) Static Library")
-!MESSAGE "halflife - Win32 Debug" (based on "Win32 (x86) Static Library")
 !MESSAGE 
 
 # Begin Project
@@ -74,62 +71,12 @@ LIB32=link.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-# PROP BASE Use_MFC 0
-# PROP BASE Use_Debug_Libraries 0
-# PROP BASE Output_Dir "../obj/Win32Rel"
-# PROP BASE Intermediate_Dir "../obj/Win32Rel"
-# PROP Use_MFC 0
-# PROP Use_Debug_Libraries 0
-# PROP Output_Dir "../obj/Win32Rel"
-# PROP Intermediate_Dir "../obj/Win32Rel"
-# PROP Target_Dir ""
-CPP=cl.exe
-# ADD BASE CPP /nologo /W3 /GX /O2 /I "../src/engine" /I "../src/common" /I "../src/halflife" /I "../dx6sdk/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "QUIVER" /D "VOXEL" /D "QUAKE2" /D "VALVE_DLL" /YX /FD /c
-# ADD CPP /nologo /W3 /Gi /GX /O2 /I "../src/engine" /I "../src/common" /I "../src/halflife" /I "../dx6sdk/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "QUIVER" /D "VOXEL" /D "QUAKE2" /D "VALVE_DLL" /YX /FD /c
-RSC=rc.exe
-# ADD BASE RSC /l 0x419
-# ADD RSC /l 0x419
-BSC32=bscmake.exe
-# ADD BASE BSC32 /nologo
-# ADD BSC32 /nologo
-LIB32=link.exe -lib
-# ADD BASE LIB32 /nologo
-# ADD LIB32 /nologo
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
-# PROP BASE Use_MFC 0
-# PROP BASE Use_Debug_Libraries 1
-# PROP BASE Output_Dir "../obj/Win32Dbg"
-# PROP BASE Intermediate_Dir "../obj/Win32Dbg"
-# PROP Use_MFC 0
-# PROP Use_Debug_Libraries 1
-# PROP Output_Dir "../obj/Win32Dbg"
-# PROP Intermediate_Dir "../obj/Win32Dbg"
-# PROP Target_Dir ""
-CPP=cl.exe
-# ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /I "../src/engine" /I "../src/common" /I "../src/halflife" /I "../dx6sdk/include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "QUIVER" /D "VOXEL" /D "QUAKE2" /D "VALVE_DLL" /FR /YX /FD /GZ /c
-# ADD CPP /nologo /W3 /Gm /GX /ZI /Od /I "../src/engine" /I "../src/common" /I "../src/halflife" /I "../dx6sdk/include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "QUIVER" /D "VOXEL" /D "QUAKE2" /D "VALVE_DLL" /FR /YX /FD /GZ /c
-RSC=rc.exe
-# ADD BASE RSC /l 0x419
-# ADD RSC /l 0x419
-BSC32=bscmake.exe
-# ADD BASE BSC32 /nologo
-# ADD BSC32 /nologo
-LIB32=link.exe -lib
-# ADD BASE LIB32 /nologo
-# ADD LIB32 /nologo
-
 !ENDIF 
 
 # Begin Target
 
 # Name "halflife - Win32 (WCE SH4) Release"
 # Name "halflife - Win32 (WCE SH4) Debug"
-# Name "halflife - Win32 Release"
-# Name "halflife - Win32 Debug"
 # Begin Group "Source Files"
 
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
@@ -181,10 +128,6 @@ DEP_CPP_AFLOC=\
 	"..\src\halflife\squadmonster.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -244,10 +187,6 @@ DEP_CPP_AGRUN=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -304,10 +243,6 @@ DEP_CPP_AIRTA=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -356,10 +291,6 @@ DEP_CPP_ANIMA=\
 	"..\src\halflife\scriptevent.h"\
 	"..\src\util\dreamcast_crt.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -417,10 +348,6 @@ DEP_CPP_APACH=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -470,10 +397,6 @@ DEP_CPP_BARNA=\
 	"..\src\halflife\skill.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -537,10 +460,6 @@ DEP_CPP_BARNE=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -595,10 +514,6 @@ DEP_CPP_BIGMO=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -649,10 +564,6 @@ DEP_CPP_BLOAT=\
 	"..\src\halflife\vector.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -700,10 +611,6 @@ DEP_CPP_BMODE=\
 	"..\src\halflife\schedule.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -763,10 +670,6 @@ DEP_CPP_BULLS=\
 	"..\src\halflife\vector.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -814,10 +717,6 @@ DEP_CPP_BUTTO=\
 	"..\src\halflife\schedule.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -870,10 +769,6 @@ DEP_CPP_CBASE=\
 	"..\src\halflife\schedule.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -930,10 +825,6 @@ DEP_CPP_CLIEN=\
 	"..\src\halflife\spectator.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -995,10 +886,6 @@ DEP_CPP_COMBA=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -1054,10 +941,6 @@ DEP_CPP_CONTR=\
 	"..\src\halflife\vector.h"\
 	"..\src\halflife\weapons.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -1117,10 +1000,6 @@ DEP_CPP_CROSS=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -1178,10 +1057,6 @@ DEP_CPP_CROWB=\
 	"..\src\halflife\vector.h"\
 	"..\src\halflife\weapons.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -1243,10 +1118,6 @@ DEP_CPP_DEFAU=\
 	"..\src\halflife\vector.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -1295,24 +1166,17 @@ DEP_CPP_DOORS=\
 	"..\src\halflife\vector.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\util\dreamcast_crt.cpp
+SOURCE=..\src\util\dreamcast_crt.c
+# ADD CPP /TP
 
 !IF  "$(CFG)" == "halflife - Win32 (WCE SH4) Release"
 
 !ELSEIF  "$(CFG)" == "halflife - Win32 (WCE SH4) Debug"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -1376,10 +1240,6 @@ DEP_CPP_EFFEC=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -1442,10 +1302,6 @@ DEP_CPP_EGON_=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -1495,10 +1351,6 @@ DEP_CPP_EXPLO=\
 	"..\src\halflife\schedule.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -1552,10 +1404,6 @@ DEP_CPP_FLYIN=\
 	"..\src\halflife\vector.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -1607,10 +1455,6 @@ DEP_CPP_FUNC_=\
 	"..\src\halflife\schedule.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -1666,10 +1510,6 @@ DEP_CPP_FUNC_T=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -1723,10 +1563,6 @@ DEP_CPP_GAMER=\
 	"..\src\halflife\vector.h"\
 	"..\src\halflife\weapons.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -1794,10 +1630,6 @@ DEP_CPP_GARGA=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -1860,10 +1692,6 @@ DEP_CPP_GAUSS=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -1913,10 +1741,6 @@ DEP_CPP_GENER=\
 	"..\src\halflife\skill.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -1976,10 +1800,6 @@ DEP_CPP_GGREN=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -2027,10 +1847,6 @@ DEP_CPP_GLOBA=\
 	"..\src\halflife\soundent.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -2088,10 +1904,6 @@ DEP_CPP_GLOCK=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -2144,10 +1956,6 @@ DEP_CPP_GMAN_=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -2198,10 +2006,6 @@ DEP_CPP_H_AI_=\
 	"..\src\halflife\vector.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -2251,10 +2055,6 @@ DEP_CPP_H_BAT=\
 	"..\src\halflife\skill.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -2307,10 +2107,6 @@ DEP_CPP_H_CIN=\
 	"..\src\halflife\skill.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -2368,10 +2164,6 @@ DEP_CPP_H_CYC=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -2417,10 +2209,6 @@ DEP_CPP_H_EXP=\
 	"..\src\halflife\schedule.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -2478,10 +2266,6 @@ DEP_CPP_HANDG=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -2538,10 +2322,6 @@ DEP_CPP_HASSA=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -2591,10 +2371,6 @@ DEP_CPP_HEADC=\
 	"..\src\halflife\skill.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -2655,10 +2431,6 @@ DEP_CPP_HEALT=\
 	"..\src\halflife\vector.h"\
 	"..\src\halflife\weapons.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -2726,10 +2498,6 @@ DEP_CPP_HGRUN=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -2787,10 +2555,6 @@ DEP_CPP_HORNE=\
 	"..\src\halflife\vector.h"\
 	"..\src\halflife\weapons.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -2852,10 +2616,6 @@ DEP_CPP_HORNET=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -2913,10 +2673,6 @@ DEP_CPP_HOUND=\
 	"..\src\halflife\squadmonster.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -2980,10 +2736,6 @@ DEP_CPP_ICHTH=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -3042,10 +2794,6 @@ DEP_CPP_ISLAV=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -3102,10 +2850,6 @@ DEP_CPP_ITEMS=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -3158,10 +2902,6 @@ DEP_CPP_LEECH=\
 	"..\src\halflife\vector.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -3208,10 +2948,6 @@ DEP_CPP_LIGHT=\
 	"..\src\halflife\vector.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -3257,10 +2993,6 @@ DEP_CPP_LINK_=\
 	"..\src\halflife\schedule.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -3311,10 +3043,6 @@ DEP_CPP_MONST=\
 	"..\src\halflife\skill.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -3386,10 +3114,6 @@ DEP_CPP_MONSTE=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -3446,10 +3170,6 @@ DEP_CPP_MONSTER=\
 	"..\src\halflife\vector.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -3501,10 +3221,6 @@ DEP_CPP_MORTA=\
 	"..\src\halflife\vector.h"\
 	"..\src\halflife\weapons.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -3566,10 +3282,6 @@ DEP_CPP_MP5_C=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -3625,10 +3337,6 @@ DEP_CPP_MULTI=\
 	"..\src\halflife\vector.h"\
 	"..\src\halflife\weapons.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -3686,10 +3394,6 @@ DEP_CPP_NIHIL=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -3745,10 +3449,6 @@ DEP_CPP_NODES=\
 	"..\src\halflife\skill.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -3810,10 +3510,6 @@ DEP_CPP_OSPRE=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -3862,10 +3558,6 @@ DEP_CPP_PATHC=\
 	"..\src\halflife\vector.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -3903,10 +3595,6 @@ DEP_CPP_PLANE=\
 	"..\src\halflife\plane.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -3955,10 +3643,6 @@ DEP_CPP_PLATS=\
 	"..\src\halflife\trains.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -4026,10 +3710,6 @@ DEP_CPP_PLAYE=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -4086,10 +3766,6 @@ DEP_CPP_PYTHO=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -4139,10 +3815,6 @@ DEP_CPP_RAT_C=\
 	"..\src\halflife\skill.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -4197,10 +3869,6 @@ DEP_CPP_ROACH=\
 	"..\src\halflife\soundent.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -4260,10 +3928,6 @@ DEP_CPP_RPG_C=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -4321,10 +3985,6 @@ DEP_CPP_SATCH=\
 	"..\src\halflife\vector.h"\
 	"..\src\halflife\weapons.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -4388,10 +4048,6 @@ DEP_CPP_SCIEN=\
 	"..\src\halflife\vector.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -4449,10 +4105,6 @@ DEP_CPP_SCRIP=\
 	"..\src\halflife\skill.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -4512,10 +4164,6 @@ DEP_CPP_SHOTG=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -4572,10 +4220,6 @@ DEP_CPP_SINGL=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -4613,10 +4257,6 @@ DEP_CPP_SKILL=\
 	"..\src\halflife\skill.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -4676,10 +4316,6 @@ DEP_CPP_SOUND=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -4732,10 +4368,6 @@ DEP_CPP_SOUNDE=\
 	"..\src\halflife\vector.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -4787,10 +4419,6 @@ DEP_CPP_SPECT=\
 	"..\src\halflife\spectator.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -4849,10 +4477,6 @@ DEP_CPP_SQUAD=\
 	"..\src\halflife\squadmonster.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -4914,10 +4538,6 @@ DEP_CPP_SQUEA=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -4967,10 +4587,6 @@ DEP_CPP_SUBS_=\
 	"..\src\halflife\schedule.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -5034,10 +4650,6 @@ DEP_CPP_TALKM=\
 	"..\src\halflife\vector.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -5087,10 +4699,6 @@ DEP_CPP_TEMPM=\
 	"..\src\halflife\skill.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -5146,10 +4754,6 @@ DEP_CPP_TENTA=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -5201,10 +4805,6 @@ DEP_CPP_TRIGG=\
 	"..\src\halflife\trains.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -5266,10 +4866,6 @@ DEP_CPP_TRIPM=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -5323,10 +4919,6 @@ DEP_CPP_TURRE=\
 	"..\src\halflife\vector.h"\
 	"..\src\halflife\weapons.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -5383,10 +4975,6 @@ DEP_CPP_UTIL_=\
 	"..\src\halflife\vector.h"\
 	"..\src\halflife\weapons.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -5449,10 +5037,6 @@ DEP_CPP_WEAPO=\
 	"..\src\halflife\vector.h"\
 	"..\src\halflife\weapons.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 
@@ -5518,10 +5102,6 @@ DEP_CPP_WORLD=\
 	"..\src\halflife\weapons.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -5572,10 +5152,6 @@ DEP_CPP_XEN_C=\
 	"..\src\halflife\vector.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -5625,10 +5201,6 @@ DEP_CPP_ZOMBI=\
 	"..\src\halflife\skill.h"\
 	"..\src\halflife\vector.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife - Win32 Debug"
 
 !ENDIF 
 

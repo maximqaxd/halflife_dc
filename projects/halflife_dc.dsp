@@ -2,7 +2,6 @@
 # Microsoft Developer Studio Generated Build File, Format Version 6.00
 # ** DO NOT EDIT **
 
-# TARGTYPE "Win32 (x86) Application" 0x0101
 # TARGTYPE "Win32 (WCE SH4) Application" 0x8601
 
 CFG=halflife_dc - Win32 (WCE SH4) Debug
@@ -20,8 +19,6 @@ CFG=halflife_dc - Win32 (WCE SH4) Debug
 !MESSAGE 
 !MESSAGE "halflife_dc - Win32 (WCE SH4) Release" (based on "Win32 (WCE SH4) Application")
 !MESSAGE "halflife_dc - Win32 (WCE SH4) Debug" (based on "Win32 (WCE SH4) Application")
-!MESSAGE "halflife_dc - Win32 Release" (based on "Win32 (x86) Application")
-!MESSAGE "halflife_dc - Win32 Debug" (based on "Win32 (x86) Application")
 !MESSAGE 
 
 # Begin Project
@@ -106,60 +103,12 @@ SOURCE="$(InputPath)"
 
 # End Custom Build
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-# PROP BASE Use_MFC 0
-# PROP BASE Use_Debug_Libraries 0
-# PROP BASE Output_Dir "../obj/Win32Rel"
-# PROP BASE Intermediate_Dir "../obj/Win32Rel"
-# PROP Use_MFC 0
-# PROP Use_Debug_Libraries 0
-# PROP Output_Dir "../obj/Win32Rel"
-# PROP Intermediate_Dir "../obj/Win32Rel"
-# PROP Ignore_Export_Lib 0
-CPP=cl.exe
-# ADD BASE CPP /nologo /W3 /GX /O2 /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/util/zlib" /I "../src/network" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "GLQUAKE" /YX /FD /c
-# ADD CPP /nologo /W3 /Gi /GX /O1 /Op /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/util/zlib" /I "../src/network" /I "../dx6sdk/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "GLQUAKE" /D "_DEBUG" /YX /FD /c
-MTL=midl.exe
-RSC=rc.exe
-# ADD BASE RSC /l 0x419 /d "NDEBUG"
-# ADD RSC /l 0x419 /d "NDEBUG"
-BSC32=bscmake.exe
-LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ddraw.lib d3dim.lib dsound.lib dinput.lib winmm.lib ws2_32.lib dxguid.lib halflife.lib client.lib /nologo /subsystem:windows /machine:I386 /libpath:"../dx6sdk/lib" /libpath:"../obj/Win32Rel"
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ddraw.lib d3dim.lib dsound.lib dinput.lib winmm.lib ws2_32.lib dxguid.lib halflife.lib client.lib /nologo /subsystem:windows /incremental:yes /map /debug /machine:I386 /libpath:"../dx6sdk/lib" /libpath:"../obj/Win32Rel"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
-# PROP BASE Use_MFC 0
-# PROP BASE Use_Debug_Libraries 1
-# PROP BASE Output_Dir "../obj/Win32Dbg"
-# PROP BASE Intermediate_Dir "../obj/Win32Dbg"
-# PROP Use_MFC 0
-# PROP Use_Debug_Libraries 1
-# PROP Output_Dir "../obj/Win32Dbg"
-# PROP Intermediate_Dir "../obj/Win32Dbg"
-# PROP Ignore_Export_Lib 0
-CPP=cl.exe
-# ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/util/zlib" /I "../src/network" /I "../dx6sdk/include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "GLQUAKE" /FR /YX /FD /GZ /c
-# ADD CPP /nologo /W3 /Gm /GX /ZI /Od /I "../src/engine" /I "../src/common" /I "../src/render" /I "../src/util" /I "../src/util/zlib" /I "../src/network" /I "../dx6sdk/include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "GLQUAKE" /FR /YX /FD /GZ /c
-MTL=midl.exe
-RSC=rc.exe
-# ADD BASE RSC /l 0x419 /d "_DEBUG"
-# ADD RSC /l 0x419 /d "_DEBUG"
-BSC32=bscmake.exe
-LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ddraw.lib d3dim.lib dsound.lib dinput.lib winmm.lib ws2_32.lib dxguid.lib halflife.lib client.lib /nologo /subsystem:windows /debug /machine:I386 /pdbtype:sept /libpath:"../dx6sdk/lib" /libpath:"../obj/Win32Dbg"
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ddraw.lib d3dim.lib dsound.lib dinput.lib winmm.lib ws2_32.lib dxguid.lib halflife.lib client.lib /nologo /subsystem:windows /incremental:no /debug /machine:I386 /pdbtype:sept /libpath:"../dx6sdk/lib" /libpath:"../obj/Win32Dbg"
-
 !ENDIF 
 
 # Begin Target
 
 # Name "halflife_dc - Win32 (WCE SH4) Release"
 # Name "halflife_dc - Win32 (WCE SH4) Debug"
-# Name "halflife_dc - Win32 Release"
-# Name "halflife_dc - Win32 Debug"
 # Begin Group "Source Files"
 
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
@@ -302,10 +251,6 @@ NODEP_CPP_AFILE=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -451,10 +396,6 @@ NODEP_CPP_AUDIO=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -602,10 +543,6 @@ NODEP_CPP_AUDIO_=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -762,10 +699,6 @@ NODEP_CPP_AUDIO_M=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -910,10 +843,6 @@ NODEP_CPP_AUDIO_S=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -1062,10 +991,6 @@ NODEP_CPP_AUDIO_ST=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -1198,10 +1123,6 @@ NODEP_CPP_BUILD=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -1336,10 +1257,6 @@ NODEP_CPP_CHASE=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -1478,16 +1395,12 @@ NODEP_CPP_CL_CA=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\engine\CL_DEMO.C
+SOURCE=..\src\engine\cl_demo.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -1554,10 +1467,6 @@ NODEP_CPP_CL_DE=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -1694,10 +1603,6 @@ NODEP_CPP_CL_DR=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -1843,10 +1748,6 @@ NODEP_CPP_CL_EN=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -1982,16 +1883,12 @@ NODEP_CPP_CL_IN=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\engine\CL_MAIN.C
+SOURCE=..\src\engine\cl_main.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -2138,16 +2035,12 @@ NODEP_CPP_CL_MA=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\engine\CL_PARSE.C
+SOURCE=..\src\engine\cl_parse.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -2289,10 +2182,6 @@ NODEP_CPP_CL_PA=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -2430,16 +2319,12 @@ NODEP_CPP_CL_PR=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\engine\CL_TENT.C
+SOURCE=..\src\engine\cl_tent.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -2578,10 +2463,6 @@ NODEP_CPP_CL_TE=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -2720,10 +2601,6 @@ NODEP_CPP_CMD_C=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -2858,10 +2735,6 @@ NODEP_CPP_CMODE=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -3002,16 +2875,12 @@ NODEP_CPP_COMMO=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\engine\CONSOLE.C
+SOURCE=..\src\engine\console.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -3140,10 +3009,6 @@ NODEP_CPP_CONSO=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -3281,10 +3146,6 @@ NODEP_CPP_CRC_C=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -3419,10 +3280,6 @@ NODEP_CPP_CVAR_=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -3567,10 +3424,6 @@ NODEP_CPP_D3DMA=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -3705,10 +3558,6 @@ NODEP_CPP_DC_AC=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -3853,10 +3702,6 @@ NODEP_CPP_DC_D3=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -3992,10 +3837,6 @@ NODEP_CPP_DC_DE=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -4143,14 +3984,6 @@ NODEP_CPP_DC_DR=\
 	
 # ADD CPP /TP
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-# ADD CPP /TP
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
-# ADD CPP /TP
-
 !ENDIF 
 
 # End Source File
@@ -4294,10 +4127,6 @@ NODEP_CPP_DC_MO=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -4430,10 +4259,6 @@ NODEP_CPP_DC_RE=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -4569,10 +4394,6 @@ NODEP_CPP_DC_RL=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -4721,10 +4542,6 @@ NODEP_CPP_DC_RM=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -4858,10 +4675,6 @@ NODEP_CPP_DC_RMI=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -5009,10 +4822,6 @@ NODEP_CPP_DC_RS=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -5145,10 +4954,6 @@ NODEP_CPP_DC_SC=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -5285,10 +5090,6 @@ NODEP_CPP_DC_VI=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -5429,10 +5230,6 @@ NODEP_CPP_DC_WA=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -5577,16 +5374,13 @@ NODEP_CPP_DECAL=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\util\dreamcast_crt.cpp
+SOURCE=..\src\util\dreamcast_crt.c
+# ADD CPP /TP
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -5599,10 +5393,6 @@ DEP_CPP_DREAM=\
 DEP_CPP_DREAM=\
 	"..\src\util\dreamcast_crt.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -5740,10 +5530,6 @@ NODEP_CPP_ENG_C=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -5892,10 +5678,6 @@ NODEP_CPP_ENG_CD=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -6033,16 +5815,12 @@ NODEP_CPP_ENTIT=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\render\glHud.c
+SOURCE=..\src\render\glhud.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -6171,10 +5949,6 @@ NODEP_CPP_GLHUD=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -6311,10 +6085,6 @@ NODEP_CPP_HASHP=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -6456,10 +6226,6 @@ NODEP_CPP_HOST_=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -6612,16 +6378,12 @@ NODEP_CPP_HOST_C=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\engine\HUD.c
+SOURCE=..\src\engine\hud.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -6752,10 +6514,6 @@ NODEP_CPP_HUD_C=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -6898,14 +6656,6 @@ NODEP_CPP_IN_DC=\
 	"..\src\engine\trilib.h"\
 	".\aplusag.h"\
 	
-# ADD CPP /TP
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-# ADD CPP /TP
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 # ADD CPP /TP
 
 !ENDIF 
@@ -7055,14 +6805,6 @@ NODEP_CPP_IN_JO=\
 	
 # ADD CPP /TP
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-# ADD CPP /TP
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
-# ADD CPP /TP
-
 !ENDIF 
 
 # End Source File
@@ -7208,14 +6950,6 @@ NODEP_CPP_IN_KB=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-# ADD CPP /TP
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-# ADD CPP /TP
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 # ADD CPP /TP
 
 !ENDIF 
@@ -7365,14 +7099,6 @@ NODEP_CPP_IN_MO=\
 	
 # ADD CPP /TP
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-# ADD CPP /TP
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
-# ADD CPP /TP
-
 !ENDIF 
 
 # End Source File
@@ -7510,16 +7236,12 @@ NODEP_CPP_INFO_=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\engine\KEYS.C
+SOURCE=..\src\engine\keys.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -7648,10 +7370,6 @@ NODEP_CPP_KEYS_=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -7792,10 +7510,6 @@ NODEP_CPP_KZAP_=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -7928,33 +7642,6 @@ NODEP_CPP_L_STU=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
-!ENDIF 
-
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\engine\langtags.c
-
-!IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
-
-# PROP Exclude_From_Build 1
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Debug"
-
-# PROP Exclude_From_Build 1
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-# PROP Exclude_From_Build 1
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
-# PROP Exclude_From_Build 1
 
 !ENDIF 
 
@@ -8090,10 +7777,6 @@ NODEP_CPP_MATHL=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -8246,10 +7929,6 @@ NODEP_CPP_MNEMO=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -8384,10 +8063,6 @@ NODEP_CPP_NET_C=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -8524,10 +8199,6 @@ NODEP_CPP_NET_W=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -8660,10 +8331,6 @@ NODEP_CPP_PHYSI=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -8804,10 +8471,6 @@ NODEP_CPP_PMOVE=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -8944,10 +8607,6 @@ NODEP_CPP_PMOVET=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -9090,10 +8749,6 @@ NODEP_CPP_PR_CM=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -9228,10 +8883,6 @@ NODEP_CPP_PR_ED=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -9372,16 +9023,12 @@ NODEP_CPP_QGL_C=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\render\R_PART.C
+SOURCE=..\src\render\r_part.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -9516,10 +9163,6 @@ NODEP_CPP_R_PAR=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -9669,10 +9312,6 @@ NODEP_CPP_R_STU=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -9816,10 +9455,6 @@ NODEP_CPP_R_STUD=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -9962,10 +9597,6 @@ NODEP_CPP_R_TRA=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -10102,10 +9733,6 @@ NODEP_CPP_R_TRI=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -10249,16 +9876,12 @@ NODEP_CPP_SND_N=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\engine\SV_MAIN.C
+SOURCE=..\src\engine\sv_main.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -10399,10 +10022,6 @@ NODEP_CPP_SV_MA=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -10537,10 +10156,6 @@ NODEP_CPP_SV_MO=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -10681,10 +10296,6 @@ NODEP_CPP_SV_PH=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -10822,10 +10433,6 @@ NODEP_CPP_SV_UP=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -10962,10 +10569,6 @@ NODEP_CPP_SV_US=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -11117,10 +10720,6 @@ NODEP_CPP_SYS_D=\
 	".\eddstor.h"\
 	".\egagdrm.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -11277,10 +10876,6 @@ NODEP_CPP_SYS_E=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -11424,10 +11019,6 @@ NODEP_CPP_TEXT_=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -11563,10 +11154,6 @@ NODEP_CPP_TEXTU=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -11704,10 +11291,6 @@ NODEP_CPP_TMESS=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -11852,16 +11435,12 @@ NODEP_CPP_UI_C9a=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\engine\VIEW.C
+SOURCE=..\src\engine\view.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -11995,10 +11574,6 @@ NODEP_CPP_VIEW_=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -12147,10 +11722,6 @@ NODEP_CPP_VMU_C=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -12283,10 +11854,6 @@ NODEP_CPP_WAD_C=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -12427,10 +11994,6 @@ NODEP_CPP_WON_C=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -12569,16 +12132,12 @@ NODEP_CPP_WORLD=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\util\Zap.cpp
+SOURCE=..\src\util\zap.cpp
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"
 
@@ -12711,10 +12270,6 @@ NODEP_CPP_ZAP_C=\
 	"..\src\engine\scriplib.h"\
 	"..\src\engine\trilib.h"\
 	
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
 
 !ENDIF 
 
@@ -12857,10 +12412,6 @@ NODEP_CPP_ZAPSA=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -12996,10 +12547,6 @@ NODEP_CPP_ZONE_=\
 	"..\src\engine\trilib.h"\
 	
 
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "halflife_dc - Win32 Debug"
-
 !ENDIF 
 
 # End Source File
@@ -13012,9 +12559,5 @@ NODEP_CPP_ZONE_=\
 
 # PROP Default_Filter "ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"
 # End Group
-# Begin Source File
-
-SOURCE=.\readme.txt
-# End Source File
 # End Target
 # End Project
