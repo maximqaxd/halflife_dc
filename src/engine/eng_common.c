@@ -4441,3 +4441,108 @@ char* COM_BinPrintf( byte* buf, int nLen )
 	}
 	return text;
 }
+
+byte* COM_LoadFileLimitIntoBuffer( char* path, int pos, int cbmax, int* pcbread, int* phFile, byte* dest )
+{
+	int             h[3];
+	void (*volatile seekFile)(int, int, int, int) = COM_FileSeek;
+	void (*volatile closeFile)(int, int, int) = COM_CloseFile;
+	char    base[32];
+	int             len;
+
+	if (phFile[2] == -1)
+	{
+	// look for it in the filesystem or pack files
+		len = COM_OpenFile(path, h);
+		h[1] = com_filesize;
+	}
+	else
+	{
+		h[0] = phFile[0];
+		h[1] = phFile[1];
+		h[2] = phFile[2];
+		len = h[1];
+	}
+
+	if (h[2] == -1)
+		return NULL;
+
+	if (pos > len)
+		Sys_Error("COM_LoadFileLimit: invalid seek position for %s", path);
+
+	seekFile(h[0], h[1], h[2], pos);
+
+	if (len > cbmax)
+		len = cbmax;
+
+	*pcbread = len;
+
+	if (path)
+		COM_FileBase(path, base);
+
+	if (!dest)
+	{
+		if (path)
+			Sys_ErrorColor(0xf800, "COM_LoadFileLimit: not enough space for %s", path);
+		closeFile(h[0], h[1], h[2]);
+		return NULL;
+	}
+
+	dest[len] = 0;
+	len = Sys_FileRead(h[2], dest, len);
+	phFile[0] = h[0];
+	phFile[1] = h[1];
+	phFile[2] = h[2];
+	*pcbread = len;
+	return dest;
+}
+
+void COM_WriteFile( char* filename, void* data, int length )
+{
+	char name[MAX_OSPATH];
+	int handle;
+
+	sprintf(name, "%s/%s", com_gamedir, filename);
+	handle = Sys_FileOpenWriteLegacy(name);
+	if (handle != -1)
+	{
+		Sys_FileWrite(handle, data, length);
+		Sys_FileClose(handle);
+	}
+}
+
+void COM_CopyFile( char* netpath, char* cachepath )
+{
+	int in, out;
+	unsigned int remaining, count;
+	char buffer[4096];
+
+	remaining = Sys_FileOpenRead(netpath, &in, FALSE);
+	COM_CreatePath(cachepath);
+	out = Sys_FileOpenWriteLegacy(cachepath);
+	while (remaining)
+	{
+		count = remaining < sizeof(buffer) ? remaining : sizeof(buffer);
+		Sys_FileRead(in, buffer, count);
+		Sys_FileWrite(out, buffer, count);
+		remaining -= count;
+	}
+	Sys_FileClose(in);
+	Sys_FileClose(out);
+}
+
+void COM_CopyFileChunk( void* dest, void* source, int size )
+{
+	char buffer[1024];
+
+	while (size > 1024)
+	{
+		DC_fread(buffer, sizeof(buffer), 1, source);
+		DC_fwrite(buffer, sizeof(buffer), 1, dest);
+		size -= sizeof(buffer);
+	}
+	DC_fread(buffer, size, 1, source);
+	DC_fwrite(buffer, size, 1, dest);
+	Sys_Unimplemented("fflush");
+	Sys_Unimplemented("fflush");
+}

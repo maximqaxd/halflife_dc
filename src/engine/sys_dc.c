@@ -95,6 +95,7 @@ unsigned int DC_fwrite( void *buffer, unsigned int size, unsigned int count, voi
  * byte cleared immediately before each open. */
 static WCHAR g_wOpenPath[MAX_PATH];
 static BYTE  g_gdOpenFlag;
+static int   g_fgetcFlag;
 
 #define SYS_FPRINTF_BUFFER_SIZE	0x400
 #define SYS_FPRINTF_GUARD_BYTES	4
@@ -104,6 +105,98 @@ static BYTE  g_gdOpenFlag;
 static void* g_fprintfFile;
 static char g_fprintfBuffer[SYS_FPRINTF_BUFFER_SIZE + SYS_FPRINTF_GUARD_BYTES];
 static int  g_fprintfLen;
+
+WCHAR *Sys_WidePath( const char *path )
+{
+	static WCHAR widePath[2048];
+	MultiByteToWideChar(CP_ACP, 0, path, -1, widePath, 2047);
+	widePath[2047] = 0;
+	return widePath;
+}
+
+void Sys_NormalizePath( char *path )
+{
+	while (*path)
+	{
+		if (*path == '/')
+			*path = '\\';
+		path++;
+	}
+}
+
+void Sys_FlushFileBuffer( void *file )
+{
+	if (file == g_fprintfFile)
+	{
+		DC_fwrite(g_fprintfBuffer, g_fprintfLen, 1, file);
+		g_fprintfLen = 0;
+	}
+}
+
+void Sys_BufferFileWrite( void *file, int length, const void *data )
+{
+	if (file != g_fprintfFile || g_fprintfLen + length > SYS_FPRINTF_BUFFER_SIZE)
+	{
+		DC_fwrite(g_fprintfBuffer, g_fprintfLen, 1, g_fprintfFile);
+		g_fprintfLen = 0;
+	}
+	g_fprintfFile = file;
+	memcpy(g_fprintfBuffer + g_fprintfLen, data, length);
+	g_fprintfLen += length;
+}
+
+void Sys_InitAsyncHandles( void )
+{
+	int i;
+	for (i = 0; i < MAX_ASYNC; i++)
+	{
+		g_AsyncHandles[i].nId = -1;
+		g_AsyncHandles[i].pFile = INVALID_HANDLE_VALUE;
+	}
+}
+
+HANDLE Sys_OpenAsyncHandle( const char *path )
+{
+	HANDLE file = CreateFileW(Sys_WidePath(path), GENERIC_READ, FILE_SHARE_READ,
+		NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
+	if (file != NULL)
+		g_filesOpened++;
+	return file;
+}
+
+HANDLE Sys_GetAsyncHandle( int id )
+{
+	int i;
+	for (i = 0; i < MAX_ASYNC; i++)
+	{
+		if (g_AsyncHandles[i].nId == id)
+			return g_AsyncHandles[i].pFile;
+	}
+	return INVALID_HANDLE_VALUE;
+}
+
+dc_syncslot_t *Sys_FindAsyncHandle( int id )
+{
+	int i;
+	for (i = 0; i < MAX_ASYNC; i++)
+	{
+		if (g_AsyncHandles[i].nId == id)
+			return &g_AsyncHandles[i];
+	}
+	return NULL;
+}
+
+void Sys_CloseAsyncHandle( int id )
+{
+	dc_syncslot_t *slot = Sys_FindAsyncHandle(id);
+	if (slot)
+	{
+		g_filesClosed++;
+		CloseHandle(slot->pFile);
+		slot->nId = -1;
+		slot->pFile = INVALID_HANDLE_VALUE;
+	}
+}
 
 void Host_ExecConfig( void )
 {
@@ -264,6 +357,16 @@ unsigned int DC_fread( void *buffer, unsigned int size, unsigned int count, void
 	}
 
 	return n;
+}
+
+int DC_fgetc( void *file )
+{
+	char value;
+	if (g_fgetcFlag)
+		g_fgetcFlag = 0;
+	if (!DC_fread(&value, 1, 1, file))
+		return -1;
+	return value;
 }
 
 unsigned int DC_fwrite( void *buffer, unsigned int size, unsigned int count, void *hFile )
@@ -844,4 +947,25 @@ void Sys_ExecCmd( int iState, char *fmt, ... )
 ENTITYINIT GetEntityInit( char *pClassName )
 {
 	return (ENTITYINIT)GetDispatch(pClassName);
+}
+
+void Sys_FatalError( int color, const char *text )
+{
+	DCV_FB_BackgroundRect(color);
+	DCV_FB_Text(text);
+	giActive = DLL_INACTIVE;
+	Mnemo_ReportToFile();
+	for (;;)
+	{
+	}
+}
+
+int Sys_FileOpenWriteLegacy( char* path )
+{
+	return -1;
+}
+
+int Sys_FileWrite( int handle, void* data, int length )
+{
+	return 0;
 }

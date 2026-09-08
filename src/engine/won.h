@@ -68,6 +68,8 @@ void		SV_ClearAuthRequest( netadr_t* from );
 int			SV_FindAuthRequest( qboolean create, netadr_t* from );
 qboolean	SV_AuthenticateClient( netadr_t* from, char* certificate, int* userid );
 
+int SV_GetAuthUserID( netadr_t *from );
+
 // Authentication message parsing.
 void		WON_ParseAuthenticationMessage( int type );
 void		CL_ParseAuthenticationMessage( int type );

@@ -957,6 +957,8 @@ void CAM_OutUp( void ) { KeyUp(&cam_out); }
 
 void CAM_ToThirdPerson( void )
 {
+	if (cl.maxclients >= 2)
+		return;
 	if (!cam_thirdperson)
 	{
 		cam_thirdperson = 1;

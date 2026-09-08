@@ -3994,7 +3994,7 @@ void SV_SetupResume( int size, CRC32_t crc )
 {
 	CRC32_t crcFile;
 
-	if (size < 0)
+	if (size < 0 || host_client->downloadcustom)
 		return;
 
 	size *= 1024;
@@ -4630,4 +4630,92 @@ void Host_DrawMessage( void )
 	DCV_TexState_Additive();
 	DCV_SetHudDepth(3.0f);
 	Text_DrawString(1.0f, 1.3333f, hostMessage, x, y, level, level, level);
+}
+
+int SV_GetDownloadChunkSize( client_t* client )
+{
+	float rate;
+
+	if (!client)
+		return 64;
+	if (!client->active)
+		return 128;
+	rate = client->netchan.rate;
+	if (rate == 0.0f)
+		return 64;
+	if (rate > 9900.0f)
+		return 256;
+	if (rate > 4900.0f)
+		return 192;
+	if (rate > 3400.0f)
+		return 128;
+	return 64;
+}
+
+char* Host_FindRecentDiskSave( char* name )
+{
+	char path[MAX_PATH];
+	char filename[MAX_PATH];
+	char* foundName;
+	int newest, stamp;
+	qboolean found = FALSE;
+
+	sprintf(name, "%s*.sav", Host_SaveGameDirectory());
+	sprintf(path, "%s", Host_SaveGameDirectory());
+	foundName = Bfind_first(name, filename);
+	while (foundName)
+	{
+		if (Q_strlen(foundName) && Q_strcasecmp(foundName, "HLSave.sav"))
+		{
+			sprintf(path, "%s%s", Host_SaveGameDirectory(), foundName);
+			stamp = Sys_FileTime(path);
+			if (stamp > 0 && (!found || Sys_CompareFileTime(&newest, &stamp) < 0))
+			{
+				newest = stamp;
+				strcpy(name, foundName);
+				found = TRUE;
+			}
+		}
+		foundName = Bfind_next(filename);
+	}
+	Bfind_reset();
+	return found ? name : NULL;
+}
+
+extern char* NET_BaseAdrToString( netadr_t address );
+
+void Host_PrintClientStatus( char* prefix, qboolean showAddress,
+	void (*print)(char*, ...), int index, client_t* client )
+{
+	int seconds, minutes, hours;
+
+	seconds = (int)(realtime - client->netchan.connect_time);
+	minutes = seconds / 60;
+	hours = 0;
+	if (minutes)
+	{
+		seconds -= minutes * 60;
+		hours = minutes / 60;
+		if (hours)
+			minutes -= hours * 60;
+	}
+	print("#%-2u %-12.12s\n", index + 1, client->name);
+	print("   frags:  %3i\n", (int)client->edict->v.frags);
+	if (hours)
+		print("   time :  %2i:%02i:%02i\n", hours, minutes, seconds);
+	else
+		print("   time :  %02i:%02i\n", minutes, seconds);
+	print("   frame rate :  %.2f fps\n", client->netchan.frame_rate);
+	print("   frame latency :  %.1f frames\n", client->netchan.frame_latency);
+	print("   ping :  %4i\n", SV_CalcPing(client));
+	print("   drop :  %5.2f %%\n", client->netchan.drop_count * 100.0f / client->netchan.incoming_sequence);
+	if (prefix && *prefix)
+		print("   %s\n", prefix);
+	if (client->spectator)
+		print("  (spectator) %s\n", NET_BaseAdrToString(client->netchan.remote_address));
+	else if (client->fakeclient)
+		print("  (fake)\n");
+	else if (showAddress)
+		print("   %s\n", NET_BaseAdrToString(client->netchan.remote_address));
+	print("\n");
 }

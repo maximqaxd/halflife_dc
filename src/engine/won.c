@@ -362,3 +362,11 @@ void WON_RequestCertificate( void )
 {
 	Sys_Error("NYI");
 }
+
+int SV_GetAuthUserID( netadr_t *from )
+{
+	int slot = SV_FindAuthRequest(FALSE, from);
+	if (slot == -1)
+		return -1;
+	return sv_authrequests[slot].userid;
+}

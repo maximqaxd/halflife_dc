@@ -36,6 +36,7 @@ void Sys_MakeCodeWriteable( unsigned long startaddr, unsigned long length );
 void Sys_Error( char* error, ... );
 // an error will cause the entire program to exit
 
+void Sys_FatalError( int color, const char *text );
 void Sys_ErrorColor( int wColor, char* fmt, ... );
 // like Sys_Error, but paints the fatal screen in the given color
 
@@ -75,6 +76,7 @@ void*         Sys_OpenHandle( const char* path, const char* mode );
 int           Sys_CloseHandle( void* hFile );
 unsigned int  DC_fread( void* buffer, unsigned int size, unsigned int count, void* hFile );
 unsigned int  DC_fwrite( void* buffer, unsigned int size, unsigned int count, void* hFile );
+int           DC_fgetc( void *file );
 int           DC_fseek( void* hFile, int offset, int whence );
 int           DC_ftell( void* hFile );
 unsigned long DC_fsize( void* hFile );
@@ -111,6 +113,10 @@ extern short giSubState;
 extern void	(VID_Update)( struct vrect_s* rects );
 extern void	(VID_Shutdown)( void );
 
+
+int Sys_FileOpenWriteLegacy( char* path );
+int Sys_FileWrite( int handle, void* data, int length );
+int Sys_Unimplemented( char* message );
 
 #ifdef __cplusplus
 }

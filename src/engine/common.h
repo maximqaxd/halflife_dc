@@ -266,6 +266,11 @@ int build_number( void );
 
 extern qboolean		standard_quake, rogue, hipnotic;
 
+void COM_WriteFile( char* filename, void* data, int length );
+void COM_CopyFile( char* netpath, char* cachepath );
+void COM_CopyFileChunk( void* dest, void* source, int size );
+byte* COM_LoadFileLimitIntoBuffer( char* path, int pos, int cbmax, int* pcbread, int* phFile, byte* dest );
+
 #ifdef __cplusplus
 }
 #endif
