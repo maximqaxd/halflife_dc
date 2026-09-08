@@ -62,6 +62,7 @@ char* strrchr( const char *s, int c );
 void _splitpath( const char *path, char *drive, char *dir, char *name, char *ext );
 
 int DC_SetFileBuffering( void* stream, char* buffer, int mode, int size );
+int _unlink( const char* path );
 
 long time( long* t );
 

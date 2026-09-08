@@ -320,10 +320,18 @@ void TextMessageInit( void )
 	int fileSize;
 	byte *pMemFile;
 
+	if (gMessageTable)
+	{
+		free(gMessageTable);
+		gMessageTable = NULL;
+	}
+
 	pMemFile = COM_LoadTempFile("titles.txt", &fileSize);
 
 	if (pMemFile)
 		TextMessageParse(pMemFile, fileSize);
+
+	COM_FreeTempFile();
 }
 
 #define NAME_HEAP_SIZE 4096
@@ -369,7 +377,6 @@ void TextMessageParse( byte* pMemFile, int fileSize )
 			}
 			if (IsEndOfText(trim))
 			{
-				Con_DPrintf("Unexpected '}' found, line %d\n", lineNumber);
 				return;
 			}
 			strcpy(currentName, trim);
@@ -383,7 +390,6 @@ void TextMessageParse( byte* pMemFile, int fileSize )
 				// Save name on name heap
 				if ((lastNamePos + length) > sizeof(nameHeap))
 				{
-					Con_DPrintf("Error parsing file!\n");
 					return;
 				}
 				strcpy(nameHeap + lastNamePos, currentName);
@@ -404,7 +410,6 @@ void TextMessageParse( byte* pMemFile, int fileSize )
 			}
 			if (IsStartOfText(trim))
 			{
-				Con_DPrintf("Unexpected '{' found, line %d\n", lineNumber);
 				return;
 			}
 			break;
@@ -413,7 +418,6 @@ void TextMessageParse( byte* pMemFile, int fileSize )
 		lastLinePos = filePos;
 	}
 
-	Con_DPrintf("Parsed %d text messages\n", messageCount);
 	nameHeapSize = lastNamePos;
 	textHeapSize = 0;
 	for (i = 0; i < messageCount; i++)
@@ -423,7 +427,7 @@ void TextMessageParse( byte* pMemFile, int fileSize )
 	messageSize = (messageCount * sizeof(client_textmessage_t));
 
 	// Must malloc because we need to be able to clear it after initialization
-	gMessageTable = (client_textmessage_t*)Hunk_AllocName(textHeapSize + nameHeapSize + messageSize, "TextMessages");
+	gMessageTable = (client_textmessage_t*)MnemoAllocDbg(textHeapSize + nameHeapSize + messageSize, __FILE__, __LINE__);
 
 	// Copy table over
 	memcpy(gMessageTable, textMessages, messageSize);

@@ -128,7 +128,10 @@ void PlaySound( char* szSound, float volume )
 {
 	sfx_t* sfx;
 
-	volume = clamp(volume, 0.0f, 1.0f);
+	if (volume <= 0.0f)
+		volume = 0.0f;
+	if (volume >= 1.0f)
+		volume = 1.0f;
 
 	sfx = S_FindName(szSound);
 	if (sfx)

@@ -48,6 +48,11 @@ static qboolean ED_ShouldSuppressEntity( int num_edicts, const char* classname, 
 		ed_sitting_scientist_count++ == 0)
 		return TRUE;
 
+	if (!strcmp(mapname, "c4a3") && !strcmp(classname, "monster_ichthyosaur"))
+		return TRUE;
+	if (!strcmp(mapname, "c4a3") && !strcmp(classname, "monster_scientist"))
+		return TRUE;
+
 	return FALSE;
 }
 

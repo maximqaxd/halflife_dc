@@ -1243,58 +1243,37 @@ void* calloc( unsigned int num, unsigned int size, const char* file, int line )
 =================
 MnemoRealloc
 
-Arena equivalent of realloc.  Unlike the debug wrapper, this keeps the
-allocation's tag, flags, and allocation class so a texture scratch buffer stays
-in the same Mnemo allocation domain when it grows.
+Grow a scratch allocation, retaining its tag, flags and allocation class.
+The old contents are discarded when the block grows.
 =================
 */
 void* MnemoRealloc( void* oldPtr, int sizeBytes )
 {
-	mnemo_pez_pool_t*	pool;
 	mnemo_header_t*	hdr;
-	int				oldSize;
 	unsigned int		flags;
 	int				allocClass;
 	char				tag[sizeof(((mnemo_header_t*)0)->tag)];
-	void*				newPtr;
 
-	if (sizeBytes <= 0)
-	{
-		if (oldPtr)
-			MnemoFree(oldPtr);
-		return NULL;
-	}
-
-	if (!oldPtr)
-		return MnemoAlloc(sizeBytes, MNEMO_FLAG_MALLOC, 0, "realloc");
-
-	pool = Mnemo_FindPezPool(oldPtr);
-	if (pool)
-	{
-		oldSize = pool->size;
-		flags = MNEMO_FLAG_MALLOC;
-		allocClass = 0;
-		strcpy(tag, "pez realloc");
-	}
-	else
-	{
-		hdr = (mnemo_header_t*)oldPtr - 1;
-		oldSize = hdr->payload_size;
-		flags = hdr->flags;
-		allocClass = hdr->alloc_class;
-		strcpy(tag, hdr->tag);
-	}
-
-	if (oldSize >= sizeBytes)
+	if (Mnemo_BlockSize(oldPtr) >= sizeBytes)
 		return oldPtr;
 
-	newPtr = MnemoAlloc(sizeBytes, flags, allocClass, tag);
-	if (!newPtr)
-		return NULL;
+	hdr = (mnemo_header_t*)oldPtr - 1;
+	if (Mnemo_FindPezPool(oldPtr))
+		strcpy(tag, "pez");
+	strcpy(tag, hdr->tag);
 
-	memcpy(newPtr, oldPtr, oldSize);
+	if (Mnemo_FindPezPool(oldPtr))
+		flags = MNEMO_FLAG_PEZ;
+	else
+		flags = (short)hdr->flags;
+
+	if (Mnemo_FindPezPool(oldPtr))
+		allocClass = 0;
+	else
+		allocClass = (short)hdr->alloc_class;
+
 	MnemoFree(oldPtr);
-	return newPtr;
+	return MnemoAlloc(sizeBytes, flags, allocClass, tag);
 }
 
 void MnemoFreeDbg( void* ptr )
@@ -1642,6 +1621,7 @@ int Cache_FreeAll( void )
 }
 
 static int MnemoCacheMove( cache_system_t* cs );
+static __forceinline int Cache_MoveToAFile( cache_system_t* cs );
 static __forceinline int MnemoCacheRelocate( cache_system_t* cs );
 
 /*
@@ -1656,9 +1636,11 @@ int Cache_FlushToDisk( void )
 {
 	cache_system_t* cs;
 	cache_system_t* next;
+	cache_system_t* last;
 	int count;
 
 	count = 0;
+	last = g_mnemo.cache_mru;
 
 	for (cs = g_mnemo.cache_lru; cs != NULL; cs = next)
 	{
@@ -1671,12 +1653,12 @@ int Cache_FlushToDisk( void )
 			   to put it, otherwise just shuffle the block up so the space it
 			   leaves behind joins the hole next to it. */
 			if (AFile_HasRoomFor(cs->size))
-				count += MnemoCacheMove(cs);
+				count += Cache_MoveToAFile(cs);
 			else
 				count += MnemoCacheRelocate(cs);
 		}
 
-		if (count > CACHE_FLUSH_MAX)
+		if (cs == last || count > CACHE_FLUSH_MAX)
 			break;
 	}
 
@@ -1801,8 +1783,6 @@ static int Cache_FreeLRU( int aggressive )
  */
 static int MnemoCacheMove( cache_system_t* cs )
 {
-	cache_system_t* newcs;
-
 	if (cs->flags & CACHE_LOCKED)
 		return 0;
 
@@ -1811,6 +1791,13 @@ static int MnemoCacheMove( cache_system_t* cs )
 
 	if (!AFile_HasRoomFor(cs->size))
 		return 0;
+
+	return Cache_MoveToAFile(cs);
+}
+
+static __forceinline int Cache_MoveToAFile( cache_system_t* cs )
+{
+	cache_system_t* newcs;
 
 	if (AFile_LoadOrCreate((char*)cs, (byte*)cs + sizeof(cache_system_t),
 	                       cs->size - (int)sizeof(cache_system_t), 1) == NULL)
@@ -1851,12 +1838,6 @@ static __forceinline int MnemoCacheRelocate( cache_system_t* cs )
 {
 	cache_system_t* newcs;
 
-	if (cs->flags & CACHE_LOCKED)
-		return 0;
-
-	if (((unsigned int)*cs->user & 1u) != 0)
-		return 0;
-
 	newcs = (cache_system_t*)MnemoAlloc(cs->size, MNEMO_FLAG_CACHE | MNEMO_FLAG_NO_RECLAIM,
 	                                    0, (char*)cs);
 	if (newcs == NULL)
@@ -1884,6 +1865,7 @@ static __forceinline int MnemoCacheRelocate( cache_system_t* cs )
 /* Juggle out an unlocked cache block that neighbours a free hole. */
 static __forceinline int Mnemo_TryCacheMoveBlock( mnemo_header_t* neighbor )
 {
+	static int (*volatile moveblock)(cache_system_t*) = MnemoCacheMove;
 	cache_system_t* cs;
 
 	if ((neighbor->flags & MNEMO_FLAG_CACHE) == 0)
@@ -1897,7 +1879,7 @@ static __forceinline int Mnemo_TryCacheMoveBlock( mnemo_header_t* neighbor )
 	if (cs->flags & CACHE_LOCKED)
 		return 0;
 
-	return MnemoCacheMove(cs);
+	return moveblock(cs);
 }
 
 /*

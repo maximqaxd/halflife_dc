@@ -1761,7 +1761,7 @@ void MSG_WriteBitAngle( float angle, int numbits )
 	unsigned int	value;
 
 	shift = 1 << numbits;
-	value = (int)(angle * (float)(int)shift) / 360;
+	value = (int)(angle * (float)shift) / 360;
 	value &= shift - 1;
 
 	if (numbits > 16)
@@ -2734,8 +2734,13 @@ int COM_FindFileSearch( searchpath_t** pRestart, char* gamedir, char* filename, 
 	{
 		for (; search && search != *pRestart; search = search->next)
 			;
-		if (search)
-			search = search->next;
+		if (!search)
+			goto notfound;
+		search = search->next;
+		for (; search && !Q_stricmp(search->gamedir, (*pRestart)->gamedir); search = search->next)
+			;
+		if (!search)
+			goto notfound;
 	}
 
 // restrict to a single gamedir if one was requested
@@ -2749,27 +2754,29 @@ int COM_FindFileSearch( searchpath_t** pRestart, char* gamedir, char* filename, 
 			break;
 
 	// check a file in the directory tree first
-		sprintf(netpath, "%s/%s", search->filename, filename);
-		findtime = Sys_FileTime(netpath);
-		*(int*)&gFileTime = findtime;
-		if (findtime > 0)
+		if (strlen(search->filename))
 		{
-			com_filesize = Sys_FileOpenRead(netpath, &i, 0);
-			if (!phFile)
+			sprintf(netpath, "%s/%s", search->filename, filename);
+			findtime = Sys_FileTime(netpath);
+			*(int*)&gFileTime = findtime;
+			if (findtime > 0)
 			{
-				Sys_FileClose(i);
-				*file = (FILE*)Sys_OpenHandle(netpath, "rb");
+				com_filesize = Sys_FileOpenRead(netpath, &i, 0);
+				if (!phFile)
+				{
+					Sys_FileClose(i);
+					*file = (FILE*)Sys_OpenHandle(netpath, "rb");
+				}
+				else
+				{
+					phFile[2] = i;
+					phFile[0] = 0;
+				}
+				if (pRestart)
+					*pRestart = search;
+				COM_LogFileOpen("File", filename, 0, com_filesize);
+				return com_filesize;
 			}
-			else
-			{
-				phFile[2] = i;
-				phFile[0] = 0;
-			}
-			if (pRestart)
-				*pRestart = search;
-			if (filelog_level && filelog_handle)
-				Sys_FPrintf(filelog_handle, "Opened %s from %s, offset %d, size %d\n", filename, "File", 0, com_filesize);
-			return com_filesize;
 		}
 
 	// is the element a pak file?
@@ -2787,7 +2794,7 @@ int COM_FindFileSearch( searchpath_t** pRestart, char* gamedir, char* filename, 
 				{
 					*(int*)&gFileTime = search->filetime;
 					*file = (FILE*)Sys_OpenHandle(pak->filename, "rb");
-					Sys_FileSeek((int)*file, entry->filepos);
+					DC_SetFileBuffering(*file, NULL, _IOFBF, 0x4000);
 					if (*file)
 						DC_fseek((void*)*file, entry->filepos, 0);
 				}
@@ -2801,13 +2808,14 @@ int COM_FindFileSearch( searchpath_t** pRestart, char* gamedir, char* filename, 
 				com_filesize = entry->filelen;
 				if (pRestart)
 					*pRestart = search;
-				if (filelog_level && filelog_handle)
-					Sys_FPrintf(filelog_handle, "Opened %s from %s, offset %d, size %d\n", filename, "Pak", entry->filepos, entry->filelen);
+				COM_LogFileOpen("Pak ", filename, entry->filepos, entry->filelen);
 				return com_filesize;
 			}
 		}
 	}
 
+
+notfound:
 	if (phFile)
 		phFile[2] = -1;
 	else

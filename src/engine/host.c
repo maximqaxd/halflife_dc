@@ -314,6 +314,57 @@ void Host_InitLocal( void )
 
 /*
 ===============
+Info_WriteVars
+
+Cvar_WriteVariables already wrote every archived cvar, so this only needs to
+save the userinfo keys that a mod set by hand and never backed with a cvar
+("*" keys are server-assigned and never saved).
+===============
+*/
+void Info_WriteVars( void* f )
+{
+	char	key[MAX_INFO_STRING];
+	char	value[MAX_INFO_STRING];
+	char	*s;
+	char	*o;
+	cvar_t	*var;
+
+	s = cls.userinfo;
+	if (*s == '\\')
+		s++;
+	while (1)
+	{
+		o = key;
+		while (*s != '\\')
+		{
+			if (!*s)
+				return;
+			*o++ = *s++;
+		}
+		*o = 0;
+		s++;
+
+		o = value;
+		while (*s != '\\' && *s)
+		{
+			if (!*s)
+				return;
+			*o++ = *s++;
+		}
+		*o = 0;
+
+		var = Cvar_FindVar(key);
+		if (!var && key[0] != '*')
+			Sys_FPrintf(f, "setinfo \"%s\" \"%s\"\n", key, value);
+
+		if (!*s)
+			return;
+		s++;
+	}
+}
+
+/*
+===============
 Host_WriteConfiguration
 
 Writes key bindings and archived cvars to config.cfg
@@ -581,7 +632,12 @@ void Host_ShutdownServer( qboolean crash )
 	SV_ClearClientStates();
 	Host_ClearClients(FALSE);
 
-	Master_Shutdown();
+	for (i = 0, host_client = svs.clients; i < svs.maxclientslimit; i++, host_client++)
+		SV_ClearFrames(&host_client->frames);
+
+	memset(svs.clients, 0, sizeof(client_t) * svs.maxclientslimit);
+
+	Master_Shutdown(FALSE);
 
 	Log_Printf("Server shutdown\n");
 	Log_Close();
@@ -701,7 +757,7 @@ qboolean Host_FilterTime( float time )
 	host_frametime = realtime - oldrealtime;
 	oldrealtime = realtime;
 
-	if (host_framerate.value <= 0.0f || !SV_Active())
+	if (host_framerate.value <= 0.0f || !IsSinglePlayerGame())
 	{
 		if (host_frametime > 0.1f)
 			host_frametime = 0.1f;
@@ -875,7 +931,7 @@ Master_Shutdown
 Server is shutting down, unload master servers list, tell masters that we are closing the server
 ==================
 */
-void Master_Shutdown( void )
+void Master_Shutdown( qboolean bFree )
 {
 	master_t	*p;
 	master_t	*next;
@@ -895,7 +951,7 @@ void Master_Shutdown( void )
 		NET_SendPacket(NS_SERVER, strlen(string), string, p->adr);
 
 	// unload the master list
-	if (valvemaster_adr)
+	if (bFree)
 	{
 		for (p = valvemaster_adr; p != NULL; p = next)
 		{
@@ -1526,24 +1582,22 @@ DLL_EXPORT int Host_Frame( float time, int iState, int* stateInfo )
 	if (setjmp(host_abortserver))
 		return giActive;			// something bad happened, or the server disconnected
 
+	if (cls.state == ca_active && g_bForceReloadOnCA_Active)
+	{
+		Host_ExecConfig();
+		g_bForceReloadOnCA_Active = FALSE;
+		memset(g_szProfileName, 0, sizeof(g_szProfileName));
+	}
+
 	giActive = iState;
-#if 0
-	*stateInfo = 0;
-#endif
 	if (!serverprofile.value)
 	{
 		_Host_Frame(time);
-#if 0
 		if (giStateInfo)
 		{
 			*stateInfo = giStateInfo;
 			giStateInfo = 0;
 			Cbuf_Execute();
-		}
-#endif
-		if (cls.state == ca_disconnected && con_loading)
-		{
-			giActive = DLL_PAUSED;
 		}
 
 		return giActive;
@@ -1553,26 +1607,18 @@ DLL_EXPORT int Host_Frame( float time, int iState, int* stateInfo )
 	_Host_Frame(time);
 	time2 = Sys_FloatTime();
 
-#if 0
 	if (giStateInfo)
 	{
 		*stateInfo = giStateInfo;
 		giStateInfo = 0;
 		Cbuf_Execute();
 	}
-#endif
-
-// is that used in dc branch at all?
-	if (cls.state == ca_disconnected && con_loading)
-	{
-		giActive = DLL_PAUSED;
-	}
 
 	timetotal += time2 - time1;
 	timecount++;
 
 	if (timecount < 1000)
-		return giActive;
+		return 0;
 
 	m = timetotal * 1000 / timecount;
 	timecount = 0;
@@ -1585,7 +1631,7 @@ DLL_EXPORT int Host_Frame( float time, int iState, int* stateInfo )
 	}
 	Con_Printf("serverprofile: %2i clients %2i msec\n", c, m);
 
-	return giActive;
+	return 0;
 }
 
 /*
@@ -1905,7 +1951,7 @@ void Host_Shutdown( void )
 	}
 	isdown = TRUE;
 
-	Master_Shutdown();
+	Master_Shutdown(TRUE);
 
 // keep Con_Printf from trying to update the screen
 	scr_disabled_for_loading = TRUE;

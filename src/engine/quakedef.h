@@ -246,7 +246,7 @@ extern	netadr_t	master_adr;
 
 void Master_Heartbeat( void );
 void Master_Heartbeat_f( void );
-void Master_Shutdown( void );
+void Master_Shutdown( qboolean bFree );
 void Master_AddServer( netadr_t *adr );
 void Master_SetMaster_f( void );
 void Master_UseDefault( void );

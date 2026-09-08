@@ -407,6 +407,7 @@ void SV_ExtractFromUserinfo( client_t* client );
 //
 void SV_Init( void );
 qboolean SV_Active( void );
+qboolean IsSinglePlayerGame( void );
 void SV_ReadPackets( void );
 void SV_CheckTimeouts( void );
 void SV_FullClientUpdate( client_t* cl, sizebuf_t* sb );

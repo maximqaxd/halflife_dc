@@ -57,5 +57,6 @@ void	Sys_GetProfileRegKeyValue( char* pszName, char* pszPath, char* pszSetting, 
 void	Sys_SetProfileRegKeyValue( char* pszName, char* pszPath, char* pszSetting, char* pszElement, char* pszDefaultValue );
 
 void	ExecuteProfileSettings( char* pszName );
+void	Host_ExecConfig( void );
 
 #endif // PROFILE_H

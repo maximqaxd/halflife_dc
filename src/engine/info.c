@@ -411,59 +411,6 @@ char* Info_Serverinfo( void )
 	return serverinfo;
 }
 
-/*
-===============
-Info_WriteVars
-
-Cvar_WriteVariables already wrote every archived cvar, so this only needs to
-save the userinfo keys that a mod set by hand and never backed with a cvar
-("*" keys are server-assigned and never saved).
-===============
-*/
-#pragma optimize("", off)
-void Info_WriteVars( void* f )
-{
-	char	key[MAX_INFO_STRING];
-	char	value[MAX_INFO_STRING];
-	char	*s;
-	char	*o;
-	cvar_t	*var;
-
-	s = cls.userinfo;
-	if (*s == '\\')
-		s++;
-	while (1)
-	{
-		o = key;
-		while (*s != '\\')
-		{
-			if (!*s)
-				return;
-			*o++ = *s++;
-		}
-		*o = 0;
-		s++;
-
-		o = value;
-		while (*s != '\\' && *s)
-		{
-			if (!*s)
-				return;
-			*o++ = *s++;
-		}
-		*o = 0;
-
-		var = Cvar_FindVar(key);
-		if (!var && key[0] != '*')
-			Sys_FPrintf(f, "setinfo \"%s\" \"%s\"\n", key, value);
-
-		if (!*s)
-			return;
-		s++;
-	}
-}
-#pragma optimize("", on)
-
 int Info_IsKeyImportant( char* key )
 {
 	if (*key == '*')

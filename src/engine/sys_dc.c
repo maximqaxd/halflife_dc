@@ -33,10 +33,6 @@ short giSubState = 0;
 extern cvar_t sys_ticrate;
 // -----------------------------------------------------------------------------
 
-static DWORD g_dwYUV420StagingBufferSize   = 0x1000;
-static DWORD g_dwCommandPolygonBufferSize  = 0x2ce20;
-static DWORD g_dwCommandVertexBufferSize   = 0xdbba0;
-static DWORD g_dwSmallestPolygon           = 0;
 
 
 
@@ -91,10 +87,6 @@ void DC_PrintFileCounts( void )
 void Sys_RegisterFileHandle( const char *path, int hFile );
 unsigned int DC_fwrite( void *buffer, unsigned int size, unsigned int count, void *hFile );
 
-/* Shared narrow->wide staging buffer for every CreateFileW open, plus the flag
- * byte cleared immediately before each open. */
-static WCHAR g_wOpenPath[MAX_PATH];
-static BYTE  g_gdOpenFlag;
 static int   g_fgetcFlag;
 
 #define SYS_FPRINTF_BUFFER_SIZE	0x400
@@ -220,7 +212,6 @@ DWORD DC_fsize( void *hFile )
 HANDLE Sys_OpenHandle( const char *path, const char *mode )
 {
 	char   szPath[MAX_PATH];
-	char  *p;
 	DWORD  access;
 	DWORD  creation;
 	HANDLE hFile;
@@ -244,15 +235,8 @@ HANDLE Sys_OpenHandle( const char *path, const char *mode )
 	}
 
 	strcpy(szPath, path);
-	for (p = szPath; *p; ++p)
-	{
-		if (*p == '/')
-			*p = '\\';
-	}
-
-	MultiByteToWideChar(CP_ACP, 0, szPath, -1, g_wOpenPath, ARRAYSIZE(g_wOpenPath));
-	g_gdOpenFlag = 0;
-	hFile = CreateFileW(g_wOpenPath, access, FILE_SHARE_READ, NULL, creation,
+	Sys_NormalizePath(szPath);
+	hFile = CreateFileW(Sys_WidePath(szPath), access, FILE_SHARE_READ, NULL, creation,
 	                    FILE_ATTRIBUTE_NORMAL, NULL);
 
 	if (hFile == INVALID_HANDLE_VALUE)
@@ -273,34 +257,12 @@ HANDLE Sys_OpenHandle( const char *path, const char *mode )
 // the async shadow slot, then close the handle (GD-ROM or Win32).
 int Sys_CloseHandle( void *hFile )
 {
-	dc_syncslot_t *slot = NULL;
-	int i;
-
-	if (hFile == g_fprintfFile)
-	{
-		DC_fwrite(g_fprintfBuffer, g_fprintfLen, 1, hFile);
-		g_fprintfLen = 0;
-	}
+	Sys_FlushFileBuffer(hFile);
 
 	if (IsBfile(hFile) != 0)
 		return Bclose((int)hFile);
 
-	for (i = 0; i < MAX_ASYNC; i++)
-	{
-		if ((void *)g_AsyncHandles[i].nId == hFile)
-		{
-			slot = &g_AsyncHandles[i];
-			break;
-		}
-	}
-
-	if (slot != NULL)
-	{
-		g_filesClosed++;
-		CloseHandle(slot->pFile);
-		slot->nId = -1;
-		slot->pFile = INVALID_HANDLE_VALUE;
-	}
+	Sys_CloseAsyncHandle((int)hFile);
 
 	if (!CloseHandle(hFile))
 		return -1;
@@ -322,15 +284,7 @@ void Sys_FPrintf( void *fileid, char *fmt, ... )
 	va_end(argptr);
 
 	len = strlen(text);
-	if (fileid != g_fprintfFile || g_fprintfLen + len > SYS_FPRINTF_BUFFER_SIZE)
-	{
-		DC_fwrite(g_fprintfBuffer, g_fprintfLen, 1, g_fprintfFile);
-		g_fprintfLen = 0;
-	}
-
-	g_fprintfFile = fileid;
-	memcpy(g_fprintfBuffer + g_fprintfLen, text, len);
-	g_fprintfLen += len;
+	Sys_BufferFileWrite(fileid, len, text);
 }
 
 // GD-aware stdio-style transfer helpers.  The Win32 path reads/writes one
@@ -435,6 +389,7 @@ int Sys_Unimplemented( char *pszFunction )
 	return 0;
 }
 
+
 // Shadow an open HANDLE with a second read handle for async I/O: find a free
 // slot (nId == -1) and open a duplicate of path into it.
 void Sys_RegisterFileHandle( const char *path, int hFile )
@@ -446,12 +401,7 @@ void Sys_RegisterFileHandle( const char *path, int hFile )
 	{
 		if (g_AsyncHandles[i].nId == -1)
 		{
-			MultiByteToWideChar(CP_ACP, 0, path, -1, g_wOpenPath, ARRAYSIZE(g_wOpenPath));
-			g_gdOpenFlag = 0;
-			hDup = CreateFileW(g_wOpenPath, GENERIC_READ, FILE_SHARE_READ, NULL,
-			                   OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-			if (hDup != NULL)
-				g_filesOpened++;
+			hDup = Sys_OpenAsyncHandle(path);
 			if (hDup != INVALID_HANDLE_VALUE)
 			{
 				g_AsyncHandles[i].nId   = hFile;
@@ -464,18 +414,10 @@ void Sys_RegisterFileHandle( const char *path, int hFile )
 
 qboolean Sys_AsyncBusy( int id, LPOVERLAPPED pov )
 {
-	dc_syncslot_t *slot = NULL;
+	dc_syncslot_t *slot;
 	DWORD          bytes = 0;
-	int            i;
 
-	for (i = 0; i < MAX_ASYNC; i++)
-	{
-		if (g_AsyncHandles[i].nId == id)
-		{
-			slot = &g_AsyncHandles[i];
-			break;
-		}
-	}
+	slot = Sys_FindAsyncHandle(id);
 
 	if (slot == NULL)
 		Sys_Error("Sys_AsyncBusy on unregistered sync handle\n");
@@ -488,22 +430,14 @@ qboolean Sys_AsyncBusy( int id, LPOVERLAPPED pov )
 
 int Sys_FileReadAsync( void *hFile, void *buffer, int count, struct _OVERLAPPED *pov )
 {
-	dc_syncslot_t *slot = NULL;
+	dc_syncslot_t *slot;
 	DWORD          bytes = 0;
 	DWORD          pos;
 	void          *hRealFile;
-	int            i;
 
 	pos = SetFilePointer(hFile, 0, NULL, FILE_CURRENT);
 
-	for (i = 0; i < MAX_ASYNC; i++)
-	{
-		if ((void *)g_AsyncHandles[i].nId == hFile)
-		{
-			slot = &g_AsyncHandles[i];
-			break;
-		}
-	}
+	slot = Sys_FindAsyncHandle((int)hFile);
 
 	if (slot == NULL)
 		Sys_Error("Sys_FileReadAsync on unregistered sync handle\n");
@@ -526,21 +460,12 @@ int Sys_FileReadAsync( void *hFile, void *buffer, int count, struct _OVERLAPPED 
 int Sys_FileOpenRead( char *path, int *pHandle, int bRegisterAsync )
 {
 	HANDLE hFile;
-	DWORD  size;
-	char  *p;
 
 	hFile = (HANDLE)Bopen(path, "rb");
 	if (hFile == NULL)
 	{
-		for (p = path; *p; ++p)
-		{
-			if (*p == '/')
-				*p = '\\';
-		}
-
-		MultiByteToWideChar(CP_ACP, 0, path, -1, g_wOpenPath, ARRAYSIZE(g_wOpenPath));
-		g_gdOpenFlag = 0;
-		hFile = CreateFileW(g_wOpenPath, GENERIC_READ, FILE_SHARE_READ, NULL,
+		Sys_NormalizePath(path);
+		hFile = CreateFileW(Sys_WidePath(path), GENERIC_READ, FILE_SHARE_READ, NULL,
 		                    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 		if (hFile == INVALID_HANDLE_VALUE)
 		{
@@ -549,7 +474,10 @@ int Sys_FileOpenRead( char *path, int *pHandle, int bRegisterAsync )
 		}
 
 		if (bRegisterAsync)
-			Sys_RegisterFileHandle(path, (int)hFile);
+		{
+			void (*volatile registerHandle)(const char *, int) = Sys_RegisterFileHandle;
+			registerHandle(path, (int)hFile);
+		}
 	}
 	else
 	{
@@ -559,35 +487,12 @@ int Sys_FileOpenRead( char *path, int *pHandle, int bRegisterAsync )
 	g_filesOpened++;
 	*pHandle = (int)hFile;
 
-	if (IsBfile(hFile))
-		size = Bsize(hFile);
-	else
-		size = GetFileSize(hFile, NULL);
-
-	return size;
+	return DC_fsize(hFile);
 }
 
 void Sys_FileClose( int hFile )
 {
-	dc_syncslot_t *slot = NULL;
-	int i;
-
-	for (i = 0; i < MAX_ASYNC; i++)
-	{
-		if (g_AsyncHandles[i].nId == hFile)
-		{
-			slot = &g_AsyncHandles[i];
-			break;
-		}
-	}
-
-	if (slot != NULL)
-	{
-		g_filesClosed++;
-		CloseHandle(slot->pFile);
-		slot->nId = -1;
-		slot->pFile = INVALID_HANDLE_VALUE;
-	}
+	Sys_CloseAsyncHandle(hFile);
 	CloseHandle((HANDLE)hFile);
 	g_filesClosed++;
 }
@@ -620,20 +525,12 @@ int Sys_FileTime( char *path )
 	int      hGDROM;
 	DWORD    ftime = (DWORD)-1;
 	FILETIME mtime;
-	char    *p;
 
 	hGDROM = Bopen(path, "rb");
 	if (hGDROM == 0)
 	{
-		for (p = path; *p; ++p)
-		{
-			if (*p == '/')
-				*p = '\\';
-		}
-
-		MultiByteToWideChar(CP_ACP, 0, path, -1, g_wOpenPath, ARRAYSIZE(g_wOpenPath));
-		g_gdOpenFlag = 0;
-		hFile = CreateFileW(g_wOpenPath, GENERIC_READ, FILE_SHARE_READ, NULL,
+		Sys_NormalizePath(path);
+		hFile = CreateFileW(Sys_WidePath(path), GENERIC_READ, FILE_SHARE_READ, NULL,
 		                    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 		if (hFile != INVALID_HANDLE_VALUE)
 		{
@@ -668,8 +565,18 @@ void Sys_MakeCodeWriteable( unsigned long startaddr, unsigned long length )
 // MEMORY PROTECTION
 // -----------------------------------------------------------------------------
 
-// Fatal error with a caller-chosen RGB565 background bar.  C89 varargs can't
-// be forwarded, so this and Sys_Error carry duplicate bodies.
+void Sys_FatalError( int color, const char *text )
+{
+	DCV_FB_BackgroundRect(color);
+	DCV_FB_Text(text);
+	giActive = DLL_INACTIVE;
+	Mnemo_ReportToFile();
+	for (;;)
+	{
+	}
+}
+
+// Fatal error with a caller-chosen RGB565 background bar.
 void Sys_ErrorColor( int wColor, char *error, ... )
 {
 	va_list argptr;
@@ -681,15 +588,7 @@ void Sys_ErrorColor( int wColor, char *error, ... )
 
 	strcat(text, "\n");
 
-	DCV_FB_BackgroundRect(wColor);
-	DCV_FB_Text(text);
-
-	giActive = DLL_INACTIVE;
-	Mnemo_ReportToFile();
-
-	for (;;)
-	{
-	}
+	Sys_FatalError(wColor, text);
 }
 
 // -----------------------------------------------------------------------------
@@ -707,15 +606,7 @@ void Sys_Error( char *error, ... )
 
 	strcat(text, "\n");
 
-	DCV_FB_BackgroundRect(0xFFFF);
-	DCV_FB_Text(text);
-
-	giActive = DLL_INACTIVE;
-	Mnemo_ReportToFile();
-
-	for (;;)
-	{
-	}
+	Sys_FatalError(0xFFFF, text);
 }
 
 void Sys_WinError( void )
@@ -723,8 +614,6 @@ void Sys_WinError( void )
 	char text[1024];
 
 	sprintf(text, "Windows error %d; sorry for the numeric cop-out, but FormatMessage isn't available.", GetLastError());
-	//Sys_Error
-	("%s", text);
 }
 
 void Sys_Quit( void )
@@ -763,8 +652,6 @@ void Sys_Init( void )
 {
 	LARGE_INTEGER  perfFreq;
 	unsigned int   lowpart, highpart;
-	int            i;
-	dc_syncslot_t *slot;
 
 	if (!QueryPerformanceFrequency(&perfFreq))
 		Sys_Error("No hardware timer available");
@@ -785,13 +672,7 @@ void Sys_Init( void )
 
 	Sys_InitFloatTime();
 
-	slot = g_AsyncHandles;
-	for (i = 0; i < MAX_ASYNC; i++)
-	{
-		slot->nId   = -1;
-		slot->pFile = INVALID_HANDLE_VALUE;
-		slot++;
-	}
+	Sys_InitAsyncHandles();
 }
 
 DLL_EXPORT float Sys_FloatTime( void )
@@ -949,16 +830,6 @@ ENTITYINIT GetEntityInit( char *pClassName )
 	return (ENTITYINIT)GetDispatch(pClassName);
 }
 
-void Sys_FatalError( int color, const char *text )
-{
-	DCV_FB_BackgroundRect(color);
-	DCV_FB_Text(text);
-	giActive = DLL_INACTIVE;
-	Mnemo_ReportToFile();
-	for (;;)
-	{
-	}
-}
 
 int Sys_FileOpenWriteLegacy( char* path )
 {

@@ -676,6 +676,9 @@ int Zip_GetUncompressedSize( void* pHeader )
 #define ZIP_TEMP_FILE	"\\CD-ROM\\valve\\SAVE\\ZipTmp.sdj"
 
 // Deflate a file into the temporary zip staging file, then swap it into place.
+#ifdef _WIN32_WCE
+#pragma inline_depth(0)
+#endif
 int Zip_CompressFile( char* pszFileName, int level )
 {
 	int			result = 0;
@@ -739,6 +742,9 @@ int Zip_CompressFile( char* pszFileName, int level )
 }
 
 // Inflate a previously compressed file out to a separate destination.
+#ifdef _WIN32_WCE
+#pragma inline_depth()
+#endif
 int Zip_DecompressFile( char* pszFileName, char* pszOutName )
 {
 	int			result = 0;
