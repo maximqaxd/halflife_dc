@@ -5093,7 +5093,7 @@ void CRevertSaved :: LoadThink( void )
 {
 	if ( !gpGlobals->deathmatch )
 	{
-		SERVER_COMMAND("reload\n");
+		SERVER_COMMAND("menu continuemenu\n");
 	}
 }
 
