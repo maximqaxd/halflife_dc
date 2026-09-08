@@ -57,6 +57,7 @@ char *VOX_GetDirectory (char *szpath, char *psz)
 }
 
 extern "C" HWND	g_hWnd;
+extern int	fSentencesInit;
 
 // Sounds started from the console are not attached to anything in the world,
 // so they play against an entity number nothing else can claim.
@@ -203,7 +204,7 @@ void S_Init (void)
 	DSBUFFERDESC	desc;
 	HRESULT		hr;
 
-	host_parms.membase = NULL;
+	fSentencesInit = FALSE;
 
 	if (!g_pAudioMgr)
 	{
