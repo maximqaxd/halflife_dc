@@ -853,6 +853,16 @@ static unsigned int s_color4To8[16] =
 	0xCC, 0xDD, 0xEE, 0xFF
 };
 
+unsigned int R_DecalColor4444to32( int color )
+{
+	unsigned int a = s_color4To8[(color & 0xf000) >> 12];
+	unsigned int r = s_color4To8[(color & 0x0f00) >> 8];
+	unsigned int g = s_color4To8[(color & 0x00f0) >> 4];
+	unsigned int b = s_color4To8[color & 0x000f];
+
+	return ((r | (a << 8)) << 16) | (g << 8) | b;
+}
+
 void GetRGB16( int color, colorVec16* out )
 {
 	unsigned int a = s_color4To8[(color & 0xf000) >> 12];

@@ -14,7 +14,7 @@
 #include "dc_accum.h"
 
 // Hulls & planes
-#define STUDIO_NUM_HULLS	128
+#define STUDIO_NUM_HULLS	80
 #define STUDIO_NUM_PLANES	(STUDIO_NUM_HULLS * 6)
 
 // Pointer to header block for studio model data
@@ -32,61 +32,23 @@ float		bonetransform[MAXSTUDIOBONES][4][4];
 float		lighttransform[MAXSTUDIOBONES][3][4];
 int			cached_numbones;
 char		cached_bonename[MAXSTUDIOBONES * 32];
-float		cached_bonetransform[STUDIO_NUM_HULLS][4][4];
-float		cached_lighttransform[STUDIO_NUM_HULLS][3][4];
+float		cached_bonetransform[MAXSTUDIOBONES][4][4];
+float		cached_lighttransform[MAXSTUDIOBONES][3][4];
 
 // Vert data, position and lighting
 auxvert_t	auxverts[MAXSTUDIOVERTS];
 vec3_t		lightvalues[MAXSTUDIOVERTS];
 
-// Global studio cache data, hulls and planes
-int			cache_hull_hitgroup[STUDIO_NUM_HULLS];
-hull_t		cache_hull[STUDIO_NUM_HULLS];
-mplane_t	cache_planes[STUDIO_NUM_PLANES];
-int			nCurrentHull;
-int			nCurrentPlane;
-
-// Caching
-// Studio cache data
-typedef struct
-{
-	float		frame;
-	int			sequence;
-
-	vec3_t		angles;
-	vec3_t		origin;
-	vec3_t		size;
-
-	unsigned char controller[4]; // bone controller
-	unsigned char blending[2];
-
-	model_t*	pModel;	// model instance
-
-	int			nStartHull;
-	int			nStartPlane;
-
-	int			numhulls;
-} r_studiocache_t;
-
-
-#define STUDIO_CACHE_SIZE	16
-#define STUDIO_CACHEMASK	(STUDIO_CACHE_SIZE - 1)
-
-r_studiocache_t rgStudioCache[STUDIO_CACHE_SIZE];
-int			r_cachecurrent;
-
 // Do interpolation?
 int			r_dointerp = 1;
 
 //
-// Global studio hull/clipnode/plane data to
-// copy the cached ones
+// Global studio hull/clipnode/plane data
 int			studio_hull_hitgroup[STUDIO_NUM_HULLS];
 hull_t		studio_hull[STUDIO_NUM_HULLS];
 dclipnode_t	studio_clipnodes[6];
 mplane_t	studio_planes[STUDIO_NUM_PLANES];
 
-void R_StudioTransformAuxVert( auxvert_t* av, int bone, vec_t* vert );
 void StudioTransformVerts( auxvert_t* out, const char* bones, vec3_t* verts, int count );
 void R_StudioTransformChromeVerts( vec3_t* out, const char* bones, vec3_t* verts, int count );
 void R_StudioRenderMeshChrome( void );
@@ -96,8 +58,6 @@ void R_StudioSetupPlayerSkin( studiohdr_t* textureHeader, int textureIndex );
 void R_StudioRemapPaletteRange( byte* palette, int color, int first, int last );
 void R_StudioChromeForMesh( int count, int normalIndex, const char* pnormbone, const vec3_t* pstudionorms );
 void R_StudioSetupSkin( mstudiotexture_t* ptexture );
-void R_LightStrength( int bone, float* vert, float(*light)[4] );
-void R_StudioLighting( float* lv, int bone, int flags, vec_t* normal );
 void R_StudioSaveBones( void );
 void R_StudioCalcAttachments( void );
 void R_StudioEstimateGait( player_state_t* player );
@@ -174,15 +134,8 @@ int			numlights;
 dlight_t*	locallight[MAXLOCALLIGHTS];
 int			locallinearlight[MAXLOCALLIGHTS][3];
 float		locallightR2[MAXLOCALLIGHTS];
-float		lightpos[MAXSTUDIOVERTS][3][4];
-vec_t		lightbonepos[MAXSTUDIOBONES][3][3];
-int			lightage[MAXSTUDIOBONES];					// last time lights were updated
 
 auxvert_t*	pauxverts = auxverts;
-
-// Software's drawstyle for debugging
-// the studio model
-int			drawstyle;
 
 extern vec3_t* pvlightvalues;
 
@@ -979,6 +932,47 @@ void R_StudioCalcRotations( vec3_t* pos, vec4_t* q, mstudioseqdesc_t* pseqdesc, 
 	{
 		pos[pseqdesc->motionbone][2] = 0.0;
 	}
+
+	s = 0.0f * ((1.0f - (f - (int)f)) / pseqdesc->numframes) *
+		ShortToFloat(currententity->framerate);
+	if (pseqdesc->motiontype & STUDIO_LX)
+		pos[pseqdesc->motionbone][0] += s * pseqdesc->linearmovement[0];
+	if (pseqdesc->motiontype & STUDIO_LY)
+		pos[pseqdesc->motionbone][1] += s * pseqdesc->linearmovement[1];
+	if (pseqdesc->motiontype & STUDIO_LZ)
+		pos[pseqdesc->motionbone][2] += s * pseqdesc->linearmovement[2];
+}
+
+void R_StudioCacheAnim( model_t* model, int sequenceGroupIndex )
+{
+	studiohdr_t* header;
+	mstudioseqgroup_t* sequenceGroup;
+	cache_user_t* sequenceCache;
+
+	header = (studiohdr_t*)Mod_Extradata(model);
+	if (Mod_IsStudioNeoModel(header))
+	{
+		R_StudioCacheAnim_Neo(model, sequenceGroupIndex);
+		return;
+	}
+	sequenceGroup = (mstudioseqgroup_t*)((byte*)header + header->seqgroupindex) + sequenceGroupIndex;
+	if (sequenceGroupIndex)
+	{
+		sequenceCache = (cache_user_t*)model->submodels;
+		if (!sequenceCache)
+		{
+			sequenceCache = (cache_user_t*)calloc(16, sizeof(cache_user_t));
+			model->submodels = (dmodel_t*)sequenceCache;
+		}
+
+		sequenceCache += sequenceGroupIndex;
+		if (!Cache_Check(sequenceCache))
+		{
+			Cache_Lock(&model->cache);
+			COM_LoadCacheFile(sequenceGroup->name, sequenceCache);
+			Cache_Unlock(&model->cache);
+		}
+	}
 }
 
 /*
@@ -1233,11 +1227,6 @@ void R_StudioSetupBones( void )
 	}
 }
 
-void MatrixCopy( float(*in)[4], float(*out)[4] )
-{
-	memcpy(out, in, sizeof(float) * 3 * 4);
-}
-
 void R_StudioSaveBones( void )
 {
 	int			i;
@@ -1436,16 +1425,16 @@ void SV_StudioSetupBones( model_t* pModel, float frame, int sequence, const vec_
 	}
 }
 
-void AnimationAutomove( const edict_t* pEdict, float flTime )
-{
-}
-
-void GetBonePosition( const edict_t* pEdict, int iBone, float* rgflOrigin, float* rgflAngles )
+void R_StudioGetBonePosition( const edict_t* pEdict, int iBone, float* rgflOrigin, float* rgflAngles )
 {
 	pstudiohdr = (studiohdr_t*)Mod_Extradata(sv.models[pEdict->v.modelindex]);
 
-	SV_StudioSetupBones(sv.models[pEdict->v.modelindex], pEdict->v.frame, pEdict->v.sequence, pEdict->v.angles, pEdict->v.origin,
-		pEdict->v.controller, pEdict->v.blending, iBone);
+	if (Mod_IsStudioNeoModel(pstudiohdr))
+		SV_StudioSetupBones_Neo(sv.models[pEdict->v.modelindex], pEdict->v.frame, pEdict->v.sequence, pEdict->v.angles, pEdict->v.origin,
+			pEdict->v.controller, pEdict->v.blending, iBone);
+	else
+		SV_StudioSetupBones(sv.models[pEdict->v.modelindex], pEdict->v.frame, pEdict->v.sequence, pEdict->v.angles, pEdict->v.origin,
+			pEdict->v.controller, pEdict->v.blending, iBone);
 
 	if (rgflOrigin)
 	{
@@ -1457,17 +1446,22 @@ void GetBonePosition( const edict_t* pEdict, int iBone, float* rgflOrigin, float
 
 /*
 ====================
-GetAttachment
+R_StudioGetAttachment
 
 Get the attachment origin and angles
 ====================
 */
-void GetAttachment( const edict_t* pEdict, int iAttachment, float* rgflOrigin, float* rgflAngles )
+void R_StudioGetAttachment( const edict_t* pEdict, int iAttachment, float* rgflOrigin, float* rgflAngles )
 {
 	mstudioattachment_t	*pattachment;
 	vec3_t		angles;
 
 	pstudiohdr = (studiohdr_t*)Mod_Extradata(sv.models[pEdict->v.modelindex]);
+	if (Mod_IsStudioNeoModel(pstudiohdr))
+	{
+		R_StudioGetAttachment_Neo(pEdict, iAttachment, rgflOrigin, rgflAngles);
+		return;
+	}
 
 	VectorCopy(pEdict->v.angles, angles);
 	angles[PITCH] = -pEdict->v.angles[PITCH]; // stupid quake bug
@@ -1627,431 +1621,77 @@ hull_t* SV_HullForStudioModel( const edict_t* pEdict, const vec_t* mins, const v
 
 /*
 ====================
-R_InitStudioCache
-
-====================
-*/
-void R_InitStudioCache( void )
-{
-	memset(rgStudioCache, 0, sizeof(rgStudioCache));
-
-	r_cachecurrent = 0;
-	nCurrentHull = 0;
-	nCurrentPlane = 0;
-}
-
-/*
-====================
-R_CheckStudioCache
-
-Check if a specified studio cache does exist
-====================
-*/
-r_studiocache_t* R_CheckStudioCache( model_t* pModel, float frame, int sequence,
-	const vec_t* angles, const vec_t* origin, const vec_t* size, const unsigned char* controller, const unsigned char* blending )
-{
-	int			i;
-	r_studiocache_t* pCached;
-
-	// Check if the cache exists
-	for (i = 0; i < STUDIO_CACHE_SIZE; i++)
-	{
-		pCached = &rgStudioCache[(r_cachecurrent - i) & STUDIO_CACHEMASK];
-
-		// All parameters in cache data must match,
-		// so check everything to figure out that there is a cache we are looking for
-		if (pCached->pModel != pModel)
-			continue;
-
-		if (pCached->frame != frame)
-			continue;
-
-		if (pCached->sequence != sequence)
-			continue;
-
-		if (!VectorCompare(pCached->angles, angles))
-			continue;
-
-		if (!VectorCompare(pCached->origin, origin))
-			continue;
-
-		if (!VectorCompare(pCached->size, size))
-			continue;
-
-		if (!memcmp(pCached->controller, (void*)controller, sizeof(pCached->controller)) &&
-			!memcmp(pCached->blending, (void*)blending, sizeof(pCached->blending)))
-		{
-			// Found it
-			return pCached;
-		}
-	}
-
-	return NULL;
-}
-
-/*
-====================
-R_AddToStudioCache
-
-Add studio model data to studio cache
-====================
-*/
-void R_AddToStudioCache( float frame, int sequence, const vec_t* angles, const vec_t* origin, const vec_t* size,
-	const unsigned char* controller, const unsigned char* pblending, model_t* pModel, hull_t* pHulls, int numhulls )
-{
-	r_studiocache_t* p;
-
-	if (numhulls + nCurrentHull >= MAXSTUDIOBONES)
-	{
-		R_FlushStudioCache();
-	}
-
-	r_cachecurrent++;
-	p = &rgStudioCache[r_cachecurrent & STUDIO_CACHEMASK];
-	p->frame = frame;
-	p->sequence = sequence;
-
-	VectorCopy(angles, p->angles);
-	VectorCopy(origin, p->origin);
-	VectorCopy(size, p->size);
-
-	memcpy(p->controller, controller, sizeof(p->controller));
-	memcpy(p->blending, pblending, sizeof(p->blending));
-
-	p->pModel = pModel;
-	p->nStartHull = nCurrentHull;
-	p->nStartPlane = nCurrentPlane;
-
-	memcpy(&cache_hull[nCurrentHull], pHulls, sizeof(hull_t) * numhulls);
-	memcpy(&cache_planes[nCurrentPlane], studio_planes, sizeof(mplane_t) * 6 * numhulls);
-	memcpy(&cache_hull_hitgroup[nCurrentHull], studio_hull_hitgroup, sizeof(int) * numhulls);
-
-	nCurrentHull += numhulls;
-	nCurrentPlane += numhulls * 6;
-
-	p->numhulls = numhulls;
-}
-
-/*
-====================
-R_FlushStudioCache
-
-====================
-*/
-void R_FlushStudioCache( void )
-{
-	R_InitStudioCache();
-}
-
-/*
-====================
 R_StudioHull
 
 ====================
 */
 hull_t* R_StudioHull( model_t* pModel, float frame, int sequence, const vec_t* angles, const vec_t* origin, const vec_t* size,
-	const byte*	pcontroller, const byte* pblending, int* pNumHulls )
+	const byte* pcontroller, const byte* pblending, int* pNumHulls )
 {
-	int			i, j;
+	int i;
 	mstudiobbox_t* pbbox;
-	vec3_t		angles2;
-	r_studiocache_t* pCached;
-	int			numHitBoxes;
+	mplane_t* pplane;
+	vec3_t angles2;
 
 	SV_InitStudioHull();
-
-	if (r_cachestudio.value)
-	{
-		pCached = R_CheckStudioCache(pModel, frame, sequence, angles, origin, size, pcontroller, pblending);
-		if (pCached)
-		{
-			memcpy(studio_planes, &cache_planes[pCached->nStartPlane], sizeof(mplane_t) * 6 * pCached->numhulls);
-			memcpy(studio_hull, &cache_hull[pCached->nStartHull], sizeof(hull_t) * pCached->numhulls);
-			memcpy(studio_hull_hitgroup, &cache_hull_hitgroup[pCached->nStartHull], sizeof(int) * pCached->numhulls);
-			*pNumHulls = pCached->numhulls;
-			return studio_hull;
-		}
-	}
-
 	pstudiohdr = (studiohdr_t*)Mod_Extradata(pModel);
-
 	VectorCopy(angles, angles2);
 	angles2[PITCH] = -angles[PITCH]; // stupid quake bug
-	SV_StudioSetupBones(pModel, frame, sequence, angles2, origin, pcontroller, pblending, -1);
 
-	pbbox = (mstudiobbox_t*)((byte*)pstudiohdr + pstudiohdr->hitboxindex);
-
-	numHitBoxes = pstudiohdr->numhitboxes;
-	for (i = 0; i < numHitBoxes; i++)
+	if (Mod_IsStudioNeoModel(pstudiohdr))
 	{
-		studio_hull_hitgroup[i] = pbbox[i].group;
+		pbbox = (mstudiobbox_t*)((byte*)pstudiohdr + pstudiohdr->hitboxindex);
+		SV_StudioSetupBones_Neo(pModel, frame, sequence, angles2, origin, pcontroller, pblending, -1);
 
-		for (j = 0; j < 3; j++)
+		for (i = 0, pplane = studio_planes; i < pstudiohdr->numhitboxes; i++, pbbox++, pplane += 6)
 		{
-			mplane_t*	p0, * p1;
+			studio_hull_hitgroup[i] = pbbox->group;
+			SV_SetStudioHullPlane(&pplane[0], pbbox->bone, 0, pbbox->bbmax[0]);
+			SV_SetStudioHullPlane(&pplane[1], pbbox->bone, 0, pbbox->bbmin[0]);
+			SV_SetStudioHullPlane(&pplane[2], pbbox->bone, 1, pbbox->bbmax[1]);
+			SV_SetStudioHullPlane(&pplane[3], pbbox->bone, 1, pbbox->bbmin[1]);
+			SV_SetStudioHullPlane(&pplane[4], pbbox->bone, 2, pbbox->bbmax[2]);
+			SV_SetStudioHullPlane(&pplane[5], pbbox->bone, 2, pbbox->bbmin[2]);
 
-			p0 = &studio_planes[i * 6 + j * 2 + 0];
-			p1 = &studio_planes[i * 6 + j * 2 + 1];
+			pplane[0].dist += fabs(pplane[0].normal[0] * size[0]) + fabs(pplane[0].normal[1] * size[1]) + fabs(pplane[0].normal[2] * size[2]);
+			pplane[1].dist -= fabs(pplane[1].normal[0] * size[0]) + fabs(pplane[1].normal[1] * size[1]) + fabs(pplane[1].normal[2] * size[2]);
+			pplane[2].dist += fabs(pplane[2].normal[0] * size[0]) + fabs(pplane[2].normal[1] * size[1]) + fabs(pplane[2].normal[2] * size[2]);
+			pplane[3].dist -= fabs(pplane[3].normal[0] * size[0]) + fabs(pplane[3].normal[1] * size[1]) + fabs(pplane[3].normal[2] * size[2]);
+			pplane[4].dist += fabs(pplane[4].normal[0] * size[0]) + fabs(pplane[4].normal[1] * size[1]) + fabs(pplane[4].normal[2] * size[2]);
+			pplane[5].dist -= fabs(pplane[5].normal[0] * size[0]) + fabs(pplane[5].normal[1] * size[1]) + fabs(pplane[5].normal[2] * size[2]);
+		}
+	}
+	else
+	{
+		pbbox = (mstudiobbox_t*)((byte*)pstudiohdr + pstudiohdr->hitboxindex);
+		SV_StudioSetupBones(pModel, frame, sequence, angles2, origin, pcontroller, pblending, -1);
 
-			SV_SetStudioHullPlane(p0, pbbox[i].bone, j, pbbox[i].bbmax[j]);
-			SV_SetStudioHullPlane(p1, pbbox[i].bone, j, pbbox[i].bbmin[j]);
+		for (i = 0, pplane = studio_planes; i < pstudiohdr->numhitboxes; i++, pbbox++, pplane += 6)
+		{
+			studio_hull_hitgroup[i] = pbbox->group;
+			SV_SetStudioHullPlane(&pplane[0], pbbox->bone, 0, pbbox->bbmax[0]);
+			SV_SetStudioHullPlane(&pplane[1], pbbox->bone, 0, pbbox->bbmin[0]);
+			SV_SetStudioHullPlane(&pplane[2], pbbox->bone, 1, pbbox->bbmax[1]);
+			SV_SetStudioHullPlane(&pplane[3], pbbox->bone, 1, pbbox->bbmin[1]);
+			SV_SetStudioHullPlane(&pplane[4], pbbox->bone, 2, pbbox->bbmax[2]);
+			SV_SetStudioHullPlane(&pplane[5], pbbox->bone, 2, pbbox->bbmin[2]);
 
-			p0->dist += fabs(p0->normal[0] * size[0]) + fabs(p0->normal[1] * size[1]) + fabs(p0->normal[2] * size[2]);
-			p1->dist -= fabs(p1->normal[0] * size[0]) + fabs(p1->normal[1] * size[1]) + fabs(p1->normal[2] * size[2]);
+			pplane[0].dist += fabs(pplane[0].normal[0] * size[0]) + fabs(pplane[0].normal[1] * size[1]) + fabs(pplane[0].normal[2] * size[2]);
+			pplane[1].dist -= fabs(pplane[1].normal[0] * size[0]) + fabs(pplane[1].normal[1] * size[1]) + fabs(pplane[1].normal[2] * size[2]);
+			pplane[2].dist += fabs(pplane[2].normal[0] * size[0]) + fabs(pplane[2].normal[1] * size[1]) + fabs(pplane[2].normal[2] * size[2]);
+			pplane[3].dist -= fabs(pplane[3].normal[0] * size[0]) + fabs(pplane[3].normal[1] * size[1]) + fabs(pplane[3].normal[2] * size[2]);
+			pplane[4].dist += fabs(pplane[4].normal[0] * size[0]) + fabs(pplane[4].normal[1] * size[1]) + fabs(pplane[4].normal[2] * size[2]);
+			pplane[5].dist -= fabs(pplane[5].normal[0] * size[0]) + fabs(pplane[5].normal[1] * size[1]) + fabs(pplane[5].normal[2] * size[2]);
 		}
 	}
 
 	*pNumHulls = pstudiohdr->numhitboxes;
-
-	if (r_cachestudio.value)
-		R_AddToStudioCache(frame, sequence, angles, origin, size, pcontroller, pblending, pModel, studio_hull, *pNumHulls);
-
-	return &studio_hull[0];
+	return studio_hull;
 }
 
 int SV_HitgroupForStudioHull( int index )
 {
 	return studio_hull_hitgroup[index];
-}
-
-int			boxpnt[6][4] =
-{
-	{ 0, 4, 6, 2 }, // +X
-	{ 0, 1, 5, 4 }, // +Y
-	{ 0, 2, 3, 1 }, // +Z
-	{ 7, 5, 1, 3 }, // -X
-	{ 7, 3, 2, 6 }, // -Y
-	{ 7, 6, 4, 5 }, // -Z
-};
-
-vec_t		hullcolor[8][3] =
-{
-	{ 1.0, 1.0, 1.0 },
-	{ 1.0, 0.5, 0.5 },
-	{ 0.5, 1.0, 0.5 },
-	{ 1.0, 1.0, 0.5 },
-	{ 0.5, 0.5, 1.0 },
-	{ 1.0, 0.5, 1.0 },
-	{ 0.5, 1.0, 1.0 },
-	{ 1.0, 1.0, 1.0 }
-};
-
-void R_StudioDrawHulls( void )
-{
-	int			i, j;
-	float		lv;
-	vec3_t		tmp;
-	vec3_t		p[8];
-	mstudiobbox_t* pbbox;
-
-	pbbox = (mstudiobbox_t*)((byte*)pstudiohdr + pstudiohdr->hitboxindex);
-
-	R_TriangleSpriteTexture(cl_sprite_white, 0);
-
-	for (i = 0; i < pstudiohdr->numhitboxes; i++)
-	{
-		for (j = 0; j < 8; j++)
-		{
-			tmp[0] = (j & 1) ? pbbox[i].bbmin[0] : pbbox[i].bbmax[0];
-			tmp[1] = (j & 2) ? pbbox[i].bbmin[1] : pbbox[i].bbmax[1];
-			tmp[2] = (j & 4) ? pbbox[i].bbmin[2] : pbbox[i].bbmax[2];
-
-			VectorTransform(tmp, lighttransform[pbbox[i].bone], p[j]);
-		}
-
-		j = (pbbox[i].group % (MAXSTUDIOGROUPS / 2));
-
-		tri_Begin(TRI_QUADS);
-		tri_Color4f(hullcolor[j][0], hullcolor[j][1], hullcolor[j][2], 1.0);
-		tri_TexCoord2f(0, 0);
-
-		for (j = 0; j < 6; j++)
-		{
-			tmp[0] = tmp[1] = tmp[2] = 0;
-			tmp[j % 3] = (j < 3) ? 1.0 : -1.0;
-			R_StudioLighting(&lv, pbbox[i].bone, 0, tmp);
-
-			tri_Brightness(lv);
-			tri_Vertex3fv(p[boxpnt[j][0]]);
-			tri_Vertex3fv(p[boxpnt[j][1]]);
-			tri_Vertex3fv(p[boxpnt[j][2]]);
-			tri_Vertex3fv(p[boxpnt[j][3]]);
-		}
-
-		tri_End();
-	}
-}
-
-void R_StudioAbsBB( void )
-{
-	int			j;
-	float		lv;
-	vec3_t		tmp;
-	vec3_t		p[8];
-	mstudioseqdesc_t* pseqdesc;
-
-	pseqdesc = (mstudioseqdesc_t*)((byte*)pstudiohdr + pstudiohdr->seqindex) + currententity->sequence;
-
-	tri_RenderMode(kRenderTransAdd);
-
-	R_TriangleSpriteTexture(cl_sprite_white, 0);
-
-	for (j = 0; j < 8; j++)
-	{
-		p[j][0] = (j & 1) ? pseqdesc->bbmin[0] : pseqdesc->bbmax[0];
-		p[j][1] = (j & 2) ? pseqdesc->bbmin[1] : pseqdesc->bbmax[1];
-		p[j][2] = (j & 4) ? pseqdesc->bbmin[2] : pseqdesc->bbmax[2];
-
-		VectorAdd(p[j], currententity->origin, p[j]);
-	}
-
-	tri_Begin(TRI_QUADS);
-	tri_Color4f(0.5, 0.5, 1, 1);
-
-	for (j = 0; j < 6; j++)
-	{
-		tmp[0] = tmp[1] = tmp[2] = 0;
-		tmp[j % 3] = (j < 3) ? 1.0 : -1.0;
-		R_StudioLighting(&lv, -1, 0, tmp);
-
-		tri_Brightness(lv);
-		tri_Vertex3fv(p[boxpnt[j][0]]);
-		tri_Vertex3fv(p[boxpnt[j][1]]);
-		tri_Vertex3fv(p[boxpnt[j][2]]);
-		tri_Vertex3fv(p[boxpnt[j][3]]);
-	}
-
-	tri_End();
-	tri_RenderMode(kRenderNormal);
-}
-
-void R_StudioDrawBones( void )
-{
-	int			i, j, k;
-	float		lv;
-	vec3_t		tmp;
-	vec3_t		p[8];
-	vec3_t		up, right, forward;
-	vec3_t		a1;
-	mstudiobone_t* pbones;
-
-	pbones = (mstudiobone_t*)((byte*)pstudiohdr + pstudiohdr->boneindex);
-
-	R_TriangleSpriteTexture(cl_sprite_white, 0);
-
-	for (i = 0; i < pstudiohdr->numbones; i++)
-	{
-		if (pbones[i].parent == -1)
-			continue;
-
-		k = pbones[i].parent;
-
-		a1[0] = a1[1] = a1[2] = 1.0;
-		up[0] = lighttransform[i][0][3] - lighttransform[k][0][3];
-		up[1] = lighttransform[i][1][3] - lighttransform[k][1][3];
-		up[2] = lighttransform[i][2][3] - lighttransform[k][2][3];
-		if (up[0] > up[1])
-		{
-			if (up[0] > up[2])
-				a1[0] = 0.0;
-			else
-				a1[2] = 0.0;
-		}
-		else
-		{
-			if (up[1] > up[2])
-				a1[1] = 0.0;
-			else
-				a1[2] = 0.0;
-		}
-
-		CrossProduct(up, a1, right);
-		VectorNormalize(right);
-		CrossProduct(up, right, forward);
-		VectorNormalize(forward);
-		VectorScale(right, 2.0f, right);
-		VectorScale(forward, 2.0f, forward);
-
-		for (j = 0; j < 8; j++)
-		{
-			p[j][0] = lighttransform[k][0][3];
-			p[j][1] = lighttransform[k][1][3];
-			p[j][2] = lighttransform[k][2][3];
-
-			if (j & 1)
-			{
-				VectorSubtract(p[j], right, p[j]);
-			}
-			else
-			{
-				VectorAdd(p[j], right, p[j]);
-			}
-
-			if (j & 2)
-			{
-				VectorSubtract(p[j], forward, p[j]);
-			}
-			else
-			{
-				VectorAdd(p[j], forward, p[j]);
-			}
-
-			if (j & 4)
-			{
-			}
-			else
-			{
-				VectorAdd(p[j], up, p[j]);
-			}
-		}
-
-		VectorNormalize(up);
-		VectorNormalize(right);
-		VectorNormalize(forward);
-
-		tri_Begin(TRI_QUADS);
-		tri_Color4f(1, 1, 1, 1);
-		tri_TexCoord2f(0, 0);
-
-		for (j = 0; j < 6; j++)
-		{
-			switch (j)
-			{
-			case 0:	VectorCopy(right, tmp); break;
-			case 1:	VectorCopy(forward, tmp); break;
-			case 2:	VectorCopy(up, tmp); break;
-			case 3:	VectorScale(right, -1, tmp); break;
-			case 4:	VectorScale(forward, -1, tmp); break;
-			case 5:	VectorScale(up, -1, tmp); break;
-			}
-
-			R_StudioLighting(&lv, -1, 0, tmp);
-
-			tri_Brightness(lv);
-			tri_Vertex3fv(p[boxpnt[j][0]]);
-			tri_Vertex3fv(p[boxpnt[j][1]]);
-			tri_Vertex3fv(p[boxpnt[j][2]]);
-			tri_Vertex3fv(p[boxpnt[j][3]]);
-		}
-
-		tri_End();
-	}
-}
-
-/*
-====================
-R_StudioTransformAuxVert
-
-====================
-*/
-void R_StudioTransformAuxVert( auxvert_t* av, int bone, vec_t* vert )
-{
-	av->fv[0] = DotProduct(bonetransform[bone][0], vert)
-		+ bonetransform[bone][0][3];
-	av->fv[1] = DotProduct(bonetransform[bone][1], vert)
-		+ bonetransform[bone][1][3];
-	av->fv[2] = DotProduct(bonetransform[bone][2], vert)
-		+ bonetransform[bone][2][3];
 }
 
 /*
@@ -2076,45 +1716,10 @@ void StudioTransformVerts( auxvert_t* out, const char* bones, vec3_t* verts, int
 			float*		matrix = &bonetransform[bone][0][0];
 
 			lastbone = bone;
-			__asm(
-				"frchg\n"
-				"fmov.s @r4+, fr0\n"
-				"fmov.s @r4+, fr4\n"
-				"fmov.s @r4+, fr8\n"
-				"fmov.s @r4+, fr12\n"
-				"fmov.s @r4+, fr1\n"
-				"fmov.s @r4+, fr5\n"
-				"fmov.s @r4+, fr9\n"
-				"fmov.s @r4+, fr13\n"
-				"fmov.s @r4+, fr2\n"
-				"fmov.s @r4+, fr6\n"
-				"fmov.s @r4+, fr10\n"
-				"fmov.s @r4+, fr14\n"
-				"fmov.s @r4+, fr3\n"
-				"fmov.s @r4+, fr7\n"
-				"fmov.s @r4+, fr11\n"
-				"fmov.s @r4, fr15\n"
-				"frchg\n",
-				matrix);
+			_LoadMatrix(matrix);
 		}
 
-		__asm(
-			"frchg\n"
-			"fldi0 fr12\n"
-			"fldi0 fr13\n"
-			"fldi0 fr14\n"
-			"fldi0 fr15\n"
-			"frchg\n"
-			"add #12, r4\n"
-			"fmov.s @r5+, fr0\n"
-			"fmov.s @r5+, fr1\n"
-			"fmov.s @r5+, fr2\n"
-			"fldi0 fr3\n"
-			"ftrv xmtrx, fv0\n"
-			"fmov.s fr2, @-r4\n"
-			"fmov.s fr1, @-r4\n"
-			"fmov.s fr0, @-r4\n",
-			out->fv, *verts);
+		_XDXform3dV(*verts, out->fv);
 
 		out->fv[0] += bonetransform[bone][0][3];
 		out->fv[1] += bonetransform[bone][1][3];
@@ -2138,214 +1743,16 @@ void R_StudioTransformChromeVerts( vec3_t* out, const char* bones, vec3_t* verts
 			float*		matrix = &lighttransform[bone][0][0];
 
 			lastbone = bone;
-			__asm(
-				"frchg\n"
-				"fmov.s @r4+, fr0\n"
-				"fmov.s @r4+, fr4\n"
-				"fmov.s @r4+, fr8\n"
-				"fmov.s @r4+, fr12\n"
-				"fmov.s @r4+, fr1\n"
-				"fmov.s @r4+, fr5\n"
-				"fmov.s @r4+, fr9\n"
-				"fmov.s @r4+, fr13\n"
-				"fmov.s @r4+, fr2\n"
-				"fmov.s @r4+, fr6\n"
-				"fmov.s @r4+, fr10\n"
-				"fmov.s @r4+, fr14\n"
-				"fmov.s @r4+, fr3\n"
-				"fmov.s @r4+, fr7\n"
-				"fmov.s @r4+, fr11\n"
-				"fmov.s @r4, fr15\n"
-				"frchg\n",
-				matrix);
+			_LoadMatrix(matrix);
 		}
 
-		__asm(
-			"frchg\n"
-			"fldi0 fr12\n"
-			"fldi0 fr13\n"
-			"fldi0 fr14\n"
-			"fldi0 fr15\n"
-			"frchg\n"
-			"fldi0 fr3\n"
-			"add #12, r4\n"
-			"fmov.s @r5+, fr0\n"
-			"fmov.s @r5+, fr1\n"
-			"fmov.s @r5+, fr2\n"
-			"ftrv xmtrx, fv0\n"
-			"fmov.s fr2, @-r4\n"
-			"fmov.s fr1, @-r4\n"
-			"fmov.s fr0, @-r4\n",
-			*out, *verts);
+		_XDXform3dV(*verts, *out);
 
 		out++;
 		verts++;
 	}
 }
 
-/*
-====================
-R_StudioLighting
-
-====================
-*/
-void R_StudioLighting( float* lv, int bone, int flags, vec_t* normal )
-{
-	float		illum;
-	float		lightcos;
-
-	illum = r_ambientlight;
-
-	if ((flags & STUDIO_NF_FLATSHADE) && drawstyle != 1)
-	{
-		illum += r_shadelight * 0.8f;
-	}
-	else
-	{
-		float		r;
-		if (bone == -1)
-			lightcos = DotProduct(normal, r_plightvec);
-		else
-			lightcos = DotProduct(normal, r_blightvec[bone]); // -1 colinear, 1 opposite
-
-		if (lightcos > 1)
-			lightcos = 1;
-
-		r = v_lambert.value;
-
-		if (r < 1.0f)
-		{
-			lightcos = (r - lightcos) / (r + 1.0f);
-
-			if (lightcos > 0.0f)
-				illum += r_shadelight * lightcos;
-		}
-		else
-		{
-			illum += r_shadelight;
-			lightcos = (lightcos + (r - 1.0f)) / r; 		// do modified hemispherical lighting
-
-			if (lightcos > 0.0f)
-				illum -= r_shadelight * lightcos;
-		}
-
-		if (illum <= 0)
-			illum = 0;
-	}
-
-	if (illum > 255)
-		illum = 255;
-
-	*lv = lightgammatable[(int)illum * 4] / 1023.0f;	// Light from 0 to 1.0
-}
-
-/*
-================
-R_LightStrength
-
-================
-*/
-void R_LightStrength( int bone, float* vert, float(*light)[4] )
-{
-	int			i;
-
-	if (lightage[bone] != r_smodels_total)
-	{
-		for (i = 0; i < numlights; i++)
-		{
-			vec3_t		lpos;
-			lpos[0] = locallight[i]->origin[0] - lighttransform[bone][0][3];
-			lpos[1] = locallight[i]->origin[1] - lighttransform[bone][1][3];
-			lpos[2] = locallight[i]->origin[2] - lighttransform[bone][2][3];
-			VectorIRotate(lpos, lighttransform[bone], lightbonepos[bone][i]);
-		}
-
-		lightage[bone] = r_smodels_total;
-	}
-
-	for (i = 0; i < numlights; i++)
-	{
-		VectorSubtract(vert, lightbonepos[bone][i], light[i]);
-		light[i][3] = 0.0;
-	}
-}
-
-/*
-====================
-R_LightLambert
-
-Lambert studio lighting
-
-Designed to prevent the rear of a studio model losing its shape and looking too flat
-The Lambert lighting is completely non-physical, it gives a purely percieved visual
-enhancement and is an example of a forgiving lighting model
-====================
-*/
-// GL Lambert lighting
-void R_LightLambert( float(*light)[4], float* normal, float* src, float* lambert )
-{
-	int			i;
-	float		adjr, adjg, adjb;
-	float		c;
-	int			j;
-
-	adjr = 0.0;
-	adjg = 0.0;
-	adjb = 0.0;
-
-	for (i = 0; i < numlights; i++)
-	{
-		float		r2, r;
-
-		r = -DotProduct(normal, light[i]);
-		if (r > 0.0f)
-		{
-			if (light[i][3] == 0.0f)
-			{
-				r2 = DotProduct(light[i], light[i]);
-				if (r2 > 0.0f)
-					light[i][3] = locallightR2[i] / (r2 * sqrt(r2));
-				else
-					light[i][3] = 1.0f;
-			}
-
-			c = r * light[i][3];
-			adjr += locallinearlight[i][0] * c;
-			adjg += locallinearlight[i][1] * c;
-			adjb += locallinearlight[i][2] * c;
-		}
-	}
-
-	// No light at all
-	if (adjr == 0.0f && adjg == 0.0f && adjb == 0.0f)
-	{
-		lambert[0] = src[0];
-		lambert[1] = src[1];
-		lambert[2] = src[2];
-		return;
-	}
-
-	//
-	// Apply light effect
-	//
-	j = adjr + lineargammatable[(int)(src[0] * 1023.0f)];
-	if (j > 1023)
-		lambert[0] = 1.0f;
-	else
-		lambert[0] = screengammatable[j] / 1023.0f;
-
-	j = adjg + lineargammatable[(int)(src[1] * 1023.0f)];
-	if (j > 1023)
-		lambert[1] = 1.0f;
-	else
-		lambert[1] = screengammatable[j] / 1023.0f;
-
-	j = adjb + lineargammatable[(int)(src[2] * 1023.0f)];
-	if (j > 1023)
-		lambert[2] = 1.0f;
-	else
-		lambert[2] = screengammatable[j] / 1023.0f;
-}
 /*
 ================
 R_StudioChrome
@@ -3771,226 +3178,7 @@ R_StudioDrawPoints
 
 ================
 */
-#if 0
-void R_StudioDrawPoints_Legacy( void )
-{
-	int			i, j;
-	byte*		pvertbone;
-	byte*		pnormbone;
-	vec3_t*		pstudioverts;
-	vec3_t*		pstudionorms;
-	mstudiotexture_t* ptexture;
-	auxvert_t*	av;
-	float*		lv;
-	vec3_t		fl;
-	float		lv_tmp;
-	short*		pskinref;
-	int			flags;
 
-	pvertbone = ((byte*)pstudiohdr + psubmodel->vertinfoindex);
-	pnormbone = ((byte*)pstudiohdr + psubmodel->norminfoindex);
-	ptexture = (mstudiotexture_t*)((byte*)pstudiohdr + pstudiohdr->textureindex);
-
-	pmesh = (mstudiomesh_t*)((byte*)pstudiohdr + psubmodel->meshindex);
-
-	pstudioverts = (vec3_t*)((byte*)pstudiohdr + psubmodel->vertindex);
-	pstudionorms = (vec3_t*)((byte*)pstudiohdr + psubmodel->normindex);
-
-	pskinref = (short*)((byte*)pstudiohdr + pstudiohdr->skinindex);
-	if (currententity->skin != 0 && currententity->skin < pstudiohdr->numskinfamilies)
-		pskinref += (currententity->skin * pstudiohdr->numskinref);
-
-	StudioTransformVerts(pauxverts, pvertbone, pstudioverts, psubmodel->numverts);
-
-	pstudioverts = (vec3_t*)((byte*)pstudiohdr + psubmodel->vertindex);
-	pvertbone = ((byte*)pstudiohdr + psubmodel->vertinfoindex);
-	for (i = 0; i < psubmodel->numverts; i++)
-	{
-		R_LightStrength(pvertbone[i], pstudioverts[i], lightpos[i]);
-	}
-
-//
-// clip and draw all triangles
-//
-	lv = (float*)pvlightvalues;
-	for (j = 0; j < psubmodel->nummesh; j++)
-	{
-		int			k;
-		int			normalIndex = (int)(((vec3_t*)lv) - pvlightvalues);
-		flags = ptexture[pskinref[pmesh[j].skinref]].flags;
-		if (r_fullbright.value >= 2)
-			flags &= ~(STUDIO_NF_FLATSHADE | STUDIO_NF_CHROME);
-		if (flags & STUDIO_NF_CHROME)
-			R_StudioChromeForMesh(pmesh[j].numnorms, normalIndex, (const char*)pnormbone, pstudionorms);
-
-		if (currententity->rendermode == kRenderTransAdd)
-		{
-			for (k = 0; k < pmesh[j].numnorms; k++, lv += 3)
-			{
-				for (k = 0; k < pmesh[j].numnorms; k++, lv += 3)
-				{
-					lv[0] = r_blend;
-					lv[1] = r_blend;
-					lv[2] = r_blend;
-
-				}
-			}
-		}
-		else
-		{
-			for (k = 0; k < pmesh[j].numnorms; k++, lv += 3, pstudionorms++, pnormbone++)
-			{
-				R_StudioLighting(&lv_tmp, *pnormbone, flags, (float*)pstudionorms);
-
-				lv[0] = lv_tmp * r_colormix[0];
-				lv[1] = lv_tmp * r_colormix[1];
-				lv[2] = lv_tmp * r_colormix[2];
-			}
-		}
-	}
-
-	DCV_FlushInline();
-	GL_Bind(-1, 1);
-
-	pstudionorms = (vec3_t*)((byte*)pstudiohdr + psubmodel->normindex);
-	for (j = 0; j < psubmodel->nummesh; j++)
-	{
-		float		s, t;
-		short*		ptricmds;
-
-		pmesh = (mstudiomesh_t*)((byte*)pstudiohdr + psubmodel->meshindex) + j;
-		ptricmds = (short*)((byte*)pstudiohdr + pmesh->triindex);
-
-		c_alias_polys += pmesh->numtris;
-
-
-		flags = ptexture[pskinref[pmesh->skinref]].flags;
-		if (r_fullbright.value >= 2)
-		{
-			flags &= ~(STUDIO_NF_FLATSHADE | STUDIO_NF_CHROME);
-			s = 1.0f / 256.0f;
-			t = 1.0f / 256.0f;
-		}
-		else
-		{
-			s = 1.0f / ptexture[pskinref[pmesh->skinref]].width;
-			t = 1.0f / ptexture[pskinref[pmesh->skinref]].height;
-		}
-
-		/* DCV: bind texture for D3D batch */
-		if (r_fullbright.value >= 2 && cl_sprite_white && cl_sprite_white->cache.data)
-		{
-			mspriteframe_t* pFrame = R_GetSpriteFrame((msprite_t*)cl_sprite_white->cache.data, 0);
-			if (pFrame)
-				GL_Bind(pFrame->gl_texturenum, 0);
-			else
-				GL_Bind(ptexture[pskinref[pmesh->skinref]].index, 0);
-		}
-		else
-			GL_Bind(ptexture[pskinref[pmesh->skinref]].index, 0);
-
-		if (flags & STUDIO_NF_CHROME)
-		{
-			s *= 1.0f / 1024.0f;
-			t *= 1.0f / 1024.0f;
-
-			/* DCV: chrome meshes → D3D L-vertex batch */
-			{
-				short*		pc = ptricmds;
-
-				while ((i = *(pc++)) != 0)
-				{
-					int			n = (i < 0) ? -i : i;
-					int			is_fan = (i < 0);
-					int			numtris = (n >= 3) ? (n - 2) : 0;
-					int			base, v;
-					D3DLVERTEX	lv_out;
-					DWORD		diffuse;
-
-					DCV_FlushIfLarge();
-					base = DCV_GetVertCount();
-
-					for (v = 0; v < n; v++, pc += 4)
-					{
-						av = &pauxverts[pc[0]];
-						lv_out.x = av->fv[0];
-						lv_out.y = av->fv[1];
-						lv_out.z = av->fv[2];
-						lv_out.dwReserved = 0;
-						lv = pvlightvalues[pc[1]];
-						R_LightLambert(lightpos[pc[0]], pstudionorms[pc[1]], lv, fl);
-						diffuse = (DWORD)((int)(r_blend * 255) << 24)
-							| (DWORD)((int)((fl[0] > 1 ? 1 : (fl[0] < 0 ? 0 : fl[0])) * 255) << 16)
-							| (DWORD)((int)((fl[1] > 1 ? 1 : (fl[1] < 0 ? 0 : fl[1])) * 255) << 8)
-							| (DWORD)((int)((fl[2] > 1 ? 1 : (fl[2] < 0 ? 0 : fl[2])) * 255));
-						lv_out.color = diffuse;
-						lv_out.specular = 0;
-						lv_out.tu = chrome[pc[1]][0] * s;
-						lv_out.tv = chrome[pc[1]][1] * t;
-						DCV_AddLVertex(&lv_out);
-					}
-
-					if (numtris > 0)
-					{
-						if (is_fan)
-							DCV_AddIndicesFan(base, n);
-						else
-							DCV_AddIndicesStrip(base, n);
-					}
-				}
-			}
-		}
-		else
-		{
-			/* DCV: normal meshes → D3D L-vertex batch */
-			{
-				short*		pc = ptricmds;
-
-				while ((i = *(pc++)) != 0)
-				{
-					int			n = (i < 0) ? -i : i;
-					int			is_fan = (i < 0);
-					int			numtris = (n >= 3) ? (n - 2) : 0;
-					int			base, v;
-					D3DLVERTEX	lv_out;
-					DWORD		diffuse;
-
-					DCV_FlushIfLarge();
-					base = DCV_GetVertCount();
-
-					for (v = 0; v < n; v++, pc += 4)
-					{
-						av = &pauxverts[pc[0]];
-						lv_out.x = av->fv[0];
-						lv_out.y = av->fv[1];
-						lv_out.z = av->fv[2];
-						lv_out.dwReserved = 0;
-						lv = pvlightvalues[pc[1]];
-						R_LightLambert(lightpos[pc[0]], pstudionorms[pc[1]], lv, fl);
-						diffuse = (DWORD)((int)(r_blend * 255) << 24)
-							| (DWORD)((int)((fl[0] > 1 ? 1 : (fl[0] < 0 ? 0 : fl[0])) * 255) << 16)
-							| (DWORD)((int)((fl[1] > 1 ? 1 : (fl[1] < 0 ? 0 : fl[1])) * 255) << 8)
-							| (DWORD)((int)((fl[2] > 1 ? 1 : (fl[2] < 0 ? 0 : fl[2])) * 255));
-						lv_out.color = diffuse;
-						lv_out.specular = 0;
-						lv_out.tu = pc[2] * s;
-						lv_out.tv = pc[3] * t;
-						DCV_AddLVertex(&lv_out);
-					}
-
-					if (numtris > 0)
-					{
-						if (is_fan)
-							DCV_AddIndicesFan(base, n);
-						else
-							DCV_AddIndicesStrip(base, n);
-					}
-				}
-			}
-		}
-	}
-}
-#endif
 
 void R_StudioDrawPoints( void )
 {
@@ -4251,54 +3439,3 @@ void R_StudioLoadPlayerSkin( model_t* model, int textureIndex, studio_skin_cache
 }
 
 extern vec3_t lightspot;
-
-void GLR_StudioDrawShadow( void )
-{
-#if 0
-	int			i, k;
-	vec3_t		point;
-	float		height;
-	auxvert_t*	av;
-
-	height = lightspot[2] + 1.0;
-
-	for (i = 0; i < psubmodel->nummesh; i++)
-	{
-		short*		ptricmds;
-
-		pmesh = (mstudiomesh_t*)((byte*)pstudiohdr + psubmodel->meshindex) + i;
-		c_alias_polys += pmesh->numtris;
-
-		ptricmds = (short*)((byte*)pstudiohdr + pmesh->triindex);
-
-		while (1)
-		{
-			// get the vertex count and primitive type
-			k = *(ptricmds++);
-			if (!k)
-				break;		// done
-			if (k < 0)
-			{
-				k = -k;
-				qglBegin(GL_TRIANGLE_FAN);
-			}
-			else
-			{
-				qglBegin(GL_TRIANGLE_STRIP);
-			}
-
-			for (; k > 0; k--, ptricmds += 4)
-			{
-				av = &pauxverts[ptricmds[0]];
-				VectorCopy(av->fv, point);
-				point[0] -= shadevector[0] * (av->fv[2] - lightspot[2]);
-				point[1] -= shadevector[1] * (av->fv[2] - lightspot[2]);
-				point[2] = height;
-				qglVertex3fv(point);
-			}
-
-			qglEnd();
-		}
-	}
-#endif
-}

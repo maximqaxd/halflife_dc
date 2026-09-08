@@ -2491,7 +2491,7 @@ void DC_PrecacheMap( char* mapName )
 		if (entry[0] == '+')
 		{
 			manifest++;
-			R_StudioCacheAnim_Neo(sv.models[modelIndex], (int)*manifest);
+			R_StudioCacheAnim(sv.models[modelIndex], (int)*manifest);
 			manifest++;
 		}
 		else if (entry[0] == ':')

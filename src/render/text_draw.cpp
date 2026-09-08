@@ -3,12 +3,8 @@
 // scaled glyph renderer, with %tag substitution driven by langtags.txt so the
 // same message strings work across the supported languages.
 
-// Use C-style (lpVtbl) COM interfaces so the DDraw/D3D headers match the rest
-// of the engine when this translation unit is compiled as C++.
 #define CINTERFACE
 
-// The engine headers are C; include them (and define everything here) with C
-// linkage so the symbols match the rest of the statically linked build.
 extern "C" {
 
 #include "quakedef.h"
@@ -29,7 +25,7 @@ int			g_nLangTags;
 float	g_flTextScaleX = 1.0f;
 float	g_flTextScaleY = 1.0f;
 
-// Extra texels of spacing added to the right edge of every glyph quad.
+// Horizontal offset applied to the top edge of each glyph.
 int		g_nTextCharGap;
 
 // Character codes at or above this index hold the localized (high-range)
@@ -150,7 +146,7 @@ float Font_DrawChar( float x, float y, dcfont_t *font, int ch )
 	int			startoffset, charwidth, rowheight;
 	float		advance, height;
 	float		u0, v0, u1, v1;
-	float		x2, ybot;
+	float		x2, ybot, skew;
 	int			base;
 
 	ch &= 255;
@@ -182,14 +178,15 @@ float Font_DrawChar( float x, float y, dcfont_t *font, int ch )
 
 		u1 = u0 + ((float)charwidth - GLYPH_U_INSET) * font->usize;
 		v1 = v0 + (float)(rowheight - 1) * font->vsize;
-		x2 = x + advance + g_flTextScaleX * (float)g_nTextCharGap;
+		x2 = x + advance;
+		skew = g_flTextScaleX * (float)g_nTextCharGap;
 		ybot = y + (float)(int)height;
 
 		// DCV_AddPolyIndices splits the quad along the vertex-1/vertex-2 diagonal
 		// (triangles {0,1,2} and {1,3,2}), which needs the corners added in
 		// row-major order -- TL, TR, BL, BR -- not a perimeter walk.
-		DCV_AddVertex(x,  y,    dc_depthhud.value, u0, v0);
-		DCV_AddVertex(x2, y,    dc_depthhud.value, u1, v0);
+		DCV_AddVertex(x + skew,  y, dc_depthhud.value, u0, v0);
+		DCV_AddVertex(x2 + skew, y, dc_depthhud.value, u1, v0);
 		DCV_AddVertex(x,  ybot, dc_depthhud.value, u0, v1);
 		DCV_AddVertex(x2, ybot, dc_depthhud.value, u1, v1);
 	}
@@ -251,7 +248,8 @@ void Text_DrawString( float sx, float sy, char *str, int x, int y, int r, int g,
 	ch = *str;
 	if (ch != 0)
 	{
-		do {
+		do
+		{
 			str++;
 			x += (int)Font_DrawChar((float)x, (float)y, (dcfont_t *)draw_chars, ch);
 			ch = *str;
@@ -289,7 +287,8 @@ void Text_DrawStringShadow( char *str, int x, int y, int brightness, int blue )
 	ch = *psz;
 	if (ch != 0)
 	{
-		do {
+		do
+		{
 			psz++;
 			cx += (int)Font_DrawChar((float)cx, (float)(y + 2), (dcfont_t *)draw_chars, ch);
 			ch = *psz;
@@ -322,7 +321,8 @@ void Text_DrawStringShadow( char *str, int x, int y, int brightness, int blue )
 	ch = *psz;
 	if (ch != 0)
 	{
-		do {
+		do
+		{
 			psz++;
 			x += (int)Font_DrawChar((float)x, (float)y, (dcfont_t *)draw_chars, ch);
 			ch = *psz;
@@ -359,13 +359,16 @@ void Font_FitScale( float sx, float sy, float maxwidth, byte *str, float *pfx, f
 		{
 			c = *str;
 			p = str;
-			do {
+			do
+			{
 				num = c;
 				if (num >= FONT_HIGHCHAR)
 					num -= FONT_HIGHCHAR_SHIFT;
 				adv = (int)((float)(int)((dcfont_t *)draw_chars)->fontinfo[num].charwidth * sx + FONT_WIDTH_BIAS);
-				if (adv < FONT_ADV_MIN) adv = FONT_ADV_MIN;
-				if (adv > FONT_ADV_MAX) adv = FONT_ADV_MAX;
+				if (adv < FONT_ADV_MIN)
+					adv = FONT_ADV_MIN;
+				if (adv > FONT_ADV_MAX)
+					adv = FONT_ADV_MAX;
 				width += adv;
 				p++;
 				c = *p;
@@ -391,13 +394,16 @@ void Font_FitScale( float sx, float sy, float maxwidth, byte *str, float *pfx, f
 			{
 				c = *str;
 				p = str;
-				do {
+				do
+				{
 					num = c;
 					if (num >= FONT_HIGHCHAR)
 						num -= FONT_HIGHCHAR_SHIFT;
 					adv = (int)((float)(int)((dcfont_t *)draw_chars)->fontinfo[num].charwidth * fx + FONT_WIDTH_BIAS);
-					if (adv < FONT_ADV_MIN) adv = FONT_ADV_MIN;
-					if (adv > FONT_ADV_MAX) adv = FONT_ADV_MAX;
+					if (adv < FONT_ADV_MIN)
+						adv = FONT_ADV_MIN;
+					if (adv > FONT_ADV_MAX)
+						adv = FONT_ADV_MAX;
 					width += adv;
 					p++;
 					c = *p;
@@ -483,13 +489,16 @@ void Text_DrawStringRight( float sx, float sy, char *str, int x, int y, int brig
 	{
 		c = *(byte *)psz;
 		p = (byte *)psz;
-		do {
+		do
+		{
 			num = c;
 			if (num >= FONT_HIGHCHAR)
 				num -= FONT_HIGHCHAR_SHIFT;
 			adv = (int)((float)(int)((dcfont_t *)draw_chars)->fontinfo[num].charwidth * fx + FONT_WIDTH_BIAS);
-			if (adv < FONT_ADV_MIN) adv = FONT_ADV_MIN;
-			if (adv > FONT_ADV_MAX) adv = FONT_ADV_MAX;
+			if (adv < FONT_ADV_MIN)
+				adv = FONT_ADV_MIN;
+			if (adv > FONT_ADV_MAX)
+				adv = FONT_ADV_MAX;
 			width += adv;
 			p++;
 			c = *p;
@@ -535,13 +544,16 @@ void Text_DrawStringCentered( float sx, float sy, char *str, int x, int y, int b
 	{
 		c = *(byte *)psz;
 		p = (byte *)psz;
-		do {
+		do
+		{
 			num = c;
 			if (num >= FONT_HIGHCHAR)
 				num -= FONT_HIGHCHAR_SHIFT;
 			adv = (int)((float)(int)((dcfont_t *)draw_chars)->fontinfo[num].charwidth * fx + FONT_WIDTH_BIAS);
-			if (adv < FONT_ADV_MIN) adv = FONT_ADV_MIN;
-			if (adv > FONT_ADV_MAX) adv = FONT_ADV_MAX;
+			if (adv < FONT_ADV_MIN)
+				adv = FONT_ADV_MIN;
+			if (adv > FONT_ADV_MAX)
+				adv = FONT_ADV_MAX;
 			width += adv;
 			p++;
 			c = *p;
@@ -651,7 +663,7 @@ void Text_LoadLangTags( void )
 	char	tmp[LANGTAG_MAXLEN + 1];
 	int		len;
 	int		i, n, count;
-	qboolean	invalue;
+	bool	invalue;
 	char	*p;
 
 	len = 0;
@@ -674,7 +686,8 @@ void Text_LoadLangTags( void )
 	{
 		p = buf;
 		i = 0;
-		do {
+		do
+		{
 			char c = *p;
 
 			if (c == '%')
@@ -709,22 +722,10 @@ void Text_LoadLangTags( void )
 		} while (i < len);
 	}
 
-	// only the pairs that actually came out of the file are there to look at;
-	// the count taken off the '%' characters runs ahead of them
-	g_nLangTags = n;
-
 	if (buf)
 		COM_FreeFile(buf);
 }
 
-/*
-================
-Text_ParseToken
-
-Copy one token, honoring quotes; stops at whitespace outside quotes or at
-end of line. Returns the read position.
-================
-*/
 char* Text_SkipSpace( char* in )
 {
 	while (*in == ' ' || *in == '\t')
@@ -738,10 +739,18 @@ void Text_DrawScaledStringShadow( float sx, float sy, char* str, int x, int y, i
 	Text_DrawStringShadow(str, x, y, brightness, blue);
 }
 
+/*
+================
+Text_ParseToken
+
+Copy one token, honoring quotes; stops at whitespace outside quotes or at
+end of line. Returns the read position.
+================
+*/
 char *Text_ParseToken( char *in, char *out )
 {
 	char	c;
-	qboolean	outside;
+	bool	outside;
 
 	outside = true;
 

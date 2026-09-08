@@ -26,6 +26,7 @@ int			g_nAccumIndexCount;
 DWORD		g_dwAccumFlushFlags = D3DDP_DONOTUPDATEEXTENTS;
 int			g_nAccumMaxVertsSeen;
 int			g_nAccumMaxIndicesSeen;
+int			g_bMultitexture;
 
 static void     *g_pMultiMtx0;
 static void     *g_pMultiMtx1;
@@ -34,16 +35,6 @@ static D3DCOLOR g_studioLightTable[128];
 #define STRIP_RESTART_INDEX	0xFFFF
 
 DWORD		g_dwAccumCurrentDiffuse = COLOR_OPAQUE_WHITE;
-
-static int DCV_GetMaxVertCount( void )
-{
-	return ACCUM_VERTS_SIZE / (int)sizeof(D3DLVERTEX);
-}
-
-static int DCV_GetMaxIndexCount( void )
-{
-	return ACCUM_INDEX_SIZE / (int)sizeof(WORD);
-}
 
 void DCV_AccumInit( void )
 {
@@ -76,7 +67,6 @@ void DCV_AccumInit( void )
 		row_start = (WORD *)((byte *)row_start + row_stride);
 		row_stride += ROW_STRIDE_SHORTS;
 	}
-	g_pQuadTable[QUAD_TABLE_ROWS] = NULL;
 
 	g_pAccumVerts = (D3DLVERTEX *)MnemoAlloc(ACCUM_VERTS_SIZE, MNEMO_FLAG_MALLOC, 0, "AccumVerts");
 	g_pAccumIndex = (WORD *)MnemoAlloc(ACCUM_INDEX_SIZE, MNEMO_FLAG_MALLOC, 0, "AccumIndex");
@@ -455,9 +445,33 @@ void DCV_TexState_VertColor( void )
 	DCV_SetRenderState(D3DRENDERSTATE_FOGENABLE,        FALSE);
 }
 
+/* Combine the base texture with the lightmap on stage 1. */
+void DCV_EnableMultitexture( void )
+{
+	g_bMultitexture = 1;
+
+	DCV_SetTextureStageState(1, D3DTSS_COLOROP,   D3DTOP_MODULATE);
+	DCV_SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(1, D3DTSS_COLORARG2, D3DTA_CURRENT);
+	DCV_SetTextureStageState(1, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG2);
+	DCV_SetTextureStageState(1, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(1, D3DTSS_ALPHAARG2, D3DTA_CURRENT);
+
+	DCV_SetTextureStageState(0, D3DTSS_COLOROP,   D3DTOP_MODULATE);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+	DCV_SetTextureStageState(0, D3DTSS_TEXCOORDINDEX, 0);
+	DCV_SetTextureStageState(1, D3DTSS_TEXCOORDINDEX, 1);
+}
+
 /* Turn stage 1 back off after a lightmapped multitexture draw. */
 void DCV_DisableMultitexture( void )
 {
+	g_bMultitexture = 0;
+
 	DCV_SetTextureStageState(1, D3DTSS_COLOROP,       D3DTOP_DISABLE);
 	DCV_SetTextureStageState(1, D3DTSS_ALPHAOP,       D3DTOP_DISABLE);
 	DCV_SetTextureStageState(0, D3DTSS_TEXCOORDINDEX, 0);
@@ -688,13 +702,7 @@ void DCV_AccumScrollPoly( const void *poly )
 	}
 }
 
-void DCV_AddLVertex( const D3DLVERTEX* v )
-{
-	if (!v)
-		return;
 
-	g_pAccumVerts[g_nAccumVertCount++] = *v;
-}
 
 int DCV_AddVertex( float x, float y, float z, float tu, float tv )
 {
@@ -901,34 +909,7 @@ void DCV_AddIndicesQuad( int i0, int i1, int i2, int i3 )
 
 /* Studio batching helpers */
 
-void DCV_AddIndicesStrip( int base, int count )
-{
-	int			i;
-	int			n;
 
-	if (count < 3)
-		return;
-
-	n = (count - 2) * 3;
-
-	for (i = 0; i < count - 2; ++i)
-	{
-		WORD *idx = &g_pAccumIndex[g_nAccumIndexCount];
-		if (i & 1)
-		{
-			idx[0] = (WORD)(base + i + 1);
-			idx[1] = (WORD)(base + i + 2);
-			idx[2] = (WORD)(base + i);
-		}
-		else
-		{
-			idx[0] = (WORD)(base + i);
-			idx[1] = (WORD)(base + i + 1);
-			idx[2] = (WORD)(base + i + 2);
-		}
-		g_nAccumIndexCount += 3;
-	}
-}
 
 void DCV_AddIndicesFan( int base, int count )
 {

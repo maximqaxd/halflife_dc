@@ -1,5 +1,7 @@
 // r_studio_neo.c: rendering support for Neo studio models
 
+#include <shintr.h>
+
 #include "quakedef.h"
 #include "CL_TENT.H"
 #include "r_studio.h"
@@ -14,8 +16,8 @@ extern int	cached_numbones;
 extern char	cached_bonename[MAXSTUDIOBONES * 32];
 extern float bonetransform[MAXSTUDIOBONES][4][4];
 extern float rotationmatrix[3][4];
-extern float cached_bonetransform[128][4][4];
-extern float cached_lighttransform[128][3][4];
+extern float cached_bonetransform[MAXSTUDIOBONES][4][4];
+extern float cached_lighttransform[MAXSTUDIOBONES][3][4];
 extern vec3_t vpn;
 extern vec3_t r_origin;
 extern int	r_studio_clip_required;
@@ -351,7 +353,7 @@ void R_StudioTransformVerts_Neo( vec3_t* output, const char* normalIndices, int 
 void R_StudioTransformVertsMatrix_Neo( vec3_t* output, const char* bones,
 	const char*	normalIndices, int count )
 {
-	char		lastBone;
+	int			lastBone;
 
 	lastBone = -1;
 	while (count--)
@@ -363,49 +365,12 @@ void R_StudioTransformVertsMatrix_Neo( vec3_t* output, const char* bones,
 		{
 			float*		matrix;
 
-			lastBone = (char)bone;
+			lastBone = bone;
 			matrix = &lighttransform[bone][0][0];
-			__asm(
-				"frchg\n"
-				"fmov.s @r4+, fr0\n"
-				"fmov.s @r4+, fr4\n"
-				"fmov.s @r4+, fr8\n"
-				"fmov.s @r4+, fr12\n"
-				"fmov.s @r4+, fr1\n"
-				"fmov.s @r4+, fr5\n"
-				"fmov.s @r4+, fr9\n"
-				"fmov.s @r4+, fr13\n"
-				"fmov.s @r4+, fr2\n"
-				"fmov.s @r4+, fr6\n"
-				"fmov.s @r4+, fr10\n"
-				"fmov.s @r4+, fr14\n"
-				"fmov.s @r4+, fr3\n"
-				"fmov.s @r4+, fr7\n"
-				"fmov.s @r4+, fr11\n"
-				"fmov.s @r4+, fr15\n"
-				"frchg\n",
-				matrix);
+			_LoadMatrix(matrix);
 		}
 
-		{
-			__asm(
-				"frchg\n"
-				"fldi0 fr12\n"
-				"fldi0 fr13\n"
-				"fldi0 fr14\n"
-				"fldi0 fr15\n"
-				"frchg\n"
-				"fmov.s @r5+, fr0\n"
-				"add #12, r4\n"
-				"fmov.s @r5+, fr1\n"
-				"fmov.s @r5+, fr2\n"
-				"fldi0 fr3\n"
-				"ftrv xmtrx, fv0\n"
-				"fmov.s fr2, @-r4\n"
-				"fmov.s fr1, @-r4\n"
-				"fmov.s fr0, @-r4\n",
-				output, r_avertexnormals[*normalIndices]);
-		}
+		_XDXform3dV(r_avertexnormals[*normalIndices], *output);
 
 		output++;
 		bones++;

@@ -113,9 +113,6 @@ static dctexture_t s_dcTextureLruHead;
 static dctexture_t s_dcTextureLruTail;
 static int	s_nCached;
 static LPDIRECTDRAWSURFACE4 s_pCurrentTextureSurface;
-static int	s_slotServercount[MAX_D3D_TEXTURES];
-static int	s_slotUse4444[MAX_D3D_TEXTURES];
-static int	s_slotIsSystem[MAX_D3D_TEXTURES];  /* GLT_SYSTEM: never cache/decache */
 static int	s_bTexReclaimGuard;
 static int	s_bUncacheGuard;
 static int	s_nD3dCurrentTexnum = -1;
@@ -153,7 +150,6 @@ static void DC_CacheTextureToRam( dctexture_t *slot );
 static __inline void DCV_UnlinkTextureSlot( dctexture_t *slot );
 static __inline void DCV_LinkTextureSlotFront( dctexture_t *slot );
 __inline void DCV_TouchTextureSlot( dctexture_t *slot );
-static int DCV_AttachTextureInterface( dctexture_t *slot, LPDIRECTDRAWSURFACE4 surf );
 
 
 /* Remove a slot from the LRU list. Callers have already validated the slot. */
@@ -190,28 +186,6 @@ __inline void DCV_TouchTextureSlot( dctexture_t *slot )
 
 	if (slot->nServerCount != 0)
 		slot->nServerCount = (short)gHostSpawnCount;
-}
-
-static int DCV_AttachTextureInterface( dctexture_t *slot, LPDIRECTDRAWSURFACE4 surf )
-{
-	LPDIRECT3DTEXTURE2 tex;
-
-	if (!slot || !surf || !surf->lpVtbl || !surf->lpVtbl->QueryInterface)
-		return 0;
-
-	if (slot->pd3dtTexture)
-	{
-		((LPDIRECT3DTEXTURE2)slot->pd3dtTexture)->lpVtbl->Release((LPDIRECT3DTEXTURE2)slot->pd3dtTexture);
-		slot->pd3dtTexture = NULL;
-	}
-
-	tex = NULL;
-
-	if (FAILED(surf->lpVtbl->QueryInterface(surf, IID_IDirect3DTexture2, (void **)&tex)))
-		return 0;
-
-	slot->pd3dtTexture = tex;
-	return 1;
 }
 
 void DCV_ClearCachedFlag( void )
@@ -560,8 +534,8 @@ static void DC_SetupTextureSlot( dctexture_t *slot, LPDIRECTDRAWSURFACE4 pSurf, 
 
 	if (!name)
 	{
-		slot->pszName = (char *)::operator new(4);
-		strcpy(slot->pszName, "?!?");
+		slot->pszName = (char *)::operator new(3);
+		strcpy(slot->pszName, "?");
 	}
 	else
 	{
@@ -1020,15 +994,12 @@ int DCV_UpdateTextureSubRect( int texnum, int x, int y, int w, int h, const unsi
 			surf = (LPDIRECTDRAWSURFACE4)slot->pddsSurface;
 		}
 
-		memset(&ddsd, 0, sizeof(ddsd));
-		ddsd.dwSize = sizeof(ddsd);
-
 		if (!DCV_DDError(surf->lpVtbl->Lock(surf, NULL, &ddsd, DDLOCK_WAIT, NULL), TEXT("Lock texture")))
 		{
 			for (row = 0; row < h; row++)
 			{
 				s = src + (src_pitch * y + x);
-				dst = (unsigned short *)ddsd.lpSurface + ((int)(ddsd.lPitch / 2) * y + x);
+				dst = (unsigned short *)ddsd.lpSurface + (ddsd.dwWidth * y + x);
 				for (col = 0; col < w; col++)
 					*dst++ = *s++;
 				y++;
@@ -1809,10 +1780,6 @@ int DC_LoadTexture(char *identifier, int texture_type, int width, int height, vo
 void GL_BindStage( int texnum, int stage )
 {
 	dctexture_t *slot;
-
-	// A texnum of -1 is the "no texture" sentinel used to unbind a stage.
-	if ((unsigned)texnum >= MAX_D3D_TEXTURES)
-		return;
 
 	if (texnum == s_nD3dCurrentTexnum)
 		return;
@@ -2937,12 +2904,6 @@ int GL_PaletteTag( byte* pPal )
 	return tag;
 }
 
-int DC_GetSlotPaletteIndex(int slot_index)
-{
-	if (slot_index < 0 || slot_index >= MAX_D3D_TEXTURES) return -1;
-	return (int)s_texSlots[slot_index].iPalette;
-}
-
 /*
 ================
 GL_LoadTexture
@@ -3062,14 +3023,20 @@ bool dcpalette_t::Update(byte *rgb)
 	return DCV_DDError(lpPalette->lpVtbl->SetEntries(lpPalette, 0, 0, 256, entries), TEXT("Update palette")) == 0;
 }
 
-void DC_FreePalette( int index )
+void DC_FreePaletteEntry( dcpalette_t *entry )
 {
-	dcpalette_t *entry = &gGLPalette[index];
 	if (entry->lpPalette)
+	{
 		entry->lpPalette->lpVtbl->Release(entry->lpPalette);
-	entry->lpPalette = NULL;
+		entry->lpPalette = NULL;
+	}
 	entry->tag = -1;
 	entry->referenceCount = 0;
+}
+
+void DC_FreePalette( int index )
+{
+	DC_FreePaletteEntry(&gGLPalette[index]);
 }
 
 void DC_UpdatePalette( int index, byte *rgb )

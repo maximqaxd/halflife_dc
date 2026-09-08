@@ -390,6 +390,9 @@ int		DC_GetPaletteIndex( unsigned char* pPal );
 // dc_vidnt.c -- render test cvars
 //
 extern cvar_t	r_testlight;
+extern cvar_t	r_drawadaptive;
+extern cvar_t	r_glowshellfreq;
+extern cvar_t	d_spriteskip;
 extern cvar_t	mipbias;
 
 //

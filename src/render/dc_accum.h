@@ -27,7 +27,6 @@ void          DCV_SubmitBatchGuarded( void );
 void          DCV_SetupStudioLighting( const float (*boneMatrices)[4][4], int count );
 int           DCV_GetVertCount( void );
 int           DCV_AddVertex( float x, float y, float z, float tu, float tv );
-void          DCV_AddLVertex( const D3DLVERTEX* v );
 void          DCV_PushVertexLit( const vec_t *pos, float tu, float tv );
 void          DCV_AddVertexIndexed( float x, float y, float z, float tu, float tv );
 void          DCV_AddStudioMesh( int count, const short *pCmds, const byte *pVertices, const byte *pNormals );
@@ -36,7 +35,6 @@ void          DCV_AddStudioMeshTagged( int count, const short *pCmds, const byte
 void          DCV_AddStudioMeshChromeTagged( int count, const short *pCmds, const byte *pVertices, const byte *pNormals, const byte *pVertTag );
 void          DCV_AddPolyIndices( int base, int numverts );
 void          DCV_AddIndicesQuad( int i0, int i1, int i2, int i3 );
-void          DCV_AddIndicesStrip( int base, int count );
 void          DCV_AddIndicesFan( int base, int count );
 void          DCV_BuildStudioIndexList( const short *pCmds );
 void          DCV_AddIndicesStripRestart( int base, int count );
@@ -155,6 +153,7 @@ void DCV_SetHudDepth( float depth );
 void DCV_ScreenFade( int r, int g, int b, int a, int layer, qboolean modulate );
 void DCV_SetFog( int enable, int r, int g, int b, int amount );
 void DCV_DisableMultitexture( void );
+void DCV_EnableMultitexture( void );
 
 void DCV_AddIndex( short index );
 void DCV_AddIndicesTriangle( WORD a, WORD b, WORD c );
@@ -173,7 +172,7 @@ void DCV_GammaVGA( void );
 void DCV_GammaTV( void );
 void DCV_GammaDefault( void );
 void DCV_DrawCurrentProgress( void );
-void DCV_GetSurfaceDesc( DDSURFACEDESC2 *desc, LPDIRECTDRAWSURFACE4 surface );
+void DCV_GetSurfaceDesc( DDSURFACEDESC *desc, LPDIRECTDRAWSURFACE surface );
 void DCV_BlitSurface( LPDIRECTDRAWSURFACE4 surface, int width, int height, int x, int y, int front );
 
 #ifdef __cplusplus

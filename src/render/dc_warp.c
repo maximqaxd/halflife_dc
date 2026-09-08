@@ -26,9 +26,6 @@ colorVec	gWaterColor;
 
 msurface_t*	warpface;
 
-#define	BLOCK_WIDTH		128
-#define	BLOCK_HEIGHT	128
-
 #define SUBDIVIDE_SIZE	64.0f
 #define WARP_TURBSCALE	40.743665f
 
@@ -375,7 +372,7 @@ void R_DrawWaterChain( msurface_t* pChain, int direction )
 						v -= VERTEXSIZE * 2;
 					v += VERTEXSIZE;
 					i++;
-					} while (i < p->numverts);
+				} while (i < p->numverts);
 			}
 		}
 	}
@@ -384,136 +381,7 @@ void R_DrawWaterChain( msurface_t* pChain, int direction )
 	DCV_FlushApplyRenderState(D3DRENDERSTATE_HWCULLMODE, D3DCULL_CCW);
 }
 
-#if 0
-/*
-===============
-EmitBothSkyLayers
 
-Does a sky warp on the pre-fragmented glpoly_t chain
-This will be called for brushmodels, the world
-will have them chained together.
-===============
-*/
-void EmitBothSkyLayers( msurface_t* fa )
-{
-	GL_DisableMultitexture();
-
-	GL_Bind(solidskytexture, 0);
-	speedscale = realtime * 8;
-	speedscale -= (int)speedscale & ~127;
-
-	EmitSkyPolys(fa);
-
-	glEnable(GL_BLEND);
-	GL_Bind(alphaskytexture, 0);
-	speedscale = realtime * 16;
-	speedscale -= (int)speedscale & ~127;
-
-	EmitSkyPolys(fa);
-
-	glDisable(GL_BLEND);
-}
-
-
-#define	SKY_TEX		2000
-
-/*
-=================================================================
-
-  PCX Loading
-
-=================================================================
-*/
-
-typedef struct
-{
-	char		manufacturer;
-	char		version;
-	char		encoding;
-	char		bits_per_pixel;
-	unsigned short xmin, ymin, xmax, ymax;
-	unsigned short hres, vres;
-	unsigned char palette[48];
-	char		reserved;
-	char		color_planes;
-	unsigned short bytes_per_line;
-	unsigned short palette_type;
-	char		filler[58];
-	unsigned 	data;			// unbounded
-} pcx_t;
-
-byte*		pcx_rgb;
-
-/*
-============
-LoadPCX
-============
-*/
-void LoadPCX( FILE* f )
-{
-	pcx_t*		pcx, pcxbuf;
-	byte		palette[768];
-	byte*		pix;
-	int			x, y;
-	int			dataByte, runLength;
-	int			count;
-
-//
-// parse the PCX file
-//
-	fread(&pcxbuf, 1, sizeof(pcxbuf), f);
-
-	pcx = &pcxbuf;
-
-	if (pcx->manufacturer != 0x0a
-		|| pcx->version != 5
-		|| pcx->encoding != 1
-		|| pcx->bits_per_pixel != 8
-		|| pcx->xmax >= 320
-		|| pcx->ymax >= 256)
-	{
-		Con_Printf("Bad pcx file\n");
-		return;
-	}
-
-	// seek to palette
-	fseek(f, -768, SEEK_END);
-	fread(palette, 1, 768, f);
-
-	fseek(f, sizeof(pcxbuf) - 4, SEEK_SET);
-
-	count = (pcx->xmax + 1) * (pcx->ymax + 1);
-	pcx_rgb = malloc(count * 4);
-
-	for (y = 0; y <= pcx->ymax; y++)
-	{
-		pix = pcx_rgb + 4 * y * (pcx->xmax + 1);
-		for (x = 0; x <= pcx->ymax;)
-		{
-			dataByte = fgetc(f);
-
-			if ((dataByte & 0xC0) == 0xC0)
-			{
-				runLength = dataByte & 0x3F;
-				dataByte = fgetc(f);
-			}
-			else
-				runLength = 1;
-
-			while (runLength-- > 0)
-			{
-				pix[0] = palette[dataByte * 3];
-				pix[1] = palette[dataByte * 3 + 1];
-				pix[2] = palette[dataByte * 3 + 2];
-				pix[3] = 255;
-				pix += 4;
-				x++;
-			}
-		}
-	}
-}
-
-#endif
 
 /*
 ==================
@@ -609,113 +477,84 @@ float		skymins[2][6], skymaxs[2][6];
 
 void DrawSkyPolygon( int nump, vec_t* vecs )
 {
-	union
-	{
-		struct
-		{
-			int			axis;
-			int			i;
-			float*		vp;
-			vec3_t		v;
-			vec3_t		av;
-		} face;
-		struct
-		{
-			int			axis;
-			int			i;
-			union
-			{
-				int			j;
-				float		t;
-			} coord;
-			float		unused1[2];
-			float		s;
-			float		unused2[2];
-			float		dv;
-		} projection;
-	} work;
+	int			i, j;
+	vec3_t		v, av;
+	float		s, t, dv;
+	int			axis;
+	float*		vp;
 
 	c_sky++;
-#if 0
-	qglBegin(GL_POLYGON);
-	for (i = 0; i < nump; i++, vecs += 3)
-	{
-		VectorAdd(vecs, r_origin, v);
-		qglVertex3fv(v);
-	}
-	qglEnd();
-	return;
-#endif
+
 	// decide which face it maps to
-	VectorCopy(vec3_origin, work.face.v);
-	work.face.i = 0;
-	work.face.vp = vecs;
+	VectorCopy(vec3_origin, v);
+	i = 0;
+	vp = vecs;
 	if (nump > 0)
 	{
 		do
 		{
-			VectorAdd(work.face.vp, work.face.v, work.face.v);
-			work.face.vp += 3;
-		} while (++work.face.i < nump);
+			VectorAdd(vp, v, v);
+			vp += 3;
+		} while (++i < nump);
 	}
-	work.face.av[0] = fabs(work.face.v[0]);
-	work.face.av[1] = fabs(work.face.v[1]);
-	work.face.av[2] = fabs(work.face.v[2]);
-	if (work.face.av[0] > work.face.av[1] && work.face.av[0] > work.face.av[2])
+	av[0] = fabs(v[0]);
+	av[1] = fabs(v[1]);
+	av[2] = fabs(v[2]);
+	if (av[0] > av[1] && av[0] > av[2])
 	{
-		if (work.face.v[0] < 0)
-			work.face.axis = 1;
+		if (v[0] < 0)
+			axis = 1;
 		else
-			work.face.axis = 0;
+			axis = 0;
 	}
-	else if (work.face.av[1] > work.face.av[2] && work.face.av[1] > work.face.av[0])
+	else if (av[1] > av[2] && av[1] > av[0])
 	{
-		if (work.face.v[1] < 0)
-			work.face.axis = 3;
+		if (v[1] < 0)
+			axis = 3;
 		else
-			work.face.axis = 2;
+			axis = 2;
 	}
 	else
 	{
-		if (work.face.v[2] < 0)
-			work.face.axis = 5;
+		if (v[2] < 0)
+			axis = 5;
 		else
-			work.face.axis = 4;
+			axis = 4;
 	}
 
 	// project new texture coords
-	work.projection.i = 0;
+	i = 0;
 	if (nump > 0)
 	{
 		do
 		{
-			work.projection.coord.j = vec_to_st[work.projection.axis][2];
-			if (work.projection.coord.j > 0)
-				work.projection.dv = vecs[work.projection.coord.j - 1];
+			j = vec_to_st[axis][2];
+			if (j > 0)
+				dv = vecs[j - 1];
 			else
-				work.projection.dv = -vecs[-work.projection.coord.j - 1];
+				dv = -vecs[-j - 1];
 
-			work.projection.coord.j = vec_to_st[work.projection.axis][0];
-			if (work.projection.coord.j < 0)
-				work.projection.s = -vecs[-work.projection.coord.j - 1] / work.projection.dv;
+			j = vec_to_st[axis][0];
+			if (j < 0)
+				s = -vecs[-j - 1] / dv;
 			else
-				work.projection.s = vecs[work.projection.coord.j - 1] / work.projection.dv;
-			work.projection.coord.j = vec_to_st[work.projection.axis][1];
-			if (work.projection.coord.j < 0)
-				work.projection.coord.t = -vecs[-work.projection.coord.j - 1] / work.projection.dv;
+				s = vecs[j - 1] / dv;
+			j = vec_to_st[axis][1];
+			if (j < 0)
+				t = -vecs[-j - 1] / dv;
 			else
-				work.projection.coord.t = vecs[work.projection.coord.j - 1] / work.projection.dv;
+				t = vecs[j - 1] / dv;
 
-			if (work.projection.s < skymins[0][work.projection.axis])
-				skymins[0][work.projection.axis] = work.projection.s;
-			if (work.projection.coord.t < skymins[1][work.projection.axis])
-				skymins[1][work.projection.axis] = work.projection.coord.t;
-			if (work.projection.s > skymaxs[0][work.projection.axis])
-				skymaxs[0][work.projection.axis] = work.projection.s;
-			if (work.projection.coord.t > skymaxs[1][work.projection.axis])
-				skymaxs[1][work.projection.axis] = work.projection.coord.t;
+			if (s < skymins[0][axis])
+				skymins[0][axis] = s;
+			if (t < skymins[1][axis])
+				skymins[1][axis] = t;
+			if (s > skymaxs[0][axis])
+				skymaxs[0][axis] = s;
+			if (t > skymaxs[1][axis])
+				skymaxs[1][axis] = t;
 			vecs += 3;
-		} while (++work.projection.i < nump);
+		} while (++i < nump);
 	}
 }
 
@@ -949,7 +788,6 @@ R_DrawSkyBox
 =================
 */
 int			skytexorder[6] = { 0, 2, 1, 3, 4, 5 };
-#define SIGN(d)				((d)<0?-1:1)
 static int	gFakePlaneType[6] = { 1, -1, 2, -2, 3, -3 };
 void R_DrawSkyBox( void )
 {

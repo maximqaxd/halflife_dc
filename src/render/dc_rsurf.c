@@ -343,12 +343,21 @@ void R_AddDynamicLights( msurface_t* surf )
 					dist = td + (sd >> 1);
 				if (dist < minlight)
 				{
-					unsigned delta;
-					delta = (rad - dist) * 256;
+					if (r_testlight.value)
+					{
+						blocklights[t * smax + s].r = 255 * 256;
+						blocklights[t * smax + s].g = 0;
+						blocklights[t * smax + s].b = 200 * 256;
+					}
+					else
+					{
+						int			delta;
+						delta = (rad - dist) * 256;
 
-					blocklights[t * smax + s].r += (delta * cl_dlights[lnum].color.r) >> 8;
-					blocklights[t * smax + s].g += (delta * cl_dlights[lnum].color.g) >> 8;
-					blocklights[t * smax + s].b += (delta * cl_dlights[lnum].color.b) >> 8;
+						blocklights[t * smax + s].r += (delta * cl_dlights[lnum].color.r) >> 8;
+						blocklights[t * smax + s].g += (delta * cl_dlights[lnum].color.g) >> 8;
+						blocklights[t * smax + s].b += (delta * cl_dlights[lnum].color.b) >> 8;
+					}
 				}
 			}
 		}
@@ -697,9 +706,9 @@ static void DC_SurfacePolyApplyBlockLights( msurface_t* surf )
 		else
 		{
 			colorVec*	c = &blocklights[
-				((int)(surf->polys->verts[i][7] * (BLOCK_HEIGHT * 16.0f) - 8.0f
+				((int)(surf->polys->verts[i][7] * BLOCK_HEIGHT * 16.0f - 8.0f
 					- (float)(surf->light_t << 4)) >> 4) * ((surf->extents[0] >> 4) + 1)
-				+ ((int)(surf->polys->verts[i][6] * (BLOCK_WIDTH * 16.0f) - 8.0f
+				+ ((int)(surf->polys->verts[i][6] * BLOCK_WIDTH * 16.0f - 8.0f
 					- (float)(surf->light_s << 4)) >> 4)];
 
 			r = c->r >> 8; if (r > 255) r = 255;
@@ -914,6 +923,12 @@ void GL_DisableMultitexture( void )
 {
 	DCV_DisableMultitexture();
 }
+
+void GL_EnableMultitexture( void )
+{
+	DCV_EnableMultitexture();
+}
+
 /*
 ================
 DrawGLWaterPoly
@@ -1172,12 +1187,12 @@ void R_DrawSequentialPoly( msurface_t* chain )
 	msurface_t*	next;
 	msurface_t*	deferred;
 	texture_t*	t;
-	byte		flagsOr, flagsAnd;
+	int			flagsOr, flagsAnd;
 	void(*pfnAccum)(const void* poly);
 	int			maps;
 
 	flagsOr = 0;
-	flagsAnd = 0xFF;
+	flagsAnd = -1;
 
 	pfnAccum = r_alphatestmode ? DCV_AccumColoredPoly : DCV_AccumSolidPoly;
 
@@ -2962,27 +2977,6 @@ static void R_DecalSetupLightmapCoords( float (*pverts)[VERTEXSIZE], msurface_t*
 		(*pverts)[6] = s;
 		(*pverts)[7] = t;
 	}
-}
-
-/*
-==================
-R_DecalColor4444to32
-
-==================
-*/
-static DWORD R_DecalColor4444to32( unsigned short color )
-{
-	int			a = ((color >> 12) & 0xF);
-	int			r = ((color >> 8) & 0xF);
-	int			g = ((color >> 4) & 0xF);
-	int			b = ((color) & 0xF);
-
-	a |= (a << 4);
-	r |= (r << 4);
-	g |= (g << 4);
-	b |= (b << 4);
-
-	return (DWORD)((a << 24) | (r << 16) | (g << 8) | b);
 }
 
 /*

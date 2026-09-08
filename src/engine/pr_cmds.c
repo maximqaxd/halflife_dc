@@ -4,6 +4,7 @@
 #include "decal.h"
 #include "pr_cmds.h"
 #include "info.h"
+#include "r_studio.h"
 
 extern int g_userid;
 
@@ -2263,26 +2264,18 @@ void EngineFprintf( FILE* pfile, char* szFmt, ... )
 	Sys_FPrintf(pfile, "%s", string);
 }
 
-/* Studio server-side queries are not reconstructed yet; return zeroed results
-   so game code that reads bone/attachment positions runs without faulting. */
 void PF_AnimationAutomove( const edict_t* pEdict, float flTime )
 {
 }
 
 void PF_GetBonePosition( const edict_t* pEdict, int iBone, float* rgflOrigin, float* rgflAngles )
 {
-	if (rgflOrigin)
-		rgflOrigin[0] = rgflOrigin[1] = rgflOrigin[2] = 0;
-	if (rgflAngles)
-		rgflAngles[0] = rgflAngles[1] = rgflAngles[2] = 0;
+	R_StudioGetBonePosition(pEdict, iBone, rgflOrigin, rgflAngles);
 }
 
 void PF_GetAttachment( const edict_t* pEdict, int iAttachment, float* rgflOrigin, float* rgflAngles )
 {
-	if (rgflOrigin)
-		rgflOrigin[0] = rgflOrigin[1] = rgflOrigin[2] = 0;
-	if (rgflAngles)
-		rgflAngles[0] = rgflAngles[1] = rgflAngles[2] = 0;
+	R_StudioGetAttachment(pEdict, iAttachment, rgflOrigin, rgflAngles);
 }
 
 // Run any commands the game DLL has stuffed into the server command buffer.

@@ -1,6 +1,7 @@
 // r_main.c
 
 #include "quakedef.h"
+#include "pr_cmds.h"
 #include "r_studio.h"
 #include "r_trans.h"
 #include "shake.h"
@@ -1425,4 +1426,295 @@ void R_RenderView( void )
 		time2 = Sys_FloatTime();
 		Con_Printf("%3ifps %3i ms  %4i wpoly %4i epoly\n", (int)(framerate + 0.5f), (int)((time2 - time1) * 1000.0f), c_brush_polys, c_alias_polys);
 	}
+}
+
+// Strings the driver reported at start-up, filled in by VID_Init.
+extern const char* gl_vendor;
+extern const char* gl_renderer;
+extern const char* gl_version;
+extern const char* gl_extensions;
+
+extern void	DCV_GammaRefresh_f( void );
+extern void	DC_TexCache( char* name );
+
+/*
+===============
+Cmd_gl_dump_f
+
+Echo whatever the driver told us about itself.
+===============
+*/
+void Cmd_gl_dump_f( void )
+{
+	if (gl_vendor)
+		Con_Printf("GL Vendor: %s\n", gl_vendor);
+	if (gl_renderer)
+		Con_Printf("GL Renderer: %s\n", gl_renderer);
+	if (gl_version)
+		Con_Printf("GL Version: %s\n", gl_version);
+	if (gl_extensions)
+		Con_Printf("GL Extensions: %s\n", gl_extensions);
+}
+
+/*
+====================
+R_InitTextures
+====================
+*/
+void R_InitTextures( void )
+{
+	int			x, y, m;
+	byte*		dest;
+
+	// create a simple checkerboard texture for the default
+	r_notexture_mip = (texture_t*)Hunk_AllocName(sizeof(texture_t) + 16 * 16 + 8 * 8 + 4 * 4 + 2 * 2, "notexture");
+
+	r_notexture_mip->width = r_notexture_mip->height = 16;
+	r_notexture_mip->offsets[0] = sizeof(texture_t);
+	r_notexture_mip->offsets[1] = r_notexture_mip->offsets[0] + 16 * 16;
+	r_notexture_mip->offsets[2] = r_notexture_mip->offsets[1] + 8 * 8;
+	r_notexture_mip->offsets[3] = r_notexture_mip->offsets[2] + 4 * 4;
+
+	for (m = 0; m < 4; m++)
+	{
+		dest = (byte*)r_notexture_mip + r_notexture_mip->offsets[m];
+		for (y = 0; y < (16 >> m); y++)
+		{
+			for (x = 0; x < (16 >> m); x++)
+				if ((y < (8 >> m)) ^ (x < (8 >> m)))
+					*dest++ = 0;
+				else
+					*dest++ = 0xFF;
+		}
+	}
+}
+
+void R_UploadEmptyTex( void )
+{
+	byte		pPal[768];
+	memset(pPal, 0, sizeof(pPal));
+	pPal[765] = 255;	// r
+	pPal[766] = 0;		// g
+	pPal[767] = 255;	// b
+	pPal[1] = 255;
+
+	r_notexture_mip->gl_texturenum = GL_LoadTexture("**empty**", GLT_SYSTEM, r_notexture_mip->width, r_notexture_mip->height, (byte*)(r_notexture_mip + 1), TRUE, TEX_TYPE_NONE, pPal);
+}
+
+byte		dottexture[16][16] =
+{
+	{ 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 3, 7, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 3, 5, 8, 5, 3, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 4, 5, 6, 7, 8, 9, 8, 7, 6, 5, 4, 0, 0, 0, 0 },
+	{ 0, 0, 0, 3, 5, 8, 5, 3, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 3, 7, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+};
+/*
+===============
+R_MakeDotParticleTexture
+
+Build the small round particle out of an 8x8 stamp. Index 255 is the
+transparent entry, so the cleared area of the stamp drops out.
+===============
+*/
+static byte	dotparticle[8][8] =
+{
+	{0,1,1,0,0,0,0,0},
+	{1,1,1,1,0,0,0,0},
+	{1,1,1,1,0,0,0,0},
+	{0,1,1,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0},
+};
+
+int			dotparticletexture;
+
+void R_MakeDotParticleTexture( void )
+{
+	byte		data[8][8];
+	byte		pal[256][3];
+	int			x, y;
+
+	memset(pal, 0, sizeof(pal));
+	pal[0][0] = 0;
+	pal[0][1] = 0;
+	pal[0][2] = 255;
+	pal[255][0] = 255;
+	pal[255][1] = 255;
+	pal[255][2] = 255;
+
+	for (y = 0; y < 8; y++)
+	{
+		for (x = 0; x < 8; x++)
+			data[x][y] = dotparticle[y][x] ? 0 : 255;
+	}
+
+	dotparticletexture = DC_LoadTexture("particle", 0, 8, 8, data, 0, 1, (unsigned char*)pal);
+}
+
+void R_InitParticleTexture( void )
+{
+	int			x, y;
+	int			alpha;
+	float		distance;
+	byte		data[16][16][4];
+	byte		puff[32][32][4];
+
+	//
+	// particle texture
+	//
+	for (x = 0; x < 16; x++)
+	{
+		for (y = 0; y < 16; y++)
+		{
+			data[y][x][0] = 255;
+			data[y][x][1] = 255;
+			data[y][x][2] = 255;
+			data[y][x][3] = dottexture[y][x] * 28;
+		}
+	}
+
+	particletexture = DC_LoadTexture("particle_star", GLT_SYSTEM, 16, 16,
+		data, FALSE, TEX_TYPE_RGBA, NULL);
+
+	for (x = 0; x < 32; x++)
+	{
+		for (y = 0; y < 32; y++)
+		{
+			puff[y][x][0] = 255;
+			puff[y][x][1] = 255;
+			puff[y][x][2] = 255;
+			distance = sqrtf((float)((8 - x) * (8 - x) + (8 - y) * (8 - y)));
+			alpha = (int)((128 - RandomLong(0, 32)) -
+				distance * 18.0f);
+			if (alpha < 0)
+				alpha = 0;
+			if (alpha > 128)
+				alpha = 128;
+			puff[y][x][3] = alpha;
+		}
+	}
+
+	particlepufftexture = DC_LoadTexture("particle_puff", GLT_SYSTEM, 32, 32,
+		puff, FALSE, TEX_TYPE_RGBA, NULL);
+}
+
+
+
+/*
+===============
+Cmd_skybox_f
+
+Switch the sky to the name given on the command line and reload it.
+===============
+*/
+void Cmd_skybox_f( void )
+{
+	R_LoadSkys();
+	Cvar_Set("cl_skyname", Cmd_Argv(1));
+	R_ForceLoadSkys();
+	R_LoadSkys();
+}
+
+/*
+===============
+Cmd_texcache_f
+
+Pull one texture into the cache by name.
+===============
+*/
+void Cmd_texcache_f( void )
+{
+	DC_TexCache(Cmd_Argv(1));
+}
+
+/*
+====================
+R_Init
+
+Initialize the renderer
+====================
+*/
+void R_Init( void )
+{
+	Cvar_RegisterVariable(&dc_depthhud);
+	Cvar_RegisterVariable(&dc_depthminhud);
+	Cvar_RegisterVariable(&dc_depthmaxhud);
+	Cvar_RegisterVariable(&dc_depthmin);
+	Cvar_RegisterVariable(&dc_depthmax);
+	Cvar_RegisterVariable(&dc_msw);
+	Cvar_RegisterVariable(&dc_msv);
+	Cvar_RegisterVariable(&dc_msd);
+	Cvar_RegisterVariable(&dc_msh);
+	Cvar_RegisterVariable(&dc_msh2);
+	Cvar_RegisterVariable(&mipbias);
+	Cvar_RegisterVariable(&progress);
+	Cvar_RegisterVariable(&fogrange);
+	Cvar_RegisterVariable(&fogscale);
+	Cvar_RegisterVariable(&profilescale);
+	Cvar_RegisterVariable(&profilemeter);
+	Cvar_RegisterVariable(&dc_light_min);
+	Cvar_RegisterVariable(&dc_light_max);
+	Cvar_RegisterVariable(&dc_light_alpha);
+	Cvar_RegisterVariable(&dc_light_beta);
+
+	Cmd_AddCommand("gammarefresh", DCV_GammaRefresh_f);
+	Cmd_AddCommand("timerefresh", R_TimeRefresh_f);
+	Cmd_AddCommand("pointfile", R_ReadPointFile_f);
+	Cmd_AddCommand("gl_dump", Cmd_gl_dump_f);
+	Cmd_AddCommand("skybox", Cmd_skybox_f);
+	Cmd_AddCommand("textures", DC_TexDump_f);
+	Cmd_AddCommand("texcache", Cmd_texcache_f);
+
+	Cvar_RegisterVariable(&r_norefresh);
+	Cvar_RegisterVariable(&r_lightmap);
+	Cvar_RegisterVariable(&r_fullbright);
+	Cvar_RegisterVariable(&r_decals);
+	Cvar_RegisterVariable(&mp_decals);
+	Cvar_SetValue("r_decals", 1024.0f);
+	Cvar_RegisterVariable(&r_testlight);
+	Cvar_RegisterVariable(&r_drawentities);
+	Cvar_RegisterVariable(&r_drawviewmodel);
+	Cvar_RegisterVariable(&r_mirroralpha);
+	Cvar_RegisterVariable(&r_wateralpha);
+	Cvar_RegisterVariable(&r_dynamic);
+	Cvar_RegisterVariable(&r_novis);
+	Cvar_RegisterVariable(&r_speeds);
+	Cvar_RegisterVariable(&r_drawadaptive);
+	Cvar_RegisterVariable(&d_spriteskip);
+	Cvar_RegisterVariable(&r_wadtextures);
+	Cvar_RegisterVariable(&r_shadows);
+	Cvar_RegisterVariable(&r_mmx);
+	Cvar_RegisterVariable(&r_traceglow);
+	Cvar_RegisterVariable(&r_glowshellfreq);
+	Cvar_RegisterVariable(&gl_cull);
+	Cvar_RegisterVariable(&gl_smoothmodels);
+	Cvar_RegisterVariable(&gl_spriteblend);
+	Cvar_RegisterVariable(&gl_lightholes);
+	Cvar_RegisterVariable(&gl_keeptjunctions);
+	Cvar_RegisterVariable(&gl_wateramp);
+	Cvar_RegisterVariable(&gl_zmax);
+	Cvar_RegisterVariable(&gl_alphamin);
+	Cvar_RegisterVariable(&gl_monolights);
+
+	R_InitParticles();
+	R_MakeDotParticleTexture();
+	R_InitParticleTexture();
+	R_UploadEmptyTex();
+
+	playertextures = texture_extension_number;
+	texture_extension_number += 16;
 }

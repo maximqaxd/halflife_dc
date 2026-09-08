@@ -59,6 +59,7 @@ typedef struct
 } colorVec16;
 
 unsigned short Color8888To4444( int color );
+unsigned int R_DecalColor4444to32( int color );
 unsigned short Color24To565( color24* color );
 void Color565To24( int color, color24* out );
 unsigned short ColorVecTo4444( colorVec* pcv );

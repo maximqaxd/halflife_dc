@@ -710,7 +710,7 @@ void SCR_UpdateScreen( void )
 
 	if (gfDrawMenu)
 	{
-	// the menu covers the whole screen: no world refresh needed
+		// the menu covers the whole screen: no world refresh needed
 		GL_BeginRendering(&glx, &gly, &glwidth, &glheight);
 		GLBeginHud();
 		UI_Draw();

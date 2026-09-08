@@ -609,7 +609,7 @@ void Draw_MiptexTexture( cachewad_t* wad, byte* data )
 	tex = (texture_t*)data;
 	mip = (miptex_t*)(data + wad->cacheExtra);
 	tmp = *mip;
-	strcpy(tex->name, tmp.name);
+	memcpy(tex->name, tmp.name, sizeof(tmp.name));
 
 	tex->width = LittleLong(tmp.width);
 	tex->height = LittleLong(tmp.height);

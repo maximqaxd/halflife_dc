@@ -389,12 +389,12 @@ void DCV_Rotate( int state, float angle, float x, float y, float z )
 	m[3]  = 0.0f;
 
 	g_pD3DDevice->lpVtbl->MultiplyTransform(g_pD3DDevice, state, &rot);
-	if (state == D3DTRANSFORMSTATE_PROJECTION)
-		g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, state, (LPD3DMATRIX)&g_matProjection);
-	else if (state == D3DTRANSFORMSTATE_VIEW)
+	if (state != D3DTRANSFORMSTATE_PROJECTION)
+		g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, state, (LPD3DMATRIX)&g_matWorld);
+	else if (state != D3DTRANSFORMSTATE_VIEW)
 		g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, state, (LPD3DMATRIX)&g_matView);
 	else
-		g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, state, (LPD3DMATRIX)&g_matWorld);
+		g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, state, (LPD3DMATRIX)&g_matProjection);
 }
 
 void DCV_FlushApplyTextureStageState( DWORD stage, D3DTEXTURESTAGESTATETYPE state, DWORD value )

@@ -1614,16 +1614,34 @@ the BSP texture lump, not a generic image-file loader.
 */
 static qboolean Mod_LoadExternalTextureTable( char* mapPath )
 {
+	int			i, j, pixels, num, max, altmax;
+	int			r, g, b;
+	int			srcwidth, srcheight;
+	miptex_t*	mt;
+	texture_t*	tx, * tx2;
+	texture_t*	anims[10];
+	texture_t*	altanims[10];
+	dmiptexlump_t* m;
+	texture_t*	texheaders;
+	byte*		tempTexData;
+	byte*		rawtex;
+	byte*		pPal;
+	byte*		vq;
+	byte*		vqindex;
+	int			i2;
+	char*		pColon;
+	char		perMapWadPath[MAX_OSPATH];
 	char		texturePath[MAX_OSPATH];
 	char*		extension;
-	byte*		buffer;
 	int			length;
-	int			i;
-	int			count;
-	dmiptexlump_t* texLump;
-	miptex_t*	mt;
-	lump_t		lump;
-	byte*		savedBase;
+	qboolean	wads_parsed;
+	int			hasPerMapWads;
+	qboolean	isGbix;
+
+	wads_parsed = false;
+	Sys_FloatTime();
+	isGbix = false;
+	hasPerMapWads = false;
 
 	strcpy(texturePath, mapPath);
 	COM_StringToLower(texturePath);
@@ -1632,29 +1650,292 @@ static qboolean Mod_LoadExternalTextureTable( char* mapPath )
 		*extension = 0;
 	strcat(texturePath, ".tex");
 
-	buffer = COM_LoadFile(texturePath, 2, &length);
-	if (!buffer)
+	m = (dmiptexlump_t*)COM_LoadFile(texturePath, 2, &length);
+	if (!m)
 		return FALSE;
 
-	texLump = (dmiptexlump_t*)buffer;
-	count = LittleLong(texLump->nummiptex);
-	for (i = 0; i < count; i++)
-	{
-		if (LittleLong(texLump->dataofs[i]) == -1)
-			continue;
+	tempTexData = (byte*)MnemoAlloc(TEMP_TEXBUF_INIT, MNEMO_FLAG_MALLOC, 0, "temp texture buffer");
 
-		mt = (miptex_t*)(buffer + LittleLong(texLump->dataofs[i]));
+	m->nummiptex = LittleLong(m->nummiptex);
+
+	loadmodel->numtextures = m->nummiptex;
+	loadmodel->textures = (texture_t**)Hunk_AllocName(m->nummiptex * sizeof(*loadmodel->textures), chunk_textures);
+
+	// every texture header for the map comes out of one block
+	texheaders = (texture_t*)Hunk_AllocName(m->nummiptex * sizeof(texture_t), "textureheaders");
+
+	if (TEX_BuildPerMapWadPath(loadname, perMapWadPath))
+		hasPerMapWads = true;
+
+	for (i = 0; i < m->nummiptex; i++)
+	{
+		m->dataofs[i] = LittleLong(m->dataofs[i]);
+		if (m->dataofs[i] == -1)
+			continue;
+		mt = (miptex_t*)((byte*)m + m->dataofs[i]);
+
+		if (developer.value > 1)
+		{
+			if (!i)
+			{
+				sprintf(texlogline, "\\PC\\%s.log", chunk_textures);
+				pColon = strchr(texlogline, ':');
+				if (pColon)
+					*pColon = '_';
+
+				texlogfile = Sys_OpenHandle(texlogline, "w");
+				if (texlogfile)
+				{
+					sprintf(texlogline, "start\r\n");
+					DC_fwrite(texlogline, strlen(texlogline), 1, texlogfile);
+				}
+			}
+
+			if (texlogfile)
+			{
+				sprintf(texlogline, "[%s]\r\n", mt->name);
+				DC_fwrite(texlogline, strlen(texlogline), 1, texlogfile);
+			}
+		}
+
+		srcwidth = mt->width;
+		srcheight = mt->height;
+
 		if (LittleLong(mt->offsets[0]))
 			Sys_Error("Look, the whole point of the compact texture data is that it DOESN'T include the textures themselves....\n");
+
+		if (hasPerMapWads || r_wadtextures.value || !LittleLong(mt->offsets[0]))
+		{
+			if (!wads_parsed)
+			{
+				if (hasPerMapWads)
+					TEX_InitFromWad(perMapWadPath);
+				else
+					TEX_InitFromWad(wadpath);
+
+				TEX_AddAnimatingTextures();
+				wads_parsed = true;
+			}
+
+			// room for the whole mip chain plus the palette and header
+			pixels = LittleLong(mt->width) * LittleLong(mt->height);
+			pixels += (LittleLong(mt->width) >> 1) * (LittleLong(mt->height) >> 1);
+			pixels += (LittleLong(mt->width) >> 2) * (LittleLong(mt->height) >> 2);
+			pixels += (LittleLong(mt->width) >> 3) * (LittleLong(mt->height) >> 3);
+
+			tempTexData = (byte*)MnemoRealloc(tempTexData, pixels * 4 + TEXBUF_SLACK);
+
+			if (!TEX_LoadLump(mt->name, tempTexData))
+			{
+				m->dataofs[i] = -1;
+				continue;
+			}
+
+			isGbix = true;
+			if (*(unsigned int*)tempTexData != GBIXHEADER)
+			{
+				isGbix = false;
+				srcwidth = mt->width;
+				srcheight = mt->height;
+				mt = (miptex_t*)tempTexData;
+			}
+		}
+
+		mt->width = LittleLong(mt->width);
+		mt->height = LittleLong(mt->height);
+		for (j = 0; j < MIPLEVELS; j++)
+			mt->offsets[j] = LittleLong(mt->offsets[j]);
+
+		if ((mt->width & 15) || (mt->height & 15))
+			Sys_Error("Texture %s is not 16 aligned", mt->name);
+
+		rawtex = (byte*)mt + sizeof(miptex_t);
+
+		// total amount of pixels across every mip level
+		pixels = mt->width * mt->height / 64 * MIPSCALE;
+
+		tx = &texheaders[i];
+		loadmodel->textures[i] = tx;
+
+		memcpy(tx->name, mt->name, sizeof(tx->name));
+		tx->width = mt->width;
+		tx->height = mt->height;
+
+		// palette sits behind the mip chain, after its entry count
+		pPal = rawtex + pixels + sizeof(word);
+
+		if (isGbix)
+		{
+			// no palette to pull the water fade out of, so average the first
+			// codebook entry the texture actually uses
+			vq = tempTexData + 32;
+			vqindex = vq + VQ_CODEBOOK_SIZE;
+			i2 = vqindex[1] * 8;
+
+			r = ((*(word*)(vq + i2) & 0xF800) + (*(word*)(vq + i2 + 4) & 0xF800)
+				+ (*(word*)(vq + i2 + 6) & 0xF800) + (*(word*)(vq + i2 + 2) & 0xF800)) >> 10;
+			tx->fade_r = r;
+			g = ((*(word*)(vq + i2) & 0x07E0) + (*(word*)(vq + i2 + 4) & 0x07E0)
+				+ (*(word*)(vq + i2 + 6) & 0x07E0) + (*(word*)(vq + i2 + 2) & 0x07E0)) >> 5;
+			tx->fade_g = g;
+			b = ((*(word*)(vq + i2) & 0x001F) + (*(word*)(vq + i2 + 4) & 0x001F)
+				+ (*(word*)(vq + i2 + 6) & 0x001F) + (*(word*)(vq + i2 + 2) & 0x001F)) * 2;
+			tx->fade_b = b;
+			tx->fade_fog = 100 - max(r, max(g, b)) / 3;
+		}
+		else
+		{
+			tx->fade_r = pPal[9];
+			tx->fade_g = pPal[10];
+			tx->fade_b = pPal[11];
+			tx->fade_fog = pPal[12];
+		}
+
+		if (!Q_strncmp(mt->name, "sky", 3))
+			R_ForceLoadSkys();
+		else
+		{
+			texture_mode = GL_LINEAR_MIPMAP_NEAREST;
+
+			if (mt->name[0] == '{')
+			{
+				if (isGbix)
+					Sys_Error("I'm not sure I'm ready to cope with PVR/VQ alpha textures yet.\n");
+
+				tx->gl_texturenum = GL_LoadTexture(mt->name, GLT_WORLD, tx->width, tx->height, rawtex, TRUE, TEX_TYPE_ALPHA, pPal);
+			}
+			else if (isGbix)
+			{
+				tx->gl_texturenum = GL_LoadTexture(mt->name, GLT_WORLD, tx->width, tx->height, tempTexData, TRUE, TEX_TYPE_GBIX, NULL);
+			}
+			else
+			{
+				tx->gl_texturenum = GL_LoadTexture(mt->name, GLT_WORLD, tx->width, tx->height, rawtex, TRUE, TEX_TYPE_NONE, pPal);
+			}
+
+			texture_mode = GL_LINEAR;
+		}
+
+		// the wad copy owned the sizes we just byte swapped, so put the
+		// lump's own back
+		if (!isGbix)
+		{
+			mt->width = LittleLong(srcwidth);
+			mt->height = LittleLong(srcheight);
+			tx->width = LittleLong(srcwidth);
+			tx->height = LittleLong(srcheight);
+		}
 	}
 
-	savedBase = mod_base;
-	mod_base = buffer;
-	lump.fileofs = 0;
-	lump.filelen = length;
-	Mod_LoadTextures(&lump);
-	mod_base = savedBase;
-	_FreeBlock();
+	if (wads_parsed)
+		TEX_CleanupWadInfo();
+
+	if (hasPerMapWads)
+		Bremove_path(perMapWadPath);
+
+//
+// sequence the animations
+//
+	for (i = 0; i < m->nummiptex; i++)
+	{
+		tx = loadmodel->textures[i];
+		if (!tx || (tx->name[0] != '+' && tx->name[0] != '-'))
+			continue;
+		if (tx->anim_next)
+			continue; // allready sequenced
+
+	// find the number of frames in the animation
+		memset(anims, 0, sizeof(anims));
+		memset(altanims, 0, sizeof(altanims));
+
+		max = tx->name[1];
+		altmax = 0;
+		if (max >= 'a' && max <= 'z')
+			max -= 'a' - 'A';
+		if (max >= '0' && max <= '9')
+		{
+			max -= '0';
+			anims[max] = tx;
+			max++;
+			altmax = 0;
+		}
+		else if (max >= 'A' && max <= 'J')
+		{
+			altmax = max - 'A';
+			max = 0;
+			altanims[altmax] = tx;
+			altmax++;
+		}
+		else
+			Sys_Error("Bad animating texture %s", tx->name);
+
+		for (j = i + 1; j < m->nummiptex; j++)
+		{
+			tx2 = loadmodel->textures[j];
+			if (!tx2 || (tx2->name[0] != '+' && tx2->name[0] != '-'))
+				continue;
+			if (strcmp(tx2->name + 2, tx->name + 2))
+				continue;
+
+			num = tx2->name[1];
+			if (num >= 'a' && num <= 'z')
+				num -= 'a' - 'A';
+			if (num >= '0' && num <= '9')
+			{
+				num -= '0';
+				anims[num] = tx2;
+				if (num + 1 > max)
+					max = num + 1;
+			}
+			else if (num >= 'A' && num <= 'J')
+			{
+				num = num - 'A';
+				altanims[num] = tx2;
+				if (num + 1 > altmax)
+					altmax = num + 1;
+			}
+			else
+				Sys_Error("Bad animating texture %s", tx->name);
+		}
+
+#define	ANIM_CYCLE	1
+	// link them all together
+		for (j = 0; j < max; j++)
+		{
+			tx2 = anims[j];
+			if (!tx2)
+				Sys_Error("Missing frame %i of %s", j, tx->name);
+			tx2->anim_total = max * ANIM_CYCLE;
+			tx2->anim_min = j * ANIM_CYCLE;
+			tx2->anim_max = (j + 1) * ANIM_CYCLE;
+			tx2->anim_next = anims[(j + 1) % max];
+			if (altmax)
+				tx2->alternate_anims = altanims[0];
+		}
+		for (j = 0; j < altmax; j++)
+		{
+			tx2 = altanims[j];
+			if (!tx2)
+				Sys_Error("Missing frame %i of %s", j, tx->name);
+			tx2->anim_total = altmax * ANIM_CYCLE;
+			tx2->anim_min = j * ANIM_CYCLE;
+			tx2->anim_max = (j + 1) * ANIM_CYCLE;
+			tx2->anim_next = altanims[(j + 1) % altmax];
+			if (max)
+				tx2->alternate_anims = anims[0];
+		}
+	}
+
+	if (developer.value > 1 && texlogfile)
+	{
+		sprintf(texlogline, "end\r\n");
+		DC_fwrite(texlogline, strlen(texlogline), 1, texlogfile);
+		Sys_CloseHandle(texlogfile);
+		texlogfile = NULL;
+	}
+
+	MnemoFree(tempTexData);
+	COM_FreeTempFile();
 	return TRUE;
 }
 
@@ -2133,39 +2414,6 @@ aliashdr_t*	pheader;
 
 //=========================================================
 
-/*
-===============
-Mod_FloodFillSkin
-
-Fill background pixels so mipmapping doesn't have haloes - Ed
-===============
-*/
-
-typedef struct
-{
-	short		x, y;
-} floodfill_t;
-
-
-// must be a power of 2
-#define FLOODFILL_FIFO_SIZE 0x1000
-#define FLOODFILL_FIFO_MASK (FLOODFILL_FIFO_SIZE - 1)
-
-#define FLOODFILL_STEP( off, dx, dy ) \
-{ \
-	if (pos[off] == fillcolor) \
-	{ \
-		pos[off] = 255; \
-		fifo[inpt].x = x + (dx), fifo[inpt].y = y + (dy); \
-		inpt = (inpt + 1) & FLOODFILL_FIFO_MASK; \
-	} \
-	else if (pos[off] != 255) fdc = pos[off]; \
-}
-
-//=========================================================================
-
-//=============================================================================
-
 byte*		pspritepal;
 
 /*
@@ -2414,7 +2662,7 @@ Mod_UnloadSpriteTextures
 void Mod_UnloadSpriteTextures( model_t* mod )
 {
 	msprite_t*	sprite;
-	char		name[16];
+	char		name[256];
 	int			i;
 
 	if (mod->type != mod_sprite)
@@ -2427,7 +2675,7 @@ void Mod_UnloadSpriteTextures( model_t* mod )
 
 	for (i = 0; i < sprite->numframes; i++)
 	{
-		Mod_SpriteTextureName(name, mod->name, i);
+		sprintf(name, "%s_%i", mod->name, i);
 		DC_ForceFreeTextureByName(name);
 	}
 }

@@ -257,10 +257,6 @@ light styles, into c.  cl.worldmodel->lightmap_mode picks the on-disk encoding:
 =============
 */
 
-// floatmathlib.h only fast-paths `floor`, not `ceil` (only `fceil`), so a bare
-// `ceil()` call falls through to the real double-precision routine. Declare it
-// so the compiler emits a proper double-returning call instead of assuming an
-// int-returning implicit declaration.
 extern double ceil( double x );
 
 void R_LightSurfPoint( msurface_t* surf, int ds, int dt, colorVec* c )
@@ -404,22 +400,6 @@ void R_LightSurfPoint( msurface_t* surf, int ds, int dt, colorVec* c )
 			c->r += r * scale;
 			c->g += g * scale;
 			c->b += b * scale;
-		}
-	}
-	else
-	{
-		/* Standard BSP lightdata: one color24 per texel, one map per style. */
-		const color24* p = surf->samples + dt * smax + ds;
-
-		for (maps = 0; maps < MAXLIGHTMAPS && surf->styles[maps] != 255; maps++)
-		{
-			scale = d_lightstylevalue[surf->styles[maps]];
-
-			c->r += p->r * scale;
-			c->g += p->g * scale;
-			c->b += p->b * scale;
-
-			p += smax * tmax;
 		}
 	}
 }

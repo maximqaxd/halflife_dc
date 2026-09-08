@@ -39,6 +39,5 @@ int DCV_MeterElapsed( void );
 void DCV_UpdateMeters( void );
 void DCV_AddMeterMarker( unsigned int color, float marker );
 void DCV_AddMeterCount( unsigned int color, short value );
-int  DCV_FB_LoadImage( byte* rgb, int cache );
 
 #endif /* DC_FRAMEBUFFER_H */

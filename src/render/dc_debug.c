@@ -323,11 +323,6 @@ void DCV_DrawMeters( void )
 	}
 }
 
-int DCV_FB_LoadImage( byte* rgb, int cache )
-{
-	return -1;
-}
-
 /*
 ================
 DCV_FB_Text

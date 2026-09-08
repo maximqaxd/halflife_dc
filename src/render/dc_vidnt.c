@@ -296,16 +296,3 @@ char* VID_GetExtModeDescription( int mode )
 	sprintf(vid_describe_msg, "FIXME: %s, %d", __FILE__, __LINE__);
 	return vid_describe_msg;
 }
-/*
-================
-GetVideoOutputFormat
-
-Dreamcast AV-cable / video-mode query used to pick the gamma curve. The real
-call is a DC system service not present in the WinCE SDK; return 2 (the normal
-composite/RGB path) until it is reconstructed.
-================
-*/
-int GetVideoOutputFormat( void )
-{
-	return 2;
-}

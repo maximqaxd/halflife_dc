@@ -942,7 +942,7 @@ void DCV_DisableFog( void )
 	DCV_SetRenderState(D3DRENDERSTATE_FOGENABLE, FALSE);
 }
 
-void DCV_GetSurfaceDesc( DDSURFACEDESC2 *desc, LPDIRECTDRAWSURFACE4 surface )
+void DCV_GetSurfaceDesc( DDSURFACEDESC *desc, LPDIRECTDRAWSURFACE surface )
 {
 	memset(desc, 0, sizeof(*desc));
 	desc->dwSize = sizeof(*desc);

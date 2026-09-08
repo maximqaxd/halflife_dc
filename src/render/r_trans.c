@@ -155,7 +155,7 @@ void AddTEntity( cl_entity_t* pEnt )
 		VectorAdd(v, pEnt->origin, v);
 		VectorSubtract(r_origin, v, v);
 
-		dist = DotProduct(v, v);
+		dist = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
 	}
 	else
 	{
@@ -199,7 +199,7 @@ void AppendTEntity( cl_entity_t* pEnt )
 	VectorAdd(v, pEnt->origin, v);
 	VectorSubtract(r_origin, v, v);
 
-	dist = DotProduct(v, v);
+	dist = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
 
 	transObjects[numTransObjs].pEnt = pEnt;
 	transObjects[numTransObjs].distance = dist;

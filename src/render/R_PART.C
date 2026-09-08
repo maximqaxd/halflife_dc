@@ -2095,7 +2095,7 @@ void Noise( float* noise, int divs )
 	}
 }
 
-static void SineNoise( float* noise, int divs )
+void SineNoise( float* noise, int divs )
 {
 	int			i;
 	float		freq, freq2;
@@ -2258,9 +2258,9 @@ void R_DrawSegs( vec_t* source, vec_t* delta, float width, float scale, float fr
 
 		vLast += vStep; // advance texture scroll (v axis only)
 		tri_Brightness(brightness);
-		DCV_PushVertexLit(last2, 1.0f, vLast);
-		tri_Brightness(brightness);
 		DCV_PushVertexLit(last1, 0.0f, vLast);
+		tri_Brightness(brightness);
+		DCV_PushVertexLit(last2, 1.0f, vLast);
 
 		VectorCopy(screen, screenLast);
 
@@ -2593,10 +2593,10 @@ void R_DrawBeamFollow( BEAM* pbeam )
 		}
 
 		tri_Brightness(fraction);
-		DCV_PushVertexLit(last2, 1.0f, 1.0f);
+		DCV_PushVertexLit(last1, 0.0f, 1.0f);
 
 		tri_Brightness(fraction);
-		DCV_PushVertexLit(last1, 0.0f, 1.0f);
+		DCV_PushVertexLit(last2, 1.0f, 1.0f);
 
 		VectorCopy(screen, screenLast);
 

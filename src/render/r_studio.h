@@ -24,11 +24,9 @@
 
 extern int r_dointerp;
 
-void	AnimationAutomove( const edict_t* pEdict, float flTime );
-void	GetBonePosition( const edict_t* pEdict, int iBone, float* rgflOrigin, float* rgflAngles );
-void	GetAttachment( const edict_t* pEdict, int iAttachment, float* rgflOrigin, float* rgflAngles );
+void	R_StudioGetBonePosition( const edict_t* pEdict, int iBone, float* rgflOrigin, float* rgflAngles );
+void	R_StudioGetAttachment( const edict_t* pEdict, int iAttachment, float* rgflOrigin, float* rgflAngles );
 
-void	R_FlushStudioCache( void );
 hull_t* R_StudioHull( model_t* pModel, float frame, int sequence, const vec_t* angles, const vec_t* origin, const vec_t* size, const byte* pcontroller, const byte* pblending, int* pNumHulls );
 hull_t* SV_HullForStudioModel( const edict_t* pEdict, const vec_t* mins, const vec_t* maxs, vec_t* offset, int* pNumHulls );
 int		SV_HitgroupForStudioHull( int index );
@@ -37,6 +35,7 @@ int		R_StudioBodyVariations( struct model_s* model );
 int		R_StudioBodyVariations_Neo( struct model_s* model );
 struct mstudioanim_s;
 mstudioanim_t* R_GetAnim_Neo( struct model_s* model, mstudioseqdesc_t* sequence );
+void	R_StudioCacheAnim( struct model_s* model, int sequenceGroup );
 void	R_StudioCacheAnim_Neo( struct model_s* model, int sequenceGroup );
 void	R_StudioSetupModel_Neo( int bodypart );
 float	R_StudioEstimateFrame_Neo( mstudioseqdesc_t* sequence );
@@ -99,7 +98,6 @@ void	R_StudioDynamicLight( cl_entity_t* ent, struct alight_s* plight );
 void	R_StudioEntityLight( struct alight_s* plight );
 void	R_StudioClientEvents( void );
 void	R_StudioRenderFinal( void );
-void	GLR_StudioDrawShadow( void );
 void	R_StudioDrawPoints( void );
 
 int SignbitsForPlane( mplane_t* plane );
