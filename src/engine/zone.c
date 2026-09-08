@@ -223,3 +223,72 @@ void Z_CheckHeap( void )
 	}
 }
 
+
+int Hunk_HighMark( void )
+{
+	Sys_Error("This should no longer be used.");
+	return 0;
+}
+
+void Hunk_FreeToHighMark( int mark )
+{
+	Sys_Error("This should no longer be used.");
+}
+
+
+int ComparePath1( char* path1, char* path2 )
+{
+	while (*path1 != '/' && *path1 != '\\' && *path1)
+	{
+		if (*path1 != *path2)
+			return 0;
+		else
+		{
+			path1++;
+			path2++;
+		}
+	}
+	return 1;
+}
+
+/*
+============
+CommatizeNumber
+
+takes a number, and creates a string of that with commas in the
+appropriate places.
+============
+*/
+char* CommatizeNumber( int num, char* pout )
+{
+
+	//this is probably more complex than it needs to be.
+	int len = 0;
+	int i;
+	char outbuf[50];
+	memset(outbuf, 0, sizeof(outbuf));
+	while (num)
+	{
+		char tempbuf[50];
+		int temp = num % 1000;
+		num = num / 1000;
+		strcpy(tempbuf, outbuf);
+
+		sprintf(outbuf, ",%03i%s", temp, tempbuf);
+	}
+
+	len = strlen(outbuf);
+
+	for (i = 0; i < len; i++)				//find first significant digit
+	{
+		if (outbuf[i] != '0' && outbuf[i] != ',')
+			break;
+	}
+
+	if (i == len)
+		strcpy(pout, "0");
+	else
+		strcpy(pout, &outbuf[i]);	//copy from i to get rid of the first comma and leading zeros
+
+	return pout;
+}

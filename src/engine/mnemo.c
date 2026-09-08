@@ -1464,32 +1464,6 @@ void Hunk_FreeToLowMark( int mark )
 	mnemo_zone_sloppy_left = 0;
 }
 
-int	Hunk_HighMark( void )
-{
-	if (hunk_tempactive)
-	{
-		hunk_tempactive = FALSE;
-		Hunk_FreeToHighMark(hunk_tempmark);
-	}
-
-	return hunk_high_used;
-}
-
-void Hunk_FreeToHighMark( int mark )
-{
-	if (hunk_tempactive)
-	{
-		hunk_tempactive = FALSE;
-		Hunk_FreeToHighMark(hunk_tempmark);
-	}
-	if (mark < 0 || mark > hunk_high_used)
-		Sys_Error("Hunk_FreeToHighMark: bad mark %i", mark);
-
-
-	hunk_high_used = mark;
-}
-
-
 /*
 ===================
 Hunk_HighAllocName

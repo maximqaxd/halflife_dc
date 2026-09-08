@@ -281,19 +281,4 @@ int Q_strnicmp( char* s1, char* s2, int n )
 
 } // extern "C"
 
-// Route all dynamic allocation through the game's memory manager instead of the
-// WinCE C runtime heap, so engine, game, and these CRT shims share one allocator.
-extern "C" void* MnemoAlloc( int size, unsigned int flags, int allocClass, const char* tag );
-extern "C" void  MnemoFree( void* ptr );
-
-void* operator new( unsigned int size )
-{
-	return MnemoAlloc( (int)size, 0x20, 0, "op new" );
-}
-
-void operator delete( void* ptr )
-{
-	MnemoFree( ptr );
-}
-
 #endif // _WIN32_WCE

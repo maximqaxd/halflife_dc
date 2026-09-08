@@ -60,6 +60,50 @@ dc_exception_t g_dcException;
 char           g_dcExceptionText[2048];
 char           g_dcExceptionScratch[32];
 
+#ifdef _WIN32_WCE
+void* operator new( unsigned int size )
+{
+	return MnemoAlloc(size, 0x20, 0, "op new");
+}
+
+void* operator new[]( unsigned int size )
+{
+	return MnemoAlloc(size, 0x20, 0, "op new[]");
+}
+
+void operator delete( void* ptr )
+{
+	MnemoFree(ptr);
+}
+
+void operator delete[]( void* ptr )
+{
+	MnemoFree(ptr);
+}
+#endif
+
+HANDLE houtput;
+int console_textlen;
+char console_text[256];
+
+void Sys_ConsoleOutput( char* text )
+{
+	char blank[256];
+	DWORD written;
+
+	if (console_textlen)
+	{
+		blank[0] = '\r';
+		memset(blank + 1, ' ', console_textlen);
+		blank[console_textlen + 1] = '\r';
+		blank[console_textlen + 2] = 0;
+		WriteFile(houtput, blank, console_textlen + 2, &written, NULL);
+	}
+	WriteFile(houtput, text, strlen(text), &written, NULL);
+	if (console_textlen)
+		WriteFile(houtput, console_text, console_textlen, &written, NULL);
+}
+
 void UpdateStatus( void )
 {
 	float now, fps;

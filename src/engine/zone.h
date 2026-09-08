@@ -135,6 +135,8 @@ void* Hunk_HighAllocName( int size, char* name );
 int	Hunk_LowMark( void );
 void Hunk_FreeToLowMark( int mark );
 
+int ComparePath1( char* path1, char* path2 );
+char* CommatizeNumber( int num, char* pout );
 int	Hunk_HighMark( void );
 void Hunk_FreeToHighMark( int mark );
 
