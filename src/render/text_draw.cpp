@@ -93,14 +93,7 @@ Latch the glyph scale, reducing it for languages that need longer strings.
 */
 void Font_SetScale( float sx, float sy )
 {
-	if (sv_language.value != 0.0f)
-	{
-		sx = sx * LANG_FONT_SCALE;
-		sy = sy * LANG_FONT_SCALE;
-	}
-
-	g_flTextScaleX = sx;
-	g_flTextScaleY = sy;
+	Font_ApplyScale(sx, sy);
 }
 
 /*
@@ -140,35 +133,7 @@ clamped to a sane range so proportional fonts stay readable.
 */
 int Font_StringWidth( dcfont_t *font, byte *str )
 {
-	int	total = 0;
-	byte	c;
-	int	num;
-	int	adv;
-
-	if (!str)
-		return 0;
-
-	c = *str;
-	if (c != 0)
-	{
-		do {
-			num = c;
-			if (num >= FONT_HIGHCHAR)
-				num -= FONT_HIGHCHAR_SHIFT;
-
-			adv = (int)((float)(int)font->fontinfo[num].charwidth * g_flTextScaleX + FONT_WIDTH_BIAS);
-			if (adv < FONT_ADV_MIN)
-				adv = FONT_ADV_MIN;
-			if (adv > FONT_ADV_MAX)
-				adv = FONT_ADV_MAX;
-
-			total += adv;
-			str++;
-			c = *str;
-		} while (c != 0);
-	}
-
-	return total;
+	return Font_MeasureString(font, str);
 }
 
 /*
@@ -246,15 +211,7 @@ If psz names a %tag, return its localized string; otherwise return psz.
 */
 char *Text_FindString( char *psz )
 {
-	int i;
-
-	for (i = 0; i < g_nLangTags; i++)
-	{
-		if (!strcmp(psz, g_pLangTags[i].tag))
-			return g_pLangTags[i].string;
-	}
-
-	return psz;
+	return Text_LocalizeString(psz);
 }
 
 /*
@@ -603,38 +560,39 @@ replaced by the controller warning (a short grace period shows "check"
 before "no controller") and the text pulses.
 ================
 */
-void Text_DrawCenteredStatus( float sx, float sy, byte *str, int color )
+void Text_DrawCenteredStatus( byte *str, float time, int color, float sx, float sy )
 {
 	byte	*psz;
 	int		i, width;
 	int		brightness;
-	float	fx, fy;
+	int		ch, advance;
+	byte	*p;
 
 	DCV_SetHudDepth(TEXT_DEPTH_FRONT);
 	DCV_TexState_Additive();
 
+	psz = str;
 	brightness = STATUS_BRIGHTNESS;
 
 	if (!IN_ControllerPresent())
 	{
 		if (Sys_FloatTime() - g_flControllerOkTime < 3.0f)
-			str = (byte *)"%check_controller";
+			psz = (byte *)"%check_controller";
 		else
-			str = (byte *)"%no_controller";
+			psz = (byte *)"%no_controller";
 
-		brightness = (int)((coss(Sys_FloatTime() * 4.23f) + 1.0f) * 127.0f);
+		brightness = (int)((coss(time * 4.23f) + 1.0f) * 127.0f);
 	}
 	else
 	{
 		g_flControllerOkTime = Sys_FloatTime();
 	}
 
-	psz = str;
-	if (str && *str == '%')
+	if (psz && *psz == '%')
 	{
 		for (i = 0; i < g_nLangTags; i++)
 		{
-			if (!strcmp((char *)str, g_pLangTags[i].tag))
+			if (!strcmp((char *)psz, g_pLangTags[i].tag))
 			{
 				psz = (byte *)g_pLangTags[i].string;
 				break;
@@ -642,25 +600,39 @@ void Text_DrawCenteredStatus( float sx, float sy, byte *str, int color )
 		}
 	}
 
-	Font_FitScale(sx, sy, 430.0f, psz, &fx, &fy);
+	Font_FitScale(sx, sy, 430.0f, psz, &sx, &sy);
 
 	if (sv_language.value)
 	{
-		fx = sx * LANG_FONT_SCALE;
-		fy = sy * LANG_FONT_SCALE;
+		sx *= LANG_FONT_SCALE;
+		sy *= LANG_FONT_SCALE;
 	}
 
-	g_flTextScaleX = fx;
-	g_flTextScaleY = fy;
+	g_flTextScaleX = sx;
+	g_flTextScaleY = sy;
 
-	width = Font_StringWidth((dcfont_t *)draw_chars, psz);
+	width = 0;
+	if (psz)
+	{
+		p = psz;
+		while (*p)
+		{
+			ch = *p++;
+			if (ch >= FONT_HIGHCHAR)
+				ch -= FONT_HIGHCHAR_SHIFT;
+			advance = (int)((float)((dcfont_t *)draw_chars)->fontinfo[ch].charwidth * sx + FONT_WIDTH_BIAS);
+			if (advance < FONT_ADV_MIN) advance = FONT_ADV_MIN;
+			if (advance > FONT_ADV_MAX) advance = FONT_ADV_MAX;
+			width += advance;
+		}
+	}
 
 	DCV_SetColor(color, color, color, brightness);
 
-	i = 320 - width / 2;
+	i = (int)(320.0f - (float)width / 2.0f);
 	while (*psz)
 	{
-		i += Font_DrawCharI((dcfont_t *)draw_chars, i, 416, *psz);
+		i += (int)Font_DrawChar((float)i, 416.0f, (dcfont_t *)draw_chars, (char)*psz);
 		psz++;
 	}
 }
@@ -753,6 +725,19 @@ Copy one token, honoring quotes; stops at whitespace outside quotes or at
 end of line. Returns the read position.
 ================
 */
+char* Text_SkipSpace( char* in )
+{
+	while (*in == ' ' || *in == '\t')
+		in++;
+	return in;
+}
+
+void Text_DrawScaledStringShadow( float sx, float sy, char* str, int x, int y, int brightness, int blue )
+{
+	Font_ApplyScale(sx, sy);
+	Text_DrawStringShadow(str, x, y, brightness, blue);
+}
+
 char *Text_ParseToken( char *in, char *out )
 {
 	char	c;
@@ -843,16 +828,13 @@ void Text_LoadAliases( char*** pppAliases, int* pnAliases, char* pszFile )
 		n = 0;
 
 		in = line;
-		while (*in == ' ' || *in == '\t')
-			in++;
+		in = Text_SkipSpace(in);
 		in = Text_ParseToken(in, command);
 
-		while (*in == ' ' || *in == '\t')
-			in++;
+		in = Text_SkipSpace(in);
 		in = Text_ParseToken(in, key);
 
-		while (*in == ' ' || *in == '\t')
-			in++;
+		in = Text_SkipSpace(in);
 		Text_ParseToken(in, binding);
 
 		if (!Q_stricmp(command, "bind") && strlen(key) && strlen(binding))

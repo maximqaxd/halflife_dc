@@ -46,7 +46,6 @@ extern qpic_t*	conback;
 
 class CMenu;
 class CMenuItemBase;
-class CMenuItem;
 
 // One entry a page can put on itself. The label and description are language
 // tags looked up when the item is drawn; the command is what running the item
@@ -163,14 +162,14 @@ typedef struct menustate_s
 	int			iEnabled;
 
 	int			iElementTexture;
-	byte		reserved352[16];
+	int			rgba[4];
 	int			iVMUTexture;
-	byte		reserved372[4];
+	int			iBarneyLargeTexture;
 	int			iBarneyTexture;
-	int			reserved380;
+	int			iGordonLargeTexture;
 	int			iGordonTexture;
 	int			iControllerTexture;
-	byte		reserved392[4];
+	int			iControllerSmallTexture;
 	int			iLinesTexture;
 
 	int			iSoundBlocked;
@@ -183,8 +182,52 @@ typedef struct menustate_s
 class CMenu
 {
 public:
+	static menupage_t* FindPage( char* pszName );
+	static menuslider_t* FindSliderDef( int id );
+	static menuoption_t* FindOptionDef( int id );
+	static menuitemdef_t* FindItemDef( int id );
 	CMenu( char* pszMenu );
 	~CMenu( void );
+	__forceinline void SetColor( int r, int g, int b, int a );
+
+	void ExecuteCommand( char* pszCommand, int fade, int close );
+	void Cancel( void );
+	__forceinline int CountItems( void );
+	__forceinline int SelectedCharacter( void );
+	__forceinline void MoveSelection( int direction );
+	void SelectPrevious( void );
+	void SelectNext( void );
+	void DrawControllerIconSmall( float x0, float y0, float x1, float y1 );
+	void DrawControllerLines( float x0, float y0, float x1, float y1 );
+	__forceinline void RenderControllerLines( float x0, float y0, float x1, float y1 );
+	void DrawVMUIcon( float x0, float y0, float x1, float y1 );
+	__forceinline void RenderVMUIcon( float x0, float y0, float x1, float y1 );
+	void DrawGordonIconLarge( float x0, float y0, float x1, float y1 );
+	__forceinline void RenderGordonIconLarge( float x0, float y0, float x1, float y1 );
+	void DrawBarneyIconLarge( float x0, float y0, float x1, float y1 );
+	__forceinline void RenderBarneyIconLarge( float x0, float y0, float x1, float y1 );
+	void ClearTextures( void );
+	void FreeTextures( void );
+	int FindFreeTextureSlot( void );
+	int FindTexture( char* pszName );
+	int LoadMenuTexture( char* pszName );
+	void DrawMenuElementTile( float x0, float y0, float x1, float y1 );
+	__forceinline void DrawElementTile( float x0, float y0, float x1, float y1 );
+	void DrawMenuElementTile2( float x0, float y0, float x1, float y1 );
+	__forceinline void DrawElementTile2( float x0, float y0, float x1, float y1 );
+	void DrawMenuElementBox( float x0, float y0, float x1, float y1 );
+	void DrawMenuElementQuad( int orientation, float x0, float y0, float x1, float y1 );
+	void DrawMenuElementQuad2( int corner, float x0, float y0, float x1, float y1 );
+	void DrawControllerIcon( float x0, float y0, float x1, float y1 );
+	void DrawGordonIcon( float x0, float y0, float x1, float y1 );
+	void DrawBarneyIcon( float x0, float y0, float x1, float y1 );
+	void FadeIn( void );
+	void FadeOut( void );
+	void AnimateLerp( void );
+	void CheckCheatCode( char button );
+	void Build( char* pszMenu );
+	void Draw( void );
+	void Input( void );
 
 	char			m_szName[MAX_MENU_NAME];
 	CMenuItemBase*	m_pItems[MAX_MENU_ITEMS];
@@ -193,15 +236,14 @@ public:
 };
 
 // Everything a page can put on itself answers to this. The page walks its
-// items without caring what any of them actually are.
+// items without caring what any of them actually are. The common header is 8 bytes.
 class CMenuItemBase
 {
 public:
 	__forceinline CMenuItemBase( void ) {}
+	__forceinline CMenuItemBase( CMenu* pMenu ) { m_pMenu = pMenu; }
 
-	// slot 0 of the table is the destructor; it goes back to being one once
-	// the code that frees items is in
-	virtual void Destroy( void );
+	virtual ~CMenuItemBase( void );
 	virtual void Draw( float flFade, qboolean bSelected );
 	virtual void Select( void );
 	virtual void Cancel( void );
@@ -211,36 +253,24 @@ public:
 	virtual void Right( void );
 	virtual void SetPos( float x, float y );
 	virtual int  IsActive( void );
+	CMenu*		m_pMenu;
 };
 
-// An entry with a label and a help line. The label is drawn where the page
-// puts the item; the description goes along the bottom of the screen.
-class CMenuItem : public CMenuItemBase
+// A plain line of text that runs its command when it is picked. Size: 60 bytes.
+class CMenuTextItem : public CMenuItemBase
 {
 public:
-	__forceinline CMenuItem( void ) {}
+	__forceinline CMenuTextItem( void ) {}
+	CMenuTextItem( CMenu* pMenu, menuitemdef_t* pDef, int x, int y, int align );
 
-	__forceinline CMenuItem( CMenu* pMenu, menuitemdef_t* pDef, int x, int y )
-	{
-		m_pMenu = pMenu;
+	virtual ~CMenuTextItem( void );
+	virtual void Draw( float flFade, qboolean bSelected );
+	virtual void Select( void );
+	virtual void Cancel( void );
+	virtual void Up( void );
+	virtual void Down( void );
+	virtual int  IsActive( void );
 
-		m_pszLabel = pDef->pszLabel;
-		m_flLabelScale = 1.0f;
-		m_flLabelAspect = 1.3333f;
-		m_labelX = x;
-		m_labelY = y;
-
-		m_pszDescription = pDef->pszDescription;
-		m_flDescScale = 1.0f;
-		m_flDescAspect = 1.3333f;
-		m_descX = scr_safe_x + 200;
-		m_descY = 416 - scr_safe_y;
-
-		m_pszCommand = pDef->pszCommand;
-		m_bEnabled = 1;
-	}
-
-	CMenu*		m_pMenu;
 	char*		m_pszLabel;
 	int			m_labelX;
 	int			m_labelY;
@@ -253,23 +283,6 @@ public:
 	float		m_flDescAspect;
 	char*		m_pszCommand;
 	int			m_bEnabled;
-};
-
-// A plain line of text that runs its command when it is picked.
-class CMenuTextItem : public CMenuItem
-{
-public:
-	__forceinline CMenuTextItem( void ) {}
-	CMenuTextItem( CMenu* pMenu, menuitemdef_t* pDef, int x, int y, int align );
-
-	virtual void Destroy( void );
-	virtual void Draw( float flFade, qboolean bSelected );
-	virtual void Select( void );
-	virtual void Cancel( void );
-	virtual void Up( void );
-	virtual void Down( void );
-	virtual int  IsActive( void );
-
 	int			m_align;
 };
 
@@ -278,10 +291,9 @@ public:
 class CMenuStaticItem : public CMenuTextItem
 {
 public:
-	__forceinline CMenuStaticItem( CMenu* pMenu, menuitemdef_t* pDef, int x, int y, int align )
-		: CMenuTextItem(pMenu, pDef, x, y, align) {}
+	CMenuStaticItem( CMenu* pMenu, menuitemdef_t* pDef, int x, int y );
 
-	virtual void Destroy( void );
+	virtual ~CMenuStaticItem( void );
 	virtual int IsActive( void );
 };
 
@@ -289,12 +301,12 @@ public:
 class CMenuTitleItem : public CMenuItemBase
 {
 public:
+	virtual ~CMenuTitleItem( void );
 	CMenuTitleItem( CMenu* pMenu );
 
 	virtual void Draw( float flFade, qboolean bSelected );
 	virtual int  IsActive( void );
 
-	CMenu*		m_pMenu;
 	float		m_widthPeriod[2];
 	float		m_xPeriod[2];
 	float		m_alphaPeriod[2];
@@ -314,8 +326,8 @@ public:
 class CMenuHintItem : public CMenuStaticItem
 {
 public:
-	__forceinline CMenuHintItem( CMenu* pMenu, menuitemdef_t* pDef, int x, int y, int align )
-		: CMenuStaticItem(pMenu, pDef, x, y, align) {}
+	virtual ~CMenuHintItem( void );
+	CMenuHintItem( CMenu* pMenu, menuitemdef_t* pDef, int x, int y );
 
 	virtual void Draw( float flFade, qboolean bSelected );
 };
@@ -325,8 +337,8 @@ public:
 class CMenuReturnItem : public CMenuStaticItem
 {
 public:
-	__forceinline CMenuReturnItem( CMenu* pMenu, menuitemdef_t* pDef, int x, int y, int align )
-		: CMenuStaticItem(pMenu, pDef, x, y, align) {}
+	virtual ~CMenuReturnItem( void );
+	CMenuReturnItem( CMenu* pMenu, menuitemdef_t* pDef, int x, int y );
 
 	virtual void Draw( float flFade, qboolean bSelected );
 };
@@ -336,8 +348,8 @@ public:
 class CMenuCodeTextItem : public CMenuTextItem
 {
 public:
-	__forceinline CMenuCodeTextItem( CMenu* pMenu, menuitemdef_t* pDef, int x, int y, int align )
-		: CMenuTextItem(pMenu, pDef, x, y, align) {}
+	virtual ~CMenuCodeTextItem( void ) {}
+	CMenuCodeTextItem( CMenu* pMenu, menuitemdef_t* pDef, int x, int y );
 
 	virtual void Draw( float flFade, qboolean bSelected );
 	virtual void Up( void );
@@ -349,19 +361,12 @@ public:
 class CMenuIconItem : public CMenuItemBase
 {
 public:
-	__forceinline CMenuIconItem( CMenu* pMenu, int x, int y, int id, int size )
-	{
-		m_pMenu = pMenu;
-		m_x = x;
-		m_y = y;
-		m_id = id;
-		m_alpha = size;
-	}
+	virtual ~CMenuIconItem( void ) {}
+	CMenuIconItem( CMenu* pMenu, int id, int x, int y );
 
 	virtual void Draw( float flFade, qboolean bSelected );
 	virtual int  IsActive( void );
 
-	CMenu*		m_pMenu;
 	int			m_x;
 	int			m_y;
 	int			m_id;
@@ -372,11 +377,12 @@ public:
 class CMenuPicItem : public CMenuItemBase
 {
 public:
+	virtual int IsActive( void );
+	virtual ~CMenuPicItem( void );
 	CMenuPicItem( CMenu* pMenu, char* pszName );
 
 	virtual void Draw( float flFade, qboolean bSelected );
 
-	CMenu*		m_pMenu;
 	int			m_iTexture;
 };
 
@@ -384,13 +390,14 @@ public:
 class CMenuCreditsItem : public CMenuItemBase
 {
 public:
+	void DrawLine( char* psz, float y, float flFade );
+	virtual ~CMenuCreditsItem( void );
 	CMenuCreditsItem( CMenu* pMenu );
 
 	virtual void Draw( float flFade, qboolean bSelected );
 	virtual void Cancel( void );
 	virtual int  IsActive( void );
 
-	CMenu*		m_pMenu;
 	float		m_flStartTime;
 	int			m_bRestart;
 };
@@ -399,7 +406,8 @@ public:
 class CMenuAttractItem : public CMenuItemBase
 {
 public:
-	CMenuAttractItem( CMenu* pMenu );
+	virtual ~CMenuAttractItem( void );
+	CMenuAttractItem( CMenu* pMenu, float flDuration );
 
 	virtual void Draw( float flFade, qboolean bSelected );
 	virtual void Select( void );
@@ -410,7 +418,6 @@ public:
 	virtual void Right( void );
 	virtual int  IsActive( void );
 
-	CMenu*		m_pMenu;
 	float		m_flTimeout;
 	int			m_bTaken;
 };
@@ -420,6 +427,7 @@ public:
 class CMenuSaveHeaderItem : public CMenuItemBase
 {
 public:
+	virtual ~CMenuSaveHeaderItem( void );
 	CMenuSaveHeaderItem( CMenu* pMenu );
 
 	virtual void Draw( float flFade, qboolean bSelected );
@@ -431,13 +439,13 @@ public:
 	virtual void Right( void );
 	virtual int  IsActive( void );
 
-	CMenu*		m_pMenu;
 };
 
 // The "press any button" line on the splash screen.
 class CMenuAnyKeyItem : public CMenuItemBase
 {
 public:
+	virtual ~CMenuAnyKeyItem( void );
 	CMenuAnyKeyItem( CMenu* pMenu );
 
 	virtual void Draw( float flFade, qboolean bSelected );
@@ -449,7 +457,6 @@ public:
 	virtual void Right( void );
 	virtual int  IsActive( void );
 
-	CMenu*		m_pMenu;
 };
 
 // A setting the stick steps left and right through. The values are laid out
@@ -457,6 +464,7 @@ public:
 class CMenuOptionItem : public CMenuItemBase
 {
 public:
+	virtual ~CMenuOptionItem( void );
 	CMenuOptionItem( CMenu* pMenu, menuoption_t* pOption, int x, int y, int* piValue );
 
 	virtual void Draw( float flFade, qboolean bSelected );
@@ -468,7 +476,6 @@ public:
 	virtual void Right( void );
 	virtual int  IsActive( void );
 
-	CMenu*			m_pMenu;
 	menuvalue_t*	m_pValues;
 	char*			m_pszDescription;
 	int				m_descX;
@@ -484,6 +491,7 @@ public:
 class CMenuStereoItem : public CMenuOptionItem
 {
 public:
+	virtual ~CMenuStereoItem( void ) {}
 	CMenuStereoItem( CMenu* pMenu, menuoption_t* pOption, int x, int y, int* piValue );
 
 	virtual void Draw( float flFade, qboolean bSelected );
@@ -499,8 +507,9 @@ public:
 class CMenuCheatItem : public CMenuOptionItem
 {
 public:
-	__forceinline CMenuCheatItem( CMenu* pMenu, menuoption_t* pOption, int x, int y, int* piValue )
-		: CMenuOptionItem(pMenu, pOption, x, y, piValue) {}
+	virtual ~CMenuCheatItem( void ) {}
+	virtual void SetPos( float x, float y );
+	CMenuCheatItem( CMenu* pMenu, menuoption_t* pOption, int x, int y, int* piValue );
 
 	virtual void Draw( float flFade, qboolean bSelected );
 	virtual void Select( void );
@@ -517,6 +526,7 @@ public:
 class CMenuToggleItem : public CMenuOptionItem
 {
 public:
+	virtual ~CMenuToggleItem( void ) {}
 	CMenuToggleItem( CMenu* pMenu, menuoption_t* pOption, int x, int y, int id );
 
 	virtual void Draw( float flFade, qboolean bSelected );
@@ -533,6 +543,8 @@ public:
 class CMenuWordItem : public CMenuItemBase
 {
 public:
+	void UpdateResult( void );
+	virtual ~CMenuWordItem( void );
 	CMenuWordItem( CMenu* pMenu, menuoption_t* pOption, int x, int y, int* piValue );
 
 	virtual void Draw( float flFade, qboolean bSelected );
@@ -544,7 +556,6 @@ public:
 	virtual void Right( void );
 	virtual int  IsActive( void );
 
-	CMenu*			m_pMenu;
 	menuvalue_t*	m_pValues;
 	char*			m_pszDescription;
 	int				m_descX;
@@ -561,6 +572,11 @@ public:
 class CMenuSaveSlotItem : public CMenuOptionItem
 {
 public:
+	static int BuildSaveFilename( qboolean bSaving, qboolean bNoSpace );
+	static int AddSaveFile( char* pszName, char* pszDescription, int character, void* pUserData );
+	static int CountSaveFiles( void );
+	static void InitSaveList( qboolean bSaving );
+	virtual ~CMenuSaveSlotItem( void ) {}
 	CMenuSaveSlotItem( CMenu* pMenu, menuoption_t* pOption, int x, int iSlot, int id );
 
 	virtual void Draw( float flFade, qboolean bSelected );
@@ -591,6 +607,9 @@ public:
 class CMenuVolumeSlider : public CMenuItemBase
 {
 public:
+	static void PreviewMusicVolume( void );
+	static void PreviewSuitVolume( void );
+	virtual ~CMenuVolumeSlider( void );
 	CMenuVolumeSlider( CMenu* pMenu, menuslider_t* pSlider, int x, int y, int id, int align );
 
 	virtual void Draw( float flFade, qboolean bSelected );
@@ -602,7 +621,6 @@ public:
 	virtual void Right( void );
 	virtual int  IsActive( void );
 
-	CMenu*		m_pMenu;
 	char*		m_pszLabel;
 	int		m_x;
 	int		m_y;
@@ -623,6 +641,8 @@ public:
 class CMenuSensitivitySlider : public CMenuVolumeSlider
 {
 public:
+	virtual void Cancel( void );
+	virtual ~CMenuSensitivitySlider( void );
 	CMenuSensitivitySlider( CMenu* pMenu, menuslider_t* pSlider, int x, int y, int id );
 
 	virtual void Draw( float flFade, qboolean bSelected );
@@ -632,14 +652,20 @@ public:
 };
 
 // One of the ready-made control layouts.
-struct presetcallout_s;
-
 class CMenuPresetItem : public CMenuTextItem
 {
 public:
+	static char *LookupAlias( char *pszKey, char **ppAliases, int *pnAliases, qboolean bLong );
+	virtual ~CMenuPresetItem( void );
 	CMenuPresetItem( CMenu* pMenu, int preset, int x, int y );
 
-	void DrawCallout( struct presetcallout_s* pCallout, float flFade );
+	__forceinline void DrawLeftBinding( char *key, char *shiftedKey, int y, float flFade );
+	__forceinline void DrawRightBinding( char *key, char *shiftedKey, int y, float flFade );
+	int GetCalloutWidth( void );
+	int GetLeftX( void );
+	int GetRightX( void );
+	void DrawCalloutBox( int x, int y, float flFade );
+	__forceinline void DrawCalloutBackground( int x, int y, float flFade );
 
 	virtual void Draw( float flFade, qboolean bSelected );
 	virtual void Select( void );
@@ -648,7 +674,6 @@ public:
 	virtual void Down( void );
 	virtual void Left( void );
 	virtual void Right( void );
-	virtual int  IsActive( void );
 
 	char		m_szLabel[MAX_MENU_PRESET_LABEL];
 	char		m_szDescription[MAX_MENU_PRESET_DESCRIPTION];
@@ -665,6 +690,12 @@ public:
 class CMenuBindItem : public CMenuItemBase
 {
 public:
+	static char* GetShiftKey( int key );
+	static int FindShiftKey( char* pszName );
+	static int BuildControlList( qboolean bKeyboard, qboolean bJoystick );
+	static __forceinline char * TranslateKeyName( char *pszKey );
+	static char * GetKeyName( char *pszKey );
+	virtual ~CMenuBindItem( void ) {}
 	CMenuBindItem( CMenu* pMenu );
 
 	virtual void Draw( float flFade, qboolean bSelected );
@@ -676,7 +707,6 @@ public:
 	virtual void Right( void );
 	virtual int  IsActive( void );
 
-	CMenu*		m_pMenu;
 	int			m_nEntries;
 	int			m_mode;
 	int			m_selection;
@@ -692,22 +722,5 @@ extern CMenu*	gpActiveMenu;
 extern int		gfCreditsCode;
 extern int		gfSecretCode;
 
-void M_BuildMenu( CMenu* pMenu, char* pszMenu );
-void M_ClearTextures( CMenu* pMenu );
-void M_FreeTextures( CMenu* pMenu );
-int M_LoadMenuTexture( CMenu* pMenu, char* pszName );
-void M_DrawMenuElementQuad( CMenu* pMenu, int orientation, float x0, float y0, float x1, float y1 );
-void M_DrawMenuElementQuad2( CMenu* pMenu, int corner, float x0, float y0, float x1, float y1 );
-void M_DrawMenuElementBox( CMenu* pMenu, float x0, float y0, float x1, float y1 );
-void M_DrawControllerIcon( CMenu* pMenu, float x0, float y0, float x1, float y1 );
-void M_DrawGordonIcon( CMenu* pMenu, float x0, float y0, float x1, float y1 );
-void M_DrawBarneyIcon( CMenu* pMenu, float x0, float y0, float x1, float y1 );
-void M_FadeIn( CMenu* pMenu );
-void M_FadeOut( CMenu* pMenu );
-void M_AnimateLerp( CMenu* pMenu );
-void M_CheckCheatCode( CMenu* pMenu, char button );
-void UI_MenuDraw( CMenu* pMenu );
-void UI_MenuInput( CMenu* pMenu );
-void M_DrawMenuText( CMenuItemBase* pItem, char* psz, float y, float flFade );
 
 #endif // MENU_H
