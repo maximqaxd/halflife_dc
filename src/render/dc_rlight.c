@@ -5,9 +5,9 @@
 
 #pragma intrinsic(fabsf)
 
-int	r_dlightframecount;
-int	r_dlightchanged;
-int r_dlightactive;
+int			r_dlightframecount;
+int			r_dlightchanged;
+int			r_dlightactive;
 
 
 /*
@@ -47,7 +47,7 @@ DYNAMIC LIGHTS BLEND RENDERING
 
 void AddLightBlend( float r, float g, float b, float a2 )
 {
-	float	a;
+	float		a;
 
 	v_blend[3] = a = v_blend[3] + a2 * (1 - v_blend[3]);
 
@@ -60,10 +60,10 @@ void AddLightBlend( float r, float g, float b, float a2 )
 
 void R_RenderDlight( dlight_t* light )
 {
-	int		i, j;
-	float	a;
-	vec3_t	v;
-	float	rad;
+	int			i, j;
+	float		a;
+	vec3_t		v;
+	float		rad;
 
 	rad = light->radius * 0.35f;
 
@@ -98,8 +98,8 @@ R_RenderDlights
 */
 void R_RenderDlights( void )
 {
-	int		i;
-	dlight_t* l;
+	int			i;
+	dlight_t*	l;
 
 	if (!gl_flashblend.value)
 		return;
@@ -143,9 +143,9 @@ R_MarkLights
 */
 void R_MarkLights( dlight_t* light, int bit, mnode_t* node )
 {
-	mclipplane_t*	splitplane;
+	mclipplane_t* splitplane;
 	float		dist;
-	msurface_t* surf;
+	msurface_t*	surf;
 	int			i;
 
 	if (node->contents < 0)
@@ -169,11 +169,11 @@ void R_MarkLights( dlight_t* light, int bit, mnode_t* node )
 	surf = cl.worldmodel->surfaces + node->firstsurface;
 	for (i = 0; i < node->numsurfaces; i++, surf++)
 	{
-		float rad;
-		int minlight;
-		int s, t;
-		int smax, tmax;
-		mtexinfo_t* tex;
+		float		rad;
+		int			minlight;
+		int			s, t;
+		int			smax, tmax;
+		mtexinfo_t*	tex;
 
 		rad = light->radius;
 		rad -= fabsf(dist);
@@ -217,8 +217,8 @@ R_PushDlights
 */
 void R_PushDlights( void )
 {
-	int		i;
-	dlight_t* l;
+	int			i;
+	dlight_t*	l;
 
 	if (gl_flashblend.value)
 		return;
@@ -245,7 +245,7 @@ LIGHT SAMPLING
 */
 
 mclipplane_t* lightplane;
-vec3_t			lightspot;
+vec3_t		lightspot;
 
 /*
 =============
@@ -298,7 +298,7 @@ void R_LightSurfPoint( msurface_t* surf, int ds, int dt, colorVec* c )
 
 				if (v & LT2D_DELTA_FLAG)
 				{
-					int d;
+					int			d;
 
 					if (v & LT2D_R_SIGN)
 						r -= (v & LT2D_R_MAG_MASK) >> 10;
@@ -335,8 +335,8 @@ void R_LightSurfPoint( msurface_t* surf, int ds, int dt, colorVec* c )
 		/* Row-run bilinear: each row is a run of `n` RGB triples resampled
 		   across smax columns, so every row has to be stepped over to find
 		   the one holding dt. */
-		const byte* lt2ptr = lightmap;
-		float recip = 1.0f / (float)(smax - 1);
+		const byte*	lt2ptr = lightmap;
+		float		recip = 1.0f / (float)(smax - 1);
 
 		for (maps = 0; maps < MAXLIGHTMAPS && surf->styles[maps] != 255; maps++)
 		{
@@ -344,17 +344,17 @@ void R_LightSurfPoint( msurface_t* surf, int ds, int dt, colorVec* c )
 
 			for (t = 0; t < tmax; t++)
 			{
-				int n = *lt2ptr++;
+				int			n = *lt2ptr++;
 
 				if (t == dt)
 				{
-					float pos = (float)(n - 1) * ds * recip;
-					int fi = (int)floor(pos);
-					int ci = (int)ceil(pos);
-					float frac = pos - (float)fi;
-					float inv = 1.0f - frac;
-					int ci3 = ci * 3, fi3 = fi * 3;
-					int rf, rc, gf, gc, bf, bc;
+					float		pos = (float)(n - 1) * ds * recip;
+					int			fi = (int)floor(pos);
+					int			ci = (int)ceil(pos);
+					float		frac = pos - (float)fi;
+					float		inv = 1.0f - frac;
+					int			ci3 = ci * 3, fi3 = fi * 3;
+					int			rf, rc, gf, gc, bf, bc;
 
 					rc = lt2ptr[ci3]; rf = lt2ptr[fi3];
 					r = g_GammaTable256[(int)((float)rf * inv + (float)rc * frac + 0.5f)];
@@ -376,13 +376,13 @@ void R_LightSurfPoint( msurface_t* surf, int ds, int dt, colorVec* c )
 	{
 		/* LERP grid: each style stores an ncols x nrows grid of RGB triples
 		   that gets resampled up to the surface's smax x tmax lightmap. */
-		const byte* lt2ptr = lightmap;
-		int sRange = smax - 1;
-		int tRange = tmax - 1;
+		const byte*	lt2ptr = lightmap;
+		int			sRange = smax - 1;
+		int			tRange = tmax - 1;
 
 		for (maps = 0; maps < MAXLIGHTMAPS && surf->styles[maps] != 255; maps++)
 		{
-			int hdr, ncols, nrows, si, ti, i;
+			int			hdr, ncols, nrows, si, ti, i;
 
 			scale = d_lightstylevalue[surf->styles[maps]];
 
@@ -431,10 +431,10 @@ colorVec RecursiveLightPoint( mnode_t* node, vec_t* start, vec_t* end )
 	int			side;
 	mclipplane_t* plane;
 	vec3_t		mid;
-	msurface_t* surf;
+	msurface_t*	surf;
 	int			s, t, ds, dt;
 	int			i;
-	mtexinfo_t* tex;
+	mtexinfo_t*	tex;
 
 // clear to no light
 	c.r = 0;

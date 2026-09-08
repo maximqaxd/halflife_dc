@@ -104,4 +104,6 @@ void	R_StudioDrawPoints( void );
 
 int SignbitsForPlane( mplane_t* plane );
 
+void R_StudioRenderModel( void );
+
 #endif // R_STUDIO_H

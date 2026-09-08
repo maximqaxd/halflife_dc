@@ -11,14 +11,14 @@
 										//  on the command line
 
 // particle ramps
-int		ramp1[8] = { 0x6F, 0x6D, 0x6B, 0x69, 0x67, 0x65, 0x63, 0x61 };
-int		ramp2[8] = { 0x6F, 0x6E, 0x6D, 0x6C, 0x6B, 0x6A, 0x68, 0x66 };
-int		ramp3[8] = { 0x6D, 0x6B, 6, 5, 4, 3, 0, 0 };
+int			ramp1[8] = { 0x6F, 0x6D, 0x6B, 0x69, 0x67, 0x65, 0x63, 0x61 };
+int			ramp2[8] = { 0x6F, 0x6E, 0x6D, 0x6C, 0x6B, 0x6A, 0x68, 0x66 };
+int			ramp3[8] = { 0x6D, 0x6B, 6, 5, 4, 3, 0, 0 };
 
 // spark ramps
-int		gSparkRamp[9] = { 0xFE, 0xFD, 0xFC, 0x6F, 0x6E, 0x6D, 0x6C, 0x67, 0x60 };
+int			gSparkRamp[9] = { 0xFE, 0xFD, 0xFC, 0x6F, 0x6E, 0x6D, 0x6C, 0x67, 0x60 };
 
-color24 gTracerColors[] =
+color24		gTracerColors[] =
 {
 	{ 255, 255, 255 },		// White
 	{ 255, 0, 0 },			// Red
@@ -30,14 +30,14 @@ color24 gTracerColors[] =
 	{ 55, 60, 144 },		// Blue egon streak
 };
 
-particle_t* active_particles, * free_particles, * gpActiveTracers;
+particle_t*	active_particles, * free_particles, * gpActiveTracers;
 
-particle_t* particles;
+particle_t*	particles;
 int			r_numparticles;
 int			cl_numbeamentities;
 cl_entity_t* cl_beamentities[MAX_BEAMENTS];
 
-vec3_t			r_pright, r_pup, r_ppn;
+vec3_t		r_pright, r_pup, r_ppn;
 
 BEAM* gBeams, * gpFreeBeams, * gpActiveBeams;
 
@@ -57,7 +57,7 @@ void R_BeamInit( void )
 
 void R_BeamClear( void )
 {
-	int i;
+	int			i;
 
 	gpFreeBeams = &gBeams[0];
 	gpActiveBeams = NULL;
@@ -79,7 +79,7 @@ R_InitParticles
 */
 void R_InitParticles( void )
 {
-	int		i;
+	int			i;
 
 	i = COM_CheckParm("-particles");
 	if (i)
@@ -100,7 +100,7 @@ void R_InitParticles( void )
 
 particle_t* R_AllocParticle( void )
 {
-	particle_t* p;
+	particle_t*	p;
 
 	if (!free_particles)
 		return NULL;
@@ -127,7 +127,7 @@ particle_t* R_AllocParticle( void )
 void R_DarkFieldParticles( cl_entity_t* ent )
 {
 	int			i, j, k;
-	particle_t* p;
+	particle_t*	p;
 	float		vel;
 	vec3_t		dir;
 	vec3_t		org;
@@ -174,18 +174,18 @@ R_EntityParticles
 */
 
 #define NUMVERTEXNORMALS	162
-extern	float	r_avertexnormals[NUMVERTEXNORMALS][3];
-vec3_t	avelocities[NUMVERTEXNORMALS];
-float	beamlength = 16;
-vec3_t	avelocity = { 23, 7, 3 };
-float	partstep = 0.01f;
-float	timescale = 0.01f;
+extern float r_avertexnormals[NUMVERTEXNORMALS][3];
+vec3_t		avelocities[NUMVERTEXNORMALS];
+float		beamlength = 16;
+vec3_t		avelocity = { 23, 7, 3 };
+float		partstep = 0.01f;
+float		timescale = 0.01f;
 
 void R_EntityParticles( cl_entity_t* ent )
 {
 	int			count;
 	int			i;
-	particle_t* p;
+	particle_t*	p;
 	float		angle;
 	float		sr, sp, sy, cr, cp, cy;
 	vec3_t		forward;
@@ -239,7 +239,7 @@ R_ClearParticles
 #pragma inline_depth(255)
 void R_ClearParticles( void )
 {
-	int		i;
+	int			i;
 
 	free_particles = &particles[0];
 	active_particles = NULL;
@@ -263,11 +263,11 @@ Free dead particles
 */
 void R_FreeDeadParticles( particle_t** ppparticles )
 {
-	particle_t* kill;
-	particle_t* p;
+	particle_t*	kill;
+	particle_t*	p;
 
 	// kill all the ones hanging direcly off the base pointer
-	for (;; )
+	for (;;)
 	{
 		kill = *ppparticles;
 		if (kill && kill->die < cl.time)
@@ -283,7 +283,7 @@ void R_FreeDeadParticles( particle_t** ppparticles )
 	// kill off all the others
 	for (p = *ppparticles; p; p = p->next)
 	{
-		for (;; )
+		for (;;)
 		{
 			kill = p->next;
 			if (kill && kill->die < cl.time)
@@ -306,11 +306,11 @@ R_ReadPointFile_f
 void R_ReadPointFile_f( void )
 {
 	FILE* f;
-	vec3_t	org;
-	int		r;
-	int		c;
-	particle_t* p;
-	char	name[MAX_OSPATH];
+	vec3_t		org;
+	int			r;
+	int			c;
+	particle_t*	p;
+	char		name[MAX_OSPATH];
 
 	sprintf(name, "maps/%s.pts", sv.name);
 
@@ -323,7 +323,7 @@ void R_ReadPointFile_f( void )
 
 	Con_Printf("Reading %s...\n", name);
 	c = 0;
-	for (;; )
+	for (;;)
 	{
 		r = fscanf(f, "%f %f %f\n", &org[0], &org[1], &org[2]);
 		if (r != 3)
@@ -383,7 +383,7 @@ R_ParticleExplosion
 void R_ParticleExplosion( vec_t* org )
 {
 	int			i, j;
-	particle_t* p;
+	particle_t*	p;
 
 	for (i = 0; i < 1024; i++)
 	{
@@ -429,7 +429,7 @@ R_ParticleExplosion2
 void R_ParticleExplosion2( vec_t* org, int colorStart, int colorLength )
 {
 	int			i, j;
-	particle_t* p;
+	particle_t*	p;
 	int			colorMod = 0;
 
 	for (i = 0; i < 512; i++)
@@ -463,7 +463,7 @@ R_BlobExplosion
 void R_BlobExplosion( vec_t* org )
 {
 	int			i, j;
-	particle_t* p;
+	particle_t*	p;
 
 	for (i = 0; i < 1024; i++)
 	{
@@ -502,8 +502,8 @@ void R_BlobExplosion( vec_t* org )
 
 particle_t* R_AllocTracer( vec_t* org, vec_t* vel, float life )
 {
-	int		i;
-	particle_t* p;
+	int			i;
+	particle_t*	p;
 
 	if (!free_particles)
 		return NULL;
@@ -540,8 +540,8 @@ void UserTracer( vec_t* org, vec_t* vel, float life, int color, float length )
 	}
 	else
 	{
-		particle_t* p;
-		int i;
+		particle_t*	p;
+		int			i;
 
 		if (!free_particles)
 			return;
@@ -572,8 +572,8 @@ R_RunParticleEffect
 */
 void R_RunParticleEffect( vec_t* org, vec_t* dir, int color, int count )
 {
-	int		i, j;
-	particle_t* p;
+	int			i, j;
+	particle_t*	p;
 
 	for (i = 0; i < count; i++)
 	{
@@ -631,7 +631,7 @@ R_ParticleWallPuff
 */
 void R_ParticleWallPuff( vec_t* pos )
 {
-	int		i;
+	int			i;
 	particle_t*	p;
 	vec3_t		dir;
 
@@ -663,8 +663,8 @@ R_FlickerParticles
 */
 void R_FlickerParticles( vec_t* org )
 {
-	int		i, j;
-	particle_t* p;
+	int			i, j;
+	particle_t*	p;
 
 	for (i = 0; i < 15; i++)
 	{
@@ -695,8 +695,8 @@ R_SparkStreaks
 */
 void R_SparkStreaks( vec_t* pos, int count, int velocityMin, int velocityMax )
 {
-	int		i, j;
-	particle_t* p;
+	int			i, j;
+	particle_t*	p;
 
 	for (i = 0; i < count; i++)
 	{
@@ -729,9 +729,9 @@ R_StreakSplash
 */
 void R_StreakSplash( vec_t* pos, vec_t* dir, int color, int count, float speed, int velocityMin, int velocityMax )
 {
-	int		i, j;
-	particle_t* p;
-	vec3_t	initialVelocity;
+	int			i, j;
+	particle_t*	p;
+	vec3_t		initialVelocity;
 
 	VectorScale(dir, speed, initialVelocity);
 
@@ -761,10 +761,10 @@ void R_StreakSplash( vec_t* pos, vec_t* dir, int color, int count, float speed, 
 
 void R_ParticleBurst( vec_t* pos, int size, int color, float life )
 {
-	int i, j, k;
-	particle_t* p;
-	float vel;
-	vec3_t dir, temp;
+	int			i, j, k;
+	particle_t*	p;
+	float		vel;
+	vec3_t		dir, temp;
 
 	for (i = -16; i < 16; i++)
 	{
@@ -803,7 +803,7 @@ R_LavaSplash
 void R_LavaSplash( vec_t* org )
 {
 	int			i, j, k;
-	particle_t* p;
+	particle_t*	p;
 	float		vel;
 	vec3_t		dir;
 
@@ -845,7 +845,7 @@ R_LargeFunnel
 void R_LargeFunnel( vec_t* org, int reverse )
 {
 	int			i, j;
-	particle_t* p;
+	particle_t*	p;
 	float		vel;
 	vec3_t		dir, dest;
 	float		flDist;
@@ -913,7 +913,7 @@ Quake1 teleport splash
 void R_TeleportSplash( vec_t* org )
 {
 	int			i, j, k;
-	particle_t* p;
+	particle_t*	p;
 	float		vel;
 	vec3_t		dir;
 
@@ -956,10 +956,10 @@ void R_ShowLine( vec_t* start, vec_t* end )
 {
 	vec3_t		vec;
 	float		len;
-	particle_t* p;
+	particle_t*	p;
 	int			dec = 5;
 
-	static int tracercount;
+	static int	tracercount;
 
 	VectorSubtract(end, start, vec);
 	len = VectorNormalize(vec);
@@ -994,13 +994,13 @@ R_BloodStream
 void R_BloodStream( vec_t* org, vec_t* dir, int pcolor, int speed )
 {
 	// Add our particles
-	vec3_t	dirCopy;
-	float	arc;
-	int		count;
-	int		count2;
-	particle_t* p;
-	float	num;
-	int		speedCopy = speed;
+	vec3_t		dirCopy;
+	float		arc;
+	int			count;
+	int			count2;
+	particle_t*	p;
+	float		num;
+	int			speedCopy = speed;
 
 	VectorNormalize(dir);
 
@@ -1084,12 +1084,12 @@ R_Blood
 */
 void R_Blood( vec_t* org, vec_t* dir, int pcolor, int speed )
 {
-	vec3_t	dirCopy;
-	vec3_t	orgCopy;
-	int		count;
-	int		count2;
-	particle_t* p;
-	int		pspeed;
+	vec3_t		dirCopy;
+	vec3_t		orgCopy;
+	int			count;
+	int			count2;
+	particle_t*	p;
+	int			pspeed;
 
 	pspeed = speed * 3;
 	VectorNormalize(dir);
@@ -1133,13 +1133,13 @@ R_RocketTrail
 */
 void R_RocketTrail( vec_t *start, vec_t *end, int type )
 {
-	vec3_t	vec, right, up;
-	float	len;
-	int		j;
-	particle_t* p;
-	int		dec;
+	vec3_t		vec, right, up;
+	float		len;
+	int			j;
+	particle_t*	p;
+	int			dec;
 
-	static int tracercount;
+	static int	tracercount;
 
 	VectorSubtract(end, start, vec);
 
@@ -1241,7 +1241,7 @@ void R_RocketTrail( vec_t *start, vec_t *end, int type )
 
 		case 7:	// explosion tracer
 		{
-			float angle, radius, x, y;
+			float		angle, radius, x, y;
 
 			angle = RandomLong(0, 0xFFFF);
 			radius = RandomLong(8, 16);
@@ -1275,20 +1275,20 @@ void R_RocketTrail( vec_t *start, vec_t *end, int type )
 R_DrawParticles
 ===============
 */
-extern	cvar_t	sv_gravity;
+extern cvar_t sv_gravity;
 
 #pragma inline_depth(255)
 void R_DrawParticles( void )
 {
-	particle_t* p;
-	float			grav;
-	int				i;
-	float			time2, time3;
-	float			time1;
-	float			dvel;
-	float			frametime;
+	particle_t*	p;
+	float		grav;
+	int			i;
+	float		time2, time3;
+	float		time1;
+	float		dvel;
+	float		frametime;
 	vec3_t		up, right;
-	float			scale, scale2;
+	float		scale, scale2;
 
 	DCV_TexState_Blend();
 
@@ -1313,8 +1313,8 @@ void R_DrawParticles( void )
 
 		if (p->type != pt_blob)
 		{
-			word*	pb;
-			byte	alpha;
+			word*		pb;
+			byte		alpha;
 
 			// hack a scale up to keep particles from disapearing
 			scale = (p->org[0] - r_origin[0]) * vpn[0] + (p->org[1] - r_origin[1]) * vpn[1]
@@ -1473,7 +1473,7 @@ void R_DrawParticles( void )
 	R_BeamDrawList();
 }
 
-float	gTracerSize[10] = { 1.5f, 0.5f, 1, 1, 1, 1, 1, 1, 1, 1 };
+float		gTracerSize[10] = { 1.5f, 0.5f, 1, 1, 1, 1, 1, 1, 1, 1 };
 
 /*
 ===============
@@ -1492,7 +1492,7 @@ void R_TracerDraw( void )
 	float		size;
 	vec3_t		up, right;
 	vec3_t		start, end;
-	particle_t* p;
+	particle_t*	p;
 	vec3_t		screenLast, screen;
 	vec3_t		tmp, normal;
 //	int			clip;
@@ -1527,7 +1527,7 @@ void R_TracerDraw( void )
 
 		for (p = gpActiveTracers; p; p = p->next)
 		{
-			color24* pColor;
+			color24*	pColor;
 
 			pColor = &gTracerColors[p->color];
 
@@ -1543,8 +1543,8 @@ void R_TracerDraw( void )
 
 			if (ScreenTransform(start, screen) || ScreenTransform(end, screenLast))
 			{
-				float fraction;
-				float dist1, dist2;
+				float		fraction;
+				float		dist1, dist2;
 
 				dist1 = DotProduct(vpn, start) - size;
 				dist2 = DotProduct(vpn, end) - size;
@@ -1690,7 +1690,7 @@ BEAM* R_BeamLightning( vec_t* start, vec_t* end, BEAMINFO* pInfo )
 
 void R_BeamSetup( BEAM* pbeam, vec_t* start, vec_t* end, int modelIndex, float life, float width, float amplitude, float brightness, float speed )
 {
-	model_t* sprite;
+	model_t*	sprite;
 
 	sprite = cl.model_precache[modelIndex];
 	if (!sprite)
@@ -1736,8 +1736,8 @@ static void SetBeamAttributes( BEAM* pbeam, float r, float g, float b, float fra
 void R_DrawBeamEntList( float frametime )
 {
 	BEAM	beam;
-	int		i;
-	int		beamType;
+	int			i;
+	int			beamType;
 
 	cl_entity_t* ent;
 
@@ -1967,7 +1967,7 @@ void R_KillDeadBeams( int deadEntity )
 	BEAM* pbeam;
 	BEAM* pnewlist;
 	BEAM* pnext;
-	particle_t* pHead;
+	particle_t*	pHead;
 
 	pbeam = gpActiveBeams;  // Old list.
 	pnewlist = NULL;		// New list.
@@ -2053,9 +2053,9 @@ R_Implosion
 */
 void R_Implosion( vec_t* end, float radius, int count, float life )
 {
-	int		i;
-	vec3_t	start, temp;
-	vec3_t	vel;
+	int			i;
+	vec3_t		start, temp;
+	vec3_t		vel;
 
 	radius /= 100.0f;
 
@@ -2073,13 +2073,13 @@ void R_Implosion( vec_t* end, float radius, int count, float life )
 }
 
 #define NOISE_DIVISIONS		32
-float	gNoise[NOISE_DIVISIONS + 1];
+float		gNoise[NOISE_DIVISIONS + 1];
 
 //		freq2 += step * 0.1;
 // Fractal noise generator, power of 2 wavelength
 void Noise( float* noise, int divs )
 {
-	int div2;
+	int			div2;
 
 	div2 = divs >> 1;
 
@@ -2097,9 +2097,9 @@ void Noise( float* noise, int divs )
 
 static void SineNoise( float* noise, int divs )
 {
-	int i;
-	float freq, freq2;
-	float step = (float)M_PI / (float)divs;
+	int			i;
+	float		freq, freq2;
+	float		step = (float)M_PI / (float)divs;
 
 	freq = 0;
 	freq2 = 0;
@@ -2114,7 +2114,7 @@ static void SineNoise( float* noise, int divs )
 // Returns true if it's Z clipped, false otherwise
 int ScreenTransform( vec_t* point, vec_t* screen )
 {
-	float w;
+	float		w;
 
 	screen[0] = gWorldToScreen[0] * point[0] + gWorldToScreen[4] * point[1] + gWorldToScreen[8] * point[2] + gWorldToScreen[12];
 	screen[1] = gWorldToScreen[1] * point[0] + gWorldToScreen[5] * point[1] + gWorldToScreen[9] * point[2] + gWorldToScreen[13];
@@ -2133,9 +2133,9 @@ int ScreenTransform( vec_t* point, vec_t* screen )
 // Draw segmented beams
 void R_DrawSegs( vec_t* source, vec_t* delta, float width, float scale, float freq, float speed, int segments, int flags )
 {
-	int				i, noiseIndex, noiseStep;
-	float			div, length, fraction, factor, vLast, vStep, brightness;
-	vec3_t			last1, last2, point, screen, screenLast, tmp, normal;
+	int			i, noiseIndex, noiseStep;
+	float		div, length, fraction, factor, vLast, vStep, brightness;
+	vec3_t		last1, last2, point, screen, screenLast, tmp, normal;
 
 	if (segments < 2)
 		return;
@@ -2272,9 +2272,9 @@ void R_DrawSegs( vec_t* source, vec_t* delta, float width, float scale, float fr
 // Draw torus beams
 void R_DrawTorus( vec_t* source, vec_t* delta, float width, float scale, float freq, float speed, int segments )
 {
-	int				i, noiseIndex, noiseStep;
-	float			div, length, fraction, factor, vLast, vStep;
-	vec3_t			last1, last2, point, screen, screenLast, tmp, normal;
+	int			i, noiseIndex, noiseStep;
+	float		div, length, fraction, factor, vLast, vStep;
+	vec3_t		last1, last2, point, screen, screenLast, tmp, normal;
 
 	if (segments < 2)
 		return;
@@ -2362,10 +2362,10 @@ void R_DrawTorus( vec_t* source, vec_t* delta, float width, float scale, float f
 // Draw disk beams
 void R_DrawDisk( vec_t* source, vec_t* delta, float width, float scale, float freq, float speed, int segments )
 {
-	int				i;
-	float			div, length, fraction, vLast, vStep;
-	vec3_t			start, point;
-	float			w;
+	int			i;
+	float		div, length, fraction, vLast, vStep;
+	vec3_t		start, point;
+	float		w;
 
 	if (segments < 2)
 		return;
@@ -2422,9 +2422,9 @@ void R_DrawDisk( vec_t* source, vec_t* delta, float width, float scale, float fr
 // Draw cylinder beams (like apache explosion effect)
 void R_DrawCylinder( vec_t* source, vec_t* delta, float width, float scale, float freq, float speed, int segments )
 {
-	int				i;
-	float			div, length, fraction, vLast, vStep;
-	vec3_t			point, point2;
+	int			i;
+	float		div, length, fraction, vLast, vStep;
+	vec3_t		point, point2;
 
 	if (segments < 2)
 		return;
@@ -2474,15 +2474,15 @@ void R_DrawCylinder( vec_t* source, vec_t* delta, float width, float scale, floa
 // Draw beam that follows some entity
 void R_DrawBeamFollow( BEAM* pbeam )
 {
-	particle_t* pNew = NULL;
-	particle_t* pHead;
+	particle_t*	pNew = NULL;
+	particle_t*	pHead;
 
-	vec3_t			delta;
-	float			fraction;
-	float			div;
-	float			vLast = 0.0f;
-	float			vStep = 1.0f;
-	vec3_t			last1, last2, screen, screenLast, tmp, normal;
+	vec3_t		delta;
+	float		fraction;
+	float		div;
+	float		vLast = 0.0f;
+	float		vStep = 1.0f;
+	vec3_t		last1, last2, screen, screenLast, tmp, normal;
 
 	R_FreeDeadParticles(&pbeam->particles);
 
@@ -2615,11 +2615,11 @@ void R_DrawBeamFollow( BEAM* pbeam )
 // Draw beam ring
 void R_DrawRing( vec_t* source, vec_t* delta, float width, float amplitude, float freq, float speed, int segments )
 {
-	int				i, j, noiseIndex, noiseStep;
-	float			div, length, fraction, factor, vLast, vStep;
-	vec3_t			last1, last2, point, screen, screenLast, tmp, normal;
-	vec3_t			center, xaxis, yaxis, zaxis;
-	float			radius, x, y, scale;
+	int			i, j, noiseIndex, noiseStep;
+	float		div, length, fraction, factor, vLast, vStep;
+	vec3_t		last1, last2, point, screen, screenLast, tmp, normal;
+	vec3_t		center, xaxis, yaxis, zaxis;
+	float		radius, x, y, scale;
 
 	if (segments < 2)
 		return;
@@ -2737,7 +2737,7 @@ void R_DrawRing( vec_t* source, vec_t* delta, float width, float amplitude, floa
 
 void ParticleLine( float x1, float y1, float z1, float x2, float y2, float z2 )
 {
-	vec3_t	start, end;
+	vec3_t		start, end;
 
 	start[0] = x1;
 	start[1] = y1;
@@ -2767,8 +2767,8 @@ void ParticleBox( vec_t* mins, vec_t* maxs )
 // Cull beam by bbox
 int R_BeamCull( vec_t* start, vec_t* end, int pvsOnly )
 {
-	vec3_t mins, maxs;
-	int i;
+	vec3_t		mins, maxs;
+	int			i;
 
 	if (!cl.worldmodel)
 		return 0;
@@ -2810,8 +2810,8 @@ int R_BeamCull( vec_t* start, vec_t* end, int pvsOnly )
 // Draw all beam entities
 void R_BeamDraw( BEAM* pbeam, float frametime )
 {
-	model_t* sprite;
-	vec3_t	difference;
+	model_t*	sprite;
+	vec3_t		difference;
 
 	if (pbeam->modelIndex < 0)
 	{
@@ -2857,7 +2857,7 @@ void R_BeamDraw( BEAM* pbeam, float frametime )
 			start = &cl_entities[BEAMENT_ENTITY(pbeam->startEntity)];
 			if (start->model && (!pbeam->pFollowModel || pbeam->pFollowModel == start->model))
 			{
-				float* attachmentPoint;
+				float*		attachmentPoint;
 
 				attachmentPoint = R_GetAttachmentPoint(BEAMENT_ENTITY(pbeam->startEntity), BEAMENT_ATTACHMENT(pbeam->startEntity));
 				VectorCopy(attachmentPoint, pbeam->source);
@@ -2880,7 +2880,7 @@ void R_BeamDraw( BEAM* pbeam, float frametime )
 			end = &cl_entities[BEAMENT_ENTITY(pbeam->endEntity)];
 			if (end->model)
 			{
-				float* attachmentPoint;
+				float*		attachmentPoint;
 
 				attachmentPoint = R_GetAttachmentPoint(BEAMENT_ENTITY(pbeam->endEntity), BEAMENT_ATTACHMENT(pbeam->endEntity));
 				VectorCopy(attachmentPoint, pbeam->target);
@@ -2920,9 +2920,9 @@ void R_BeamDraw( BEAM* pbeam, float frametime )
 	{
 		if ((pbeam->flags & FBEAM_SINENOISE) && egon_amplitude.value > 0)
 		{
-			particle_t* p;
-			vec3_t org, speed;
-			float length;
+			particle_t*	p;
+			vec3_t		org, speed;
+			float		length;
 
 			VectorMA(pbeam->target, sin(pbeam->freq * 10.0f) * egon_amplitude.value * pbeam->amplitude, vup, org);
 			VectorMA(org, cos(pbeam->freq * 10.0f) * egon_amplitude.value * pbeam->amplitude, vright, org);
@@ -3001,7 +3001,7 @@ void R_BeamDraw( BEAM* pbeam, float frametime )
 // Update beams created by temp entity system
 void R_BeamDrawList( void )
 {
-	float	frametime;
+	float		frametime;
 	BEAM* pbeam, * pkill;
 
 	if (!gpActiveBeams && cl_numbeamentities == 0)
@@ -3045,4 +3045,40 @@ void R_BeamDrawList( void )
 
 	tri_CullFace(TRI_FRONT);
 	tri_RenderMode(kRenderNormal);
+}
+
+void R_BulletImpactParticles( vec_t* pos )
+{
+	vec3_t		dir;
+	float		len;
+	int			distance, i;
+	short		ramp;
+	particle_t* (*volatile allocParticle)(void) = R_AllocParticle;
+	particle_t*	particle;
+
+	VectorSubtract(pos, r_origin, dir);
+	len = VectorLength(dir);
+	if (len > 1000.0f)
+		len = 1000.0f;
+	distance = (int)((1000.0f - len) / 100.0f);
+	if (!distance)
+		distance = 1;
+	ramp = 3 - distance * 30 / 100;
+	R_SparkStreaks(pos, 2, -200, 200);
+	for (i = 0; i < distance * 4; i++)
+	{
+		particle = allocParticle();
+		if (!particle)
+			return;
+		VectorCopy(pos, particle->org);
+		dir[0] = RandomFloat(-1.0f, 1.0f);
+		dir[1] = RandomFloat(-1.0f, 1.0f);
+		dir[2] = RandomFloat(-1.0f, 1.0f);
+		VectorCopy(dir, particle->vel);
+		VectorScale(particle->vel, RandomFloat(50.0f, 100.0f), particle->vel);
+		particle->color = 3 - ramp;
+		particle->packedColor = 0;
+		particle->type = pt_grav;
+		particle->die = cl.time + 0.5f;
+	}
 }

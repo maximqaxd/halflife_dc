@@ -10,38 +10,38 @@ extern mstudiobodyparts_t* pbodypart;
 extern mstudiomodel_t* psubmodel;
 extern float lighttransform[MAXSTUDIOBONES][3][4];
 extern float r_avertexnormals[162][3];
-extern int cached_numbones;
-extern char cached_bonename[MAXSTUDIOBONES * 32];
+extern int	cached_numbones;
+extern char	cached_bonename[MAXSTUDIOBONES * 32];
 extern float bonetransform[MAXSTUDIOBONES][4][4];
 extern float rotationmatrix[3][4];
 extern float cached_bonetransform[128][4][4];
 extern float cached_lighttransform[128][3][4];
 extern vec3_t vpn;
 extern vec3_t r_origin;
-extern int r_studio_clip_required;
+extern int	r_studio_clip_required;
 extern vec3_t g_ChromeOrigin;
-extern int g_ForcedFaceFlags;
+extern int	g_ForcedFaceFlags;
 extern model_t* r_studio_model;
 extern player_info_t* r_playerinfo;
 extern float r_gaitmovement;
 extern float chrome[MAXSTUDIOVERTS][2];
-extern int chromeage[MAXSTUDIOBONES];
+extern int	chromeage[MAXSTUDIOBONES];
 extern vec3_t r_chromeup[MAXSTUDIOBONES];
 extern vec3_t r_chromeright[MAXSTUDIOBONES];
 extern vec3_t vright;
-extern int r_smodels_total;
-extern int r_topcolor;
-extern int r_bottomcolor;
-extern byte g_studioTranslatedPalette[STUDIO_PALETTE_RGB_BYTES];
-extern int r_amodels_drawn;
+extern int	r_smodels_total;
+extern int	r_topcolor;
+extern int	r_bottomcolor;
+extern byte	g_studioTranslatedPalette[STUDIO_PALETTE_RGB_BYTES];
+extern int	r_amodels_drawn;
 extern auxvert_t* pauxverts;
 extern vec3_t* pvlightvalues;
 
 void StudioComputeBBox( vec3_t mins, vec3_t maxs, const vec3_t angles );
 
 static byte* g_pStudioBitStream;
-static int g_StudioBitsRemaining;
-static byte g_StudioAnimBuffer[8192];
+static int	g_StudioBitsRemaining;
+static byte	g_StudioAnimBuffer[8192];
 
 static const byte g_StudioHighBitMask[9] =
 {
@@ -55,44 +55,44 @@ static const byte g_StudioLowBitMask[9] =
 
 typedef struct
 {
-	int					bone;
-	vec3_t				org;
-	vec3_t				vectors[3];
+	int			bone;
+	vec3_t		org;
+	vec3_t		vectors[3];
 } mstudioattachment_neo_t;
 
 typedef struct studio_skin_cache_neo_s
 {
-	int					playerIndex;
-	int					topColor;
-	int					bottomColor;
-	model_t*			model;
-	char				textureName[STUDIO_SKIN_CACHE_NAME_LENGTH];
-	byte				skinState[STUDIO_SKIN_STATE_BYTES];
-	int					textureIndex;
-	int					textureState;
-	int					width;
-	int					height;
-	cache_user_t		pixels;
-	int					glTexture;
+	int			playerIndex;
+	int			topColor;
+	int			bottomColor;
+	model_t*	model;
+	char		textureName[STUDIO_SKIN_CACHE_NAME_LENGTH];
+	byte		skinState[STUDIO_SKIN_STATE_BYTES];
+	int			textureIndex;
+	int			textureState;
+	int			width;
+	int			height;
+	cache_user_t pixels;
+	int			glTexture;
 } studio_skin_cache_neo_t;
 
 typedef struct studio_player_model_neo_ref_s
 {
-	char				name[MAX_OSPATH];
-	char				modelName[MAX_OSPATH];
-	model_t*			model;
+	char		name[MAX_OSPATH];
+	char		modelName[MAX_OSPATH];
+	model_t*	model;
 } studio_player_model_neo_ref_t;
 
 extern studio_player_model_neo_ref_t g_studioPlayerModels[MAX_CLIENTS];
-extern int r_playerindex;
+extern int	r_playerindex;
 
 studio_skin_cache_neo_t* R_StudioGetPlayerSkinCache( int playerIndex );
 void R_StudioRemapPaletteRange( byte* palette, int color, int first, int last );
 
 sfx_t* R_StudioFindEventSound( const char* name )
 {
-	int					i;
-	sfx_t*				sound;
+	int			i;
+	sfx_t*		sound;
 
 	for (i = 0; i < MAX_SOUNDS; i++)
 	{
@@ -106,9 +106,9 @@ sfx_t* R_StudioFindEventSound( const char* name )
 
 mstudioanim_t* R_GetAnim_Neo( model_t* model, mstudioseqdesc_t* sequence )
 {
-	mstudioseqgroup_t*	sequenceGroup;
-	cache_user_t*		sequenceCache;
-	unsigned int		data;
+	mstudioseqgroup_t* sequenceGroup;
+	cache_user_t* sequenceCache;
+	unsigned int data;
 
 	sequenceGroup = (mstudioseqgroup_t*)((byte*)pstudiohdr + pstudiohdr->seqgroupindex) + sequence->seqgroup;
 	if (!sequence->seqgroup)
@@ -136,9 +136,9 @@ mstudioanim_t* R_GetAnim_Neo( model_t* model, mstudioseqdesc_t* sequence )
 
 void R_StudioCacheAnim_Neo( model_t* model, int sequenceGroupIndex )
 {
-	studiohdr_t*		header;
-	mstudioseqgroup_t*	sequenceGroup;
-	cache_user_t*		sequenceCache;
+	studiohdr_t* header;
+	mstudioseqgroup_t* sequenceGroup;
+	cache_user_t* sequenceCache;
 
 	header = (studiohdr_t*)Mod_Extradata(model);
 	sequenceGroup = (mstudioseqgroup_t*)((byte*)header + header->seqgroupindex) + sequenceGroupIndex;
@@ -163,9 +163,9 @@ void R_StudioCacheAnim_Neo( model_t* model, int sequenceGroupIndex )
 
 int R_StudioBodyVariations_Neo( model_t* model )
 {
-	studiohdr_t*		pstudiohdr;
-	mstudiobodyparts_t*	pbodypart;
-	int					i, count;
+	studiohdr_t* pstudiohdr;
+	mstudiobodyparts_t* pbodypart;
+	int			i, count;
 
 	if (model->type != mod_studio)
 		return 0;
@@ -184,7 +184,7 @@ int R_StudioBodyVariations_Neo( model_t* model )
 
 void R_StudioSetupModel_Neo( int bodypart )
 {
-	int					index;
+	int			index;
 
 	if (bodypart > pstudiohdr->numbodyparts)
 		bodypart = 0;
@@ -197,8 +197,8 @@ void R_StudioSetupModel_Neo( int bodypart )
 
 float R_StudioEstimateFrame_Neo( mstudioseqdesc_t* sequence )
 {
-	float				frame;
-	float				frameDelta;
+	float		frame;
+	float		frameDelta;
 
 	frameDelta = (cl.time - currententity->animtime) *
 		ShortToFloat(currententity->framerate) * sequence->fps;
@@ -253,8 +253,8 @@ void R_StudioPlayerBlend_Neo( mstudioseqdesc_t* sequence, int* blend, float* pit
 
 void R_StudioSaveBones_Neo( void )
 {
-	int					i;
-	mstudiobone_t*		bones;
+	int			i;
+	mstudiobone_t* bones;
 
 	bones = (mstudiobone_t*)((byte*)pstudiohdr + pstudiohdr->boneindex);
 	cached_numbones = pstudiohdr->numbones;
@@ -271,8 +271,8 @@ void R_StudioSaveBones_Neo( void )
 
 void R_StudioCalcAttachments_Neo( void )
 {
-	int							i;
-	mstudioattachment_neo_t*	attachment;
+	int			i;
+	mstudioattachment_neo_t* attachment;
 
 	if (pstudiohdr->numattachments > 4)
 		Sys_Error("Too many attachments on %s", currententity->model->name);
@@ -287,11 +287,11 @@ void R_StudioCalcAttachments_Neo( void )
 
 qboolean R_StudioCheckBBox_Neo( void )
 {
-	mplane_t			plane;
-	vec3_t				mins;
-	vec3_t				maxs;
-	int					side;
-	mstudioseqdesc_t*	sequence;
+	mplane_t	plane;
+	vec3_t		mins;
+	vec3_t		maxs;
+	int			side;
+	mstudioseqdesc_t* sequence;
 
 	sequence = (mstudioseqdesc_t*)((byte*)pstudiohdr + pstudiohdr->seqindex) +
 		currententity->sequence;
@@ -328,6 +328,7 @@ qboolean R_StudioCheckBBox_Neo( void )
 	return side != 2;
 }
 
+
 void R_StudioRenderModel_Neo( void )
 {
 	VectorCopy(r_origin, g_ChromeOrigin);
@@ -348,19 +349,19 @@ void R_StudioTransformVerts_Neo( vec3_t* output, const char* normalIndices, int 
 }
 
 void R_StudioTransformVertsMatrix_Neo( vec3_t* output, const char* bones,
-	const char* normalIndices, int count )
+	const char*	normalIndices, int count )
 {
-	char				lastBone;
+	char		lastBone;
 
 	lastBone = -1;
 	while (count--)
 	{
-		int					bone;
+		int			bone;
 
 		bone = *bones;
 		if (bone != lastBone)
 		{
-			float*				matrix;
+			float*		matrix;
 
 			lastBone = (char)bone;
 			matrix = &lighttransform[bone][0][0];
@@ -418,18 +419,18 @@ int StudioReadSignedBits_Neo( int bitCount );
 void R_StudioReadAnimQuaternion_Neo( int startFrame, int endFrame, int span,
 	const byte* data )
 {
-	int					frameCount;
-	int					frameSpan;
-	int					bufferOffset;
-	int					bits;
+	int			frameCount;
+	int			frameSpan;
+	int			bufferOffset;
+	int			bits;
 
 	frameCount = 0;
 	frameSpan = span;
 	bufferOffset = 0;
 	while (frameCount < frameSpan)
 	{
-		byte*				run;
-		byte				total;
+		byte*		run;
+		byte		total;
 
 		run = g_StudioAnimBuffer + bufferOffset;
 		run[0] = *data++;
@@ -445,14 +446,14 @@ void R_StudioReadAnimQuaternion_Neo( int startFrame, int endFrame, int span,
 	bufferOffset = 0;
 	while (frameCount < endFrame)
 	{
-		mstudioanimvalue_t*	run;
+		mstudioanimvalue_t* run;
 
 		run = (mstudioanimvalue_t*)(g_StudioAnimBuffer + bufferOffset);
 		bits = StudioReadBits_Neo(4);
 		frameCount += g_StudioAnimBuffer[bufferOffset + 1];
 		if (frameCount >= startFrame)
 		{
-			int					i;
+			int			i;
 
 			run[1].value = (short)(StudioReadBits_Neo(12) << 4);
 			for (i = 1; i < g_StudioAnimBuffer[bufferOffset]; i++)
@@ -461,9 +462,9 @@ void R_StudioReadAnimQuaternion_Neo( int startFrame, int endFrame, int span,
 		}
 		else
 		{
-			int					bitCount;
-			int					byteCount;
-			int					remainder;
+			int			bitCount;
+			int			byteCount;
+			int			remainder;
 
 			bitCount = (g_StudioAnimBuffer[bufferOffset] - 1) * bits + 12;
 			byteCount = bitCount / 8;
@@ -479,18 +480,18 @@ void R_StudioReadAnimQuaternion_Neo( int startFrame, int endFrame, int span,
 void R_StudioReadAnimPosition_Neo( int startFrame, int endFrame, int span,
 	const byte* data )
 {
-	int					frameCount;
-	int					frameSpan;
-	int					bufferOffset;
-	int					bits;
+	int			frameCount;
+	int			frameSpan;
+	int			bufferOffset;
+	int			bits;
 
 	frameCount = 0;
 	frameSpan = span;
 	bufferOffset = 0;
 	while (frameCount < frameSpan)
 	{
-		byte*				run;
-		byte				total;
+		byte*		run;
+		byte		total;
 
 		run = g_StudioAnimBuffer + bufferOffset;
 		run[0] = *data++;
@@ -506,15 +507,15 @@ void R_StudioReadAnimPosition_Neo( int startFrame, int endFrame, int span,
 	bufferOffset = 0;
 	while (frameCount < endFrame)
 	{
-		mstudioanimvalue_t*	run;
+		mstudioanimvalue_t* run;
 
 		run = (mstudioanimvalue_t*)(g_StudioAnimBuffer + bufferOffset);
 		bits = StudioReadBits_Neo(4);
 		frameCount += g_StudioAnimBuffer[bufferOffset + 1];
 		if (frameCount >= startFrame)
 		{
-			int					i;
-			short				firstValue;
+			int			i;
+			short		firstValue;
 
 			firstValue = (short)StudioReadBits_Neo(16);
 			run[1].value = firstValue;
@@ -524,9 +525,9 @@ void R_StudioReadAnimPosition_Neo( int startFrame, int endFrame, int span,
 		}
 		else
 		{
-			int					bitCount;
-			int					byteCount;
-			int					remainder;
+			int			bitCount;
+			int			byteCount;
+			int			remainder;
 
 			bitCount = (g_StudioAnimBuffer[bufferOffset] - 1) * bits + 16;
 			byteCount = bitCount / 8;
@@ -542,14 +543,14 @@ void R_StudioReadAnimPosition_Neo( int startFrame, int endFrame, int span,
 void R_StudioCalcBoneQuaternion_Neo( int frame, float s, mstudiobone_t* bone,
 	mstudioanim_t* anim, float* adjustment, float* quaternion, int numFrames )
 {
-	int					j;
-	int					k;
-	int					endFrame;
-	vec4_t				q1;
-	vec4_t				q2;
-	vec3_t				angle1;
-	vec3_t				angle2;
-	mstudioanimvalue_t*	animValue;
+	int			j;
+	int			k;
+	int			endFrame;
+	vec4_t		q1;
+	vec4_t		q2;
+	vec3_t		angle1;
+	vec3_t		angle2;
+	mstudioanimvalue_t* animValue;
 
 	endFrame = frame + 2;
 	if (endFrame >= numFrames)
@@ -622,10 +623,10 @@ void R_StudioCalcBoneQuaternion_Neo( int frame, float s, mstudiobone_t* bone,
 void R_StudioCalcBonePosition_Neo( int frame, float s, mstudiobone_t* bone,
 	mstudioanim_t* anim, float* adjustment, float* position, int numFrames )
 {
-	int					j;
-	int					k;
-	int					endFrame;
-	mstudioanimvalue_t*	animValue;
+	int			j;
+	int			k;
+	int			endFrame;
+	mstudioanimvalue_t* animValue;
 
 	endFrame = frame + 2;
 	if (endFrame >= numFrames)
@@ -681,12 +682,12 @@ void R_StudioCalcBonePosition_Neo( int frame, float s, mstudiobone_t* bone,
 void R_StudioCalcRotations_Neo( vec3_t* position, vec4_t* quaternion,
 	mstudioseqdesc_t* sequence, mstudioanim_t* animation, float f )
 {
-	int					i;
-	int					frame;
-	mstudiobone_t*		bone;
-	float				s;
-	float				adjustment[MAXSTUDIOCONTROLLERS];
-	float				dadt;
+	int			i;
+	int			frame;
+	mstudiobone_t* bone;
+	float		s;
+	float		adjustment[MAXSTUDIOCONTROLLERS];
+	float		dadt;
 
 	if (f > sequence->numframes - 1)
 		f = 0.0f;
@@ -726,20 +727,20 @@ void R_StudioCalcRotations_Neo( vec3_t* position, vec4_t* quaternion,
 
 void R_StudioSetupBones_Neo( void )
 {
-	int					i;
-	float				frame;
-	mstudiobone_t*		bones;
-	mstudioseqdesc_t*	sequence;
-	mstudioanim_t*		animation;
-	static float		position[MAXSTUDIOBONES][3];
-	static vec4_t		quaternion[MAXSTUDIOBONES];
-	float				boneMatrix[3][4];
-	static float		position2[MAXSTUDIOBONES][3];
-	static vec4_t		quaternion2[MAXSTUDIOBONES];
-	static float		position3[MAXSTUDIOBONES][3];
-	static vec4_t		quaternion3[MAXSTUDIOBONES];
-	static float		position4[MAXSTUDIOBONES][3];
-	static vec4_t		quaternion4[MAXSTUDIOBONES];
+	int			i;
+	float		frame;
+	mstudiobone_t* bones;
+	mstudioseqdesc_t* sequence;
+	mstudioanim_t* animation;
+	static float position[MAXSTUDIOBONES][3];
+	static vec4_t quaternion[MAXSTUDIOBONES];
+	float		boneMatrix[3][4];
+	static float position2[MAXSTUDIOBONES][3];
+	static vec4_t quaternion2[MAXSTUDIOBONES];
+	static float position3[MAXSTUDIOBONES][3];
+	static vec4_t quaternion3[MAXSTUDIOBONES];
+	static float position4[MAXSTUDIOBONES][3];
+	static vec4_t quaternion4[MAXSTUDIOBONES];
 
 	if (currententity->sequence >= pstudiohdr->numseq)
 		currententity->sequence = 0;
@@ -752,8 +753,8 @@ void R_StudioSetupBones_Neo( void )
 
 	if (sequence->numblends > 1)
 	{
-		float				s;
-		float				dadt;
+		float		s;
+		float		dadt;
 
 		animation += pstudiohdr->numbones;
 		R_StudioCalcRotations_Neo(position2, quaternion2, sequence, animation, frame);
@@ -782,9 +783,9 @@ void R_StudioSetupBones_Neo( void )
 		currententity->sequencetime + 0.2f > cl.time &&
 		currententity->prevsequence < pstudiohdr->numseq)
 	{
-		static float		previousPosition[MAXSTUDIOBONES][3];
-		static vec4_t		previousQuaternion[MAXSTUDIOBONES];
-		float				s;
+		static float previousPosition[MAXSTUDIOBONES][3];
+		static vec4_t previousQuaternion[MAXSTUDIOBONES];
+		float		s;
 
 		sequence = (mstudioseqdesc_t*)((byte*)pstudiohdr + pstudiohdr->seqindex) +
 			currententity->prevsequence;
@@ -869,15 +870,15 @@ void R_StudioSetupBones_Neo( void )
 
 void R_StudioMergeBones_Neo( model_t* model )
 {
-	int					i;
-	int					j;
-	float				frame;
-	mstudiobone_t*		bones;
-	mstudioseqdesc_t*	sequence;
-	mstudioanim_t*		animation;
-	static float		position[MAXSTUDIOBONES][3];
-	float				boneMatrix[3][4];
-	static vec4_t		quaternion[MAXSTUDIOBONES];
+	int			i;
+	int			j;
+	float		frame;
+	mstudiobone_t* bones;
+	mstudioseqdesc_t* sequence;
+	mstudioanim_t* animation;
+	static float position[MAXSTUDIOBONES][3];
+	float		boneMatrix[3][4];
+	static vec4_t quaternion[MAXSTUDIOBONES];
 
 	if (currententity->sequence >= pstudiohdr->numseq)
 		currententity->sequence = 0;
@@ -926,20 +927,20 @@ void R_StudioMergeBones_Neo( model_t* model )
 }
 
 void R_StudioSetupChrome_Neo( int count, int normalIndex,
-	const char* normalBones, const byte* normalIndices )
+	const char*	normalBones, const byte* normalIndices )
 {
 	normalIndices += normalIndex;
 	while (count-- != 0)
 	{
-		int					bone;
-		float				n;
+		int			bone;
+		float		n;
 
 		bone = normalBones[normalIndex];
 		if (chromeage[bone] != r_smodels_total)
 		{
-			vec3_t				chromeUp;
-			vec3_t				chromeRight;
-			vec3_t				direction;
+			vec3_t		chromeUp;
+			vec3_t		chromeRight;
+			vec3_t		direction;
 
 			VectorScale(g_ChromeOrigin, -1.0f, direction);
 			direction[0] += lighttransform[bone][0][3];
@@ -968,12 +969,12 @@ void R_StudioSetupChrome_Neo( int count, int normalIndex,
 void R_StudioLoadPlayerSkin_Neo( model_t* model, int textureIndex,
 	studio_skin_cache_neo_t* cache )
 {
-	studiohdr_t*		header;
-	mstudiotexture_t*	texture;
-	byte*				fileData;
-	byte*				pixels;
-	unsigned int		pixelData;
-	int					dataSize;
+	studiohdr_t* header;
+	mstudiotexture_t* texture;
+	byte*		fileData;
+	byte*		pixels;
+	unsigned int pixelData;
+	int			dataSize;
 
 	if (Cache_Check(&cache->pixels))
 	{
@@ -1006,11 +1007,11 @@ void R_StudioLoadPlayerSkin_Neo( model_t* model, int textureIndex,
 
 void R_StudioSetupPlayerSkin_Neo( studiohdr_t* textureHeader, int textureIndex )
 {
-	mstudiotexture_t*			texture;
-	studio_skin_cache_neo_t*	cache;
-	byte*						pixels;
-	int							playerIndex;
-	char						textureName[STUDIO_SKIN_CACHE_NAME_LENGTH];
+	mstudiotexture_t* texture;
+	studio_skin_cache_neo_t* cache;
+	byte*		pixels;
+	int			playerIndex;
+	char		textureName[STUDIO_SKIN_CACHE_NAME_LENGTH];
 
 	if (g_ForcedFaceFlags & STUDIO_NF_CHROME)
 		return;
@@ -1064,10 +1065,10 @@ void R_StudioSetupPlayerSkin_Neo( studiohdr_t* textureHeader, int textureIndex )
 
 void R_StudioProcessGait_Neo( player_state_t* player )
 {
-	mstudioseqdesc_t*	sequence;
-	float				dt;
-	float				yaw;
-	int					blend;
+	mstudioseqdesc_t* sequence;
+	float		dt;
+	float		yaw;
+	int			blend;
 
 	sequence = (mstudioseqdesc_t*)((byte*)pstudiohdr + pstudiohdr->seqindex) +
 		currententity->sequence;
@@ -1142,9 +1143,9 @@ void R_StudioProcessGait_Neo( player_state_t* player )
 
 int R_StudioDrawPlayer_Neo( int flags, player_state_t* player )
 {
-	alight_t			lighting;
-	vec3_t				direction;
-	vec3_t				savedAngles;
+	alight_t	lighting;
+	vec3_t		direction;
+	vec3_t		savedAngles;
 
 	r_playerindex = player->number;
 	if (r_playerindex < 0 || r_playerindex >= cl.maxclients)
@@ -1275,15 +1276,13 @@ int R_StudioDrawPlayer_Neo( int flags, player_state_t* player )
 		if (r_bottomcolor > 360)
 			r_bottomcolor = 360;
 
-		VectorCopy(r_origin, g_ChromeOrigin);
-		g_ForcedFaceFlags = 0;
-		R_StudioRenderFinal_Neo();
+		R_StudioRenderModel_Neo();
 		r_playerinfo = NULL;
 
 		if (player->weaponmodel)
 		{
-			cl_entity_t			savedEntity;
-			model_t*			weaponModel;
+			cl_entity_t	savedEntity;
+			model_t*	weaponModel;
 
 			savedEntity = *currententity;
 			weaponModel = cl.model_precache[player->weaponmodel];
@@ -1293,9 +1292,7 @@ int R_StudioDrawPlayer_Neo( int flags, player_state_t* player )
 			R_StudioMergeBones_Neo(weaponModel);
 			R_StudioSetupLighting(&lighting);
 
-			VectorCopy(r_origin, g_ChromeOrigin);
-			g_ForcedFaceFlags = 0;
-			R_StudioRenderFinal_Neo();
+			R_StudioRenderModel_Neo();
 			R_StudioCalcAttachments_Neo();
 			*currententity = savedEntity;
 		}
@@ -1308,13 +1305,13 @@ int R_StudioDrawPlayer_Neo( int flags, player_state_t* player )
 #pragma inline_depth(0)
 void R_StudioClientEvents_Neo( void )
 {
-	int					i;
-	mstudioevent_t*		event;
-	mstudioseqdesc_t*	sequence;
-	float				frameStart;
-	float				frameEnd;
-	static float		currentTime;
-	static float		lastTime;
+	int			i;
+	mstudioevent_t* event;
+	mstudioseqdesc_t* sequence;
+	float		frameStart;
+	float		frameEnd;
+	static float currentTime;
+	static float lastTime;
 
 	sequence = (mstudioseqdesc_t*)((byte*)pstudiohdr + pstudiohdr->seqindex) +
 		currententity->sequence;
@@ -1330,7 +1327,7 @@ void R_StudioClientEvents_Neo( void )
 
 	if (currententity->effects & EF_MUZZLEFLASH)
 	{
-		dlight_t*			light;
+		dlight_t*	light;
 
 		light = CL_AllocElight(0);
 		VectorCopy(currententity->attachment[0], light->origin);
@@ -1381,7 +1378,7 @@ void R_StudioClientEvents_Neo( void )
 			break;
 		case 5004:
 		{
-			sfx_t*				sound;
+			sfx_t*		sound;
 
 			sound = R_StudioFindEventSound(event->options);
 			if (sound)
@@ -1398,8 +1395,8 @@ void R_StudioClientEvents_Neo( void )
 
 int R_StudioDrawModel_Neo( int flags, int checkBBox )
 {
-	alight_t			lighting;
-	vec3_t				direction;
+	alight_t	lighting;
+	vec3_t		direction;
 
 	r_studio_model = currententity->model;
 	pstudiohdr = (studiohdr_t*)Mod_Extradata(r_studio_model);
@@ -1454,9 +1451,7 @@ int R_StudioDrawModel_Neo( int flags, int checkBBox )
 		r_topcolor = currententity->colormap & 0xFF;
 		r_bottomcolor = (currententity->colormap >> 8) & 0xFF;
 
-		VectorCopy(r_origin, g_ChromeOrigin);
-		g_ForcedFaceFlags = 0;
-		R_StudioRenderFinal_Neo();
+		R_StudioRenderModel_Neo();
 	}
 
 	DCV_SetClipRequired();
@@ -1467,9 +1462,9 @@ int R_StudioDrawModel_Neo( int flags, int checkBBox )
 #pragma auto_inline(off)
 void R_StudioRenderFinal_Neo( void )
 {
-	int					i;
-	int					rendermode;
-	qboolean			translucent;
+	int			i;
+	int			rendermode;
+	qboolean	translucent;
 
 	GL_DisableMultitexture();
 	DCV_PushMatrix(D3DTRANSFORMSTATE_WORLD);
@@ -1536,16 +1531,16 @@ void R_StudioRenderFinal_Neo( void )
 
 void R_StudioDrawPoints_Neo( void )
 {
-	studiohdr_t*		textureHeader;
-	mstudiotexture_t*	textures;
-	mstudiomesh_t*		meshes;
-	short*				skinref;
-	byte*				vertBones;
-	byte*				normBones;
-	vec3_t*				studioVerts;
-	byte*				studioNorms;
-	int					normalIndex;
-	int					i;
+	studiohdr_t* textureHeader;
+	mstudiotexture_t* textures;
+	mstudiomesh_t* meshes;
+	short*		skinref;
+	byte*		vertBones;
+	byte*		normBones;
+	vec3_t*		studioVerts;
+	byte*		studioNorms;
+	int			normalIndex;
+	int			i;
 
 	vertBones = (byte*)pstudiohdr + psubmodel->vertinfoindex;
 	normBones = (byte*)pstudiohdr + psubmodel->norminfoindex;
@@ -1564,8 +1559,8 @@ void R_StudioDrawPoints_Neo( void )
 	normalIndex = 0;
 	for (i = 0; i < psubmodel->nummesh; i++)
 	{
-		int					textureIndex;
-		int					flags;
+		int			textureIndex;
+		int			flags;
 
 		textureIndex = skinref[meshes[i].skinref];
 		flags = textures[textureIndex].flags | g_ForcedFaceFlags;
@@ -1583,11 +1578,11 @@ void R_StudioDrawPoints_Neo( void )
 
 	for (i = 0; i < psubmodel->nummesh; i++)
 	{
-		mstudiomesh_t*		mesh;
-		short*				commands;
-		int					textureIndex;
-		int					flags;
-		int					count;
+		mstudiomesh_t* mesh;
+		short*		commands;
+		int			textureIndex;
+		int			flags;
+		int			count;
 
 		mesh = &meshes[i];
 		commands = (short*)((byte*)pstudiohdr + mesh->triindex);
@@ -1622,16 +1617,16 @@ void R_StudioDrawPoints_Neo( void )
 
 void R_StudioDrawPointsSimple_Neo( void )
 {
-	studiohdr_t*		textureHeader;
-	mstudiotexture_t*	textures;
-	mstudiomesh_t*		meshes;
-	short*				skinref;
-	byte*				vertBones;
-	byte*				normBones;
-	vec3_t*				studioVerts;
-	byte*				studioNorms;
-	int					normalIndex;
-	int					i;
+	studiohdr_t* textureHeader;
+	mstudiotexture_t* textures;
+	mstudiomesh_t* meshes;
+	short*		skinref;
+	byte*		vertBones;
+	byte*		normBones;
+	vec3_t*		studioVerts;
+	byte*		studioNorms;
+	int			normalIndex;
+	int			i;
 
 	vertBones = (byte*)pstudiohdr + psubmodel->vertinfoindex;
 	normBones = (byte*)pstudiohdr + psubmodel->norminfoindex;
@@ -1650,8 +1645,8 @@ void R_StudioDrawPointsSimple_Neo( void )
 	normalIndex = 0;
 	for (i = 0; i < psubmodel->nummesh; i++)
 	{
-		int					textureIndex;
-		int					flags;
+		int			textureIndex;
+		int			flags;
 
 		textureIndex = skinref[meshes[i].skinref];
 		flags = textures[textureIndex].flags | g_ForcedFaceFlags;
@@ -1668,11 +1663,11 @@ void R_StudioDrawPointsSimple_Neo( void )
 
 	for (i = 0; i < psubmodel->nummesh; i++)
 	{
-		mstudiomesh_t*		mesh;
-		short*				commands;
-		int					textureIndex;
-		int					flags;
-		int					count;
+		mstudiomesh_t* mesh;
+		short*		commands;
+		int			textureIndex;
+		int			flags;
+		int			count;
 
 		mesh = &meshes[i];
 		commands = (short*)((byte*)pstudiohdr + mesh->triindex);
@@ -1709,18 +1704,18 @@ void R_StudioDrawPointsSimple_Neo( void )
 
 int StudioReadBits_Neo( int bitCount )
 {
-	const byte*			highBitMask;
-	int					outputShift;
-	int					result;
-	int					bits;
-	short				value;
+	const byte*	highBitMask;
+	int			outputShift;
+	int			result;
+	int			bits;
+	short		value;
 
 	highBitMask = g_StudioHighBitMask;
 	outputShift = 0;
 	result = 0;
 	while (bitCount >= g_StudioBitsRemaining)
 	{
-		byte*				input;
+		byte*		input;
 
 		input = g_pStudioBitStream;
 		bits = g_StudioBitsRemaining;
@@ -1735,7 +1730,7 @@ int StudioReadBits_Neo( int bitCount )
 
 	if (bitCount)
 	{
-		byte*				input;
+		byte*		input;
 
 		input = g_pStudioBitStream;
 		bits = g_StudioBitsRemaining;
@@ -1756,18 +1751,18 @@ int StudioReadBits_Neo( int bitCount )
 
 int StudioReadSignedBits_Neo( int bitCount )
 {
-	const byte*			highBitMask;
-	int					outputShift;
-	int					result;
-	int					bits;
-	short				value;
+	const byte*	highBitMask;
+	int			outputShift;
+	int			result;
+	int			bits;
+	short		value;
 
 	highBitMask = g_StudioHighBitMask;
 	outputShift = 0;
 	result = 0;
 	while (bitCount >= g_StudioBitsRemaining)
 	{
-		byte*				input;
+		byte*		input;
 
 		input = g_pStudioBitStream;
 		bits = g_StudioBitsRemaining;
@@ -1782,7 +1777,7 @@ int StudioReadSignedBits_Neo( int bitCount )
 
 	if (bitCount)
 	{
-		byte*				input;
+		byte*		input;
 
 		input = g_pStudioBitStream;
 		bits = g_StudioBitsRemaining;
@@ -1812,19 +1807,19 @@ void SV_StudioSetupBones_Neo( model_t* model, float frame, int sequence,
 	const vec_t* angles, const vec_t* origin, const unsigned char* controller,
 	const unsigned char* blending, int boneIndex )
 {
-	int					i;
-	int					j;
-	float				f;
-	float				s;
-	float				adjustment[MAXSTUDIOCONTROLLERS];
-	mstudiobone_t*		bones;
-	mstudioseqdesc_t*	sequenceDesc;
-	mstudioanim_t*		animation;
-	static float		position[MAXSTUDIOBONES][3];
-	float				boneMatrix[3][4];
-	static vec4_t		quaternion[MAXSTUDIOBONES];
-	int					chain[MAXSTUDIOBONES];
-	int					chainLength;
+	int			i;
+	int			j;
+	float		f;
+	float		s;
+	float		adjustment[MAXSTUDIOCONTROLLERS];
+	mstudiobone_t* bones;
+	mstudioseqdesc_t* sequenceDesc;
+	mstudioanim_t* animation;
+	static float position[MAXSTUDIOBONES][3];
+	float		boneMatrix[3][4];
+	static vec4_t quaternion[MAXSTUDIOBONES];
+	int			chain[MAXSTUDIOBONES];
+	int			chainLength;
 
 	chainLength = 0;
 	if (sequence < 0 || sequence >= pstudiohdr->numseq)
@@ -1868,9 +1863,9 @@ void SV_StudioSetupBones_Neo( model_t* model, float frame, int sequence,
 
 	if (sequenceDesc->numblends > 1)
 	{
-		static vec3_t		position2[MAXSTUDIOBONES];
-		static vec4_t		quaternion2[MAXSTUDIOBONES];
-		float				blend;
+		static vec3_t position2[MAXSTUDIOBONES];
+		static vec4_t quaternion2[MAXSTUDIOBONES];
+		float		blend;
 
 		sequenceDesc = (mstudioseqdesc_t*)((byte*)pstudiohdr + pstudiohdr->seqindex) + sequence;
 		animation = R_GetAnim_Neo(model, sequenceDesc) + pstudiohdr->numbones;
@@ -1909,10 +1904,10 @@ void SV_StudioSetupBones_Neo( model_t* model, float frame, int sequence,
 }
 
 void R_StudioGetAttachment_Neo( const edict_t* edict, int attachmentIndex,
-	float* attachmentOrigin, float* attachmentAngles )
+	float*		attachmentOrigin, float* attachmentAngles )
 {
-	mstudioattachment_neo_t*	attachment;
-	vec3_t						angles;
+	mstudioattachment_neo_t* attachment;
+	vec3_t		angles;
 
 	pstudiohdr = (studiohdr_t*)Mod_Extradata(sv.models[edict->v.modelindex]);
 	VectorCopy(edict->v.angles, angles);

@@ -2,7 +2,7 @@
 #include "r_triangle.h"
 #include "dc_accum.h"
 
-float gGlR, gGlG, gGlB, gGlW;
+float		gGlR, gGlG, gGlB, gGlW;
 
 void tri_DC_Color4f( float x, float y, float z, float w )
 {

@@ -10,26 +10,26 @@
 typedef struct spritelist_s
 {
 	struct model_s* pSprite;
-	char* pName;
-	int frameCount;
-	int lastSpawnCount;
+	char*		pName;
+	int			frameCount;
+	int			lastSpawnCount;
 } SPRITELIST;
 
 SPRITELIST* gSpriteList;
-int gSpriteCount;
+int			gSpriteCount;
 
-msprite_t* gpSprite;
+msprite_t*	gpSprite;
 
 #define SPR_MAX_SPRITES		128
 unsigned short gSpritePalette[256];
 
 
 // Crosshair sprite and colors
-HSPRITE_t ghCrosshair;
-wrect_t gCrosshairRc;
-int gCrosshairR;
-int gCrosshairG;
-int gCrosshairB;
+HSPRITE_t	ghCrosshair;
+wrect_t		gCrosshairRc;
+int			gCrosshairR;
+int			gCrosshairG;
+int			gCrosshairB;
 
 void SetCrosshair( HSPRITE_t hspr, wrect_t rc, int r, int g, int b )
 {
@@ -50,13 +50,13 @@ void DrawCrosshair( int x, int y )
 	SPR_DrawHoles(0, x + (gCrosshairRc.left - gCrosshairRc.right) / 2, y + (gCrosshairRc.top - gCrosshairRc.bottom) / 2, &gCrosshairRc);
 }
 
-qboolean gSpriteMipMap = TRUE;
+qboolean	gSpriteMipMap = TRUE;
 
 // Loads a sprite by name
 // A maximum of 256 HUD sprites can be loaded at the same time
 HSPRITE_t SPR_Load( const char* pTextureName )
 {
-	int i;
+	int			i;
 
 	if (!pTextureName)
 		return 0;
@@ -97,7 +97,7 @@ HSPRITE_t SPR_Load( const char* pTextureName )
 
 SPRITELIST* SPR_Get( HSPRITE_t hSprite )
 {
-	int spriteIndex;
+	int			spriteIndex;
 
 	spriteIndex = hSprite - 1;
 
@@ -124,7 +124,7 @@ msprite_t* SPR_Pointer( SPRITELIST* pList )
 
 void SPR_Init( void )
 {
-	int listSize;
+	int			listSize;
 
 	// The list outlives the level, so build it once and keep the handles valid.
 	if (gSpriteList)
@@ -141,9 +141,52 @@ void SPR_Init( void )
 	gpSprite = NULL;
 }
 
+void SPR_Unload( const char *name )
+{
+	int			i;
+	if (!name || !gSpriteList || gSpriteCount <= 0)
+		return;
+	for (i = 0; i < gSpriteCount; i++)
+	{
+		if (gSpriteList[i].pName && !Q_stricmp((char *)name, gSpriteList[i].pName))
+		{
+			Mod_UnloadSpriteTextures(gSpriteList[i].pSprite);
+			free(gSpriteList[i].pName);
+			gSpriteList[i].pName = NULL;
+			gSpriteList[i].pSprite = NULL;
+			gSpriteList[i].lastSpawnCount = 0;
+		}
+	}
+}
+
+void SPR_UnloadByIndex( int index )
+{
+	if (gSpriteList && gSpriteCount > 0 && gSpriteList[index].pName)
+	{
+		Mod_UnloadSpriteTextures(gSpriteList[index].pSprite);
+		free(gSpriteList[index].pName);
+		gSpriteList[index].pName = NULL;
+		gSpriteList[index].pSprite = NULL;
+	}
+}
+
+void SPR_UnloadStale( void )
+{
+	int			i;
+	if (gSpriteList && gSpriteCount > 0)
+	{
+		for (i = 0; i < gSpriteCount; i++)
+		{
+			if (gSpriteList[i].pName && gSpriteList[i].lastSpawnCount > 0 &&
+				gSpriteList[i].lastSpawnCount < gHostSpawnCount && gSpriteList[i].pSprite)
+				SPR_UnloadByIndex(i);
+		}
+	}
+}
+
 void SPR_Shutdown( void )
 {
-	int i;
+	int			i;
 
 	if (!gSpriteCount)
 		return;
@@ -182,7 +225,7 @@ int SPR_Width( HSPRITE_t hSprite, int frame )
 {
 	mspriteframe_t* pFrame;
 	SPRITELIST* pList;
-	msprite_t* pSprite;
+	msprite_t*	pSprite;
 
 	pList = SPR_Get(hSprite);
 	if (pList)
@@ -201,7 +244,7 @@ int SPR_Height( HSPRITE_t hSprite, int frame )
 {
 	mspriteframe_t *pFrame;
 	SPRITELIST *pList;
-	msprite_t* pSprite;
+	msprite_t*	pSprite;
 
 	pList = SPR_Get(hSprite);
 	if (pList)
@@ -223,7 +266,7 @@ void UnpackPalette( unsigned short* pDest, unsigned short* pSource, int r, int g
 void UnpackPalette( unsigned short* pDest, unsigned short* pSource, int r, int g, int b )
 {
 	unsigned short* red, * green, * blue;
-	int i;
+	int			i;
 
 	red = red_64klut + ((r * 192) & 0xFF00);
 	green = green_64klut + ((g * 192) & 0xFF00);

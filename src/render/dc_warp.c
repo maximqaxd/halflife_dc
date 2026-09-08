@@ -15,16 +15,16 @@
 extern model_t* loadmodel;
 float floors( float value );
 
-extern cshift_t	cshift_water;
+extern cshift_t cshift_water;
 
-int		skytexturenum;
+int			skytexturenum;
 
-int		solidskytexture;
-int		alphaskytexture;
-float	speedscale;		// for top sky and bottom sky
-colorVec gWaterColor;
+int			solidskytexture;
+int			alphaskytexture;
+float		speedscale;		// for top sky and bottom sky
+colorVec	gWaterColor;
 
-msurface_t* warpface;
+msurface_t*	warpface;
 
 #define	BLOCK_WIDTH		128
 #define	BLOCK_HEIGHT	128
@@ -36,8 +36,8 @@ void R_DrawSkyBox( void );
 
 void R_CalcBoundingBox( int numverts, float* verts, vec_t* mins, vec_t* maxs )
 {
-	int		i, j;
-	float* v;
+	int			i, j;
+	float*		v;
 
 	mins[0] = mins[1] = mins[2] = 9999;
 	maxs[0] = maxs[1] = maxs[2] = -9999;
@@ -64,16 +64,16 @@ void R_CalcBoundingBox( int numverts, float* verts, vec_t* mins, vec_t* maxs )
 
 void SubdividePolygon( int numverts, float* verts )
 {
-	int		i, j, k;
-	vec3_t	mins, maxs;
-	float	m;
-	float* v;
-	vec3_t	front[64], back[64];
-	int		f, b;
-	float	dist[64];
-	float	frac;
-	glpoly_t* poly;
-	float	s, t;
+	int			i, j, k;
+	vec3_t		mins, maxs;
+	float		m;
+	float*		v;
+	vec3_t		front[64], back[64];
+	int			f, b;
+	float		dist[64];
+	float		frac;
+	glpoly_t*	poly;
+	float		s, t;
 
 	if (numverts > 60)
 		Sys_Error("numverts = %i", numverts);
@@ -191,7 +191,7 @@ void GL_SubdivideSurface( msurface_t* fa )
 	int			numverts;
 	int			i;
 	int			lindex;
-	float* vec;
+	float*		vec;
 
 	warpface = fa;
 
@@ -219,7 +219,7 @@ void GL_SubdivideSurface( msurface_t* fa )
 
 
 // speed up sin calculations - Ed
-float	turbsin[] =
+float		turbsin[] =
 {
 	#include "gl_warp_sin.h"
 };
@@ -245,16 +245,16 @@ void D_SetFadeColor( int r, int g, int b, int fog )
 
 void EmitWaterPolys( msurface_t* fa, int direction )
 {
-	glpoly_t* p;
-	float* v;
+	glpoly_t*	p;
+	float*		v;
 	int			i, base;
 	float		s, t;
-	volatile float	os, ot;
+	volatile float os, ot;
 	float		scale;
 	vec3_t		tempVert;
 
 	{
-		texture_t* ptexture = fa->texinfo->texture;
+		texture_t*	ptexture = fa->texinfo->texture;
 		D_SetFadeColor(ptexture->fade_r, ptexture->fade_g, ptexture->fade_b, ptexture->fade_fog);
 	}
 
@@ -316,14 +316,14 @@ R_DrawWaterChain
 */
 void R_DrawWaterChain( msurface_t* pChain, int direction )
 {
-	glpoly_t*   p;
-	texture_t*  ptexture;
-	float*      v;
-	int         i, base;
-	float       s, t;
+	glpoly_t*	p;
+	texture_t*	ptexture;
+	float*		v;
+	int			i, base;
+	float		s, t;
 	volatile float os, ot;
-	float       scale;
-	vec3_t      tempVert;
+	float		scale;
+	vec3_t		tempVert;
 
 	ptexture = pChain->texinfo->texture;
 	D_SetFadeColor(ptexture->fade_r, ptexture->fade_g, ptexture->fade_b, ptexture->fade_fog);
@@ -427,22 +427,22 @@ void EmitBothSkyLayers( msurface_t* fa )
 
 typedef struct
 {
-	char	manufacturer;
-	char	version;
-	char	encoding;
-	char	bits_per_pixel;
-	unsigned short	xmin, ymin, xmax, ymax;
-	unsigned short	hres, vres;
-	unsigned char	palette[48];
-	char	reserved;
-	char	color_planes;
-	unsigned short	bytes_per_line;
-	unsigned short	palette_type;
-	char	filler[58];
+	char		manufacturer;
+	char		version;
+	char		encoding;
+	char		bits_per_pixel;
+	unsigned short xmin, ymin, xmax, ymax;
+	unsigned short hres, vres;
+	unsigned char palette[48];
+	char		reserved;
+	char		color_planes;
+	unsigned short bytes_per_line;
+	unsigned short palette_type;
+	char		filler[58];
 	unsigned 	data;			// unbounded
 } pcx_t;
 
-byte* pcx_rgb;
+byte*		pcx_rgb;
 
 /*
 ============
@@ -451,12 +451,12 @@ LoadPCX
 */
 void LoadPCX( FILE* f )
 {
-	pcx_t* pcx, pcxbuf;
-	byte	palette[768];
-	byte* pix;
-	int		x, y;
-	int		dataByte, runLength;
-	int		count;
+	pcx_t*		pcx, pcxbuf;
+	byte		palette[768];
+	byte*		pix;
+	int			x, y;
+	int			dataByte, runLength;
+	int			count;
 
 //
 // parse the PCX file
@@ -488,7 +488,7 @@ void LoadPCX( FILE* f )
 	for (y = 0; y <= pcx->ymax; y++)
 	{
 		pix = pcx_rgb + 4 * y * (pcx->xmax + 1);
-		for (x = 0; x <= pcx->ymax; )
+		for (x = 0; x <= pcx->ymax;)
 		{
 			dataByte = fgetc(f);
 
@@ -520,17 +520,17 @@ void LoadPCX( FILE* f )
 R_LoadSkys
 ==================
 */
-char* suf[6] = { "rt", "bk", "lf", "ft", "up", "dn" };
+char*		suf[6] = { "rt", "bk", "lf", "ft", "up", "dn" };
 
-int g_bLoadSkys = FALSE;
-int gSkyTexNumber[6];
+int			g_bLoadSkys = FALSE;
+int			gSkyTexNumber[6];
 
 void R_LoadSkys( void )
 {
-	int i;
-	int length;
-	byte* buffer;
-	char name[MAX_QPATH];
+	int			i;
+	int			length;
+	byte*		buffer;
+	char		name[MAX_QPATH];
 
 	i = 0;
 	if (i < 6)
@@ -563,7 +563,7 @@ void R_LoadSkys( void )
 	}
 }
 
-vec3_t	skyclip[6] = {
+vec3_t		skyclip[6] = {
 	{1,1,0},
 	{1,-1,0},
 	{0,-1,1},
@@ -571,10 +571,10 @@ vec3_t	skyclip[6] = {
 	{1,0,1},
 	{-1,0,1}
 };
-int	c_sky;
+int			c_sky;
 
 // 1 = s, 2 = t, 3 = 2048
-int	st_to_vec[6][3] =
+int			st_to_vec[6][3] =
 {
 	{3,-1,2},
 	{-3,1,2},
@@ -590,7 +590,7 @@ int	st_to_vec[6][3] =
 };
 
 // s = [0]/[2], t = [1]/[2]
-int	vec_to_st[6][3] =
+int			vec_to_st[6][3] =
 {
 	{-2,3,1},
 	{2,3,-1},
@@ -605,7 +605,7 @@ int	vec_to_st[6][3] =
 //	{1,2,-3}
 };
 
-float	skymins[2][6], skymaxs[2][6];
+float		skymins[2][6], skymaxs[2][6];
 
 void DrawSkyPolygon( int nump, vec_t* vecs )
 {
@@ -613,25 +613,25 @@ void DrawSkyPolygon( int nump, vec_t* vecs )
 	{
 		struct
 		{
-			int axis;
-			int i;
-			float* vp;
-			vec3_t v;
-			vec3_t av;
+			int			axis;
+			int			i;
+			float*		vp;
+			vec3_t		v;
+			vec3_t		av;
 		} face;
 		struct
 		{
-			int axis;
-			int i;
+			int			axis;
+			int			i;
 			union
 			{
-				int j;
-				float t;
+				int			j;
+				float		t;
 			} coord;
-			float unused1[2];
-			float s;
-			float unused2[2];
-			float dv;
+			float		unused1[2];
+			float		s;
+			float		unused2[2];
+			float		dv;
 		} projection;
 	} work;
 
@@ -722,15 +722,15 @@ void DrawSkyPolygon( int nump, vec_t* vecs )
 #define	MAX_CLIP_VERTS	64
 void ClipSkyPolygon( int nump, vec_t* vecs, int stage )
 {
-	float* norm;
-	float* v;
+	float*		norm;
+	float*		v;
 	qboolean	front, back;
-	float	d, e;
-	float	dists[MAX_CLIP_VERTS];
-	int		sides[MAX_CLIP_VERTS];
-	vec3_t	newv[2][MAX_CLIP_VERTS];
-	int		newc[2];
-	int		i, j;
+	float		d, e;
+	float		dists[MAX_CLIP_VERTS];
+	int			sides[MAX_CLIP_VERTS];
+	vec3_t		newv[2][MAX_CLIP_VERTS];
+	int			newc[2];
+	int			i, j;
 
 	if (nump > MAX_CLIP_VERTS - 2)
 		Sys_Error("ClipSkyPolygon: MAX_CLIP_VERTS");
@@ -831,11 +831,11 @@ R_DrawSkyChain
 */
 void R_DrawSkyChain( msurface_t* s )
 {
-	msurface_t* fa;
+	msurface_t*	fa;
 
-	int		i;
-	vec3_t	verts[MAX_CLIP_VERTS];
-	glpoly_t* p;
+	int			i;
+	vec3_t		verts[MAX_CLIP_VERTS];
+	glpoly_t*	p;
 
 	c_sky = 0;
 
@@ -877,7 +877,7 @@ R_ClearSkyBox
 */
 void R_ClearSkyBox( void )
 {
-	int		i;
+	int			i;
 
 	i = 0;
 	while (i < 6)
@@ -948,14 +948,14 @@ void MakeSkyVec( float s, float t, int axis )
 R_DrawSkyBox
 =================
 */
-int skytexorder[6] = { 0, 2, 1, 3, 4, 5 };
+int			skytexorder[6] = { 0, 2, 1, 3, 4, 5 };
 #define SIGN(d)				((d)<0?-1:1)
 static int	gFakePlaneType[6] = { 1, -1, 2, -2, 3, -3 };
 void R_DrawSkyBox( void )
 {
-	int		i;
-	int		base;
-	vec3_t	normal;
+	int			i;
+	int			base;
+	vec3_t		normal;
 
 	GL_DisableMultitexture();
 

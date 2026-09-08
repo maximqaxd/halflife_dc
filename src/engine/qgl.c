@@ -55,6 +55,11 @@ void APIENTRY qglTexCoord2f( GLfloat s, GLfloat t )
 	Sys_Error("NYI");
 }
 
+void APIENTRY qglTexParameterf( GLenum target, GLenum pname, GLfloat param )
+{
+	Sys_Error("NYI");
+}
+
 void APIENTRY qglTexEnvf( GLenum target, GLenum pname, GLfloat param )
 {
 	Sys_Error("NYI");

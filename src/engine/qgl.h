@@ -29,6 +29,7 @@ void APIENTRY qglEnd( void );
 void APIENTRY qglShadeModel( GLenum mode );
 void APIENTRY qglTexCoord2f( GLfloat s, GLfloat t );
 void APIENTRY qglTexEnvf( GLenum target, GLenum pname, GLfloat param );
+void APIENTRY qglTexParameterf( GLenum target, GLenum pname, GLfloat param );
 void APIENTRY qglVertex2f( GLfloat x, GLfloat y );
 void APIENTRY qglVertex3fv( const GLfloat* v );
 

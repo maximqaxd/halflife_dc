@@ -5,11 +5,15 @@
 #include "winquake.h"
 #include "sys.h"
 #include "dc_accum.h"
+#include "dc_draw.h"
 #include "dc_debug.h"
 
 #include <windows.h>
 #include <tchar.h>
 #include <shintr.h>
+#include <platutil.h>
+#include <dbt.h>
+#include "vmu.h"
 
 #pragma intrinsic(fabsf)
 
@@ -20,7 +24,7 @@ extern void     VID_UpdateWindowVars( RECT *pRect, int cx, int cy );
 extern qboolean DC_InitTextureList( void );
 
 extern float    Sys_FloatTime( void );
-extern int      GetVideoOutputFormat( void );
+
 
 #define METER_FLIP      400
 #define COLOR_OPAQUE_WHITE	0xffffffff
@@ -52,27 +56,27 @@ extern int      GetVideoOutputFormat( void );
 #define PALETTE_CUBE_GRAY_COUNT		40
 
 HWND                        g_hWnd;
-static LPDIRECTDRAW         g_pDD           = NULL;
-LPDIRECTDRAW4               g_pDD4          = NULL;	/* shared: dc_draw.c texture surfaces */
-static LPDIRECTDRAWSURFACE4 g_pddsPrimary   = NULL;
+static LPDIRECTDRAW g_pDD           = NULL;
+LPDIRECTDRAW4 g_pDD4          = NULL;	/* shared: dc_draw.c texture surfaces */
+LPDIRECTDRAWSURFACE4 g_pddsPrimary = NULL;
 static LPDIRECTDRAWSURFACE4 g_pddsBack      = NULL;
-static LPDIRECT3D3          g_pD3D          = NULL;
-LPDIRECT3DDEVICE3           g_pD3DDevice    = NULL;
-LPDIRECT3DVIEWPORT3         g_pViewport     = NULL;
-static LPDIRECT3DMATERIAL3  g_pBackgroundMaterial = NULL;
-static LPDIRECT3DLIGHT      g_pLights[MAX_D3D_LIGHTS];
+static LPDIRECT3D3 g_pD3D          = NULL;
+LPDIRECT3DDEVICE3 g_pD3DDevice    = NULL;
+LPDIRECT3DVIEWPORT3 g_pViewport     = NULL;
+static LPDIRECT3DMATERIAL3 g_pBackgroundMaterial = NULL;
+static LPDIRECT3DLIGHT g_pLights[MAX_D3D_LIGHTS];
 
-static D3DDEVICEDESC        g_d3dHWDeviceDesc;
-static D3DDEVICEDESC        g_d3dHELDeviceDesc;
-static D3DDEVICEDESC        g_d3dDeviceDesc;
-D3DVIEWPORT2               g_viewportDesc;
-D3DMATERIAL                 g_backgroundMaterialData;
-D3DLIGHT2                   g_lightData[MAX_D3D_LIGHTS];
-D3DMATRIX                   g_identityMatrix;
-static D3DMATRIX            g_matNegY;
-static D3DMATRIX            g_matNegX;
-static D3DMATRIX            g_matAxis3;
-static D3DMATRIX            g_matAxis4;
+static D3DDEVICEDESC g_d3dHWDeviceDesc;
+static D3DDEVICEDESC g_d3dHELDeviceDesc;
+static D3DDEVICEDESC g_d3dDeviceDesc;
+D3DVIEWPORT2 g_viewportDesc;
+D3DMATERIAL	g_backgroundMaterialData;
+D3DLIGHT2	g_lightData[MAX_D3D_LIGHTS];
+D3DMATRIX	g_identityMatrix;
+static D3DMATRIX g_matNegY;
+static D3DMATRIX g_matNegX;
+static D3DMATRIX g_matAxis3;
+static D3DMATRIX g_matAxis4;
 /* Shared with dc_draw.c (DC_LoadTexture passes these by address to the
    surface-prep helpers), so they can no longer be file-static. */
 DDPIXELFORMAT               g_pfRGB565;
@@ -82,30 +86,30 @@ DDPIXELFORMAT               g_pfARGB4444;
 DDPIXELFORMAT               g_pfScreenRGB565;
 
 // fog parameters set by the game through DCV_SetFog, applied by DCV_SetupFog
-static int      g_bFogChanged;
-static int      g_bFogEnabled;
-static int      g_nFogR;
-static int      g_nFogG;
-static int      g_nFogB;
-static int      g_nFogAmount;
+static int	g_bFogChanged;
+static int	g_bFogEnabled;
+static int	g_nFogR;
+static int	g_nFogG;
+static int	g_nFogB;
+static int	g_nFogAmount;
 
 // hardware gamma ramp, rebuilt as a Hermite curve from the dc_light_* cvars
-unsigned short  g_GammaTable[1024];
-byte            g_GammaTable256[256];
+unsigned short g_GammaTable[1024];
+byte		g_GammaTable256[256];
 
 // overscan margins for the TV; VGA output needs none
-extern int      scr_safe_x;
-extern int      scr_safe_y;
+extern int	scr_safe_x;
+extern int	scr_safe_y;
 
 
 // screen saver: fade the frame out after five minutes without input
-int             g_bScreenSaverActive;
-static float    g_flScreenSaverTime;
+int			g_bScreenSaverActive;
+static float g_flScreenSaverTime;
 
 // loading progress bar
-static int      g_nProgress;
+static int	g_nProgress;
 
-DWORD           g_dwFlipTick;
+DWORD		g_dwFlipTick;
 
 void* Sys_GetDirectDraw4( void )     { return (void*)g_pDD4; }
 void* Sys_GetBackBuffer4( void )     { return (void*)g_pddsBack; }
@@ -125,8 +129,8 @@ amount rises.
 */
 void DCV_SetupFog( void )
 {
-	int   r, g, b, amount;
-	float end;
+	int			r, g, b, amount;
+	float		end;
 
 	DCV_SetRenderState(D3DRENDERSTATE_FOGENABLE, g_bFogEnabled);
 
@@ -166,7 +170,7 @@ void DCV_SetFog( int enable, int r, int g, int b, int amount )
 	g_bFogChanged = TRUE;
 }
 
-void DCV_UpdateTextureFiltering( void )
+void DCV_SetTextureFilterDefault( void )
 {
 	if (r_testlight.value == 0.0f)
 	{
@@ -247,9 +251,9 @@ with tangents dc_light_alpha/dc_light_beta.
 */
 void DCV_BuildGammaTable( float lo, float hi )
 {
-	float alpha, beta;
-	float v;
-	int   i;
+	float		alpha, beta;
+	float		v;
+	int			i;
 
 	lo = dc_light_min.value;
 	hi = dc_light_max.value;
@@ -271,7 +275,21 @@ void DCV_BuildGammaTable( float lo, float hi )
 	}
 }
 
-__inline void DCV_RefreshGamma( void )
+__inline void DCV_GammaVGA( void )
+{
+	DCV_BuildGammaTable(0.9f, 0.8f);
+	scr_safe_x = 0;
+	scr_safe_y = 0;
+}
+
+__inline void DCV_GammaDefault( void )
+{
+	DCV_BuildGammaTable(1.0f, 1.0f);
+	scr_safe_x = 8;
+	scr_safe_y = 24;
+}
+
+__inline void DCV_GammaTV( void )
 {
 	DCV_BuildGammaTable(0.9f, 0.58f);
 	scr_safe_x = 8;
@@ -289,15 +307,15 @@ images for the calibration screen: a 256-step gray ramp and the classic
 */
 void DCV_GammaRefresh_f( void )
 {
-	byte rgb[PALETTE_RGB_BYTES];
+	byte		rgb[PALETTE_RGB_BYTES];
 	byte *p;
-	int  i, j, k;
+	int			i, j, k;
 
 	switch (GetVideoOutputFormat())
 	{
 	case 2:
 	case 3:
-		DCV_RefreshGamma();
+		DCV_GammaTV();
 		break;
 	case 0x12:
 	case 0x13:
@@ -305,17 +323,13 @@ void DCV_GammaRefresh_f( void )
 	case 0x23:
 	case 0x32:
 	case 0x33:
-		DCV_RefreshGamma();
+		DCV_GammaTV();
 		break;
 	case 0x40:
-		DCV_BuildGammaTable(0.9f, 0.8f);
-		scr_safe_x = 0;
-		scr_safe_y = 0;
+		DCV_GammaVGA();
 		break;
 	default:
-		DCV_BuildGammaTable(1.0f, 1.0f);
-		scr_safe_x = 8;
-		scr_safe_y = 24;
+		DCV_GammaDefault();
 		break;
 	}
 
@@ -424,7 +438,7 @@ void DCV_FB_BackgroundRect( WORD color )
 {
 	DDSURFACEDESC2 ddsd;
 	WORD *p;
-	int   i, x;
+	int			i, x;
 
 	memset(&ddsd, 0, sizeof(ddsd));
 	ddsd.dwSize = sizeof(DDSURFACEDESC2);
@@ -455,7 +469,7 @@ after five minutes without any.
 */
 void Host_UpdateScreenSaver( int bCheckOnly )
 {
-	float time;
+	float		time;
 
 	time = Sys_FloatTime();
 	if (!bCheckOnly)
@@ -521,7 +535,7 @@ Orange gradient across the progress bar, brightest in the middle rows.
 */
 unsigned short DCV_ProgressColor( int row, int height )
 {
-	float f;
+	float		f;
 
 	f = 1.5f - fabsf((float)(row - height / 2)) / (float)(height / 2);
 	if (f > 1.0f)
@@ -529,8 +543,8 @@ unsigned short DCV_ProgressColor( int row, int height )
 	if (f < 0.0f)
 		f = 0.0f;
 	return (unsigned short)((((int)(f * 255.0f) >> 3) << 11) |
-	                        (((int)(f * 144.0f) >> 2) << 5) |
-	                        ((int)(f * 0.0f) >> 3));
+							(((int)(f * 144.0f) >> 2) << 5) |
+							((int)(f * 0.0f) >> 3));
 }
 
 /*
@@ -545,8 +559,8 @@ void DCV_DrawProgress( int percent, int y, int height )
 {
 	DDSURFACEDESC2 ddsd;
 	WORD *p;
-	WORD  color;
-	int   i, x, width;
+	WORD		color;
+	int			i, x, width;
 
 	memset(&ddsd, 0, sizeof(ddsd));
 	ddsd.dwSize = sizeof(DDSURFACEDESC2);
@@ -567,27 +581,27 @@ void DCV_DrawProgress( int percent, int y, int height )
 	g_pddsPrimary->lpVtbl->Unlock(g_pddsPrimary, NULL);
 }
 
-void DCV_SetProgress( int percent )
+__inline void DCV_DrawCurrentProgress( void )
 {
-	float flProgress;
-
-	if (percent < 0)
-		percent = 0;
-	if (percent > 100)
-		percent = 100;
-
-	flProgress = progress.value;
-	g_nProgress = percent;
-
-	if (flProgress == 0.0f)
+	if (progress.value == 0.0f)
 	{
 		if (g_nProgress)
 			DCV_DrawProgress(g_nProgress, 257, 30);
 	}
 	else
-	{
 		DCV_DrawProgress((int)progress.value, 257, 30);
-	}
+}
+
+void DCV_SetProgress( int percent )
+{
+	if (percent < 0)
+		percent = 0;
+	if (percent > 100)
+		percent = 100;
+
+	g_nProgress = percent;
+
+	DCV_DrawCurrentProgress();
 }
 
 /*
@@ -600,88 +614,13 @@ flush and the page flip, then the progress bar on top.
 */
 void DCV_Flip( void )
 {
-	fbmeter_t *pMeter;
-	float      dt;
-	int        i, val;
-
 	DCV_DrawScreenSaver();
-
-	if (profilescale.value > 0)
-	{
-		if (profilescale.value >= 1.0f)
-		{
-			dt = (float)(GetTickCount() - g_dwFlipTick) * 0.001f;
-			if (dt < 0.0f || dt > 0.2f)
-				val = 0;
-			else
-				val = (int)(profilescale.value * dt + 20.0f);
-
-			if (val > 0)
-			{
-				pMeter = NULL;
-				for (i = 0; i < MAX_FB_METERS; i++)
-				{
-					if (g_FBMeters[i].type == 0)
-					{
-						pMeter = &g_FBMeters[i];
-						break;
-					}
-				}
-				if (pMeter)
-				{
-					pMeter->type = METER_FLIP;
-					pMeter->color = 0xffffffff;
-					pMeter->value = (short)val;
-				}
-			}
-		}
-	}
-
-	DCV_DrawMeters();
-	g_dwFlipTick = GetTickCount();
-
+	DCV_UpdateMeters();
 	DCV_FlushInline();
 	g_pddsPrimary->lpVtbl->Flip(g_pddsPrimary, NULL, DDFLIP_WAIT);
-
-	if (profilescale.value >= 1.0f)
-	{
-		dt = (float)(GetTickCount() - g_dwFlipTick) * 0.001f;
-		if (dt < 0.0f || dt > 0.2f)
-			val = 0;
-		else
-			val = (int)(profilescale.value * dt + 20.0f);
-
-		if (val > 0)
-		{
-			pMeter = NULL;
-			for (i = 0; i < MAX_FB_METERS; i++)
-			{
-				if (g_FBMeters[i].type == 0)
-				{
-					pMeter = &g_FBMeters[i];
-					break;
-				}
-			}
-			if (pMeter)
-			{
-				pMeter->type = METER_FLIP;
-				pMeter->color = COLOR_OPAQUE_WHITE;
-				pMeter->value = (short)val;
-			}
-		}
-	}
-
-	if (progress.value == 0.0f)
-	{
-		if (g_nProgress)
-			DCV_DrawProgress(g_nProgress, 257, 30);
-	}
-	else
-	{
-		DCV_DrawProgress((int)progress.value, 257, 30);
-	}
-
-	g_dwAccumCurrentDiffuse = COLOR_OPAQUE_WHITE;
+	DCV_AddMeterTimed(COLOR_OPAQUE_WHITE);
+	DCV_DrawCurrentProgress();
+	DCV_SetPackedColor(COLOR_OPAQUE_WHITE);
 }
 
 /*
@@ -695,9 +634,9 @@ render and texture-stage states and begin the scene.
 */
 qboolean DCV_InitDirect3D( void )
 {
-	LPD3DDEVICEDESC   lpChosenDesc;
+	LPD3DDEVICEDESC lpChosenDesc;
 	D3DMATERIALHANDLE hMaterial;
-	int               i;
+	int			i;
 
 	// create the device and read its caps, preferring hardware
 	g_pDD4->lpVtbl->QueryInterface(g_pDD4, &IID_IDirect3D3, (LPVOID*)&g_pD3D);
@@ -896,6 +835,24 @@ qboolean DCV_InitDirect3D( void )
 	return TRUE;
 }
 
+LRESULT CALLBACK DCV_WindowProc( HWND window, UINT message, WPARAM wparam, LPARAM lparam )
+{
+	void(*volatile shutdownDisplay)(void) = Sys_ShutdownDisplay;
+	if (message == WM_DESTROY)
+	{
+		shutdownDisplay();
+		PostQuitMessage(0);
+		return 0;
+	}
+	if (message == WM_DEVICECHANGE && wparam == DBT_DEVICEREMOVECOMPLETE)
+	{
+		g_gdDoorOpened = 1;
+		if (!g_gdDoorPending)
+			ResetToFirmware();
+	}
+	return DefWindowProc(window, message, wparam, lparam);
+}
+
 /*
 ================
 DCV_CreateWindow
@@ -909,7 +866,7 @@ qboolean DCV_CreateWindow( void )
 {
 	WNDCLASS cls;
 	HKEY     hKey;
-	DWORD    dwValue;
+	DWORD		dwValue;
 
 	// PowerVR tuning values
 	RegOpenKeyEx(HKEY_LOCAL_MACHINE, TEXT("DisplaySettings"), 0, 0, &hKey);
@@ -927,7 +884,7 @@ qboolean DCV_CreateWindow( void )
 	if (!g_hPrevInstance)
 	{
 		cls.style         = 0;
-		cls.lpfnWndProc   = (WNDPROC)DefWindowProc;
+		cls.lpfnWndProc   = DCV_WindowProc;
 		cls.cbClsExtra    = 0;
 		cls.cbWndExtra    = 0;
 		cls.hInstance     = g_hInstance;
@@ -941,13 +898,13 @@ qboolean DCV_CreateWindow( void )
 	}
 
 	g_hWnd = CreateWindowEx(0,
-	                             TEXT("Halflife"),
-	                             TEXT("Halflife"),
-	                             WS_VISIBLE,
-	                             0, 0,
-	                             640, 480,
-	                             NULL, NULL,
-	                             g_hInstance, NULL);
+								 TEXT("Halflife"),
+								 TEXT("Halflife"),
+								 WS_VISIBLE,
+								 0, 0,
+								 640, 480,
+								 NULL, NULL,
+								 g_hInstance, NULL);
 
 	/* Bring up DirectDraw, then Direct3D, then the texture subsystem. */
 	if (!DCV_InitDirectDraw())
@@ -966,6 +923,51 @@ has nothing to do on this back end.
 ================
 */
 void glTexSubImage2D( int target, int level, int xoffset, int yoffset,
-	int width, int height, int format, int type, const void* pixels )
+	int			width, int height, int format, int type, const void* pixels )
 {
+}
+
+void DCV_SetTextureFilterPoint( void )
+{
+	DCV_SetTextureStageState(0, D3DTSS_MAGFILTER, D3DTFG_POINT);
+	DCV_SetTextureStageState(0, D3DTSS_MINFILTER, D3DTFN_POINT);
+	DCV_SetTextureStageState(0, D3DTSS_MIPFILTER, D3DTFP_LINEAR);
+	DCV_SetTextureStageState(1, D3DTSS_MAGFILTER, D3DTFG_POINT);
+	DCV_SetTextureStageState(1, D3DTSS_MINFILTER, D3DTFN_POINT);
+	DCV_SetTextureStageState(1, D3DTSS_MIPFILTER, D3DTFP_LINEAR);
+}
+
+void DCV_DisableFog( void )
+{
+	DCV_SetRenderState(D3DRENDERSTATE_FOGENABLE, FALSE);
+}
+
+void DCV_GetSurfaceDesc( DDSURFACEDESC2 *desc, LPDIRECTDRAWSURFACE4 surface )
+{
+	memset(desc, 0, sizeof(*desc));
+	desc->dwSize = sizeof(*desc);
+	surface->lpVtbl->GetSurfaceDesc(surface, desc);
+}
+
+void DCV_BlitSurface( LPDIRECTDRAWSURFACE4 surface, int width, int height, int x, int y, int front )
+{
+	RECT source, dest;
+	int			w = width, h = height;
+	while (w > 256 || h > 256)
+	{
+		w >>= 1;
+		h >>= 1;
+	}
+	source.left = 0;
+	source.top = 0;
+	source.right = width;
+	source.bottom = height;
+	dest.left = x;
+	dest.top = y;
+	dest.right = x + w;
+	dest.bottom = y + h;
+	if (front)
+		g_pddsPrimary->lpVtbl->Blt(g_pddsPrimary, &dest, surface, &source, 0, NULL);
+	else
+		g_pddsBack->lpVtbl->Blt(g_pddsBack, &dest, surface, &source, 0, NULL);
 }

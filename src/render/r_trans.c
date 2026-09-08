@@ -9,18 +9,18 @@
 #include "d_local.h"
 #endif
 
-qboolean r_intentities;
+qboolean	r_intentities;
 
-int max_translucent_objects;
+int			max_translucent_objects;
 
 typedef struct
 {
-    cl_entity_t* pEnt;
-    float distance;
+	cl_entity_t* pEnt;
+	float		distance;
 } transObjRef;
 
-int numTransObjs = 0;
-int maxTransObjs = 0;
+int			numTransObjs = 0;
+int			maxTransObjs = 0;
 transObjRef* transObjects = NULL;
 
 void R_DrawAliasModel( cl_entity_t* e );
@@ -63,9 +63,9 @@ void R_DestroyObjects( void )
 
 float GlowBlend( cl_entity_t* pEntity )
 {
-	vec3_t tmp;
-	float dist, brightness;
-	pmtrace_t trace;
+	vec3_t		tmp;
+	float		dist, brightness;
+	pmtrace_t	trace;
 
 	VectorSubtract(r_entorigin, r_origin, tmp);
 	dist = VectorLength(tmp);
@@ -104,33 +104,32 @@ Calculate min/max coords of an oriented bounding box
 */
 void RotatedBBox( vec_t* mins, vec_t* maxs, vec_t* angles, vec_t* tmins, vec_t* tmaxs )
 {
-    int     i;
-    float   v, max;
+	int			i;
+	float		v, max;
 
-    if (!angles[0] && !angles[1] && !angles[2])
-    {
-        VectorCopy(mins, tmins);
-        VectorCopy(maxs, tmaxs);
-    }
-    else
-    {
-        max = 0.0f;
-        for (i = 0; i < 3; i++)
-        {
-            v = fabs(mins[i]);
-            if (v > max)
-                max = v;
-            v = fabs(maxs[i]);
-            if (v > max)
-                max = v;
-        }
-        tmaxs[0] = max;
-        tmaxs[1] = tmaxs[0];
-        tmaxs[2] = tmaxs[1];
-        tmins[0] = -max;
-        tmins[1] = tmins[0];
-        tmins[2] = tmins[1];
-    }
+	if (!((int*)angles)[0] && !((int*)angles)[1] && !((int*)angles)[2])
+	{
+		VectorCopy(mins, tmins);
+		VectorCopy(maxs, tmaxs);
+	}
+	else
+	{
+		max = 0.0f;
+		for (i = 0; i < 3; i++)
+		{
+			v = fabs(mins[i]);
+			if (v > max)
+				max = v;
+			v = fabs(maxs[i]);
+			if (v > max)
+				max = v;
+		}
+		for (i = 0; i < 3; i++)
+		{
+			tmins[i] = -max;
+			tmaxs[i] = max;
+		}
+	}
 }
 
 /*
@@ -142,9 +141,9 @@ Add a transparent entity to a list of transparent objects
 */
 void AddTEntity( cl_entity_t* pEnt )
 {
-	int     i;
-	float   dist;
-	vec3_t  v;
+	int			i;
+	float		dist;
+	vec3_t		v;
 
 	if (numTransObjs >= maxTransObjs)
 		Sys_Error("AddTentity: Too many objects");
@@ -189,8 +188,8 @@ Append a transparent entity to a list of transparent objects
 */
 void AppendTEntity( cl_entity_t* pEnt )
 {
-	float   dist;
-	vec3_t  v;
+	float		dist;
+	vec3_t		v;
 
 	if (numTransObjs >= maxTransObjs)
 		Sys_Error("AddTentity: Too many objects");
@@ -207,7 +206,7 @@ void AppendTEntity( cl_entity_t* pEnt )
 	numTransObjs++;
 }
 
-float r_blend;	// blending amount in [0..1] range
+float		r_blend;	// blending amount in [0..1] range
 
 /*
 =============
@@ -216,8 +215,8 @@ R_DrawTEntitiesOnList
 */
 void R_DrawTEntitiesOnList( void )
 {
-	int     i, j;
-	float   alpha;
+	int			i, j;
+	float		alpha;
 
 	if (!r_drawentities.value)
 		return;
@@ -254,7 +253,7 @@ void R_DrawTEntitiesOnList( void )
 		case mod_sprite:
 			if (currententity->body)
 			{
-				float* pAttachment;
+				float*		pAttachment;
 
 				pAttachment = R_GetAttachmentPoint(currententity->skin, currententity->body);
 				VectorCopy(pAttachment, r_entorigin);

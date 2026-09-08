@@ -393,7 +393,7 @@ extern cvar_t	r_testlight;
 extern cvar_t	mipbias;
 
 //
-// dc_draw.c / r_studio.c -- texture VRAM management, used by the cache
+// dc_draw.c / l_studio.c -- texture VRAM management, used by the cache
 // last-chance reclaim path when the arena is full
 //
 int		DC_ReclaimTextureSlot( void );
@@ -401,6 +401,11 @@ int		DC_ReleaseTexture( int texnum );
 void		DC_TouchTexture( int texnum );
 void	Mod_FreeStudioTextures( void* buf );
 void	Mod_TouchStudioTextures( void* buf );
+void	Mod_TouchStudioNeoTextures( void* buf );
+
+void R_ApplyViewModelProjection( float zn );
+void R_ApplyViewProjection( void );
+void R_ApplyDecalProjection( void );
 
 //
 // dc_debug.c -- on-screen memory profiling meters

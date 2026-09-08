@@ -5,11 +5,11 @@
 #include "common.h"
 #include "cmodel.h"
 
-byte* gPAS;
-byte* gPVS;
-int gPVSRowBytes;
+byte*		gPAS;
+byte*		gPVS;
+int			gPVSRowBytes;
 
-byte mod_novis[MAX_MAP_LEAFS / 8];
+byte		mod_novis[MAX_MAP_LEAFS / 8];
 
 /*
 ===============================================================================
@@ -36,8 +36,8 @@ Mod_DecompressVis
 */
 byte* Mod_DecompressVis( byte* in, model_t* model )
 {
-	static byte decompressed[MAX_MAP_LEAFS / 8];
-	int		row;
+	static byte	decompressed[MAX_MAP_LEAFS / 8];
+	int			row;
 
 	row = (model->numleafs + 7) >> 3;
 
@@ -55,7 +55,7 @@ byte* Mod_LeafPVS( mleaf_t* leaf, model_t* model )
 
 	if (gPVS)
 	{
-		int leafnum = leaf - model->leafs;
+		int			leafnum = leaf - model->leafs;
 		return CM_LeafPVS(leafnum);
 	}
 
@@ -64,9 +64,9 @@ byte* Mod_LeafPVS( mleaf_t* leaf, model_t* model )
 
 void CM_DecompressPVS( byte* in, byte* decompressed, int byteCount )
 {
-	int		c;
-	byte*	out;
-	byte*	end;
+	int			c;
+	byte*		out;
+	byte*		end;
 
 	if (!in)
 	{
@@ -136,15 +136,15 @@ Build a potential audible set.
 */
 void CM_CalcPAS( model_t* pModel )
 {
-	int		rowwords;
-	int		actualRowBytes;
-	int		i, j, k, l;
-	int		index;
-	int		num;
-	int		bitbyte;
+	int			rowwords;
+	int			actualRowBytes;
+	int			i, j, k, l;
+	int			index;
+	int			num;
+	int			bitbyte;
 	unsigned int* dest, * src;
-	byte* scan;
-	int		count, vcount, acount;
+	byte*		scan;
+	int			count, vcount, acount;
 
 	CM_FreePAS();
 
@@ -232,8 +232,8 @@ is potentially visible
 */
 qboolean CM_HeadnodeVisible( mnode_t* node, byte* visbits )
 {
-	int leafnum;
-	mleaf_t* leaf;
+	int			leafnum;
+	mleaf_t*	leaf;
 
 	if (!node)
 		return FALSE;

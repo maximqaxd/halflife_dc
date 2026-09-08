@@ -107,6 +107,43 @@ int Mod_IsStudioNeoModel( const studiohdr_t* phdr )
 	return FALSE;
 }
 
+
+void Mod_FreeStudioTextures( void* buffer )
+{
+	studiohdr_t* phdr = (studiohdr_t*)buffer;
+	mstudiotexture_t* texture;
+	int			i;
+
+	if (phdr->version == 0xC0EDBEEF || phdr->version == 0xC0EDBABE)
+	{
+		if (phdr->textureindex != 0)
+		{
+			texture = (mstudiotexture_t*)((byte*)phdr + phdr->textureindex);
+			for (i = 0; i < phdr->numtextures; i++, texture++)
+				DC_ReleaseTexture(texture->index);
+		}
+	}
+}
+
+void Mod_TouchStudioTextures( void* buffer )
+{
+	studiohdr_t* phdr = (studiohdr_t*)buffer;
+	mstudiotexture_t* texture;
+	int			i;
+
+	if (phdr->version == 0xC0EDBEEF || phdr->version == 0xC0EDBABE)
+	{
+		if (Mod_IsStudioNeoModel(phdr))
+			Mod_TouchStudioNeoTextures(buffer);
+		else if (phdr->textureindex != 0)
+		{
+			texture = (mstudiotexture_t*)((byte*)phdr + phdr->textureindex);
+			for (i = 0; i < phdr->numtextures; i++, texture++)
+				DC_TouchTexture(texture->index);
+		}
+	}
+}
+
 /*
 =================
 Mod_LoadStudioNeoModel
@@ -191,4 +228,26 @@ void Mod_LoadStudioNeoModel( model_t* mod, void* buffer )
 	}
 
 	memcpy(mod->cache.data, pin, total);
+}
+
+/*
+=================
+Mod_TouchStudioNeoTextures
+=================
+*/
+void Mod_TouchStudioNeoTextures( void* buffer )
+{
+	studiohdr_t* phdr = (studiohdr_t*)buffer;
+	mstudiotexture_t* texture;
+	int i;
+
+	if (phdr->version == 0xC0EDBABE)
+	{
+		if (phdr->textureindex != 0)
+		{
+			texture = (mstudiotexture_t*)((byte*)phdr + phdr->textureindex);
+			for (i = 0; i < phdr->numtextures; i++, texture++)
+				DC_TouchTexture(texture->index);
+		}
+	}
 }

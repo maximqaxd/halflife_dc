@@ -14,9 +14,9 @@
 
 #pragma intrinsic(fabsf)
 
-model_t* loadmodel;
-char loadname[32];	// for hunk tags
-char* wadpath;
+model_t*	loadmodel;
+char		loadname[32];	// for hunk tags
+char*		wadpath;
 
 void Mod_LoadSpriteModel( model_t* mod, void* buffer );
 void Mod_LoadBrushModel( model_t* mod, void* buffer );
@@ -25,38 +25,38 @@ void Mod_LoadStudioNeoModel( model_t* mod, void* buffer );
 model_t* Mod_LoadModel( model_t* mod, qboolean crash, qboolean bDefer );
 model_t* Mod_LoadModelWorldPiecewise( model_t* mod, qboolean crash );
 
-model_t* mod_known[MAX_MODELS];
-int		mod_numknown;
+model_t*	mod_known[MAX_MODELS];
+int			mod_numknown;
 
 #define MAX_SPRITE_TEXTURES	8
 
-int gSpriteTextureFormat = SPR_NORMAL;
+int			gSpriteTextureFormat = SPR_NORMAL;
 
 // Frames that resolve to the same bucket share one upload; this holds the last
 // texture handed out so the next frame can point at it instead of loading again.
-int gLastSpriteTexture;
+int			gLastSpriteTexture;
 
 //
 // Each lump of the world lives in its own chunk on the disc, named after the map
 // with the lump appended.
 //
-char	chunk_textures[MAX_QPATH];
-char	chunk_palettes[MAX_QPATH];
-char	chunk_lighting[MAX_QPATH];
-char	chunk_visdata[MAX_QPATH];
-char	chunk_entities[MAX_QPATH];
-char	chunk_vertexes[MAX_QPATH];
-char	chunk_submodels[MAX_QPATH];
-char	chunk_edges[MAX_QPATH];
-char	chunk_texinfo[MAX_QPATH];
-char	chunk_faces[MAX_QPATH];
-char	chunk_nodes[MAX_QPATH];
-char	chunk_leafs[MAX_QPATH];
-char	chunk_clipnodes[MAX_QPATH];
-char	chunk_hull[MAX_QPATH];
-char	chunk_marksurfs[MAX_QPATH];
-char	chunk_planes[MAX_QPATH];
-char	chunk_surfedges[MAX_QPATH];
+char		chunk_textures[MAX_QPATH];
+char		chunk_palettes[MAX_QPATH];
+char		chunk_lighting[MAX_QPATH];
+char		chunk_visdata[MAX_QPATH];
+char		chunk_entities[MAX_QPATH];
+char		chunk_vertexes[MAX_QPATH];
+char		chunk_submodels[MAX_QPATH];
+char		chunk_edges[MAX_QPATH];
+char		chunk_texinfo[MAX_QPATH];
+char		chunk_faces[MAX_QPATH];
+char		chunk_nodes[MAX_QPATH];
+char		chunk_leafs[MAX_QPATH];
+char		chunk_clipnodes[MAX_QPATH];
+char		chunk_hull[MAX_QPATH];
+char		chunk_marksurfs[MAX_QPATH];
+char		chunk_planes[MAX_QPATH];
+char		chunk_surfedges[MAX_QPATH];
 
 /*
 =================
@@ -122,7 +122,7 @@ Caches the data if needed
 */
 void* Mod_Extradata( model_t* mod )
 {
-	void* r;
+	void*		r;
 
 	r = Cache_Check(&mod->cache);
 	if (r)
@@ -143,7 +143,7 @@ Mod_PointInLeaf
 */
 mleaf_t* Mod_PointInLeaf( vec_t* p, model_t* model )
 {
-	mnode_t* node;
+	mnode_t*	node;
 	float		d;
 	mclipplane_t* plane;
 
@@ -173,7 +173,7 @@ Mod_ClearAll
 */
 void Mod_ClearAll( void )
 {
-	int		i;
+	int			i;
 
 	for (i = 0; i < mod_numknown; i++)
 	{
@@ -193,7 +193,7 @@ Mod_FindName
 */
 model_t* Mod_FindName( char* name )
 {
-	int		i;
+	int			i;
 	model_t** pmod;
 
 	if (!name[0])
@@ -229,7 +229,7 @@ Mod_TouchModel
 */
 void Mod_TouchModel( char* name )
 {
-	model_t* mod;
+	model_t*	mod;
 
 	mod = Mod_FindName(name);
 
@@ -366,7 +366,7 @@ Loads in a model for the given name
 */
 model_t* Mod_ForName( char* name, qboolean crash )
 {
-	model_t* mod;
+	model_t*	mod;
 
 	mod = Mod_FindName(name);
 
@@ -383,7 +383,7 @@ actually draws it.
 */
 model_t* Mod_ForNameDefer( char* name, qboolean crash )
 {
-	model_t* mod;
+	model_t*	mod;
 
 	mod = Mod_FindName(name);
 
@@ -403,7 +403,7 @@ void Mod_MarkClient( model_t* pModel )
 ===============================================================================
 */
 
-byte* mod_base;
+byte*		mod_base;
 
 #define MIPSCALE			(64 + 16 + 4 + 1)
 #define PIXELS_SIZE			(MIPSCALE * (512 * 512) / 64)
@@ -415,7 +415,7 @@ byte* mod_base;
 
 // Texture loads are logged when developer is turned up past 1.
 static char	texlogline[1024];
-static void*	texlogfile;
+static void* texlogfile;
 
 /*
 ===============
@@ -424,26 +424,26 @@ Mod_LoadTextures
 */
 void Mod_LoadTextures( lump_t* l )
 {
-	int				i, j, pixels, num, max, altmax;
-	int				r, g, b;
-	int				srcwidth, srcheight;
-	miptex_t*		mt;
-	texture_t*		tx, * tx2;
-	texture_t*		anims[10];
-	texture_t*		altanims[10];
-	dmiptexlump_t*	m;
-	texture_t*		texheaders;
-	byte*			tempTexData;
-	byte*			rawtex;
-	byte*			pPal;
-	byte*			vq;
-	byte*			vqindex;
-	int				i2;
-	char*			pColon;
-	char			perMapWadPath[MAX_OSPATH];
-	qboolean		wads_parsed;
-	int				hasPerMapWads;
-	qboolean		isGbix;
+	int			i, j, pixels, num, max, altmax;
+	int			r, g, b;
+	int			srcwidth, srcheight;
+	miptex_t*	mt;
+	texture_t*	tx, * tx2;
+	texture_t*	anims[10];
+	texture_t*	altanims[10];
+	dmiptexlump_t* m;
+	texture_t*	texheaders;
+	byte*		tempTexData;
+	byte*		rawtex;
+	byte*		pPal;
+	byte*		vq;
+	byte*		vqindex;
+	int			i2;
+	char*		pColon;
+	char		perMapWadPath[MAX_OSPATH];
+	qboolean	wads_parsed;
+	int			hasPerMapWads;
+	qboolean	isGbix;
 
 	wads_parsed = false;
 	Sys_FloatTime();
@@ -749,13 +749,13 @@ over its own header so the block can be shrunk to exactly what it holds.
 */
 static qboolean Mod_TryLoadLt2Lighting( char* name )
 {
-	char	path[64];
-	int*	buf;
-	int*	in;
-	int*	out;
-	int		lightBytes;
-	int		surfCount;
-	char	subformat;
+	char		path[64];
+	int*		buf;
+	int*		in;
+	int*		out;
+	int			lightBytes;
+	int			surfCount;
+	char		subformat;
 
 	subformat = 0;
 
@@ -841,7 +841,7 @@ Mod_LoadEntities
 */
 void Mod_LoadEntities( lump_t* l )
 {
-	char* pszInputStream;
+	char*		pszInputStream;
 
 	if (!l->filelen)
 	{
@@ -878,8 +878,8 @@ Mod_LoadVertexes
 */
 void Mod_LoadVertexes( lump_t* l )
 {
-	dvertex_t* in;
-	mvertex_t* out;
+	dvertex_t*	in;
+	mvertex_t*	out;
 	int			i, count;
 
 	in = (dvertex_t*)(mod_base + l->fileofs);
@@ -906,8 +906,8 @@ Mod_LoadSubmodels
 */
 void Mod_LoadSubmodels( lump_t* l )
 {
-	dmodel_t* in;
-	dmodel_t* out;
+	dmodel_t*	in;
+	dmodel_t*	out;
 	int			i, j, count;
 
 	in = (dmodel_t*)(mod_base + l->fileofs);
@@ -942,9 +942,9 @@ Mod_LoadEdges
 */
 void Mod_LoadEdges( lump_t* l )
 {
-	dedge_t* in;
-	medge_t* out;
-	int 	i, count;
+	dedge_t*	in;
+	medge_t*	out;
+	int			i, count;
 
 	in = (dedge_t*)(mod_base + l->fileofs);
 	if (l->filelen % sizeof(*in))
@@ -969,10 +969,10 @@ Mod_LoadTexinfo
 */
 void Mod_LoadTexinfo( lump_t* l )
 {
-	texinfo_t* in;
-	mtexinfo_t* out;
-	int 	i, j, count;
-	int		miptex;
+	texinfo_t*	in;
+	mtexinfo_t*	out;
+	int			i, j, count;
+	int			miptex;
 
 	in = (texinfo_t*)(mod_base + l->fileofs);
 	if (l->filelen % sizeof(*in))
@@ -1018,11 +1018,11 @@ Fills in s->texturemins[] and s->extents[]
 */
 void CalcSurfaceExtents( msurface_t* s )
 {
-	float	mins[2], maxs[2], val;
-	int		i, j, e;
-	mvertex_t* v;
-	mtexinfo_t* tex;
-	int		bmins[2], bmaxs[2];
+	float		mins[2], maxs[2], val;
+	int			i, j, e;
+	mvertex_t*	v;
+	mtexinfo_t*	tex;
+	int			bmins[2], bmaxs[2];
 
 	mins[0] = mins[1] = 999999;
 	maxs[0] = maxs[1] = -99999;
@@ -1070,8 +1070,8 @@ Mod_LoadFaces
 */
 void Mod_LoadFaces( lump_t* l )
 {
-	dface_t* in;
-	msurface_t* out;
+	dface_t*	in;
+	msurface_t*	out;
 	int			i, count, surfnum;
 	int			planenum, side;
 
@@ -1179,8 +1179,8 @@ Mod_LoadNodes
 void Mod_LoadNodes( lump_t* l )
 {
 	int			i, j, count, p;
-	dnode_t* in;
-	mnode_t* out;
+	dnode_t*	in;
+	mnode_t*	out;
 
 	in = (dnode_t*)(mod_base + l->fileofs);
 	if (l->filelen % sizeof(*in))
@@ -1226,8 +1226,8 @@ Mod_LoadLeafs
 */
 void Mod_LoadLeafs( lump_t* l )
 {
-	dleaf_t* in;
-	mleaf_t* out;
+	dleaf_t*	in;
+	mleaf_t*	out;
 	int			i, j, count, p;
 
 	in = (dleaf_t*)(mod_base + l->fileofs);
@@ -1276,7 +1276,7 @@ void Mod_LoadClipnodes( lump_t* l )
 {
 	dclipnode_t* in, * out;
 	int			i, count;
-	hull_t* hull;
+	hull_t*		hull;
 
 	in = (dclipnode_t*)(mod_base + l->fileofs);
 	if (l->filelen % sizeof(*in))
@@ -1340,10 +1340,10 @@ Deplicate the drawing hull structure as a clipping hull
 */
 void Mod_MakeHull0( void )
 {
-	mnode_t* in, * child;
+	mnode_t*	in, * child;
 	dclipnode_t* out;
 	int			i, j, count;
-	hull_t* hull;
+	hull_t*		hull;
 
 	hull = &loadmodel->hulls[0];
 
@@ -1377,8 +1377,8 @@ Mod_LoadMarksurfaces
 */
 void Mod_LoadMarksurfaces( lump_t* l )
 {
-	int		i, j, count;
-	short* in;
+	int			i, j, count;
+	short*		in;
 	msurface_t** out;
 
 	in = (short*)(mod_base + l->fileofs);
@@ -1406,8 +1406,8 @@ Mod_LoadSurfedges
 */
 void Mod_LoadSurfedges( lump_t* l )
 {
-	int		i, count;
-	int* in, * out;
+	int			i, count;
+	int*		in, * out;
 
 	in = (int*)(mod_base + l->fileofs);
 	if (l->filelen % sizeof(*in))
@@ -1443,9 +1443,9 @@ keeps only the index on the plane itself.
 #define NORMAL_TABLE_MASK	(NORMAL_TABLE_SIZE - 1)
 #define NORMAL_TABLE_EMPTY	1000.0f		// no real normal has a component this big
 
-planenormal_t*	g_planeNormalTable;
-int				normal_count;
-int				normal_collisions;
+planenormal_t* g_planeNormalTable;
+int			normal_count;
+int			normal_collisions;
 
 /*
 ===============
@@ -1454,24 +1454,29 @@ Mod_AddNormalToTable
 Returns the index this normal lives at, adding it if it is not there yet.
 ===============
 */
-unsigned short Mod_AddNormalToTable( vec_t* normal, unsigned int hash )
+unsigned short Mod_HashNormal( vec_t *normal, unsigned int hash )
 {
-	planenormal_t*	entry;
-	byte*			pb;
-	unsigned short	index;
-	int				i;
+	byte *data = (byte *)normal;
+	int			i;
 
-	pb = (byte*)normal;
 	for (i = 0; i < 12; i++)
 	{
-		hash ^= *pb++;
+		hash ^= *data++;
 		if (hash & 1)
 			hash = (hash >> 1) | 0x0800;
 		else
-			hash = hash >> 1;
+			hash >>= 1;
 	}
+	return hash & NORMAL_TABLE_MASK;
+}
 
-	index = hash & NORMAL_TABLE_MASK;
+unsigned short Mod_AddNormalToTable( vec_t* normal, unsigned int hash )
+{
+	planenormal_t* entry;
+	unsigned short index;
+	int			i;
+
+	index = Mod_HashNormal(normal, hash);
 	entry = g_planeNormalTable + index;
 	i = NORMAL_TABLE_MASK;
 
@@ -1521,8 +1526,8 @@ Empties the table and seeds it with the six axial normals.
 */
 void Mod_InitNormalTable( void )
 {
-	vec3_t	normal;
-	int		i;
+	vec3_t		normal;
+	int			i;
 
 	if (!g_planeNormalTable)
 		g_planeNormalTable = (planenormal_t*)MnemoAlloc(NORMAL_TABLE_SIZE * sizeof(planenormal_t), 0x20, 0, "norm table");
@@ -1548,7 +1553,7 @@ void Mod_LoadPlanes( lump_t* l )
 {
 	int			i, j;
 	mclipplane_t* out;
-	dplane_t* in;
+	dplane_t*	in;
 	int			count;
 	int			bits;
 	vec3_t		normal;
@@ -1586,8 +1591,8 @@ RadiusFromBounds
 */
 float RadiusFromBounds( vec_t* mins, vec_t* maxs )
 {
-	int		i;
-	vec3_t	corner;
+	int			i;
+	vec3_t		corner;
 
 	for (i = 0; i < 3; i++)
 	{
@@ -1609,15 +1614,16 @@ the BSP texture lump, not a generic image-file loader.
 */
 static qboolean Mod_LoadExternalTextureTable( char* mapPath )
 {
-	char	texturePath[MAX_OSPATH];
-	char*	extension;
-	byte*	buffer;
-	int		length;
-	int		i;
-	int		count;
-	dmiptexlump_t*	texLump;
-	miptex_t*		mt;
-	lump_t	lump;
+	char		texturePath[MAX_OSPATH];
+	char*		extension;
+	byte*		buffer;
+	int			length;
+	int			i;
+	int			count;
+	dmiptexlump_t* texLump;
+	miptex_t*	mt;
+	lump_t		lump;
+	byte*		savedBase;
 
 	strcpy(texturePath, mapPath);
 	COM_StringToLower(texturePath);
@@ -1642,10 +1648,12 @@ static qboolean Mod_LoadExternalTextureTable( char* mapPath )
 			Sys_Error("Look, the whole point of the compact texture data is that it DOESN'T include the textures themselves....\n");
 	}
 
+	savedBase = mod_base;
 	mod_base = buffer;
 	lump.fileofs = 0;
 	lump.filelen = length;
 	Mod_LoadTextures(&lump);
+	mod_base = savedBase;
 	_FreeBlock();
 	return TRUE;
 }
@@ -1669,8 +1677,8 @@ Mod_LoadEntitiesChunk
 */
 qboolean Mod_LoadEntitiesChunk( char* path, dheader_t* header )
 {
-	byte*	buf;
-	char*	pszInputStream;
+	byte*		buf;
+	char*		pszInputStream;
 
 	buf = (byte*)Hunk_AllocName(header->lumps[LUMP_ENTITIES].filelen + 0x21, chunk_entities);
 	if (!buf)
@@ -1719,7 +1727,7 @@ Mod_LoadVisibilityChunk
 */
 qboolean Mod_LoadVisibilityChunk( char* path, dheader_t* header )
 {
-	byte*	buf;
+	byte*		buf;
 
 	buf = (byte*)Hunk_AllocName(header->lumps[LUMP_VISIBILITY].filelen + 0x21, chunk_visdata);
 	if (!buf)
@@ -1745,7 +1753,7 @@ Mod_LoadLightingChunk
 */
 qboolean Mod_LoadLightingChunk( char* path, dheader_t* header )
 {
-	byte*	buf;
+	byte*		buf;
 
 	if (Mod_TryLoadLt2Lighting(loadname))
 		return TRUE;
@@ -1779,8 +1787,8 @@ Reads one lump off the disc and runs the loader that owns it.
 */
 qboolean Mod_LoadWorldChunk( char* path, int lumpnum, dheader_t* header )
 {
-	lump_t*	l;
-	byte*	buf;
+	lump_t*		l;
+	byte*		buf;
 
 	l = &header->lumps[lumpnum];
 
@@ -2014,7 +2022,7 @@ model_t* Mod_LoadModelWorldPiecewise( model_t* mod, qboolean crash )
 
 		if (i < mod->numsubmodels - 1)
 		{	// duplicate the basic information
-			char	name[10];
+			char		name[10];
 
 			sprintf(name, "*%i", i + 1);
 			loadmodel = Mod_FindName(name);
@@ -2037,8 +2045,8 @@ Mod_LoadBrushModel
 void Mod_LoadBrushModel( model_t* mod, void* buffer )
 {
 	int			i, j;
-	dheader_t* header;
-	dmodel_t* bm;
+	dheader_t*	header;
+	dmodel_t*	bm;
 
 	loadmodel->type = mod_brush;
 
@@ -2102,7 +2110,7 @@ void Mod_LoadBrushModel( model_t* mod, void* buffer )
 
 		if (i < mod->numsubmodels - 1)
 		{	// duplicate the basic information
-			char	name[10];
+			char		name[10];
 
 			sprintf(name, "*%i", i + 1);
 			loadmodel = Mod_FindName(name);
@@ -2121,7 +2129,7 @@ ALIAS MODELS
 ==============================================================================
 */
 
-aliashdr_t* pheader;
+aliashdr_t*	pheader;
 
 //=========================================================
 
@@ -2158,21 +2166,26 @@ typedef struct
 
 //=============================================================================
 
-byte* pspritepal;
+byte*		pspritepal;
 
 /*
 ===============
 Mod_LoadSpriteFrame
 ===============
 */
+void Mod_SpriteTextureName( char *name, const char *modelname, int frame )
+{
+	sprintf(name, "%s_%i", modelname, frame);
+}
+
 void* Mod_LoadSpriteFrame( void* pin, mspriteframe_t** ppframe, int framenum, int bReuseTexture )
 {
 	dspriteframe_t* pinframe;
 	mspriteframe_t* pspriteframe;
-	int					width, height, size, origin[2], textureType;
-	byte* pdata, * ppal;
-	char				name[256];
-	byte				bPal[768];
+	int			width, height, size, origin[2], textureType;
+	byte*		pdata, * ppal;
+	char		name[256];
+	byte		bPal[768];
 	
 	memcpy(bPal, pspritepal, sizeof(bPal));
 
@@ -2198,7 +2211,7 @@ void* Mod_LoadSpriteFrame( void* pin, mspriteframe_t** ppframe, int framenum, in
 	pspriteframe->left = origin[0];
 	pspriteframe->right = origin[0] + width;
 
-	sprintf(name, "%s_%i", loadmodel->name, framenum);
+	Mod_SpriteTextureName(name, loadmodel->name, framenum);
 	pdata = (byte*)(pinframe + 1);
 	ppal = bPal;
 
@@ -2243,10 +2256,10 @@ void* Mod_LoadSpriteGroup( void* pin, mspriteframe_t** ppframe, int framenum, in
 {
 	dspritegroup_t* pingroup;
 	mspritegroup_t* pspritegroup;
-	int					i, numframes;
+	int			i, numframes;
 	dspriteinterval_t* pin_intervals;
-	float* poutintervals;
-	void* ptemp;
+	float*		poutintervals;
+	void*		ptemp;
 
 	pingroup = (dspritegroup_t*)pin;
 
@@ -2293,15 +2306,15 @@ Mod_LoadSpriteModel
 */
 void Mod_LoadSpriteModel( model_t* mod, void* buffer )
 {
-	int					i;
-	int					version;
-	dsprite_t* pin;
-	msprite_t* psprite;
-	int					numframes;
-	int					maxtextures;
-	int					lastbucket;
-	int					size;
-	int					palsize;
+	int			i;
+	int			version;
+	dsprite_t*	pin;
+	msprite_t*	psprite;
+	int			numframes;
+	int			maxtextures;
+	int			lastbucket;
+	int			size;
+	int			palsize;
 	dspriteframetype_t* pframetype;
 
 	pin = (dsprite_t*)buffer;
@@ -2361,9 +2374,9 @@ void Mod_LoadSpriteModel( model_t* mod, void* buffer )
 
 	for (i = 0; i < numframes; i++)
 	{
-		spriteframetype_t	frametype;
-		int                 bucket;
-		int                 bReuseTexture;
+		spriteframetype_t frametype;
+		int			bucket;
+		int			bReuseTexture;
 
 		bucket = i;
 		if (numframes > 1)
@@ -2400,9 +2413,9 @@ Mod_UnloadSpriteTextures
 */
 void Mod_UnloadSpriteTextures( model_t* mod )
 {
-	msprite_t* sprite;
-	char name[16];
-	int i;
+	msprite_t*	sprite;
+	char		name[16];
+	int			i;
 
 	if (mod->type != mod_sprite)
 		return;
@@ -2414,7 +2427,7 @@ void Mod_UnloadSpriteTextures( model_t* mod )
 
 	for (i = 0; i < sprite->numframes; i++)
 	{
-		sprintf(name, "%s_%i", mod->name, i);
+		Mod_SpriteTextureName(name, mod->name, i);
 		DC_ForceFreeTextureByName(name);
 	}
 }
@@ -2428,8 +2441,8 @@ Mod_Print
 */
 void Mod_Print( void )
 {
-	int		i;
-	model_t* mod;
+	int			i;
+	model_t*	mod;
 
 	Con_Printf("Cached models:\n");
 	for (i = 0; i < mod_numknown; i++)

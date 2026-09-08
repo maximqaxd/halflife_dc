@@ -27,7 +27,7 @@ extern cvar_t violence_hblood;
 typedef struct lumplist_s
 {
 	lumpinfo_t			*lump;
-	qboolean			breplaced;
+	qboolean	breplaced;
 	struct lumplist_s	*next;
 } lumplist_t;
 
@@ -47,11 +47,59 @@ void Draw_DecalShutdown( void )
 	decal_wad = NULL;
 }
 
+void Draw_AllocateCache( cachewad_t *wad, int cacheMax, int temporary )
+{
+	wad->cache = (cacheentry_t *)MnemoAllocDbg(cacheMax * sizeof(cacheentry_t), __FILE__, __LINE__);
+	memset(wad->cache, 0, cacheMax * sizeof(cacheentry_t));
+	wad->tempWad = temporary;
+}
+
+int Draw_DecalCount( void )
+{
+	return decal_wad ? decal_wad->lumpCount : 0;
+}
+
+char *Draw_DecalName( int index )
+{
+	if (!decal_wad)
+		return NULL;
+	if (index < decal_wad->lumpCount)
+		return decal_wad->lumps[index].name;
+	return NULL;
+}
+
+int Decal_CountLumps( lumplist_t *list )
+{
+	int			count = 0;
+
+	for (; list; list = list->next)
+		count++;
+	return count;
+}
+
+int Decal_LumpListSize( lumplist_t *list )
+{
+	return Decal_CountLumps(list) * sizeof(lumpinfo_t);
+}
+
+int Draw_FindCacheEntry( cachewad_t *wad, char *name )
+{
+	int			i;
+	cacheentry_t *entry = wad->cache;
+
+	for (i = 0; i < wad->cacheCount; i++, entry++)
+	{
+		if (!strcmp(name, entry->name))
+			return i;
+	}
+	return -1;
+}
+
 void Draw_CacheWadInitFromFile( int *h, int len, char *name, int cacheMax, cachewad_t *wad )
 {
-	lumpinfo_t* lump_p;
-	wadinfo_t header;
-	int		i;
+	lumpinfo_t*	lump_p;
+	wadinfo_t	header;
+	int			i;
 
 	Sys_FileRead(h[2], &header, sizeof(header));
 
@@ -76,17 +124,15 @@ void Draw_CacheWadInitFromFile( int *h, int len, char *name, int cacheMax, cache
 	wad->cacheCount = 0;
 	wad->cacheMax = cacheMax;
 	wad->name = name;
-	wad->cache = (cacheentry_t*)MnemoAllocDbg(cacheMax * sizeof(cacheentry_t), __FILE__, __LINE__);
-	memset(wad->cache, 0, cacheMax * sizeof(cacheentry_t));
-	wad->tempWad = FALSE;
+	Draw_AllocateCache(wad, cacheMax, FALSE);
 	wad->pfnCacheBuild = NULL;
 	wad->cacheExtra = 0;
 }
 
 void Draw_CacheWadInit( char* name, int cacheMax, cachewad_t* wad )
 {
-	int		h[3];
-	int		nFileSize;
+	int			h[3];
+	int			nFileSize;
 
 	nFileSize = COM_OpenFile(name, h);
 	if (h[2] == -1)
@@ -105,7 +151,7 @@ void Draw_CacheWadHandler( cachewad_t* wad, PFNCACHE fn, int extraDataSize )
 
 void Draw_FreeWad( cachewad_t* pWad )
 {
-	int i;
+	int			i;
 	cacheentry_t* pic;
 
 	if (!pWad)
@@ -161,8 +207,8 @@ void Draw_DecalSetName( int decal, char* name )
 
 int Draw_DecalIndex( int id )
 {
-	char	tmpName[32];
-	char*	pName;
+	char		tmpName[32];
+	char*		pName;
 
 	pName = decal_names[id];
 	if (!pName[0])
@@ -191,7 +237,7 @@ int Draw_DecalSize( int number )
 
 texture_t* Draw_DecalTexture( int index )
 {
-	int		playernum;
+	int			playernum;
 	customization_t* pCust;
 
 	// Player decal
@@ -218,8 +264,8 @@ texture_t* Draw_DecalTexture( int index )
 // used for save/restore
 int Draw_DecalIndexFromName( char* name )
 {
-	char tmpName[16];
-	int i;
+	char		tmpName[16];
+	int			i;
 
 	strcpy(tmpName, name);
 
@@ -300,17 +346,13 @@ void Decal_MergeInDecals( char *name, const char *pathID, cachewad_t *pwad )
 	for (i = 0; i < pwad->lumpCount; i++)
 		Decal_ReplaceOrAppendLump(&lumplist, &pwad->lumps[i], TRUE);
 
-	lumpcount = 0;
-	for (p = lumplist; p != NULL; p = p->next)
-		lumpcount++;
+	lumpcount = Decal_CountLumps(lumplist);
 
 	newwad->lumpCount = lumpcount;
 	newwad->cacheCount = 0;
 	newwad->cacheMax = decal_wad->cacheMax;
 	newwad->name = _strdup(decal_wad->name);
-	newwad->cache = (cacheentry_t *)MnemoAllocDbg(newwad->cacheMax * sizeof(cacheentry_t), __FILE__, __LINE__);
-	memset(newwad->cache, 0, newwad->cacheMax * sizeof(cacheentry_t));
-	newwad->tempWad = 0;
+	Draw_AllocateCache(newwad, newwad->cacheMax, FALSE);
 	newwad->pfnCacheBuild = decal_wad->pfnCacheBuild;
 	newwad->cacheExtra = decal_wad->cacheExtra;
 	newwad->lumppathindices = (int *)MnemoAllocDbg(newwad->cacheMax * sizeof(int), __FILE__, __LINE__);
@@ -320,11 +362,7 @@ void Decal_MergeInDecals( char *name, const char *pathID, cachewad_t *pwad )
 	newwad->basedirs[0] = _strdup(decal_wad->basedirs[0]);
 	newwad->basedirs[1] = _strdup(pathID);
 
-	lumpcount = 0;
-	for (p = lumplist; p != NULL; p = p->next)
-		lumpcount++;
-
-	newwad->lumps = (lumpinfo_t *)MnemoAllocDbg(lumpcount * sizeof(lumpinfo_t), __FILE__, __LINE__);
+	newwad->lumps = (lumpinfo_t *)MnemoAllocDbg(Decal_LumpListSize(lumplist), __FILE__, __LINE__);
 
 	for (i = 0, p = lumplist; p != NULL; p = next, i++)
 	{
@@ -380,7 +418,7 @@ void Decal_Init( void )
 
 	for (i = 0; i < sv_decalnamecount; i++)
 	{
-		char* name;
+		char*		name;
 
 		memset(&sv_decalnames[i], 0, sizeof(decalname_t));
 
@@ -396,8 +434,8 @@ void Decal_Init( void )
 void* Draw_CacheGet( cachewad_t* wad, int index )
 {
 	cacheentry_t* pic;
-	int i;
-	void* dat = NULL;
+	int			i;
+	void*		dat = NULL;
 
 	if (index >= wad->cacheCount)
 		Sys_Error("Cache wad indexed before load %s: %d", wad->name, index);
@@ -405,9 +443,9 @@ void* Draw_CacheGet( cachewad_t* wad, int index )
 	pic = &wad->cache[index];
 	if (wad->tempWad || (dat = Cache_Check(&pic->cache)) == NULL)
 	{
-		char name[16];
-		char clean[16];
-		lumpinfo_t* pLump;
+		char		name[16];
+		char		clean[16];
+		lumpinfo_t*	pLump;
 
 		COM_FileBase(pic->name, name);
 		W_CleanupName(name, clean);
@@ -434,7 +472,7 @@ void* Draw_CacheGet( cachewad_t* wad, int index )
 void* Draw_CustomCacheGet( cachewad_t* wad, void* raw, int index )
 {
 	cacheentry_t* pic;
-	void* dat;
+	void*		dat;
 
 	if (index >= wad->cacheCount)
 		Sys_Error("Cache wad indexed before load %s: %d", wad->name, index);
@@ -443,8 +481,8 @@ void* Draw_CustomCacheGet( cachewad_t* wad, void* raw, int index )
 	dat = Cache_Check(&pic->cache);
 	if (dat == NULL)
 	{
-		char name[16];
-		char clean[16];
+		char		name[16];
+		char		clean[16];
 		COM_FileBase(pic->name, name);
 		W_CleanupName(name, clean);
 
@@ -463,8 +501,8 @@ void* Draw_CustomCacheGet( cachewad_t* wad, void* raw, int index )
 
 qboolean Draw_CacheReload( cachewad_t* wad, int index, lumpinfo_t* pLump, cacheentry_t* pic, char* clean, char* path )
 {
-	byte* buf;
-	int		h[3];
+	byte*		buf;
+	int			h[3];
 
 	if (wad->numpaths == 2)
 		COM_OpenFileByName(wad->basedirs[wad->lumppathindices[index]], wad->name, h);
@@ -501,9 +539,9 @@ qboolean Draw_CacheReload( cachewad_t* wad, int index, lumpinfo_t* pLump, cachee
 
 qboolean Draw_CacheLoadFromCustom( char* clean, cachewad_t* wad, void* raw, cacheentry_t* pic )
 {
-	int		idx;
-	byte* buf;
-	lumpinfo_t* pLump;
+	int			idx;
+	byte*		buf;
+	lumpinfo_t*	pLump;
 
 	idx = 0;
 	if (strlen(clean) < 5 || ((idx = atoi(clean + 3)) >= 0 && idx < wad->lumpCount))
@@ -535,7 +573,7 @@ qboolean Draw_CacheLoadFromCustom( char* clean, cachewad_t* wad, void* raw, cach
 int Draw_CacheIndex( cachewad_t* wad, char* path )
 {
 	cacheentry_t* pic;
-	int i;
+	int			i;
 
 	for (i = 0, pic = wad->cache; i < wad->cacheCount; i++, pic++)
 	{
@@ -560,10 +598,10 @@ Draw_MiptexTexture
 */
 void Draw_MiptexTexture( cachewad_t* wad, byte* data )
 {
-	texture_t* tex;
-	miptex_t* mip, tmp;
+	texture_t*	tex;
+	miptex_t*	mip, tmp;
 	int			i, pix, paloffset, palettesize;
-	byte* pal, * bitmap;
+	byte*		pal, * bitmap;
 
 	if (wad->cacheExtra != MIP_EXTRASIZE)
 		Sys_Error("Draw_MiptexTexture: Bad cached wad %s\n", wad->name);
@@ -607,25 +645,25 @@ void Draw_MiptexTexture( cachewad_t* wad, byte* data )
 	}
 }
 
-void CustomDecal_Init( cachewad_t* wad, void* raw, int nFileSize )
+void CustomDecal_Init( cachewad_t* wad, void* raw, int nFileSize, int playernum )
 {
-	int i;
+	int			i;
 
 	Draw_CustomCacheWadInit(16, wad, raw, nFileSize);
 	Draw_CacheWadHandler(wad, Draw_MiptexTexture, MIP_EXTRASIZE);
 
 	for (i = 0; i < wad->lumpCount; i++)
 	{
-		Draw_CacheByIndex(wad, i);
+		Draw_CacheByIndex(wad, i, playernum);
 	}
 }
 
 void Draw_CustomCacheWadInit( int cacheMax, cachewad_t* wad, void* raw, int nFileSize )
 {
-	lumpinfo_t* lump_p;
-	wadinfo_t header;
-	int		i;
-	int		size;
+	lumpinfo_t*	lump_p;
+	wadinfo_t	header;
+	int			i;
+	int			size;
 
 	header = *(wadinfo_t*)raw;
 
@@ -658,14 +696,17 @@ void Draw_CustomCacheWadInit( int cacheMax, cachewad_t* wad, void* raw, int nFil
 	wad->cacheExtra = 0;
 }
 
-int Draw_CacheByIndex( cachewad_t* wad, int nIndex )
+int Draw_CacheByIndex( cachewad_t* wad, int nIndex, int playernum )
 {
 	cacheentry_t* pic;
-	int i;
+	int			i;
+	char		name[32];
+
+	sprintf(name, "%03i%02i", playernum, nIndex);
 
 	for (i = 0, pic = wad->cache; i < wad->cacheCount; i++, pic++)
 	{
-		if (atoi(pic->name) == nIndex)
+		if (!strcmp(pic->name, name))
 			break;
 	}
 
@@ -675,7 +716,7 @@ int Draw_CacheByIndex( cachewad_t* wad, int nIndex )
 			Sys_Error("Cache wad (%s) out of %d entries", wad->name, wad->cacheMax);
 
 		wad->cacheCount++;
-		sprintf(pic->name, "%i", nIndex);
+		sprintf(pic->name, "%s", name);
 	}
 
 	return i;

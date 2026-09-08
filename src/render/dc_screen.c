@@ -2,6 +2,7 @@
 
 #include "quakedef.h"
 #include "dreamcast_crt.h"
+#include "dc_accum.h"
 /*
 
 background clear
@@ -58,16 +59,15 @@ void UI_Update( void );
 void Host_CheckController( void );
 void Host_DrawMessage( void );
 void R_DrawAdaptive( void );
-void DCV_SetHudDepth( float layer );
 void SCR_DrawConnectMsg( void );
 
-extern int		gfDrawMenu;			// draw the menu instead of the 3D view
-extern float	g_flHudDepth;		// current HUD depth sublayer
-extern cvar_t	cl_adaptive;
+extern int	gfDrawMenu;			// draw the menu instead of the 3D view
+extern float g_flHudDepth;		// current HUD depth sublayer
+extern cvar_t cl_adaptive;
 
 int			glx, gly, glwidth, glheight;
 
-// only the refresh window will be updated unless these variables are flagged 
+// only the refresh window will be updated unless these variables are flagged
 int			scr_copytop;
 int			scr_copyeverything;
 
@@ -127,12 +127,12 @@ CENTER PRINTING
 ===============================================================================
 */
 
-char            scr_centerstring[1024];
-float           scr_centertime_start;   // for slow victory printing
-float           scr_centertime_off;
-int             scr_center_lines;
-int             scr_erase_lines;
-int             scr_erase_center;
+char		scr_centerstring[1024];
+float		scr_centertime_start;   // for slow victory printing
+float		scr_centertime_off;
+int			scr_center_lines;
+int			scr_erase_lines;
+int			scr_erase_center;
 
 /*
 =================
@@ -161,11 +161,11 @@ void SCR_CenterPrint( char* str )
 
 void SCR_DrawCenterString( void )
 {
-	char* start;
-	int		l;
-	int		j;
-	int		x, y;
-	int		remaining;
+	char*		start;
+	int			l;
+	int			j;
+	int			x, y;
+	int			remaining;
 
 // the finale prints the characters one at a time
 	if (cl.intermission)
@@ -234,9 +234,9 @@ Internal use only
 */
 static void SCR_CalcRefdef( void )
 {
-	float           size;
-	float           full;
-	int             h;
+	float		size;
+	float		full;
+	int			h;
 
 	scr_fullupdate = 0;             // force a background redraw
 	vid.recalc_refdef = 0;
@@ -373,7 +373,7 @@ Draw_CenterPic
 */
 void Draw_CenterPic( qpic_t* pPic )
 {
-	int		x, y;
+	int			x, y;
 
 	x = glwidth / 2;
 	y = glheight / 2;
@@ -489,11 +489,11 @@ void SCR_DrawConsole( void )
 */
 
 typedef struct _TargaHeader {
-	unsigned char 	id_length, colormap_type, image_type;
-	unsigned short	colormap_index, colormap_length;
-	unsigned char	colormap_size;
-	unsigned short	x_origin, y_origin, width, height;
-	unsigned char	pixel_size, attributes;
+	unsigned char id_length, colormap_type, image_type;
+	unsigned short colormap_index, colormap_length;
+	unsigned char colormap_size;
+	unsigned short x_origin, y_origin, width, height;
+	unsigned char pixel_size, attributes;
 } TargaHeader;
 
 
@@ -551,15 +551,15 @@ void SCR_EndLoadingPlaque( void )
 
 //=============================================================================
 
-char* scr_notifystring;
+char*		scr_notifystring;
 qboolean	scr_drawdialog;
 
 void SCR_DrawNotifyString( void )
 {
-	char* start;
-	int		l;
-	int		j;
-	int		x, y;
+	char*		start;
+	int			l;
+	int			j;
+	int			x, y;
 
 	start = scr_notifystring;
 
@@ -633,7 +633,7 @@ Brings the console down and fades the palettes back to normal
 */
 void SCR_BringDownConsole( void )
 {
-	int		i;
+	int			i;
 
 	scr_centertime_off = 0;
 
@@ -834,9 +834,9 @@ bottom of the refresh window. A leading "0" hides a line.
 */
 void SCR_DrawConnectMsg( void )
 {
-	int		w, h, x, y;
-	vrect_t	rcFill;
-	byte	color[3];
+	int			w, h, x, y;
+	vrect_t		rcFill;
+	byte		color[3];
 
 	if (scr_connectmsg.string[0] == '0')
 		return;
@@ -884,16 +884,16 @@ SCR_DrawDownloadText
 */
 void SCR_DrawDownloadText( void )
 {
-	char	szStatusText[128];
-	int		i;
-	int		w, h, x, y;
-	int		recieved;
-	int		bytes;
-	float	speed;
-	float	time;
-	float	remaining;
-	vrect_t rcFill;
-	byte	color[3];
+	char		szStatusText[128];
+	int			i;
+	int			w, h, x, y;
+	int			recieved;
+	int			bytes;
+	float		speed;
+	float		time;
+	float		remaining;
+	vrect_t		rcFill;
+	byte		color[3];
 	downloadtime_t* dt1;
 	downloadtime_t* dt2;
 
@@ -923,7 +923,7 @@ void SCR_DrawDownloadText( void )
 
 	if (speed != 0)
 	{
-		int		sec, minute, hour;
+		int			sec, minute, hour;
 
 		if (scr_vrect.width <= 250)
 			w = scr_vrect.width - 2;
@@ -979,10 +979,10 @@ SCR_DrawDownloadInfo
 */
 void SCR_DrawDownloadInfo( void )
 {
-	int		percent;
-	int		w, h, x, y;
-	vrect_t rcFill;
-	byte	color[3];
+	int			percent;
+	int			w, h, x, y;
+	vrect_t		rcFill;
+	byte		color[3];
 
 	if (scr_downloading.value < 0)
 		return;
@@ -1078,13 +1078,13 @@ SCR_DrawDownloadProgress
 */
 void SCR_DrawDownloadProgress( void )
 {
-	int		percent;
-	int		offset;
-	int		w, h, x, y;
-	float	scale;
-	float	progress;
-	vrect_t rcFill;
-	byte	color[3];
+	int			percent;
+	int			offset;
+	int			w, h, x, y;
+	float		scale;
+	float		progress;
+	vrect_t		rcFill;
+	byte		color[3];
 
 	if (scr_disabled_for_loading || downloadpercent < 0)
 		return;

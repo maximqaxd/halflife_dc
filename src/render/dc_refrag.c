@@ -2,7 +2,7 @@
 
 #include "quakedef.h"
 
-mnode_t* r_pefragtopnode;
+mnode_t*	r_pefragtopnode;
 
 
 //===========================================================================
@@ -31,7 +31,7 @@ Call when removing an object from the world or moving it to another position
 */
 void R_RemoveEfrags( cl_entity_t* ent )
 {
-	efrag_t* ef, * old, * walk, ** prev;
+	efrag_t*	ef, * old, * walk, ** prev;
 
 	ef = ent->efrag;
 
@@ -70,9 +70,9 @@ R_SplitEntityOnNode
 */
 void R_SplitEntityOnNode( mnode_t* node )
 {
-	efrag_t* ef;
+	efrag_t*	ef;
 	mclipplane_t* splitplane;
-	mleaf_t* leaf;
+	mleaf_t*	leaf;
 	int			sides;
 
 	if (node->contents == CONTENTS_SOLID)
@@ -100,7 +100,7 @@ void R_SplitEntityOnNode( mnode_t* node )
 
 		ef->entity = r_addent;
 
-// add the entity link	
+		// add the entity link
 		*lastlink = ef;
 		lastlink = &ef->entnext;
 		ef->entnext = NULL;
@@ -143,7 +143,7 @@ R_AddEfrags
 */
 void R_AddEfrags( cl_entity_t* ent )
 {
-	model_t* entmodel;
+	model_t*	entmodel;
 	int			i;
 
 	if (!ent->model)
@@ -178,8 +178,8 @@ R_StoreEfrags
 void R_StoreEfrags( efrag_t** ppefrag )
 {
 	cl_entity_t* pent;
-	model_t* clmodel;
-	efrag_t* pefrag;
+	model_t*	clmodel;
+	efrag_t*	pefrag;
 
 
 	while ((pefrag = *ppefrag) != NULL)

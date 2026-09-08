@@ -66,9 +66,9 @@ extern qboolean				Draw_CacheLoadFromCustom( char* clean, cachewad_t* wad, void*
 
 extern void*				Draw_CacheGet( cachewad_t* wad, int index );
 extern void*				Draw_CustomCacheGet( cachewad_t* wad, void* raw, int index );
-extern void					CustomDecal_Init( cachewad_t* wad, void* raw, int nFileSize );
+extern void					CustomDecal_Init( cachewad_t* wad, void* raw, int nFileSize, int playernum );
 extern void					Draw_CustomCacheWadInit( int cacheMax, cachewad_t* wad, void* raw, int nFileSize );
-extern int					Draw_CacheByIndex( cachewad_t* wad, int nIndex );
+extern int					Draw_CacheByIndex( cachewad_t* wad, int nIndex, int playernum );
 
 #ifdef __cplusplus
 }

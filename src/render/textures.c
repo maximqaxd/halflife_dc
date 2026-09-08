@@ -8,8 +8,8 @@
 #define TEX_MAX_WADS			40
 #define TEX_MAX_MIPTEX_NAME		64
 
-int nummiptex = 0;
-char miptex[MAX_MAP_TEXTURES][TEX_MAX_MIPTEX_NAME];
+int			nummiptex = 0;
+char		miptex[MAX_MAP_TEXTURES][TEX_MAX_MIPTEX_NAME];
 
 // Lump data
 typedef struct
@@ -18,12 +18,12 @@ typedef struct
 	int			iTexFile;	// index of the wad this texture is located in
 } texlumpinfo_t;
 
-void* texfiles[TEX_MAX_WADS];
-char texpaths[TEX_MAX_WADS][MAX_PATH];
-int nTexFiles = 0;
+void*		texfiles[TEX_MAX_WADS];
+char		texpaths[TEX_MAX_WADS][MAX_PATH];
+int			nTexFiles = 0;
 texlumpinfo_t* lumpinfo = NULL;
-int nTexLumps = 0;
-int currentTexFile = -1;
+int			nTexLumps = 0;
+int			currentTexFile = -1;
 
 void SafeRead( void* f, void* buffer, int count )
 {
@@ -33,7 +33,7 @@ void SafeRead( void* f, void* buffer, int count )
 
 void CleanupName( char* in, char* out )
 {
-	int		i;
+	int			i;
 
 	for (i = 0; i < 16; i++)
 	{
@@ -97,9 +97,9 @@ qboolean TEX_InitFromWad( char* path )
 
 	while (pszWadFile)
 	{
-		void*	texfile;
-		char	wadPath[MAX_PATH];
-		char	wadName[MAX_PATH];
+		void*		texfile;
+		char		wadPath[MAX_PATH];
+		char		wadName[MAX_PATH];
 
 		ForwardSlashes(pszWadFile);
 
@@ -168,7 +168,7 @@ qboolean TEX_InitFromWad( char* path )
 
 			do
 			{
-				byte* base = (byte*)&lumpinfo[nTexLumps];
+				byte*		base = (byte*)&lumpinfo[nTexLumps];
 
 				memmove(base + dstOffset, base + srcOffset, sizeof(lumpinfo_t));
 				srcOffset -= sizeof(lumpinfo_t);
@@ -196,6 +196,45 @@ qboolean TEX_InitFromWad( char* path )
 	return TRUE;
 }
 
+qboolean TEX_FileExists( const char* path )
+{
+	void*		file;
+
+	file = Sys_OpenHandle(path, "rb");
+	if (file)
+		Sys_CloseHandle(file);
+	return file != NULL;
+}
+
+int TEX_FindPerMapWads( const char* mapPath, char* outPath )
+{
+	int			i;
+	int			found;
+	char		wadProbe[MAX_PATH];
+	char		wadList[MAX_PATH];
+
+	i = 1;
+	found = 0;
+	strcpy(wadList, "");
+	while (1)
+	{
+		Sys_SetTaskName("Looking for small per level wads");
+		sprintf(wadProbe, "%s/%d_%s.wad", com_gamedir, i, mapPath);
+		if (!TEX_FileExists(wadProbe))
+			break;
+
+		sprintf(wadProbe, "%d_%s.wad", i, mapPath);
+		strcat(wadList, wadProbe);
+		strcat(wadList, ";");
+		found++;
+		i++;
+	}
+
+	if (found)
+		strcpy(outPath, wadList);
+	return found;
+}
+
 /*
 =================
 TEX_BuildPerMapWadPath
@@ -203,13 +242,9 @@ TEX_BuildPerMapWadPath
 */
 qboolean TEX_BuildPerMapWadPath( const char* mapPath, char* outPath )
 {
-	int		i;
-	int		foundSmallWad;
-	void*	file;
-	char	mapName[MAX_PATH];
-	char	wadProbe[MAX_PATH];
-	char	wadList[MAX_PATH];
-	char	mapPathLocal[MAX_PATH];
+	void*		file;
+	char		mapName[MAX_PATH];
+	char		mapPathLocal[MAX_PATH];
 
 	strcpy(mapPathLocal, mapPath);
 	ForwardSlashes(mapPathLocal);
@@ -217,33 +252,7 @@ qboolean TEX_BuildPerMapWadPath( const char* mapPath, char* outPath )
 	sprintf(outPath, "%s/%s", com_gamedir, mapName);
 	COM_DefaultExtension(outPath, ".wad");
 
-	i = 1;
-	foundSmallWad = 0;
-	wadList[0] = '\0';
-
-	while (1)
-	{
-		Sys_SetTaskName("Looking for small per level wads");
-		sprintf(wadProbe, "%s/%d_%s.wad", com_gamedir, i, mapPath);
-		file = Sys_OpenHandle(wadProbe, "rb");
-		if (file)
-			Sys_CloseHandle(file);
-
-		if (!file)
-		{
-			if (foundSmallWad)
-				strcpy(outPath, wadList);
-			break;
-		}
-
-		sprintf(wadProbe, "%d_%s.wad", i, mapPath);
-		strcat(wadList, wadProbe);
-		strcat(wadList, ";");
-		foundSmallWad++;
-		i++;
-	}
-
-	if (foundSmallWad)
+	if (TEX_FindPerMapWads(mapPath, outPath))
 		return TRUE;
 
 	Sys_SetTaskName("Looking for monolithic per level wad");
@@ -264,6 +273,18 @@ qboolean TEX_BuildPerMapWadPath( const char* mapPath, char* outPath )
 	return TRUE;
 }
 
+qboolean TEX_IsLevelWad( const char* name )
+{
+	const char*	path;
+
+	for (path = name; *path; path++)
+	{
+		if (*path >= '0' && *path <= '9' && path[1] == '_')
+			return TRUE;
+	}
+	return FALSE;
+}
+
 /*
 =================
 TEX_SelectLevelWad
@@ -271,23 +292,11 @@ TEX_SelectLevelWad
 */
 void TEX_SelectLevelWad( int wadIndex )
 {
-	char*		path;
 	qboolean	isLevelWad;
 
 	isLevelWad = wadIndex >= 0;
-	if (isLevelWad)
-	{
-		path = texpaths[wadIndex];
-		while (*path)
-		{
-			if (*path >= '0' && *path <= '9' && path[1] == '_')
-				break;
-			path++;
-		}
-
-		if (!*path)
-			return;
-	}
+	if (isLevelWad && !TEX_IsLevelWad(texpaths[wadIndex]))
+		return;
 
 	if (wadIndex == currentTexFile)
 		return;
@@ -314,7 +323,7 @@ TEX_CleanupWadInfo
 */
 void TEX_CleanupWadInfo( void )
 {
-	int i;
+	int			i;
 
 	if (lumpinfo)
 	{
@@ -359,9 +368,9 @@ int TEX_LoadLump( char* name, byte* dest )
 	return 0;
 }
 
-static __inline int FindMiptex( char* name )
+__inline int FindMiptex( char* name )
 {
-	int		i;
+	int			i;
 
 	for (i = 0; i < nummiptex; i++)
 	{
@@ -383,9 +392,9 @@ TEX_AddAnimatingTextures
 */
 void TEX_AddAnimatingTextures( void )
 {
-	int		base;
-	int		i, j, k;
-	char	name[32];
+	int			base;
+	int			i, j, k;
+	char		name[32];
 
 	base = nummiptex;
 

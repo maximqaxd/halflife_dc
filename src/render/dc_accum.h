@@ -154,8 +154,27 @@ void DCV_TexState_Additive( void );
 void DCV_SetHudDepth( float depth );
 void DCV_ScreenFade( int r, int g, int b, int a, int layer, qboolean modulate );
 void DCV_SetFog( int enable, int r, int g, int b, int amount );
-void DCV_UpdateTextureFiltering( void );
 void DCV_DisableMultitexture( void );
+
+void DCV_AddIndex( short index );
+void DCV_AddIndicesTriangle( WORD a, WORD b, WORD c );
+void DCV_AddIndexedFan( const WORD *indices, int count );
+void DCV_AddIndexedStrip( const WORD *indices, int count );
+void DCV_TexState_BlendFog( void );
+void DCV_TexState_VertColorOpaque( void );
+void DCV_TexState_VertColorAdditive( void );
+void DCV_FlushApplyTextureStageState( DWORD stage, D3DTEXTURESTAGESTATETYPE state, DWORD value );
+void DCV_MultiplyTransform( int state, const D3DMATRIX *matrix );
+void DCV_Perspective( float fovy, float aspect, float znear, float zfar );
+void DCV_SetTextureFilterPoint( void );
+void DCV_SetTextureFilterDefault( void );
+void DCV_DisableFog( void );
+void DCV_GammaVGA( void );
+void DCV_GammaTV( void );
+void DCV_GammaDefault( void );
+void DCV_DrawCurrentProgress( void );
+void DCV_GetSurfaceDesc( DDSURFACEDESC2 *desc, LPDIRECTDRAWSURFACE4 surface );
+void DCV_BlitSurface( LPDIRECTDRAWSURFACE4 surface, int width, int height, int x, int y, int front );
 
 #ifdef __cplusplus
 }

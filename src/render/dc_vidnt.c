@@ -5,18 +5,18 @@
 #include "dc_accum.h"
 #include "qgl.h"
 
-BOOL gfMiniDriver = FALSE;
+BOOL		gfMiniDriver = FALSE;
 
-const char* gl_vendor;
-const char* gl_renderer;
-const char* gl_version;
-const char* gl_extensions;
+const char*	gl_vendor;
+const char*	gl_renderer;
+const char*	gl_version;
+const char*	gl_extensions;
 
 static HANDLE	hMovieFile = INVALID_HANDLE_VALUE;
 
-cvar_t	gl_ztrick = { "gl_ztrick", "1" };
-cvar_t	gl_d3dflip = { "gl_d3dflip", "0" };
-cvar_t	gl_allowsoftware = { "gl_allowsoftware", "0" };
+cvar_t		gl_ztrick = { "gl_ztrick", "1" };
+cvar_t		gl_d3dflip = { "gl_d3dflip", "0" };
+cvar_t		gl_allowsoftware = { "gl_allowsoftware", "0" };
 
 viddef_t	vid;				// global video state
 
@@ -27,7 +27,7 @@ PROC qglColorPointerEXT;
 PROC qglTexCoordPointerEXT;
 PROC qglVertexPointerEXT;
 
-qboolean gl_mtexable = FALSE;
+qboolean	gl_mtexable = FALSE;
 
 //====================================
 
@@ -52,14 +52,14 @@ extern int GlideReadPixels( int x, int y, int width, int height, word* pixels );
 
 
 
-int		texture_mode = GL_LINEAR;
+int			texture_mode = GL_LINEAR;
 //int		texture_mode = GL_NEAREST_MIPMAP_NEAREST;
 //int		texture_mode = GL_NEAREST_MIPMAP_LINEAR;
 //int		texture_mode = GL_LINEAR; TODO!
 //int		texture_mode = GL_LINEAR_MIPMAP_NEAREST;
 //int		texture_mode = GL_LINEAR_MIPMAP_LINEAR;
 
-int		texture_extension_number = 1;
+int			texture_extension_number = 1;
 
 /*
 ===============
@@ -170,13 +170,13 @@ void VID_Update( struct vrect_s* rects )
 VID_DescribeMode_f
 =================
 */
-static char vid_describe_msg[256];
+static char	vid_describe_msg[256];
 
 char* VID_GetExtModeDescription( int mode );
 
 void VID_DescribeMode_f( void )
 {
-	int		modenum;
+	int			modenum;
 
 	modenum = Q_atoi(Cmd_Argv(1));
 

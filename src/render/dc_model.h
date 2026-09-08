@@ -491,7 +491,7 @@ typedef struct model_s
 
 	byte*		visdata;
 
-	/* LT2 lighting: mode 0=BSP raw, 2=LT2 raw, 3=LT2 LERP 'a'. In LT2 modes
+	/* Lighting: mode 0=BSP raw, 1=packed deltas, 2=LT2 raw, 3=LT2 LERP 'a'. In LT2 modes
 	   lightdata holds the packed payload and lightsurfs the per-face offsets
 	   into it; the table is thrown away once the faces are loaded. */
 	int			lightmap_mode;

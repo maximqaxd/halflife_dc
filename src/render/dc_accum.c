@@ -21,19 +21,19 @@ static WORD      g_QuadIndexData[7500 / sizeof(WORD)];
 // shared with the inline render-state helpers in dc_accum.h
 D3DLVERTEX      *g_pAccumVerts;
 WORD            *g_pAccumIndex;
-int              g_nAccumVertCount;
-int              g_nAccumIndexCount;
-DWORD            g_dwAccumFlushFlags = D3DDP_DONOTUPDATEEXTENTS;
-int              g_nAccumMaxVertsSeen;
-int              g_nAccumMaxIndicesSeen;
+int			g_nAccumVertCount;
+int			g_nAccumIndexCount;
+DWORD		g_dwAccumFlushFlags = D3DDP_DONOTUPDATEEXTENTS;
+int			g_nAccumMaxVertsSeen;
+int			g_nAccumMaxIndicesSeen;
 
 static void     *g_pMultiMtx0;
 static void     *g_pMultiMtx1;
-static D3DCOLOR  g_studioLightTable[128];
+static D3DCOLOR g_studioLightTable[128];
 #define COLOR_OPAQUE_WHITE	0xFFFFFFFFu
 #define STRIP_RESTART_INDEX	0xFFFF
 
-DWORD            g_dwAccumCurrentDiffuse = COLOR_OPAQUE_WHITE;
+DWORD		g_dwAccumCurrentDiffuse = COLOR_OPAQUE_WHITE;
 
 static int DCV_GetMaxVertCount( void )
 {
@@ -47,8 +47,8 @@ static int DCV_GetMaxIndexCount( void )
 
 void DCV_AccumInit( void )
 {
-	int row;
-	int row_stride;
+	int			row;
+	int			row_stride;
 	WORD *row_start;
 
 	row_start = g_QuadIndexData;
@@ -56,9 +56,9 @@ void DCV_AccumInit( void )
 	for (row = 0; row < QUAD_TABLE_ROWS; ++row)
 	{
 		WORD *out = row_start;
-		short base = 0;
-		int high = row;
-		int k;
+		short		base = 0;
+		int			high = row;
+		int			k;
 
 		g_pQuadTable[row] = row_start;
 		for (k = 0; k < row; k += 2)
@@ -242,8 +242,8 @@ void DCV_SetupStudioLighting( const float (*boneMatrices)[4][4], int count )
 	static D3DMATRIX boneMatrix;
 	static D3DMATRIX transformedBone;
 	D3DLIGHT2 *light;
-	DWORD xOffset;
-	int i;
+	DWORD		xOffset;
+	int			i;
 
 	if (count != 0)
 	{
@@ -267,7 +267,7 @@ void DCV_SetupStudioLighting( const float (*boneMatrices)[4][4], int count )
 		xOffset = 0;
 		for (i = 0; i < count; i++)
 		{
-			DWORD matrixMarker = 0xe0001000;
+			DWORD		matrixMarker = 0xe0001000;
 			const D3DMATRIX *source = (const D3DMATRIX *)&boneMatrices[i];
 			D3DMATRIX *matrix = &((D3DMATRIX *)g_pMultiMtx0)[i];
 
@@ -324,7 +324,7 @@ void DCV_SetupStudioLighting( const float (*boneMatrices)[4][4], int count )
 
 	for (i = 0; i < 64; i++)
 	{
-		float level = ((float)i * 255.0f) / 64.0f;
+		float		level = ((float)i * 255.0f) / 64.0f;
 		g_studioLightTable[i] =
 			(((int)(g_backgroundMaterialData.diffuse.g * level * light->dcvColor.g +
 				g_backgroundMaterialData.emissive.g * 255.0f) |
@@ -355,7 +355,7 @@ DWORD DCV_GetCurrentDiffuse( void )
 void DCV_SetColorFloat( float r, float g, float b, float a )
 {
 	g_dwAccumCurrentDiffuse = (int)(a * 255.0f) << 24 | (int)(r * 255.0f) << 16 |
-	                          (int)(g * 255.0f) << 8  | (int)(b * 255.0f);
+							  (int)(g * 255.0f) << 8  | (int)(b * 255.0f);
 }
 
 void DCV_FlushIfLarge( void )
@@ -487,13 +487,13 @@ int DCV_GetVertCount( void )
 /* Solid textured poly: current diffuse, base texture UV (verts[][4],[5]). */
 void DCV_AccumSolidPoly( const void *poly )
 {
-	int numverts = DC_POLY_NUMVERTS(poly);
-	int needed = (numverts - 2) * 3;
+	int			numverts = DC_POLY_NUMVERTS(poly);
+	int			needed = (numverts - 2) * 3;
 	const WORD *pSrc = g_pQuadTable[numverts];
 	WORD *pIdx = &g_pAccumIndex[g_nAccumIndexCount];
 	const float *pVert;
 	D3DLVERTEX *pOut;
-	int i;
+	int			i;
 
 	i = needed;
 	while (i--)
@@ -537,13 +537,13 @@ void DCV_AccumSolidPoly( const void *poly )
 /* Per-vertex packed color (verts[][3]) instead of the current diffuse. */
 void DCV_AccumColoredPoly( const void *poly )
 {
-	int numverts = DC_POLY_NUMVERTS(poly);
-	int needed = (numverts - 2) * 3;
+	int			numverts = DC_POLY_NUMVERTS(poly);
+	int			needed = (numverts - 2) * 3;
 	const WORD *pSrc = g_pQuadTable[numverts];
 	WORD *pIdx = &g_pAccumIndex[g_nAccumIndexCount];
 	const float *pVert;
 	D3DLVERTEX *pOut;
-	int i;
+	int			i;
 
 	i = needed;
 	while (i--)
@@ -587,13 +587,13 @@ void DCV_AccumColoredPoly( const void *poly )
 /* Lightmap pass: current diffuse, lightmap UV (verts[][6],[7]). */
 void DCV_AccumLightmapBatch( const void *poly )
 {
-	int numverts = DC_POLY_NUMVERTS(poly);
-	int needed = (numverts - 2) * 3;
+	int			numverts = DC_POLY_NUMVERTS(poly);
+	int			needed = (numverts - 2) * 3;
 	const WORD *pSrc = g_pQuadTable[numverts];
 	WORD *pIdx = &g_pAccumIndex[g_nAccumIndexCount];
 	const float *pVert;
 	D3DLVERTEX *pOut;
-	int i;
+	int			i;
 
 	i = needed;
 	while (i--)
@@ -637,17 +637,17 @@ void DCV_AccumLightmapBatch( const void *poly )
 /* Scrolling texture: current diffuse, base UV with a running U offset. */
 /* The U scroll offset is stored in renderer state rather than passed in. */
 // Set by ScrollOffset() for the surface currently being accumulated.
-float g_flScrollOffset;
+float		g_flScrollOffset;
 
 void DCV_AccumScrollPoly( const void *poly )
 {
-	int numverts = DC_POLY_NUMVERTS(poly);
-	int needed = (numverts - 2) * 3;
+	int			numverts = DC_POLY_NUMVERTS(poly);
+	int			needed = (numverts - 2) * 3;
 	const WORD *pSrc = g_pQuadTable[numverts];
 	WORD *pIdx = &g_pAccumIndex[g_nAccumIndexCount];
 	const float *pVert;
 	D3DLVERTEX *pOut;
-	int i;
+	int			i;
 
 	i = needed;
 	while (i--)
@@ -745,8 +745,8 @@ void DCV_AddVertexIndexed( float x, float y, float z, float tu, float tv )
 /* Texture-coordinate scale for the studio mesh writers below (1/width,
    1/height of the currently bound skin texture; set by a not-yet-
    reconstructed caller before a mesh batch). */
-float g_flStudioTexScaleS = 1.0f;
-float g_flStudioTexScaleT = 1.0f;
+float		g_flStudioTexScaleS = 1.0f;
+float		g_flStudioTexScaleT = 1.0f;
 extern float chrome[][2];
 
 /* Studio mesh vertices share the same 32-byte accumulator slot as the lit
@@ -774,8 +774,8 @@ void DCV_AddStudioMesh( int count, const short *pCmds, const byte *pVertices, co
 		pOut[4] = pN[1];
 		pOut[5] = pN[2];
 		{
-			int s = pCmds[2];
-			int t = pCmds[3];
+			int			s = pCmds[2];
+			int			t = pCmds[3];
 			pOut[6] = (float)s * g_flStudioTexScaleS;
 			pOut[7] = (float)t * g_flStudioTexScaleT;
 		}
@@ -830,8 +830,8 @@ void DCV_AddStudioMeshTagged( int count, const short *pCmds, const byte *pVertic
 		pOut[4] = pN[1];
 		pOut[5] = pN[2];
 		{
-			int s = pCmds[2];
-			int t = pCmds[3];
+			int			s = pCmds[2];
+			int			t = pCmds[3];
 			pOut[6] = (float)s * g_flStudioTexScaleS;
 			pOut[7] = (float)t * g_flStudioTexScaleT;
 		}
@@ -870,8 +870,8 @@ void DCV_AddStudioMeshChromeTagged( int count, const short *pCmds, const byte *p
 void DCV_AddPolyIndices( int base, int numverts )
 {
 	WORD *p = &g_pAccumIndex[g_nAccumIndexCount];
-	int n = numverts - 2;
-	int loops = (n + 1) / 2;
+	int			n = numverts - 2;
+	int			loops = (n + 1) / 2;
 
 	while (loops--)
 	{
@@ -903,8 +903,8 @@ void DCV_AddIndicesQuad( int i0, int i1, int i2, int i3 )
 
 void DCV_AddIndicesStrip( int base, int count )
 {
-	int i;
-	int n;
+	int			i;
+	int			n;
 
 	if (count < 3)
 		return;
@@ -933,9 +933,9 @@ void DCV_AddIndicesStrip( int base, int count )
 void DCV_AddIndicesFan( int base, int count )
 {
 	WORD *p = &g_pAccumIndex[g_nAccumIndexCount];
-	int next = base + 1;
-	int n = count - 2;
-	int i = n;
+	int			next = base + 1;
+	int			n = count - 2;
+	int			i = n;
 
 	while (i--)
 	{
@@ -959,16 +959,16 @@ void DCV_AddIndicesFan( int base, int count )
 void DCV_BuildStudioIndexList( const short *pCmds )
 {
 	WORD *pOut = &g_pAccumIndex[g_nAccumIndexCount];
-	int total = 0;
-	short count;
+	int			total = 0;
+	short		count;
 
 	while ((count = *pCmds++) != 0)
 	{
 		if (count < 0)
 		{
-			short hub = *pCmds++;
-			int tris = -count - 2;
-			int i;
+			short		hub = *pCmds++;
+			int			tris = -count - 2;
+			int			i;
 
 			total += tris;
 			i = tris;
@@ -982,9 +982,9 @@ void DCV_BuildStudioIndexList( const short *pCmds )
 		}
 		else
 		{
-			int tris = count - 2;
-			int pairs = (tris + 1) / 2;
-			int i;
+			int			tris = count - 2;
+			int			pairs = (tris + 1) / 2;
+			int			i;
 
 			total += tris;
 
@@ -1024,10 +1024,10 @@ void DCV_BuildStudioIndexList( const short *pCmds )
 void DCV_AddIndicesFanRestart( short base, int count )
 {
 	WORD *p;
-	int next = base + 1;
-	int tailTri;
-	int pairs;
-	int i;
+	int			next = base + 1;
+	int			tailTri;
+	int			pairs;
+	int			i;
 
 	count -= 2;
 	pairs = count / 2;
@@ -1062,7 +1062,7 @@ void DCV_AddIndicesFanRestart( short base, int count )
 void DCV_AddIndicesStripRestart( int base, int count )
 {
 	WORD *p = &g_pAccumIndex[g_nAccumIndexCount];
-	int i = count;
+	int			i = count;
 
 	while (i--)
 	{
@@ -1081,19 +1081,19 @@ void DCV_AddIndicesStripRestart( int base, int count )
 void DCV_AssembleStudioIndexListRestart( const short *pCmds )
 {
 	WORD *pOut = &g_pAccumIndex[g_nAccumIndexCount];
-	int written = 0;
-	int markers = 0;
-	int command;
+	int			written = 0;
+	int			markers = 0;
+	int			command;
 
 	while ((command = *pCmds++) != 0)
 	{
 		if (command < 0)
 		{
-			int tris = -command - 2;
-			int pairs = tris / 2;
-			int tail = tris % 2;
+			int			tris = -command - 2;
+			int			pairs = tris / 2;
+			int			tail = tris % 2;
 			unsigned short hub;
-			int i;
+			int			i;
 
 			hub = *pCmds++;
 			written += pairs * 4 + tail * 3;
@@ -1121,7 +1121,7 @@ void DCV_AssembleStudioIndexListRestart( const short *pCmds )
 		}
 		else
 		{
-			int i;
+			int			i;
 
 			written += command;
 			markers++;
@@ -1216,4 +1216,101 @@ void DCV_2D_SetupStates( void )
 	DCV_SetRenderState(D3DRENDERSTATE_DESTBLEND,        D3DBLEND_INVSRCALPHA);
 
 	DCV_SetupFog();
+}
+
+void DCV_AddIndex( short index )
+{
+	g_pAccumIndex[g_nAccumIndexCount++] = index;
+}
+
+void DCV_AddIndicesTriangle( WORD a, WORD b, WORD c )
+{
+	WORD *out = g_pAccumIndex + g_nAccumIndexCount;
+	*out++ = a;
+	*out++ = b;
+	*out = c;
+	g_nAccumIndexCount += 3;
+}
+
+void DCV_AddIndexedFan( const WORD *indices, int count )
+{
+	int			i;
+	WORD *out = g_pAccumIndex + g_nAccumIndexCount;
+	WORD		first = *indices++;
+	for (i = count - 2; i; i--)
+	{
+		out[0] = *indices++;
+		out[1] = *indices;
+		out[2] = first;
+		out += 3;
+	}
+	g_nAccumIndexCount += (count - 2) * 3;
+}
+
+void DCV_AddIndexedStrip( const WORD *indices, int count )
+{
+	int			i;
+	WORD *out = g_pAccumIndex + g_nAccumIndexCount;
+	for (i = (count - 1) / 2; i; i--)
+	{
+		out[0] = indices[0];
+		out[1] = indices[1];
+		out[2] = indices[2];
+		out[3] = indices[1];
+		out[4] = indices[3];
+		out[5] = indices[2];
+		out += 6;
+		indices += 2;
+	}
+	g_nAccumIndexCount += (count - 2) * 3;
+}
+
+void DCV_TexState_BlendFog( void )
+{
+	DCV_SetTextureStageState(0, D3DTSS_COLOROP,   D3DTOP_MODULATE);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHABLENDENABLE, TRUE);
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHATESTENABLE,  FALSE);
+	DCV_SetRenderState(D3DRENDERSTATE_SRCBLEND,         D3DBLEND_SRCALPHA);
+	DCV_SetRenderState(D3DRENDERSTATE_DESTBLEND,        D3DBLEND_INVSRCALPHA);
+
+	DCV_SetupFog();
+}
+
+void DCV_TexState_VertColorOpaque( void )
+{
+	DCV_SetTextureStageState(0, D3DTSS_COLOROP,   D3DTOP_SELECTARG2);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG2);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHABLENDENABLE, FALSE);
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHATESTENABLE,  FALSE);
+	DCV_SetRenderState(D3DRENDERSTATE_SRCBLEND,         D3DBLEND_SRCALPHA);
+	DCV_SetRenderState(D3DRENDERSTATE_DESTBLEND,        D3DBLEND_INVSRCALPHA);
+
+	DCV_SetupFog();
+}
+
+void DCV_TexState_VertColorAdditive( void )
+{
+	DCV_SetTextureStageState(0, D3DTSS_COLOROP,   D3DTOP_SELECTARG2);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG2);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	DCV_SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHABLENDENABLE, TRUE);
+	DCV_SetRenderState(D3DRENDERSTATE_ALPHATESTENABLE,  FALSE);
+	DCV_SetRenderState(D3DRENDERSTATE_SRCBLEND,         D3DBLEND_SRCALPHA);
+	DCV_SetRenderState(D3DRENDERSTATE_DESTBLEND,        D3DBLEND_ONE);
+	DCV_SetRenderState(D3DRENDERSTATE_FOGENABLE,        FALSE);
 }

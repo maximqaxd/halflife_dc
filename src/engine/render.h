@@ -285,4 +285,6 @@ void R_SetVrect( vrect_t* pvrect, vrect_t* pvrectin, int lineadj );
 
 void R_SetStackBase( void );
 
+void R_BulletImpactParticles( vec_t* pos );
+
 #endif // RENDER_H

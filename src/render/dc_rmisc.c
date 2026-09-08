@@ -4,76 +4,76 @@
 #include "pr_cmds.h"
 
 // Strings the driver reported at start-up, filled in by VID_Init.
-extern const char*	gl_vendor;
-extern const char*	gl_renderer;
-extern const char*	gl_version;
-extern const char*	gl_extensions;
+extern const char* gl_vendor;
+extern const char* gl_renderer;
+extern const char* gl_version;
+extern const char* gl_extensions;
 
 extern void	DCV_GammaRefresh_f( void );
 extern void	DC_TexCache( char* name );
 
-cvar_t	r_cachestudio = { "r_cachestudio", "1" };
-cvar_t	r_norefresh = { "r_norefresh", "0" };
-cvar_t	r_drawentities = { "r_drawentities", "1" };
-cvar_t	r_drawviewmodel = { "r_drawviewmodel", "1" };
-cvar_t	r_speeds = { "r_speeds", "0" };
-cvar_t	r_fullbright = { "r_fullbright", "0" };
-cvar_t	r_decals = { "r_decals", "4096" };
-cvar_t	mp_decals = { "mp_decals", "300" };
-cvar_t	r_lightmap = { "r_lightmap", "0" };
-cvar_t	r_shadows = { "r_shadows", "0" };
-cvar_t	r_mirroralpha = { "r_mirroralpha", "1" };
-cvar_t	r_wateralpha = { "r_wateralpha", "1" };
-cvar_t	r_dynamic = { "r_dynamic", "1" };
-cvar_t	r_novis = { "r_novis", "0" };
-cvar_t	r_mmx = { "r_mmx", "0" };
-cvar_t	r_traceglow = { "r_traceglow", "0" };
-cvar_t	r_testlight = { "r_testlight", "0" };
-cvar_t	r_drawadaptive = { "r_drawadaptive", "0" };
-cvar_t	r_glowshellfreq = { "r_glowshellfreq", "2.2" };
-cvar_t	d_spriteskip = { "d_spriteskip", "0" };
-cvar_t	r_wadtextures = { "r_wadtextures", "0" };
+cvar_t		r_cachestudio = { "r_cachestudio", "1" };
+cvar_t		r_norefresh = { "r_norefresh", "0" };
+cvar_t		r_drawentities = { "r_drawentities", "1" };
+cvar_t		r_drawviewmodel = { "r_drawviewmodel", "1" };
+cvar_t		r_speeds = { "r_speeds", "0" };
+cvar_t		r_fullbright = { "r_fullbright", "0" };
+cvar_t		r_decals = { "r_decals", "4096" };
+cvar_t		mp_decals = { "mp_decals", "300" };
+cvar_t		r_lightmap = { "r_lightmap", "0" };
+cvar_t		r_shadows = { "r_shadows", "0" };
+cvar_t		r_mirroralpha = { "r_mirroralpha", "1" };
+cvar_t		r_wateralpha = { "r_wateralpha", "1" };
+cvar_t		r_dynamic = { "r_dynamic", "1" };
+cvar_t		r_novis = { "r_novis", "0" };
+cvar_t		r_mmx = { "r_mmx", "0" };
+cvar_t		r_traceglow = { "r_traceglow", "0" };
+cvar_t		r_testlight = { "r_testlight", "0" };
+cvar_t		r_drawadaptive = { "r_drawadaptive", "0" };
+cvar_t		r_glowshellfreq = { "r_glowshellfreq", "2.2" };
+cvar_t		d_spriteskip = { "d_spriteskip", "0" };
+cvar_t		r_wadtextures = { "r_wadtextures", "0" };
 
-cvar_t	gl_monolights = { "gl_monolights", "0" };
+cvar_t		gl_monolights = { "gl_monolights", "0" };
 
 // Texture-sorted world rendering; always on for this build.
-int		gl_texsort = 1;
+int			gl_texsort = 1;
 
-cvar_t	gl_cull = { "gl_cull", "1" };
-cvar_t	gl_smoothmodels = { "gl_smoothmodels", "1" };
-cvar_t	gl_flashblend = { "gl_flashblend", "0" };
-cvar_t	gl_keeptjunctions = { "gl_keeptjunctions", "1" };
-cvar_t	gl_wateramp = { "gl_wateramp", "0.3" };
-cvar_t	gl_spriteblend = { "gl_spriteblend", "1" };
-cvar_t	gl_lightholes = { "gl_lightholes", "1" };
-cvar_t	gl_zmax = { "gl_zmax", "4096" };
-cvar_t	gl_alphamin = { "gl_alphamin", "0.25" };
-cvar_t	gl_overdraw = { "gl_overdraw", "0" };
-cvar_t	gl_watersides = { "gl_watersides", "0" };
-cvar_t	gl_envmapsize = { "gl_envmapsize", "256" };
+cvar_t		gl_cull = { "gl_cull", "1" };
+cvar_t		gl_smoothmodels = { "gl_smoothmodels", "1" };
+cvar_t		gl_flashblend = { "gl_flashblend", "0" };
+cvar_t		gl_keeptjunctions = { "gl_keeptjunctions", "1" };
+cvar_t		gl_wateramp = { "gl_wateramp", "0.3" };
+cvar_t		gl_spriteblend = { "gl_spriteblend", "1" };
+cvar_t		gl_lightholes = { "gl_lightholes", "1" };
+cvar_t		gl_zmax = { "gl_zmax", "4096" };
+cvar_t		gl_alphamin = { "gl_alphamin", "0.25" };
+cvar_t		gl_overdraw = { "gl_overdraw", "0" };
+cvar_t		gl_watersides = { "gl_watersides", "0" };
+cvar_t		gl_envmapsize = { "gl_envmapsize", "256" };
 
-cvar_t	mipbias = { "mipbias", "0.0" };
-cvar_t	fogrange = { "fogrange", "500.0" };
-cvar_t	fogscale = { "fogscale", "0.03" };
-cvar_t	progress = { "progress", "0.0" };
-cvar_t	profilescale = { "profilescale", "0" };
-cvar_t	profilemeter = { "profilemeter", "0" };
+cvar_t		mipbias = { "mipbias", "0.0" };
+cvar_t		fogrange = { "fogrange", "500.0" };
+cvar_t		fogscale = { "fogscale", "0.03" };
+cvar_t		progress = { "progress", "0.0" };
+cvar_t		profilescale = { "profilescale", "0" };
+cvar_t		profilemeter = { "profilemeter", "0" };
 
-cvar_t	dc_light_min = { "dc_light_min", "0.04", 0, 0.04f };
-cvar_t	dc_light_max = { "dc_light_max", "1", 0, 1.0f };
-cvar_t	dc_light_alpha = { "dc_light_alpha", "2.0", 0, 2.0f };
-cvar_t	dc_light_beta = { "dc_light_beta", "0", 0, 0.0f };
+cvar_t		dc_light_min = { "dc_light_min", "0.04", 0, 0.04f };
+cvar_t		dc_light_max = { "dc_light_max", "1", 0, 1.0f };
+cvar_t		dc_light_alpha = { "dc_light_alpha", "2.0", 0, 2.0f };
+cvar_t		dc_light_beta = { "dc_light_beta", "0", 0, 0.0f };
 
-cvar_t	dc_depthhud = { "dc_depthhud", "-0.1" };
-cvar_t	dc_depthminhud = { "dc_depthminhud", "-0.4" };
-cvar_t	dc_depthmaxhud = { "dc_depthmaxhud", "0.4" };
-cvar_t	dc_depthmin = { "dc_depthmin", "0.1" };
-cvar_t	dc_depthmax = { "dc_depthmax", "1.0" };
-cvar_t	dc_msw = { "dc_msw", "1.000" };
-cvar_t	dc_msv = { "dc_msv", "0.300" };
-cvar_t	dc_msd = { "dc_msd", "0.975" };
-cvar_t	dc_msh = { "dc_msh", "0.500" };
-cvar_t	dc_msh2 = { "dc_msh2", "0.475" };
+cvar_t		dc_depthhud = { "dc_depthhud", "-0.1" };
+cvar_t		dc_depthminhud = { "dc_depthminhud", "-0.4" };
+cvar_t		dc_depthmaxhud = { "dc_depthmaxhud", "0.4" };
+cvar_t		dc_depthmin = { "dc_depthmin", "0.1" };
+cvar_t		dc_depthmax = { "dc_depthmax", "1.0" };
+cvar_t		dc_msw = { "dc_msw", "1.000" };
+cvar_t		dc_msv = { "dc_msv", "0.300" };
+cvar_t		dc_msd = { "dc_msd", "0.975" };
+cvar_t		dc_msh = { "dc_msh", "0.500" };
+cvar_t		dc_msh2 = { "dc_msh2", "0.475" };
 
 /*
 ====================
@@ -101,8 +101,8 @@ void Cmd_gl_dump_f( void )
 
 void R_InitTextures( void )
 {
-	int		x, y, m;
-	byte* dest;
+	int			x, y, m;
+	byte*		dest;
 
 	// create a simple checkerboard texture for the default
 	r_notexture_mip = (texture_t*)Hunk_AllocName(sizeof(texture_t) + 16 * 16 + 8 * 8 + 4 * 4 + 2 * 2, "notexture");
@@ -129,7 +129,7 @@ void R_InitTextures( void )
 
 void R_UploadEmptyTex( void )
 {
-	byte pPal[768];
+	byte		pPal[768];
 	memset(pPal, 0, sizeof(pPal));
 	pPal[765] = 255;	// r
 	pPal[766] = 0;		// g
@@ -138,7 +138,7 @@ void R_UploadEmptyTex( void )
 	r_notexture_mip->gl_texturenum = GL_LoadTexture("**empty**", GLT_SYSTEM, r_notexture_mip->width, r_notexture_mip->height, (byte*)(r_notexture_mip + 1), TRUE, TEX_TYPE_NONE, pPal);
 }
 
-byte	dottexture[16][16] =
+byte		dottexture[16][16] =
 {
 	{ 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 	{ 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
@@ -177,13 +177,13 @@ static byte	dotparticle[8][8] =
 	{0,0,0,0,0,0,0,0},
 };
 
-int		dotparticletexture;
+int			dotparticletexture;
 
 void R_MakeDotParticleTexture( void )
 {
-	byte	data[8][8];
-	byte	pal[256][3];
-	int		x, y;
+	byte		data[8][8];
+	byte		pal[256][3];
+	int			x, y;
 
 	memset(pal, 0, sizeof(pal));
 	pal[0][0] = 0;
@@ -204,11 +204,11 @@ void R_MakeDotParticleTexture( void )
 
 void R_InitParticleTexture( void )
 {
-	int		x, y;
-	int		alpha;
+	int			x, y;
+	int			alpha;
 	float		distance;
-	byte	data[16][16][4];
-	byte	puff[32][32][4];
+	byte		data[16][16][4];
+	byte		puff[32][32][4];
 
 	//
 	// particle texture
@@ -364,63 +364,4 @@ void R_Init( void )
 
 	playertextures = texture_extension_number;
 	texture_extension_number += 16;
-}
-
-/*
-===============
-R_NewMap
-===============
-*/
-void R_NewMap( void )
-{
-	int		i;
-
-	for (i = 0; i < 256; i++)
-		d_lightstylevalue[i] = 264;		// normal light value
-
-	memset(&r_worldentity, 0, sizeof(r_worldentity));
-	r_worldentity.model = cl.worldmodel;
-
-// clear out efrags in case the level hasn't been reloaded
-// FIXME: is this one short?
-	for (i = 0; i < cl.worldmodel->numleafs; i++)
-		cl.worldmodel->leafs[i].efrags = NULL;
-
-	r_viewleaf = NULL;
-	R_ClearParticles();
-
-	V_InitLevel();
-	DC_BuildLightmaps();
-
-	// identify sky texture
-	skytexturenum = -1;
-	mirrortexturenum = -1;
-	for (i = 0; i < cl.worldmodel->numtextures; i++)
-	{
-		if (!cl.worldmodel->textures[i])
-			continue;
-		if (!Q_strncmp(cl.worldmodel->textures[i]->name, "sky", 3))
-			skytexturenum = i;
-		if (!Q_strncmp(cl.worldmodel->textures[i]->name, "window02_1", 10))
-			mirrortexturenum = i;
-		cl.worldmodel->textures[i]->texturechain = NULL;
-	}
-	R_LoadSkys();
-	cl_entities->scale = gl_wateramp.value;
-}
-
-/*
-====================
-R_TimeRefresh_f
-
-For program optimization
-====================
-*/
-void R_TimeRefresh_f( void )
-{
-	
-}
-
-void D_FlushCaches( void )
-{
 }

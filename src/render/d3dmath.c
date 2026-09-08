@@ -22,7 +22,7 @@ DCV_PushMatrix
 */
 void DCV_PushMatrix( int state )
 {
-	D3DMATRIX current;
+	D3DMATRIX	current;
 
 	g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, state, &current);
 
@@ -145,7 +145,7 @@ Out-of-line render-state setter for callers outside the batch core.
 */
 void DCV_FlushApplyRenderState( D3DRENDERSTATETYPE state, DWORD value )
 {
-	DWORD current;
+	DWORD		current;
 
 	g_pD3DDevice->lpVtbl->GetRenderState(g_pD3DDevice, state, &current);
 	if (current != value)
@@ -329,9 +329,9 @@ cardinal axes are supported.
 */
 void DCV_Rotate( int state, float angle, float x, float y, float z )
 {
-	D3DMATRIX rot;
+	D3DMATRIX	rot;
 	float     *m = (float *)&rot;
-	float     rad, c, s;
+	float		rad, c, s;
 
 	if (g_nAccumVertCount)
 		DCV_FlushInline();
@@ -395,4 +395,54 @@ void DCV_Rotate( int state, float angle, float x, float y, float z )
 		g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, state, (LPD3DMATRIX)&g_matView);
 	else
 		g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, state, (LPD3DMATRIX)&g_matWorld);
+}
+
+void DCV_FlushApplyTextureStageState( DWORD stage, D3DTEXTURESTAGESTATETYPE state, DWORD value )
+{
+	DWORD		current;
+	g_pD3DDevice->lpVtbl->GetTextureStageState(g_pD3DDevice, stage, state, &current);
+	if (current != value)
+	{
+		if (g_nAccumVertCount)
+			DCV_FlushInline();
+		g_pD3DDevice->lpVtbl->SetTextureStageState(g_pD3DDevice, stage, state, value);
+	}
+}
+
+void DCV_MultiplyTransform( int state, const D3DMATRIX *matrix )
+{
+	if (g_nAccumVertCount)
+		DCV_FlushInline();
+	g_pD3DDevice->lpVtbl->MultiplyTransform(g_pD3DDevice, state, (LPD3DMATRIX)matrix);
+	if (state == D3DTRANSFORMSTATE_WORLD)
+		g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, state, &g_matWorld);
+	else
+		g_pD3DDevice->lpVtbl->GetTransform(g_pD3DDevice, state, &g_matProjection);
+}
+
+void DCV_Perspective( float fovy, float aspect, float znear, float zfar )
+{
+	float		f;
+	float *m;
+	if (g_nAccumVertCount)
+		DCV_FlushInline();
+	f = tanf(3.1415927f - fovy * 3.1415927f / 360.0f);
+	m = (float *)&g_matProjection;
+	m[0] = f / aspect;
+	m[4] = 0.0f;
+	m[8] = 0.0f;
+	m[12] = 0.0f;
+	m[1] = 0.0f;
+	m[5] = f;
+	m[9] = 0.0f;
+	m[13] = 0.0f;
+	m[2] = 0.0f;
+	m[6] = 0.0f;
+	m[10] = (znear + zfar) / (znear - zfar);
+	m[14] = ((zfar + zfar) * znear) / (znear - zfar);
+	m[3] = 0.0f;
+	m[7] = 0.0f;
+	m[11] = -1.0f;
+	m[15] = 0.0f;
+	g_pD3DDevice->lpVtbl->SetTransform(g_pD3DDevice, D3DTRANSFORMSTATE_PROJECTION, &g_matProjection);
 }
