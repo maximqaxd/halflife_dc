@@ -2041,10 +2041,10 @@ void Draw_Init( void )
 			filler[i] = 0x800000FF;
 		nada_texture = DC_LoadTexture("nada", GLT_SYSTEM, 16, 16, filler, FALSE, TEX_TYPE_RGBA, NULL);
 
-		draw_disc = LoadTransPic("lambda", (qpic_t*)W_GetLumpinfo("lambda"));
+		draw_disc = LoadTransPic("lambda", (qpic_t*)W_GetLumpName("lambda"));
 	}
 
-	draw_chars = (qfont_t*)W_GetLumpinfo("creditsfont");
+	draw_chars = (qfont_t*)W_GetLumpName("creditsfont");
 
 	cb = (qpic_t*)Draw_CacheGet(menu_wad, Draw_CacheIndex(menu_wad, "gfx/conback.lmp"));
 	if (!cb)
