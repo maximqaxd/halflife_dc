@@ -145,7 +145,7 @@ Sends a text message in an out-of-band datagram
 void Netchan_OutOfBandPrint( netsrc_t sock, netadr_t adr, char* format, ... )
 {
 	va_list		argptr;
-	static char		string[8192];		// ??? why static?
+	char		string[8192];
 
 	va_start(argptr, format);
 	vsprintf(string, format, argptr);
