@@ -164,6 +164,7 @@ void	Key_WriteBindings( void* f );
 int		Key_CountBindings( void );
 void	Key_SetCaptureMode( int capture );
 int		Key_GetCapturedKey( void );
+void Key_PushCapturedKey( int key );
 void	Key_SetBinding( int keynum, char* binding );
 int		Key_StringToKeynum( char* str );
 char*	Key_KeynumToString( int keynum );

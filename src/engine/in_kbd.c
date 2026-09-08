@@ -135,3 +135,18 @@ void IN_ReleaseMapleDevice( maplekeyboard_t *pKbd )
 		pKbd->device.pDevice->Release();
 	}
 }
+
+qboolean IN_ReadKeyboardState( maplekeyboard_t* pKbd )
+{
+	byte state[256];
+	HRESULT result;
+
+	memset(state, 0, sizeof(state));
+	result = pKbd->device.pDevice->GetDeviceState(sizeof(state), state);
+	if (DIERR_INPUTLOST == result)
+	{
+		pKbd->device.pDevice->Acquire();
+		pKbd->device.pDevice->GetDeviceState(sizeof(state), state);
+	}
+	return TRUE;
+}

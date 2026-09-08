@@ -1352,9 +1352,46 @@ qboolean IN_JoystickActive( void )
 IN_Commands
 ===========
 */
+void IN_FindJoystickKeys( char* name, int* count, int* keys )
+{
+	int key = Key_StringToKeynum(name);
+	int i;
+
+	*count = 0;
+	if (key != -1)
+	{
+		for (i = 0; i < MAX_JOY_POVS; i++)
+		{
+			if (key == joykeys[i])
+			{
+				keys[(*count)++] = i;
+				break;
+			}
+		}
+	}
+}
+
+void IN_GetMousePos( POINT* position )
+{
+	if (pMouseDevice)
+	{
+		position->x = pMouseDevice->x;
+		position->y = pMouseDevice->y;
+	}
+}
+
+void IN_SetMousePos( int x, int y )
+{
+	if (pMouseDevice)
+	{
+		pMouseDevice->x = x;
+		pMouseDevice->y = y;
+	}
+}
+
 void IN_Commands( void )
 {
-	int			i, j, key;
+	int			i;
 	int			modifier;
 	int			value;
 	int			held;
@@ -1379,33 +1416,8 @@ void IN_Commands( void )
 	}
 
 	// find which pad positions the two shift buttons are bound to
-	key = Key_StringToKeynum(joyshift1.string);
-	joyshift1count = 0;
-	if (key != -1)
-	{
-		for (j = 0; j < MAX_JOY_POVS; j++)
-		{
-			if (key == joykeys[j])
-			{
-				joyshift1keys[joyshift1count++] = j;
-				break;
-			}
-		}
-	}
-
-	key = Key_StringToKeynum(joyshift2.string);
-	joyshift2count = 0;
-	if (key != -1)
-	{
-		for (j = 0; j < MAX_JOY_POVS; j++)
-		{
-			if (key == joykeys[j])
-			{
-				joyshift2keys[joyshift2count++] = j;
-				break;
-			}
-		}
-	}
+	IN_FindJoystickKeys(joyshift1.string, &joyshift1count, joyshift1keys);
+	IN_FindJoystickKeys(joyshift2.string, &joyshift2count, joyshift2keys);
 
 	// a shift is in effect only while every button bound to it is held, and the
 	// buttons themselves stop reporting as ordinary presses

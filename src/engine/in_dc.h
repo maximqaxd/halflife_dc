@@ -123,6 +123,10 @@ void		IN_DebugPrintf( LPCTSTR fmt, ... );
 
 int			MapKey( int key );
 qboolean	IN_CreateMapleDevice( maplekeyboard_t *pKbd );
+qboolean IN_ReadKeyboardState( maplekeyboard_t* pKbd );
+void IN_GetMousePos( POINT* position );
+void IN_SetMousePos( int x, int y );
+void IN_FindJoystickKeys( char* name, int* count, int* keys );
 void		IN_ReleaseMapleDevice( maplekeyboard_t *pKbd );
 
 qboolean	IN_ActivateJoystick( maplejoystick_t *pJoy );

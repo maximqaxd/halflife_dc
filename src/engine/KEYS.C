@@ -484,6 +484,16 @@ Key_GetCapturedKey
 Next key press waiting in the capture queue, or 0 when nothing is there.
 ===================
 */
+void Key_PushCapturedKey( int key )
+{
+	int next = (key_capture_tail + 1) % KEY_CAPTURE_QUEUE;
+	if (next != key_capture_head)
+	{
+		key_capture_keys[key_capture_tail] = key;
+		key_capture_tail = next;
+	}
+}
+
 int Key_GetCapturedKey( void )
 {
 	int		key;
@@ -891,7 +901,6 @@ void Key_Event( int key, qboolean down )
 {
 	char* kb;
 	char	cmd[1024];
-	int		next;
 
 	Host_UpdateScreenSaver(FALSE);
 
@@ -1011,12 +1020,7 @@ void Key_Event( int key, qboolean down )
 			break;
 
 		case key_capture:
-			next = (key_capture_tail + 1) % KEY_CAPTURE_QUEUE;
-			if (next != key_capture_head)
-			{
-				key_capture_keys[key_capture_tail] = key;
-				key_capture_tail = next;
-			}
+			Key_PushCapturedKey(key);
 			break;
 
 		default:
