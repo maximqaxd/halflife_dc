@@ -952,7 +952,7 @@ void SV_RejectConnection( netadr_t* adr, char* text )
 	SV_ClearAuthRequest(adr);
 }
 
-static void SV_RejectConnectionForPassword( netadr_t* adr )
+void SV_RejectConnectionForPassword( netadr_t* adr )
 {
 	SZ_Clear(&net_message);
 	MSG_WriteLong(&net_message, -1);
@@ -1308,6 +1308,18 @@ void SVC_Ping( void )
 
 	NET_SendPacket(NS_SERVER, 1, &data, net_from);
 }
+#else
+void SVC_Ping( void )
+{
+	char data[6];
+	data[0] = -1;
+	data[1] = -1;
+	data[2] = -1;
+	data[3] = -1;
+	data[4] = A2A_ACK;
+	data[5] = 0;
+	NET_SendPacket(NS_SERVER, sizeof(data), data, net_from);
+}
 #endif
 
 /*
@@ -1404,6 +1416,13 @@ typedef struct modinfo_s
 } modinfo_t;
 
 modinfo_t gmodinfo;
+
+void SV_InitModInfo( void )
+{
+	memset(&gmodinfo, 0, sizeof(gmodinfo));
+	gmodinfo.version = 1;
+	gmodinfo.svonly = TRUE;
+}
 
 qboolean SV_GetModInfo( char* pszInfo, char* pszDL, int* version, int* size,
 	int* svonly, int* cldll, char* pszHLVersion )
@@ -2904,6 +2923,14 @@ SV_WritePlayersToClient
 
 =============
 */
+qboolean SV_ShouldUpdatePing( int clientIndex )
+{
+	if (svs.maxclientslimit == 1)
+		return host_framecount % 30 == 0;
+	return clientIndex == host_framecount % svs.maxclientslimit;
+}
+
+
 void SV_WritePlayersToClient( client_t* client, byte* pvs, sizebuf_t* msg )
 {
 	int i, j;
@@ -2933,10 +2960,7 @@ void SV_WritePlayersToClient( client_t* client, byte* pvs, sizebuf_t* msg )
 
 		ent = cl->edict;
 		visible = TRUE;
-		if (svs.maxclients == 1)
-			updateping = host_framecount % 30 == 0;
-		else
-			updateping = j == host_framecount % svs.maxclients;
+		updateping = SV_ShouldUpdatePing(j);
 
 		if (ent != clent &&
 			!(client->spec_track && client->spec_track - 1 == j))
@@ -3380,6 +3404,7 @@ a svc_packetentities messages and
 svc_playerinfo messages
 =============
 */
+
 void SV_WriteEntitiesToClient( client_t* client, sizebuf_t* msg )
 {
 	int		i;
@@ -3990,7 +4015,7 @@ SV_AddResource
 Adds a new resource to the server resource list
 ================
 */
-static __inline void SV_AddResource( resourcetype_t type, const char *name, int size, byte flags, int index )
+void SV_AddResource( resourcetype_t type, const char *name, int size, int flags, int index )
 {
 	resource_t*	r;
 
@@ -4001,8 +4026,7 @@ static __inline void SV_AddResource( resourcetype_t type, const char *name, int 
 
 	r->type = type;
 	strcpy(r->szFileName, name);
-	if (flags)
-		r->ucFlags |= RES_FATALIFMISSING;
+	r->ucFlags |= (byte)(flags ? RES_FATALIFMISSING : 0);
 	r->nIndex = index;
 }
 
@@ -4013,6 +4037,11 @@ SV_CreateResourceList
 Creates a common list of all server resources
 ================
 */
+void SV_Customization( client_t* pPlayer, resource_t* pResource, qboolean bSkipPlayer )
+{
+	Sys_Error("Customizations");
+}
+
 void SV_CreateResourceList( void )
 {
 	char** s;

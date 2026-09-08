@@ -14,7 +14,7 @@ float* velocity;
 
 usercmd_t	cmd;
 
-static void SV_PostRunCmd( void );
+void SV_PostRunCmd( void );
 
 cvar_t	sv_idealpitchscale = { "sv_idealpitchscale", "0.8" };
 cvar_t	sv_edgefriction = { "edgefriction", "2", FCVAR_SERVER };
@@ -266,6 +266,11 @@ static qboolean SV_RunThink( edict_t* ent, float frametime, float time )
 		ED_Free(ent);
 
 	return (qboolean)(ent->free == FALSE);
+}
+
+void SV_SetUsercmd( const usercmd_t* command )
+{
+	cmd = *command;
 }
 
 /*
@@ -528,7 +533,7 @@ SV_PostRunCmd
 ===========
 Done after running a player command.
 */
-static void SV_PostRunCmd( void )
+void SV_PostRunCmd( void )
 {
 	// run post-think
 

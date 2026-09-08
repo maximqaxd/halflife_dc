@@ -4,6 +4,12 @@
 #include "world.h"
 #include "pr_edict.h"
 
+static int ed_private_allocations;
+static int ed_private_frees;
+static int ed_leaf_allocations;
+static int ed_leaf_frees;
+static int ed_leaf_reallocations;
+
 static int	ed_last_num_edicts;
 static int	ed_scientist_count_1;
 static int	ed_scientist_count_2;
@@ -569,6 +575,7 @@ void AllocEntLeafData( edict_t* pEdict, int leafCount )
 	if (!pEdict->leafnums)
 	{
 		pEdict->leafnums = (short*)calloc(1, capacity * sizeof(short));
+		ed_leaf_allocations++;
 		if (!pEdict->leafnums)
 			Sys_Error("AllocEntLeafData: out of memory");
 
@@ -578,13 +585,16 @@ void AllocEntLeafData( edict_t* pEdict, int leafCount )
 	else if (pEdict->leaf_capacity < leafCount)
 	{
 		newLeafNums = (short*)calloc(1, capacity * sizeof(short));
-		if (!newLeafNums)
+		ed_leaf_allocations++;
+		ed_leaf_reallocations++;
+		if (!pEdict->leafnums)
 			Sys_Error("AllocEntLeafData: out of memory");
 
 		pEdict->leaf_capacity = (short)capacity;
 		memcpy(newLeafNums, pEdict->leafnums,
 			pEdict->num_leafs * sizeof(short));
 		free(pEdict->leafnums);
+		ed_leaf_frees++;
 		pEdict->leafnums = newLeafNums;
 	}
 }
@@ -592,7 +602,10 @@ void AllocEntLeafData( edict_t* pEdict, int leafCount )
 void FreeEntLeafData( edict_t* pEdict )
 {
 	if (pEdict->leafnums)
+	{
 		free(pEdict->leafnums);
+		ed_leaf_frees++;
+	}
 
 	pEdict->leafnums = NULL;
 	pEdict->num_leafs = 0;
@@ -612,6 +625,7 @@ void* PvAllocEntPrivateData( edict_t* pEdict, long cb )
 		return NULL;
 
 	pEdict->pvPrivateData = calloc(1, cb);
+	ed_private_allocations++;
 	return pEdict->pvPrivateData;
 }
 
@@ -629,7 +643,10 @@ void* PvEntPrivateData( edict_t* pEdict )
 void FreeEntPrivateData( edict_t* pEdict )
 {
 	if (pEdict->pvPrivateData)
+	{
 		free(pEdict->pvPrivateData);
+		ed_private_frees++;
+	}
 	pEdict->pvPrivateData = NULL;
 }
 
@@ -739,6 +756,11 @@ void SaveSpawnParms( edict_t* pEdict )
 
 	if (eoffset < 1 || eoffset > svs.maxclients)
 		Host_Error("Entity is not a client");
+}
+
+void WriteConfiguration( void )
+{
+	Host_WriteConfiguration();
 }
 
 void* GetModelPtr( edict_t* pEdict )

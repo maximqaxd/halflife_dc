@@ -27,6 +27,7 @@ void CVarSetString( const char* szVarName, const char* szValue );
 
 int AllocEngineString( const char* szValue );
 void SaveSpawnParms( edict_t* pEdict );
+void WriteConfiguration( void );
 void* GetModelPtr( edict_t* pEdict );
 
 void PR_Profile_f( void );

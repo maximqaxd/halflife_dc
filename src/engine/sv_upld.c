@@ -3,6 +3,38 @@
 #include "decal.h"
 #include "hashpak.h"
 
+void SV_RecordUploadStats( void )
+{
+	downloadtime_t* sample;
+
+	if (sv_uploadinterval.value != 0.0f)
+	{
+		if (sv_uploadinterval.value < 0.0f)
+			Cvar_SetValue("sv_uploadinterval", 1.0f);
+
+		if (realtime - host_client->fLastUploadTime >= sv_uploadinterval.value)
+		{
+			host_client->fLastUploadTime = realtime;
+			sample = &host_client->rgUploads[host_client->nCurUpload & (MAX_DL_STATS - 1)];
+			sample->bUsed = TRUE;
+			sample->fTime = realtime;
+			sample->nBytesRemaining = host_client->nRemainingToTransfer;
+			host_client->nCurUpload++;
+		}
+	}
+}
+
+void SV_RegisterResources( void )
+{
+	resource_t* pResource;
+	client_t* pHost = host_client;
+
+	pHost->uploading = FALSE;
+	for (pResource = pHost->resourcesonhand.pNext; pResource != &pHost->resourcesonhand; pResource = pResource->pNext)
+		SV_Customization(pHost, pResource, TRUE);
+	host_client = pHost;
+}
+
 /*
 ==================
 SV_ParseUpload
@@ -25,10 +57,7 @@ void SV_PrintResource( int index, resource_t* pResource )
 	static char type[12];
 	static char fatal[8];
 
-	if (pResource->ucFlags & RES_FATALIFMISSING)
-		sprintf(fatal, "Y");
-	else
-		sprintf(fatal, "N");
+	sprintf(fatal, "N");
 
 	switch (pResource->type)
 	{
@@ -370,9 +399,7 @@ void SV_ParseResourceList( void )
 		host_client->uploadinprogress = FALSE;
 
 		host_client->fLastStatusUpdate = realtime;
-#ifdef HLDC_MP
 		host_client->fLastUploadTime = realtime;
-#endif
 
 		host_client->nRemainingToTransfer = host_client->nTotalToTransfer;
 

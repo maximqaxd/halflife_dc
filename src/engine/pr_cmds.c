@@ -5,6 +5,8 @@
 #include "pr_cmds.h"
 #include "info.h"
 
+extern int g_userid;
+
 /*
 ===============================================================================
 
@@ -951,7 +953,9 @@ qboolean ValidCmd( const char* pCmd )
 	int len;
 
 	len = strlen(pCmd);
-	return (len != 0) && (pCmd[len - 1] == '\n' || pCmd[len - 1] == ';');
+	if (!len || (pCmd[len - 1] != '\n' && pCmd[len - 1] != ';'))
+		return FALSE;
+	return TRUE;
 }
 
 /*
@@ -1510,13 +1514,20 @@ void PF_aim_I( edict_t* ent, float speed, float* rgflReturn )
 	trace_t	tr;
 	float	dist, bestdist;
 
+	if (!ent || (ent->v.flags & FL_FAKECLIENT))
+	{
+		VectorCopy(gGlobalVariables.v_forward, rgflReturn);
+		return;
+	}
+
 // try sending a trace straight
+	VectorCopy(ent->v.origin, start);
+	start[2] += ent->v.view_ofs[2];
 	VectorCopy(gGlobalVariables.v_forward, dir);
-	VectorAdd(ent->v.origin, ent->v.view_ofs, start); // get eye position
 	VectorMA(start, 2048, dir, end);
 	tr = SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NORMAL, ent, FALSE);
 	if (tr.ent && tr.ent->v.takedamage == DAMAGE_AIM
-		&& (!teamplay.value || ent->v.team <= 0 || ent->v.team != tr.ent->v.team))
+		&& (ent->v.team <= 0 || ent->v.team != tr.ent->v.team))
 	{
 		VectorCopy(gGlobalVariables.v_forward, rgflReturn);
 		return;
@@ -1531,13 +1542,16 @@ void PF_aim_I( edict_t* ent, float speed, float* rgflReturn )
 		check = &sv.edicts[i];
 		if (check->v.takedamage != DAMAGE_AIM)
 			continue;
+		if (check->v.flags & FL_FAKECLIENT)
+			continue;
 		if (check == ent)
 			continue;
-		if (teamplay.value && ent->v.team > 0 && ent->v.team == check->v.team)
+		if (ent->v.team > 0 && ent->v.team == check->v.team)
 			continue;	// don't aim at teammate
 		for (j = 0; j < 3; j++)
 			end[j] = check->v.origin[j]
-			+ 0.75f * (check->v.mins[j] + check->v.maxs[j]);
+			+ 0.75f * (check->v.mins[j] + check->v.maxs[j])
+			+ 0.0f * ent->v.view_ofs[j];
 		VectorSubtract(end, start, dir);
 		VectorNormalize(dir);
 		dist = DotProduct(dir, gGlobalVariables.v_forward);
@@ -1694,13 +1708,14 @@ void PF_crosshairangle_I( const edict_t* clientent, float pitch, float yaw )
 
 edict_t* PF_CreateFakeClient_I( const char* netname )
 {
-	client_t* fakeclient = NULL;
+	client_t* fakeclient;
 	edict_t* ent;
 	int		i;
 
 	// find free slot
-	for (i = 0, fakeclient = svs.clients; i < svs.maxclients; i++, fakeclient++)
+	for (i = 0; i < svs.maxclients; i++)
 	{
+		fakeclient = &svs.clients[i];
 		if (!fakeclient->active && !fakeclient->spawned && !fakeclient->connected)
 			break;
 	}
@@ -1721,11 +1736,20 @@ edict_t* PF_CreateFakeClient_I( const char* netname )
 	fakeclient->active = TRUE;
 	fakeclient->spawned = TRUE;
 	fakeclient->connected = TRUE;
+	fakeclient->uploading = FALSE;
 	fakeclient->edict = ent;
 	fakeclient->fakeclient = TRUE;
-	fakeclient->uploading = FALSE;
+	fakeclient->userid = g_userid++;
 
 	ent->v.netname = fakeclient->name - pr_strings;
+	ent->v.pContainingEntity = ent;
+	ent->v.flags = FL_CLIENT | FL_FAKECLIENT;
+	Info_SetValueForKey(fakeclient->userinfo, "name", (char*)netname, MAX_INFO_STRING);
+	Info_SetValueForKey(fakeclient->userinfo, "model", "gordon", MAX_INFO_STRING);
+	Info_SetValueForKey(fakeclient->userinfo, "topcolor", "1", MAX_INFO_STRING);
+	Info_SetValueForKey(fakeclient->userinfo, "bottomcolor", "1", MAX_INFO_STRING);
+	fakeclient->sendinfo = TRUE;
+	SV_ExtractFromUserinfo(fakeclient);
 	return ent;
 }
 
@@ -1733,12 +1757,14 @@ void PF_RunPlayerMove_I( edict_t* fakeclient, const float* viewangles, float for
 {
 	usercmd_t ucmd;
 	edict_t* oldclient;
+	client_t* oldhost;
 
-	VectorCopy(viewangles, ucmd.angles);
-
+	oldhost = host_client;
 	oldclient = sv_player;
+	host_client = &svs.clients[NUM_FOR_EDICT(fakeclient) - 1];
 	sv_player = fakeclient;
 
+	VectorCopy(viewangles, ucmd.angles);
 	ucmd.forwardmove = forwardmove;
 	ucmd.sidemove = sidemove;
 	ucmd.buttons = buttons;
@@ -1747,11 +1773,11 @@ void PF_RunPlayerMove_I( edict_t* fakeclient, const float* viewangles, float for
 	ucmd.msec = msec;
 	ucmd.lightlevel = 0;
 
-	VectorCopy(ucmd.angles, fakeclient->v.v_angle);
-	SV_PreRunCmd();
-	cmd = ucmd;
+	SV_SetUsercmd(&ucmd);
 	SV_RunCmd();
+	host_client->lastcmd = ucmd;
 	sv_player = oldclient;
+	host_client = oldhost;
 }
 
 /*
@@ -2185,6 +2211,9 @@ void PF_FadeVolume( const edict_t* clientent, int fadePercent, int fadeOutSecond
 
 	client = &svs.clients[entnum - 1];
 
+	if (client->fakeclient)
+		return;
+
 	MSG_WriteChar(&client->netchan.message, svc_soundfade);
 	MSG_WriteByte(&client->netchan.message, (byte)fadePercent);
 	MSG_WriteByte(&client->netchan.message, (byte)holdTime);
@@ -2202,6 +2231,7 @@ Set the client's maximum speed value
 void PF_SetClientMaxspeed( const edict_t* clientent, float fNewMaxspeed )
 {
 	int entnum;
+	client_t* client;
 
 	entnum = NUM_FOR_EDICT(clientent);
 	if (entnum < 1 || entnum > svs.maxclients)
@@ -2210,7 +2240,11 @@ void PF_SetClientMaxspeed( const edict_t* clientent, float fNewMaxspeed )
 		return;
 	}
 
-	svs.clients[entnum - 1].maxspeed = fNewMaxspeed;
+	client = &svs.clients[entnum - 1];
+	client->maxspeed = fNewMaxspeed;
+
+	if (client->fakeclient)
+		return;
 
 	MSG_WriteChar(&sv.datagram, svc_clientmaxspeed);
 	MSG_WriteByte(&sv.datagram, (byte)(entnum - 1));
@@ -2298,12 +2332,28 @@ char* PF_InfoKeyValue( char* infobuffer, char* key )
 
 void PF_SetKeyValue( char* infobuffer, char* key, char* value )
 {
-	Info_SetValueForKey(infobuffer, key, value, MAX_INFO_STRING);
+	if (infobuffer == localinfo)
+		Info_SetValueForKey(infobuffer, key, value, MAX_LOCALINFO);
+	else if (infobuffer == Info_Serverinfo())
+		Info_SetValueForKey(infobuffer, key, value, MAX_SERVERINFO_STRING);
+	else
+		Sys_Error("Can't set client keys with SetKeyValue");
 }
 
 void PF_SetClientKeyValue( int clientIndex, char* infobuffer, char* key, char* value )
 {
-	Info_SetValueForKey(infobuffer, key, value, MAX_INFO_STRING);
+	client_t* client;
+	if (infobuffer == localinfo || infobuffer == Info_Serverinfo() ||
+		clientIndex < 1 || clientIndex > svs.maxclients)
+		return;
+
+	if (strcmp(Info_ValueForKey(infobuffer, key), value))
+	{
+		Info_SetValueForKey(infobuffer, key, value, MAX_INFO_STRING);
+		client = &svs.clients[clientIndex - 1];
+		client->sendinfo = TRUE;
+		client->sendinfo_time = 0;
+	}
 }
 
 void PF_StaticDecal( const float* origin, int decalIndex, int entityIndex, int modelIndex )
@@ -2326,32 +2376,51 @@ int PF_precache_generic_I( char* s )
 {
 	int i;
 
-	if (sv.state == ss_loading)
+	if (sv.state != ss_loading)
 	{
 		for (i = 0; i < MAX_GENERIC; i++)
 		{
-			if (!sv.generic_precache[i])
-			{
-				sv.generic_precache[i] = s;
-				return i;
-			}
-
-			if (!strcmp(sv.generic_precache[i], s))
+			if (sv.generic_precache[i] && !strcmp(s, sv.generic_precache[i]))
 				return i;
 		}
-
-		Host_Error("PF_precache_generic_I: '%s' overflow", s);
-		return 0;
+		Host_Error("PF_precache_generic_I: '%s' Precache can only be done in spawn functions", s);
 	}
 
+	PR_CheckEmptyString(s);
 	for (i = 0; i < MAX_GENERIC; i++)
 	{
-		if (sv.generic_precache[i] && !strcmp(sv.generic_precache[i], s))
+		if (!sv.generic_precache[i])
+		{
+			sv.generic_precache[i] = s;
+			return i;
+		}
+		if (!Q_strcasecmp(s, sv.generic_precache[i]))
 			return i;
 	}
 
-	Host_Error("PF_precache_generic_I: '%s' Precache can only be done in spawn functions", s);
+	Host_Error("PF_precache_generic_I: '%s' overflow", s);
 	return 0;
+}
+
+unsigned int PF_GetPlayerWONId( edict_t* e )
+{
+	int i;
+	client_t* client;
+
+	if (sv.active)
+		goto valid_server;
+	return -1;
+
+valid_server:
+	if (!e)
+		return -1;
+
+	for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
+	{
+		if (client->edict == e)
+			return client->network_userid;
+	}
+	return -1;
 }
 
 int PF_GetPlayerUserId( edict_t* e )

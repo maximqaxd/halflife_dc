@@ -185,7 +185,7 @@ typedef struct
 	packet_entities_t	entities;
 } client_frame_t;
 
-// client_t
+// client_t -- 0x36f0 bytes on Dreamcast.
 typedef struct client_s
 {
 	qboolean active;					// false = client is free
@@ -285,10 +285,12 @@ typedef struct client_s
 	int			nTotalToTransfer;
 	int			nRemainingToTransfer;
 
+	#ifdef HLDC_MP
 	double		fLastStatusUpdate;		// The time of the last upload status
-#ifdef HLDC_MP
-	float		fLastUploadTime;		// The last time the file was uploaded
+#else
+	float		fLastStatusUpdate;		// The time of the last upload status
 #endif
+	float		fLastUploadTime;		// The last time the file was uploaded
 
 	downloadtime_t rgUploads[MAX_DL_STATS];
 	int			nCurUpload;
@@ -482,6 +484,7 @@ void SV_ExecuteClientMessage( client_t* cl );
 void SV_PreRunCmd( void );
 extern usercmd_t cmd;
 void SV_RunCmd( void );
+void SV_SetUsercmd( const usercmd_t* command );
 void SV_Drop_f( void );
 
 //
@@ -525,5 +528,10 @@ void SV_Info_f( void );
 extern cvar_t exportdicts;
 extern cvar_t exportsaves;
 
+
+
+void SV_Customization( client_t* pPlayer, resource_t* pResource, qboolean bSkipPlayer );
+void SV_RegisterResources( void );
+void SV_RecordUploadStats( void );
 
 #endif // SERVER_H
