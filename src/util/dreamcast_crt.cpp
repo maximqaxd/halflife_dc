@@ -217,6 +217,73 @@ char* strrchr( const char* s, int c )
 }
 
 
+void DC_ExtractFilename( const char *path, char *name )
+{
+	const char *slash = strrchr(path, '/');
+	const char *drive = strrchr(path, ':');
+	const char *ext = strrchr(path, '.');
+
+	if (!ext)
+		ext = strchr(path, 0);
+	if (slash)
+		path = slash + 1;
+	else if (drive)
+		path = drive + 1;
+	while (path < ext)
+		*name++ = *path++;
+	*name = 0;
+}
+
+void _splitpath( const char *path, char *drive, char *dir, char *name, char *ext )
+{
+	char normalized[MAX_PATH];
+	char *out = normalized;
+	char *first, *last;
+
+	while (*path)
+	{
+		*out++ = *path == '\\' ? '/' : *path;
+		path++;
+	}
+	if (drive)
+	{
+		first = strchr(normalized, ':');
+		if (first)
+		{
+			drive[0] = first[-1];
+			drive[1] = first[0];
+			drive[2] = 0;
+		}
+		else
+			strcpy(drive, "");
+	}
+	if (dir)
+	{
+		first = strchr(normalized, '/');
+		last = strrchr(normalized, '/');
+		if (first)
+		{
+			do
+			{
+				*dir++ = *first++;
+			} while (first <= last);
+			*dir = 0;
+		}
+		else
+			strcpy(dir, "");
+	}
+	if (name)
+		DC_ExtractFilename(normalized, name);
+	if (ext)
+	{
+		last = strrchr(normalized, '.');
+		if (last)
+			strcpy(ext, last);
+		else
+			strcpy(ext, "");
+	}
+}
+
 // Single-precision floating point remainder.
 float fmodf( float x, float y )
 {

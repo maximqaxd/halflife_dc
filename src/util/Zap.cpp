@@ -61,7 +61,7 @@ char *Bmakename( char *path, unsigned int type )
 }
 
 // Compare two paths ignoring case, treating '\' and '/' as the same.
-static int Bpathcmp( const char *s1, const char *s2 )
+int Bpathcmp( const char *s1, const char *s2 )
 {
 	int c1, c2;
 
@@ -77,6 +77,16 @@ static int Bpathcmp( const char *s1, const char *s2 )
 			return c1 - c2;
 	}
 	return *s1 - *s2;
+}
+
+void Bnormalize_path( char *dest, const char *src )
+{
+	while (*src)
+	{
+		char c = *src++;
+		*dest++ = c == '\\' ? '/' : (char)tolower(c);
+	}
+	*dest = '\0';
 }
 
 extern "C" void MnemoShrink( void *ptr, int newsize );
@@ -153,11 +163,26 @@ int IsBfile( bfile_t *h )
 
 extern void Sys_ErrorColor( int wColor, char *fmt, ... );
 
+int Bdecompress( bfile_t *h )
+{
+	byte *buffer = (byte *)MnemoAlloc(h->size, MNEMO_FLAG_MALLOC, 0, Bmakename(h->path, 0));
+
+	if (buffer)
+	{
+		ZlibDecompress(h->data, buffer);
+		MnemoFree(h->data);
+		h->data = buffer;
+	}
+	else
+	{
+		Sys_ErrorColor(RGB565_RED, "Insufficient memory to decompress a compressed memory file. This is BAD.\n");
+	}
+	return buffer != NULL;
+}
+
 bfile_t *Bopen( char *path, char *mode )
 {
 	bfile_t *e;
-	byte  *buf;
-	char  *p, *q;
 	int    i, saved;
 
 	// Reopen an existing entry whose path matches, decompressing it if needed.
@@ -172,15 +197,8 @@ bfile_t *Bopen( char *path, char *mode )
 		strcpy(e->mode, mode);
 		if (e->flags & 1)
 		{
-			buf = (byte *)MnemoAlloc(e->size, MNEMO_FLAG_MALLOC, 0, Bmakename(e->path, 0));
-			if (buf == 0)
-			{
-				Sys_ErrorColor(RGB565_RED, "Insufficient memory to decompress a compressed memory file. This is BAD.\n");
+			if (!Bdecompress(e))
 				return 0;
-			}
-			ZlibDecompress(e->data, buf);
-			MnemoFree(e->data);
-			e->data = buf;
 #if HLDC_FIXES
 			// The buffer that was just handed out is size bytes long, so say so;
 			// capacity still described the compressed copy that was thrown away.
@@ -213,10 +231,7 @@ bfile_t *Bopen( char *path, char *mode )
 			continue;
 
 		e = &g_bfiles[i];
-		p = e->path;
-		for (q = path; *q != '\0'; q++)
-			*p++ = (*q == '\\') ? '/' : (char)tolower(*q);
-		*p = '\0';
+		Bnormalize_path(e->path, path);
 		strcpy(e->mode, mode);
 
 		saved = g_bBfileAlloc;
@@ -402,6 +417,28 @@ void Bclear_slot( int slot )
 	e->flags    = 0;
 }
 
+static void (*volatile Bclear_slot_call)(int) = Bclear_slot;
+
+void Binit_slots( void )
+{
+	int i;
+
+	for (i = 0; i < MAX_BFILES; i++)
+		Bclear_slot_call(i);
+}
+
+void Bfree_all( void )
+{
+	int i;
+
+	for (i = 0; i < MAX_BFILES; i++)
+	{
+		if (g_bfiles[i].data)
+			MnemoFree(g_bfiles[i].data);
+		Bclear_slot_call(i);
+	}
+}
+
 // Shrink every open Bfile's buffer down to its current size.
 void Bshrink_all( void )
 {
@@ -473,6 +510,22 @@ int Bfilesize_path( char *path )
 			return g_bfiles[i].size;
 	}
 
+	return 0;
+}
+
+int Bstoredsize_path( char *path )
+{
+	int i;
+
+	for (i = 0; i < MAX_BFILES; i++)
+	{
+		if (g_bfiles[i].used && !g_bfiles[i].open && !Bpathcmp(g_bfiles[i].path, path))
+		{
+			if (g_bfiles[i].flags | 1)
+				return g_bfiles[i].capacity;
+			return g_bfiles[i].size;
+		}
+	}
 	return 0;
 }
 
@@ -615,10 +668,7 @@ char *Bfind_first( char *pattern, char *nameOut )
 	if (nameOut)
 		*nameOut = '\0';
 
-	p = g_findPattern;
-	for (q = pattern; *q != '\0'; q++)
-		*p++ = (*q == '\\') ? '/' : (char)tolower(*q);
-	*p = '\0';
+	Bnormalize_path(g_findPattern, pattern);
 
 	g_findSlot = 0;
 
@@ -691,14 +741,10 @@ void Bfind_reset( void )
 int Brename_path( char *oldpath, char *newpath )
 {
 	char  normalized[256];
-	char *p, *q;
 	int   i;
 
 	// Nothing may be renamed on top of a file that is already resident
-	p = normalized;
-	for (q = newpath; *q != '\0'; q++)
-		*p++ = (*q == '\\') ? '/' : (char)tolower(*q);
-	*p = '\0';
+	Bnormalize_path(normalized, newpath);
 
 	for (i = 0; i < MAX_BFILES; i++)
 	{
@@ -709,10 +755,7 @@ int Brename_path( char *oldpath, char *newpath )
 			return -1;
 	}
 
-	p = normalized;
-	for (q = oldpath; *q != '\0'; q++)
-		*p++ = (*q == '\\') ? '/' : (char)tolower(*q);
-	*p = '\0';
+	Bnormalize_path(normalized, oldpath);
 
 	for (i = 0; i < MAX_BFILES; i++)
 	{
@@ -722,10 +765,7 @@ int Brename_path( char *oldpath, char *newpath )
 		if (Bpathcmp(normalized, g_bfiles[i].path) != 0)
 			continue;
 
-		p = g_bfiles[i].path;
-		for (q = newpath; *q != '\0'; q++)
-			*p++ = (*q == '\\') ? '/' : (char)tolower(*q);
-		*p = '\0';
+		Bnormalize_path(g_bfiles[i].path, newpath);
 		return 0;
 	}
 
@@ -756,29 +796,28 @@ int Bcompress_path( char *path )
 	return 0;
 }
 
+int Bexport_named_handle( bfile_t *h, char *path )
+{
+	char name[256];
+	char *base = strrchr(path, '/');
+	void *file;
+
+	if (base)
+		path = base + 1;
+	sprintf(name, "\\PC\\%s", path);
+	file = Sys_OpenHandle(name, "wb");
+	if (file)
+	{
+		DC_fwrite(h->data, h->size, 1, file);
+		Sys_CloseHandle(file);
+	}
+	return file != NULL;
+}
+
 // Write a Bfile's contents out to the PC-side host under \PC\.
 int Bexport_handle( bfile_t *h )
 {
-	char  name[256];
-	char *p;
-	void *pFile;
-
-	p = strrchr(h->path, '/');
-	if (p)
-		p = p + 1;
-	else
-		p = h->path;
-
-	sprintf(name, "\\PC\\%s", p);
-
-	pFile = Sys_OpenHandle(name, "wb");
-	if (pFile)
-	{
-		DC_fwrite(h->data, h->size, 1, pFile);
-		Sys_CloseHandle(pFile);
-	}
-
-	return pFile != NULL;
+	return Bexport_named_handle(h, h->path);
 }
 
 // Write the Bfile with the given path out to the PC-side host.
@@ -816,6 +855,18 @@ int Bexport_path( char *path, char *exportName )
 	return 0;
 }
 
+int Bexport_default_path( char *path )
+{
+	int i;
+
+	for (i = 0; i < MAX_BFILES; i++)
+	{
+		if (g_bfiles[i].used && !g_bfiles[i].open && !Bpathcmp(g_bfiles[i].path, path))
+			return Bexport_named_handle(&g_bfiles[i], path);
+	}
+	return 0;
+}
+
 // Return a pointer to a Bfile's data if it is uncompressed, else NULL.
 void *Bfileptr_path( char *path )
 {
@@ -831,6 +882,32 @@ void *Bfileptr_path( char *path )
 	}
 
 	return NULL;
+}
+
+void *Bcompressedptr_path( char *path )
+{
+	int i;
+
+	for (i = 0; i < MAX_BFILES; i++)
+	{
+		if (g_bfiles[i].used && !g_bfiles[i].open &&
+			!Bpathcmp(g_bfiles[i].path, path) && (g_bfiles[i].flags & 1))
+			return g_bfiles[i].data;
+	}
+	return NULL;
+}
+
+int Bwrite_compressed( char *path, void *data, int size )
+{
+	bfile_t *file = Bopen(path, "wb");
+
+	if (file)
+	{
+		Bwrite(data, size, 1, file);
+		Bclose(file);
+		file->flags |= 1;
+	}
+	return file != NULL;
 }
 
 } // extern "C"

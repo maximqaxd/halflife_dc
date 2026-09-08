@@ -367,27 +367,23 @@ VMU_SelectFirstDevice
 Point at the lowest numbered card that answered, or -1 if there are none.
 ==================
 */
-static __inline int VMU_SelectFirstDevice( void )
+__inline int VMU_SelectFirstDevice( void )
 {
-	int	i;
-	int	selected;
+	int i;
+	int selected;
 
 	vmuCurrentDevice = -1;
-
 	for (i = 0; i < VMU_MAX_DEVICES; i++)
 	{
 		selected = 0;
-
 		if (vmuDevices[i].present)
 		{
 			vmuCurrentDevice = i;
 			selected = 1;
 		}
-
 		if (selected)
-			break;
+			return i;
 	}
-
 	return vmuCurrentDevice;
 }
 
@@ -420,7 +416,7 @@ VMU_DeviceFreeBytes
 Room left on a card that is already open.
 ==================
 */
-static __inline int VMU_DeviceFreeBytes( IEsDevice *device )
+__inline int VMU_DeviceFreeBytes( IEsDevice *device )
 {
 	int	hr;
 
@@ -447,6 +443,27 @@ static __inline int VMU_DeviceFreeBytes( IEsDevice *device )
 	}
 }
 
+__inline int VMU_CheckResult( int result )
+{
+	if (result != ES_SUCCESS)
+		ES_ErrorTypeToString( result );
+	return result;
+}
+
+__inline void VMU_ReleaseDevice( IEsDevice *device )
+{
+	if (device)
+		device->lpVtbl->Release( device );
+}
+
+__inline bool VMU_DeviceHasSpace( IEsDevice *device, char *fileName, int required )
+{
+	if (!device)
+		return false;
+	int free = VMU_DeviceFreeBytes( device );
+	return required <= free + (int)VMU_GetFileDescription( device, fileName, NULL );
+}
+
 /*
 ==================
 VMU_InitDeviceTable
@@ -470,8 +487,7 @@ void VMU_InitDeviceTable( void )
 	free = VMU_DeviceFreeBytes( device );
 	free += VMU_GetFileDescription( device, "bogus", NULL );
 
-	if (device)
-		device->lpVtbl->Release( device );
+	VMU_ReleaseDevice( device );
 
 	vmuRecentSave[0] = 0;
 }
@@ -707,6 +723,26 @@ static IEsDevice *VMU_OpenDevice( void )
 	return device;
 }
 
+bool VMU_ReadDescription( char *fileName, char *description )
+{
+	IEsDevice *device = VMU_OpenDevice();
+	if (!device)
+		return false;
+	int size = VMU_GetFileDescription( device, fileName, description );
+	VMU_ReleaseDevice( device );
+	return size != 0;
+}
+
+__inline bool VMU_HasSpace( char *fileName, int required )
+{
+	IEsDevice *device = VMU_OpenDevice();
+	if (!device)
+		return false;
+	bool room = VMU_DeviceHasSpace( device, fileName, required );
+	VMU_ReleaseDevice( device );
+	return room;
+}
+
 /*
 ==================
 VMU_GetFreeBlocks
@@ -725,8 +761,7 @@ int VMU_GetFreeBlocks( void )
 
 	free = VMU_DeviceFreeBytes( device );
 
-	if (device)
-		device->lpVtbl->Release( device );
+	VMU_ReleaseDevice( device );
 
 	return free;
 }
@@ -772,8 +807,7 @@ unsigned int VMU_DeleteFile( char *fileName )
 			}
 		}
 
-		if (device)
-			device->lpVtbl->Release( device );
+		VMU_ReleaseDevice( device );
 	}
 
 	return result;
@@ -868,8 +902,7 @@ static unsigned int VMU_WriteSaveGame( char *sourcePath, char *fileName, int dat
 		}
 	}
 
-	if (device)
-		device->lpVtbl->Release( device );
+	VMU_ReleaseDevice( device );
 
 	return result;
 }
@@ -929,8 +962,7 @@ static unsigned int VMU_WriteConfig( char *sourcePath, char *fileName, unsigned 
 		}
 	}
 
-	if (device)
-		device->lpVtbl->Release( device );
+	VMU_ReleaseDevice( device );
 
 	return result;
 }
@@ -978,6 +1010,11 @@ static int VMU_SortFileCompare( const void *a, const void *b )
 		return diff;
 
 	return fb->index - fa->index;
+}
+
+__inline void VMU_SortFiles( void )
+{
+	qsort( vmuFiles, vmuFileCount, sizeof(CVmuFile), VMU_SortFileCompare );
 }
 
 /*
@@ -1100,10 +1137,9 @@ int VMU_EnumFiles( vmuenumproc_t callback, void *userData )
 		return 0;
 	}
 
-	if (device)
-		device->lpVtbl->Release( device );
+	VMU_ReleaseDevice( device );
 
-	qsort( vmuFiles, vmuFileCount, sizeof(CVmuFile), VMU_SortFileCompare );
+	VMU_SortFiles();
 
 	for (i = 0; i < vmuFileCount; i++)
 	{
@@ -1176,8 +1212,7 @@ int VMU_CreateFile( char *fileName, unsigned int blockCount )
 		file->lpVtbl->Release( file );
 	}
 
-	if (device)
-		device->lpVtbl->Release( device );
+	VMU_ReleaseDevice( device );
 
 	return hr == ES_SUCCESS;
 }
@@ -1319,11 +1354,9 @@ as free, since it is about to be rewritten.
 */
 int VMU_SaveGameHL4( char *saveName )
 {
-	IEsDevice	*device;
 	char		shortName[20];
 	int			dataLen;
 	int			needed;
-	int			free;
 	qboolean	room;
 
 	VMU_MakeShortName( saveName, shortName );
@@ -1331,17 +1364,7 @@ int VMU_SaveGameHL4( char *saveName )
 	dataLen = Bfilesize_path( saveName );
 	needed = dataLen + VMU_PAYLOAD_OFFSET;
 
-	room = false;
-
-	device = VMU_OpenDevice();
-	if (device)
-	{
-		free = VMU_DeviceFreeBytes( device );
-		room = needed <= free + (int)VMU_GetFileDescription( device, shortName, NULL );
-
-		if (device)
-			device->lpVtbl->Release( device );
-	}
+	room = VMU_HasSpace( shortName, needed );
 
 	if (!room)
 	{
@@ -1377,12 +1400,10 @@ Copy a saved game out to the card and drop the working copy on disc.
 */
 int VMU_SaveGameHL1( char *saveName )
 {
-	IEsDevice	*device;
 	char		shortName[20];
 	int			dataLen;
 	int			rawLen;
 	int			needed;
-	int			free;
 	qboolean	room;
 
 	VMU_MakeShortName( saveName, shortName );
@@ -1391,17 +1412,7 @@ int VMU_SaveGameHL1( char *saveName )
 	needed = dataLen + VMU_SAVE_OVERHEAD;
 	rawLen = Bfilesize_path( saveName );
 
-	room = false;
-
-	device = VMU_OpenDevice();
-	if (device)
-	{
-		free = VMU_DeviceFreeBytes( device );
-		room = needed <= free + (int)VMU_GetFileDescription( device, shortName, NULL );
-
-		if (device)
-			device->lpVtbl->Release( device );
-	}
+	room = VMU_HasSpace( shortName, needed );
 
 	if (!room)
 	{
@@ -1534,8 +1545,7 @@ static int VMU_LoadGameHL4( char *saveName )
 			}
 		}
 
-		if (device)
-			device->lpVtbl->Release( device );
+		VMU_ReleaseDevice( device );
 	}
 
 	return result;
@@ -1668,8 +1678,7 @@ static int VMU_DumpFile( char *saveName )
 			}
 		}
 
-		if (device)
-			device->lpVtbl->Release( device );
+		VMU_ReleaseDevice( device );
 	}
 
 	return result;
