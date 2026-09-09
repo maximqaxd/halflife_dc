@@ -1673,7 +1673,7 @@ int StudioReadBits_Neo( int bitCount )
 	int			outputShift;
 	int			result;
 	int			bits;
-	short		value;
+	unsigned short	value;
 
 	highBitMask = g_StudioHighBitMask;
 	outputShift = 0;
