@@ -25,10 +25,7 @@
 #define RGB_REDISH 0x00FF1010 //255,160,0
 #define RGB_GREENISH 0x0000A000 //0,160,0
 
-typedef struct rect_s
-{
-	int				left, right, top, bottom;
-} wrect_t;
+#include "../engine/wrect.h"
 
 #include "cl_dll.h"
 #include "ammo.h"
