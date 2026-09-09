@@ -1801,7 +1801,7 @@ void Host_Savegame_f( void )
 	Host_SavegameComment(szComment);
 	SaveGameSlot(Cmd_Argv(1), szComment, fake);
 
-	if (fake)
+	if (!fake)
 		Host_SetMessage(VMU_MarkSlotSaved());
 }
 

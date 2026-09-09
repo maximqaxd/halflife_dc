@@ -3465,7 +3465,7 @@ void CMenuSaveSlotItem::Draw( float flFade, qboolean bSelected )
 				if (m_saved)
 				{
 					status = VMU_MarkSlotSaved();
-					if (!VMU_GetCurrentDevice())
+					if (!VMU_GetSaveResult())
 					{
 						gfDrawMenu = 0;
 						m_pMenu->m_state.iSoundBlocked = 0;
