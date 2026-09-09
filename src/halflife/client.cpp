@@ -133,6 +133,7 @@ void respawn(entvars_t* pev, BOOL fCopyCorpse)
 		GetClassPtr( (CBasePlayer *)pev)->Spawn( );
 	}
 	else
+	{
 		SERVER_COMMAND("menu continuemenu\n");
 	}
 }
