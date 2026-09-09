@@ -58,7 +58,7 @@ int __MsgFunc_Concuss(const char *pszName, int iSize, void *pbuf)
 	return gHUD.MsgFunc_Concuss( pszName, iSize, pbuf );
 }
 
-#ifdef HLDC_MP
+#if HLDC_MP
 int __MsgFunc_GameMode(const char *pszName, int iSize, void *pbuf )
 {
 	return gHUD.MsgFunc_GameMode( pszName, iSize, pbuf );
@@ -76,7 +76,7 @@ void CHud :: Init( void )
 {
 	HOOK_MESSAGE( Logo );
 	HOOK_MESSAGE( ResetHUD );
-#ifdef HLDC_MP
+#if HLDC_MP
 	HOOK_MESSAGE( GameMode );
 #endif // HLDC_MP
 	HOOK_MESSAGE( HudColor );
@@ -116,7 +116,7 @@ void CHud :: Init( void )
 	m_Flash.Init();
 	m_CrouchState.Init();
 	m_Message.Init();
-#ifdef HLDC_MP
+#if HLDC_MP
 	m_Scoreboard.Init();
 	m_MOTD.Init();
 	m_StatusBar.Init();
@@ -249,7 +249,7 @@ void CHud :: VidInit( void )
 	m_Flash.VidInit();
 	m_CrouchState.VidInit();
 	m_Message.VidInit();
-#ifdef HLDC_MP
+#if HLDC_MP
 	m_Scoreboard.VidInit();
 	m_MOTD.VidInit();
 	m_StatusBar.VidInit();

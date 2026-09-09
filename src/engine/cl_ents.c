@@ -361,7 +361,7 @@ void CL_FlushEntityPacket( qboolean startbitreading )
 	memset(&olde, 0, sizeof(olde));
 
 	cl.validsequence = 0;		// can't render a frame
-	cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK].invalid = TRUE;
+	cl.frames[cls.netchan.incoming_sequence & cl_update_mask].invalid = TRUE;
 	
 	if (startbitreading)
 		MSG_StartBitReading(&net_message);
@@ -427,7 +427,7 @@ void CL_ParsePacketEntities( qboolean delta )
 	}
 
 	// Frame # of packet we are deltaing to
-	newpacket = cls.netchan.incoming_sequence & UPDATE_MASK;
+	newpacket = cls.netchan.incoming_sequence & cl_update_mask;
 
 	// Packed entities for current frame
 	newp = &cl.frames[newpacket].packet_entities;
@@ -463,7 +463,7 @@ void CL_ParsePacketEntities( qboolean delta )
 	full = FALSE;
 	if (oldpacket != -1)
 	{
-		if (cls.netchan.outgoing_sequence - oldpacket >= UPDATE_BACKUP - 1)
+		if (cls.netchan.outgoing_sequence - oldpacket >= cl_update_backup - 1)
 		{	// we can't use this, it is too old
 			CL_FlushEntityPacket(TRUE);
 			if (newp->entities)
@@ -473,7 +473,7 @@ void CL_ParsePacketEntities( qboolean delta )
 			return;
 		}
 		cl.validsequence = cls.netchan.incoming_sequence;
-		oldp = &cl.frames[oldpacket & UPDATE_MASK].packet_entities;
+		oldp = &cl.frames[oldpacket & cl_update_mask].packet_entities;
 	}
 	else
 	{
@@ -867,7 +867,7 @@ void CL_LinkPacketEntities( void )
 	int					flags;
 	dlight_t* dl;
 
-	pack = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK].packet_entities;
+	pack = &cl.frames[cls.netchan.incoming_sequence & cl_update_mask].packet_entities;
 
 	autorotate = anglemod(100 * cl.time);
 
@@ -1377,7 +1377,7 @@ void CL_LinkPlayers( void )
 	if (playertime > realtime)
 		playertime = realtime;
 
-	frame = &cl.frames[cl.parsecount & UPDATE_MASK];
+	frame = &cl.frames[cl.parsecount & cl_update_mask];
 
 	for (j = 0, info = cl.players, state = frame->playerstate; j < MAX_CLIENTS
 		; j++, info++, state++)
@@ -1611,7 +1611,7 @@ void CL_SetUpPlayerPrediction( qboolean dopred )
 	if (playertime > realtime)
 		playertime = realtime;
 
-	frame = &cl.frames[cl.parsecount & UPDATE_MASK];
+	frame = &cl.frames[cl.parsecount & cl_update_mask];
 
 	for (j = 0, pplayer = predicted_players, state = frame->playerstate;
 		j < MAX_CLIENTS;
@@ -1640,7 +1640,7 @@ void CL_SetUpPlayerPrediction( qboolean dopred )
 		// we use his last predicted postition
 		if (j == cl.playernum || (cl.spectator && autocam == CAM_FIRSTPERSON && j == spec_track))
 		{
-			VectorCopy(cl.frames[cls.netchan.outgoing_sequence & UPDATE_MASK].playerstate[cl.playernum].origin,
+			VectorCopy(cl.frames[cls.netchan.outgoing_sequence & cl_update_mask].playerstate[cl.playernum].origin,
 				pplayer->origin);
 		}
 		else

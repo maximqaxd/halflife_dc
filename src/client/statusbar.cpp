@@ -13,7 +13,9 @@
 *
 ****/
 
-#ifdef HLDC_MP
+#include "hud.h"
+
+#if HLDC_MP
 //
 // statusbar.cpp
 //
@@ -21,7 +23,6 @@
 // runs across bottom of screen
 //
 
-#include "hud.h"
 #include "util.h"
 #include "parsemsg.h"
 

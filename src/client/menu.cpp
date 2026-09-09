@@ -72,7 +72,7 @@ int CHudMenu :: Draw( float flTime )
 		}
 	}
 
-#ifdef HLDC_MP
+#if HLDC_MP
 	// don't draw the menu if the scoreboard is being shown
 	if ( gHUD.m_Scoreboard.m_iShowscoresHeld )
 		return 1;

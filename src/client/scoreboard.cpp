@@ -13,14 +13,15 @@
 *
 ****/
 
-#ifdef HLDC_MP
+#include "hud.h"
+
+#if HLDC_MP
 //
 // Scoreboard.cpp
 //
 // implementation of CHudScoreboard class
 //
 
-#include "hud.h"
 #include "util.h"
 #include "parsemsg.h"
 

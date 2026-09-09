@@ -13,14 +13,15 @@
 *
 ****/
 
-#ifdef HLDC_MP
+#include "hud.h"
+
+#if HLDC_MP
 //
 // MOTD.cpp
 //
 // for displaying a server-sent message of the day
 //
 
-#include "hud.h"
 #include "util.h"
 #include "parsemsg.h"
 

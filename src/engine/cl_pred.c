@@ -158,13 +158,13 @@ void CL_PredictMove( void )
 	if (!cl.validsequence)
 		return;
 
-	if (cls.netchan.outgoing_sequence - cls.netchan.incoming_sequence >= UPDATE_BACKUP - 1)
+	if (cls.netchan.outgoing_sequence - cls.netchan.incoming_sequence >= cl_update_backup - 1)
 		return;
 
 	VectorCopy(cl.viewangles, cl.simangles);
 
 	// this is the last frame received from the server
-	from = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK];
+	from = &cl.frames[cls.netchan.incoming_sequence & cl_update_mask];
 
 	if (cl.spectator)
 	{
@@ -197,14 +197,14 @@ void CL_PredictMove( void )
 	time = 0.0f;
 	CL_SetSolidPlayers(cl.playernum);
 
-//	to = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK];
+//	to = &cl.frames[cls.netchan.incoming_sequence & cl_update_mask];
 
 	j = 0;
-	for (i = 1; i < UPDATE_BACKUP - 1 && cls.netchan.incoming_sequence + i <
+	for (i = 1; i < cl_update_backup - 1 && cls.netchan.incoming_sequence + i <
 			cls.netchan.outgoing_sequence; i++)
 	{
 		j++;
-		to = &cl.frames[(cls.netchan.incoming_sequence + i) & UPDATE_MASK];
+		to = &cl.frames[(cls.netchan.incoming_sequence + i) & cl_update_mask];
 		CL_PredictUsercmd(&from->playerstate[cl.playernum]
 			, &to->playerstate[cl.playernum], &to->cmd, cl.spectator, &time);
 		if (to->senttime >= targettime)
@@ -217,7 +217,7 @@ void CL_PredictMove( void )
 
 	pmove.numphysent = oldphysent;
 
-	if (i == UPDATE_BACKUP - 1 || !to)
+	if (i == cl_update_backup - 1 || !to)
 		return;		// net hasn't deliver packets in a long time...
 
 	// now interpolate some fraction of the final frame

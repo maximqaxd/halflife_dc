@@ -80,7 +80,7 @@ cvar_t	max_spectators = { "sv_maxspectators", "8", FALSE, TRUE };
 cvar_t	sv_spectalk = { "sv_spectalk", "1", FALSE, TRUE };
 cvar_t	sv_password = { "sv_password", "" };	// password for entering the game
 
-#ifdef HLDC_MP
+#if HLDC_MP
 cvar_t	sv_masterprint = { "sv_masterprint", "1" };
 cvar_t	sv_masterprinttime = { "sv_masterprinttime", "5.0" };
 #endif
@@ -1299,7 +1299,7 @@ SVC_Ping
 Just responds with an acknowledgement
 ================
 */
-#ifdef HLDC_MP
+#if HLDC_MP
 void SVC_Ping( void )
 {
 	char	data;
@@ -1662,7 +1662,7 @@ SV_SetMasterPeeringMessage
 Set master peering message
 =================
 */
-#ifdef HLDC_MP
+#if HLDC_MP
 char g_szMasterMsg[1024];
 int g_iMasterMsgSize;
 void SV_SetMasterPeeringMessage( qboolean skipHeader )
@@ -1923,7 +1923,7 @@ void SV_ReadPackets( void )
 
 			if (Netchan_Process(&cl->netchan))
 			{	// this is a valid, sequenced packet, so process it
-#ifdef HLDC_MP
+#if HLDC_MP
 				svs.stats.packets++;
 #endif
 				cl->send_message = TRUE;	// reply at end of frame
@@ -4722,7 +4722,7 @@ int SV_SpawnServer( qboolean bIsDemo, char* server, char* startspot )
 	sv.reliable_datagram.cursize = 0;
 	sv.reliable_datagram.data = sv.reliable_datagram_buf;
 
-#ifdef HLDC_MP
+#if HLDC_MP
 	sv.master.maxsize = sizeof(sv.master_buf);
 	sv.master.data = sv.master_buf;
 #endif

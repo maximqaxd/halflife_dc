@@ -15,7 +15,7 @@ extern int PROTOCOL_VERSION;
 extern char gpszVersionString[32];
 
 // This is used, unless overridden in the registry
-#define DEFAULT_MASTER_ADDRESS "207.153.132.168:27010"
+#define DEFAULT_MASTER_ADDRESS "half-life.east.won.net:27010"
 
 #define	PORT_MASTER		27010       // Default master port
 #define PORT_CLIENT		"27005"     // Must use atoi to convert to integer
@@ -326,7 +326,7 @@ ELEMENTS COMMUNICATED ACROSS THE NET
 
 ==========================================================
 */
-#ifdef HLDC_MP // TODO
+#if HLDC_MP // TODO
 #define	MAX_CLIENTS		8 
 
 #define	UPDATE_BACKUP	16	// copies of entity_state_t to keep buffered
@@ -353,7 +353,7 @@ typedef struct
 } packet_entities_t;
 
 // Server default maxplayers value
-#ifdef HLDC_MP
+#if HLDC_MP
 #define DEFAULT_SERVER_CLIENTS	8
 #else
 #define DEFAULT_SERVER_CLIENTS	1

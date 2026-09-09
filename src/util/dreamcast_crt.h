@@ -1,6 +1,7 @@
 #ifndef DREAMCAST_CRT_H
 #define DREAMCAST_CRT_H
 
+#define HLDC_MP 0
 
 #ifdef _WIN32_WCE
 

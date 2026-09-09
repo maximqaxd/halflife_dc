@@ -54,7 +54,102 @@ sizebuf_t	net_message;
 WSADATA		winsockdata;
 #endif
 
+#if HLDC_MP
+static SOCKET ip_sockets[2] = { INVALID_SOCKET, INVALID_SOCKET };
+static qboolean winsock_initialized;
+
+#define NET_SPLIT_HEADER 9
+#define NET_SPLIT_PAYLOAD (1400 - NET_SPLIT_HEADER)
+#define NET_SPLIT_PARTS ((MAX_MSGLEN + NET_SPLIT_PAYLOAD - 1) / NET_SPLIT_PAYLOAD)
+
+typedef struct
+{
+	qboolean active;
+	netadr_t from;
+	unsigned int sequence;
+	unsigned int received;
+	int count;
+	int total;
+	DWORD started;
+	byte data[MAX_MSGLEN];
+} splitpacket_t;
+
+static splitpacket_t net_split[2];
+
+static qboolean NET_GetLong( netsrc_t sock, netadr_t from, byte *data, int size, int *outSize )
+{
+	splitpacket_t *split = &net_split[sock];
+	unsigned int sequence;
+	int part, count, payload, offset;
+	DWORD now;
+
+	if (size <= NET_SPLIT_HEADER || size > 1400)
+		return FALSE;
+	memcpy(&sequence, data + 4, sizeof(sequence));
+	part = data[8] >> 4;
+	count = data[8] & 15;
+	payload = size - NET_SPLIT_HEADER;
+	offset = part * NET_SPLIT_PAYLOAD;
+	if (!count || count > NET_SPLIT_PARTS || part >= count ||
+		offset + payload > MAX_MSGLEN ||
+		(part != count - 1 && payload != NET_SPLIT_PAYLOAD))
+	{
+		return FALSE;
+	}
+	now = GetTickCount();
+	if (split->active && (DWORD)(now - split->started) >= 5000)
+		split->active = FALSE;
+	if (split->active && !NET_CompareAdr(split->from, from))
+		return FALSE;
+	if (!split->active || split->sequence != sequence)
+	{
+		split->active = TRUE;
+		split->from = from;
+		split->sequence = sequence;
+		split->received = 0;
+		split->count = count;
+		split->total = 0;
+		split->started = now;
+	}
+	if (count != split->count || (split->received & (1U << part)))
+		return FALSE;
+	memcpy(split->data + offset, data + NET_SPLIT_HEADER, payload);
+	split->received |= 1U << part;
+	if (part == count - 1)
+		split->total = offset + payload;
+
+	if (split->received != (1U << count) - 1)
+		return FALSE;
+	memcpy(data, split->data, split->total);
+	*outSize = split->total;
+	split->active = FALSE;
+
+	return TRUE;
+}
+
+static qboolean NET_InitWinsock( void )
+{
+	int error;
+
+	if (COM_CheckParm("-noip"))
+		return FALSE;
+	if (!winsock_initialized)
+	{
+		error = WSAStartup(MAKEWORD(1, 1), &winsockdata);
+
+		if (!error)
+		{
+			winsock_initialized = TRUE;
+		}
+		else
+			Con_Printf("Winsock initialization failed: %d\n", error);
+	}
+	noip = !winsock_initialized;
+	return winsock_initialized;
+}
+#else
 int			ip_sockets[2] = { 0, 0 };
+#endif
 #ifdef _WIN32
 int			ipx_sockets[2] = { 0, 0 };
 #endif
@@ -94,22 +189,54 @@ int losscount[2] = { 0, 0 };
 
 qboolean NET_CompareAdr( netadr_t a, netadr_t b )
 {
+#if HLDC_MP
+	return NET_CompareBaseAdr(a, b) &&
+		(a.type == NA_LOOPBACK || a.port == b.port);
+#else
 	return TRUE;
+#endif
 }
 
 qboolean NET_CompareClassBAdr( netadr_t a, netadr_t b )
 {
+#if HLDC_MP
+	if (a.type != b.type)
+		return FALSE;
+	if (a.type == NA_LOOPBACK)
+		return TRUE;
+	return a.type == NA_IP && a.ip[0] == b.ip[0] && a.ip[1] == b.ip[1];
+#else
 	return TRUE;
+#endif
 }
 
 qboolean NET_IsReservedAdr( netadr_t adr )
 {
+#if HLDC_MP
+	if (adr.type == NA_LOOPBACK)
+		return TRUE;
+	if (adr.type != NA_IP)
+		return FALSE;
+	return adr.ip[0] == 10 || adr.ip[0] == 127 ||
+		(adr.ip[0] == 172 && adr.ip[1] >= 16 && adr.ip[1] <= 31) ||
+		(adr.ip[0] == 192 && adr.ip[1] == 168);
+#else
 	return TRUE;
+#endif
 }
 
 qboolean NET_CompareBaseAdr( netadr_t a, netadr_t b )
 {
+#if HLDC_MP
+	if (a.type != b.type)
+		return FALSE;
+	if (a.type == NA_LOOPBACK)
+		return TRUE;
+	return (a.type == NA_IP || a.type == NA_BROADCAST) &&
+		!memcmp(a.ip, b.ip, sizeof(a.ip));
+#else
 	return TRUE;
+#endif
 }
 
 char* NET_AdrToString( netadr_t a )
@@ -118,6 +245,13 @@ char* NET_AdrToString( netadr_t a )
 
 	memset(s, 0, sizeof(s));
 
+#if HLDC_MP
+	if (a.type == NA_IP || a.type == NA_BROADCAST)
+	{
+		sprintf(s, "%u.%u.%u.%u:%u", a.ip[0], a.ip[1], a.ip[2], a.ip[3], ntohs(a.port));
+		return s;
+	}
+#endif
 	sprintf(s, "loopback");
 
 	return s;
@@ -127,6 +261,13 @@ char *NET_BaseAdrToString( netadr_t address )
 {
 	static char text[64];
 	memset(text, 0, sizeof(text));
+#if HLDC_MP
+	if (address.type == NA_IP || address.type == NA_BROADCAST)
+	{
+		sprintf(text, "%u.%u.%u.%u", address.ip[0], address.ip[1], address.ip[2], address.ip[3]);
+		return text;
+	}
+#endif
 	sprintf(text, "loopback");
 	return text;
 }
@@ -150,6 +291,56 @@ idnewt:28000
 */
 qboolean NET_StringToAdr( char* s, netadr_t* a )
 {
+#if HLDC_MP
+	char name[256], *port, *p;
+	struct hostent *host;
+	unsigned long ip;
+	unsigned int number;
+
+	memset(a, 0, sizeof(*a));
+	if (!s || !s[0] || strlen(s) >= sizeof(name))
+		return FALSE;
+	if (!strcmp(s, "localhost"))
+	{
+		a->type = NA_LOOPBACK;
+		return TRUE;
+	}
+	strcpy(name, s);
+	port = strchr(name, ':');
+	if (port)
+	{
+		*port++ = 0;
+		if (!*port)
+			return FALSE;
+		number = 0;
+		for (p = port; *p; p++)
+		{
+			if (*p < '0' || *p > '9')
+				return FALSE;
+			number = number * 10 + *p - '0';
+			if (number > 65535)
+				return FALSE;
+		}
+		if (!number)
+			return FALSE;
+		a->port = htons((unsigned short)number);
+	}
+	if (!name[0])
+		return FALSE;
+	ip = inet_addr(name);
+	if (ip == INADDR_NONE && strcmp(name, "255.255.255.255"))
+	{
+		if (!winsock_initialized)
+			return FALSE;
+		host = gethostbyname(name);
+		if (!host || host->h_addrtype != AF_INET || host->h_length != 4)
+			return FALSE;
+		memcpy(&ip, host->h_addr_list[0], 4);
+	}
+	memcpy(a->ip, &ip, 4);
+	a->type = ip == INADDR_BROADCAST ? NA_BROADCAST : NA_IP;
+	return TRUE;
+#else
 	if (!strcmp(s, "localhost"))
 	{
 		memset(a, 0, sizeof(*a));
@@ -157,6 +348,7 @@ qboolean NET_StringToAdr( char* s, netadr_t* a )
 	}
 
 	return TRUE;
+#endif
 }
 
 qboolean NET_IsLocalAddress( netadr_t adr )
@@ -183,9 +375,7 @@ qboolean NET_GetLoopPacket( netsrc_t sock, netadr_t* in_from, sizebuf_t* msg )
 		loop->get = loop->send - MAX_LOOPBACK;
 
 	if (loop->get >= loop->send)
-	{
 		return FALSE;
-	}
 
 	i = loop->get & (MAX_LOOPBACK - 1);
 	loop->get++;
@@ -357,22 +547,169 @@ qboolean NET_LagPacket( qboolean newdata, netsrc_t sock, netadr_t* from, sizebuf
 
 //=============================================================================
 
+#if HLDC_MP
+static void NET_AdrToSockaddr( netadr_t a, struct sockaddr_in* address )
+{
+	memset(address, 0, sizeof(*address));
+	address->sin_family = AF_INET;
+	address->sin_port = a.port;
+	if (a.type == NA_BROADCAST)
+		address->sin_addr.s_addr = INADDR_BROADCAST;
+	else
+		memcpy(&address->sin_addr, a.ip, 4);
+}
+
+static SOCKET NET_IPSocket( char* net_interface, int port )
+{
+	SOCKET newsocket;
+	struct sockaddr_in address;
+	netadr_t adr;
+	u_long nonblocking = 1;
+	int broadcast = 1;
+
+	if (port != PORT_ANY && (port < 0 || port > 65535))
+		return INVALID_SOCKET;
+	memset(&address, 0, sizeof(address));
+	address.sin_family = AF_INET;
+	address.sin_port = port == PORT_ANY ? 0 : htons((unsigned short)port);
+	if (net_interface[0] && Q_stricmp(net_interface, "localhost"))
+	{
+		if (!NET_StringToAdr(net_interface, &adr) || adr.type != NA_IP)
+			return INVALID_SOCKET;
+		memcpy(&address.sin_addr, adr.ip, 4);
+	}
+	newsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (newsocket == INVALID_SOCKET)
+		return INVALID_SOCKET;
+
+	if (ioctlsocket(newsocket, FIONBIO, &nonblocking) == SOCKET_ERROR ||
+		setsockopt(newsocket, SOL_SOCKET, SO_BROADCAST, (char*)&broadcast, sizeof(broadcast)) == SOCKET_ERROR ||
+		bind(newsocket, (struct sockaddr*)&address, sizeof(address)) == SOCKET_ERROR)
+	{
+		Con_Printf("UDP socket error %i\n", WSAGetLastError());
+		closesocket(newsocket);
+		return INVALID_SOCKET;
+	}
+	return newsocket;
+}
+
+static void NET_OpenIP( void )
+{
+	int port;
+	struct sockaddr_in address;
+	int length = sizeof(address);
+
+	if (ip_sockets[NS_CLIENT] != INVALID_SOCKET)
+		return;
+	port = (int)ip_clientport.value;
+	if (!port)
+		port = (int)clientport.value;
+	if (!port)
+		port = PORT_ANY;
+	ip_sockets[NS_CLIENT] = NET_IPSocket(ipname.string, port);
+	if (ip_sockets[NS_CLIENT] == INVALID_SOCKET && port != PORT_ANY)
+		ip_sockets[NS_CLIENT] = NET_IPSocket(ipname.string, PORT_ANY);
+	if (ip_sockets[NS_CLIENT] == INVALID_SOCKET)
+	{
+		Con_Printf("Unable to open UDP port\n");
+		return;
+	}
+	memset(&net_local_adr, 0, sizeof(net_local_adr));
+	if (!getsockname(ip_sockets[NS_CLIENT], (struct sockaddr*)&address, &length))
+	{
+		net_local_adr.type = NA_IP;
+		net_local_adr.port = address.sin_port;
+		memcpy(net_local_adr.ip, &address.sin_addr, 4);
+	}
+}
+#endif
+
 qboolean NET_GetPacket( netsrc_t sock )
 {
+#if HLDC_MP
+	struct sockaddr_in address;
+	int length, received, error;
+
+	if (sock != NS_CLIENT && sock != NS_SERVER)
+		return FALSE;
+	if (sock == NS_CLIENT)
+		NET_DialFrame();
+#endif
 	// If we got a message from the loopback system, see if it should be lagged.
 	if (NET_GetLoopPacket(sock, &net_from, &net_message))
 	{
 		return NET_LagPacket(TRUE, sock, &net_from, &net_message);
 	}
 
+#if HLDC_MP
+	if (!noip && ip_sockets[sock] != INVALID_SOCKET)
+	{
+		length = sizeof(address);
+		received = recvfrom(ip_sockets[sock], (char*)net_message.data,
+			net_message.maxsize, 0, (struct sockaddr*)&address, &length);
+		if (received != SOCKET_ERROR)
+		{
+			if (received > 0 && length == sizeof(address) && address.sin_family == AF_INET)
+			{
+				memset(&net_from, 0, sizeof(net_from));
+				net_from.type = NA_IP;
+				net_from.port = address.sin_port;
+				memcpy(net_from.ip, &address.sin_addr, 4);
+				if (received >= 4 && !memcmp(net_message.data, "\xfe\xff\xff\xff", 4))
+				{
+					if (!NET_GetLong(sock, net_from, net_message.data, received, &received))
+						return NET_LagPacket(FALSE, sock, &net_from, &net_message);
+				}
+				net_message.cursize = received;
+
+				return NET_LagPacket(TRUE, sock, &net_from, &net_message);
+			}
+		}
+		else
+		{
+			error = WSAGetLastError();
+			if (error != WSAEWOULDBLOCK && error != WSAECONNRESET && error != WSAEMSGSIZE)
+				Con_DPrintf("UDP receive error %i\n", error);
+		}
+	}
+	return NET_LagPacket(FALSE, sock, &net_from, &net_message);
+#else
 	return FALSE;
+#endif
 }
 
 //=============================================================================
 
 void NET_SendPacket( netsrc_t sock, int length, void* data, netadr_t to )
 {
+#if HLDC_MP
+	struct sockaddr_in address;
+	int error;
+
+	if ((sock != NS_CLIENT && sock != NS_SERVER) || length < 0 || length > MAX_MSGLEN)
+		return;
+	if (to.type == NA_LOOPBACK)
+	{
+		NET_SendLoopPacket(sock, length, data);
+		return;
+	}
+	if (noip || ip_sockets[sock] == INVALID_SOCKET ||
+		(to.type != NA_IP && to.type != NA_BROADCAST))
+	{
+		return;
+	}
+
+	NET_AdrToSockaddr(to, &address);
+	if (sendto(ip_sockets[sock], (char*)data, length, 0,
+		(struct sockaddr*)&address, sizeof(address)) == SOCKET_ERROR)
+	{
+		error = WSAGetLastError();
+		if (error != WSAEWOULDBLOCK)
+			Con_DPrintf("UDP send error %i\n", error);
+	}
+#else
 	NET_SendLoopPacket(sock, length, data);
+#endif
 }
 
 //=============================================================================
@@ -386,12 +723,30 @@ A single player game will only use the loopback code
 */
 void NET_Config( qboolean multiplayer )
 {
+#if HLDC_MP
+	int i;
+
+	if (!multiplayer)
+	{
+		memset(net_split, 0, sizeof(net_split));
+		for (i = 0; i < 2; i++)
+		{
+			if (ip_sockets[i] != INVALID_SOCKET)
+				closesocket(ip_sockets[i]);
+			ip_sockets[i] = INVALID_SOCKET;
+		}
+		memset(&net_local_adr, 0, sizeof(net_local_adr));
+	}
+	else if (NET_InitWinsock())
+		NET_OpenIP();
+#else
 	static	qboolean	old_config;
 
 	if (old_config == multiplayer)
 		return;
 
 	old_config = multiplayer;
+#endif
 }
 
 void NET_ShowMaxPacketSizes_f( void )
@@ -437,6 +792,10 @@ void NET_Init( void )
 
 	noipx = TRUE;
 	noip = TRUE;
+#if HLDC_MP
+	NET_InitWinsock();
+	NET_DialInit();
+#endif
 
 	//
 	// init the message buffer
@@ -458,10 +817,19 @@ NET_Shutdown
 */
 void NET_Shutdown( void )
 {
+#if HLDC_MP
+	NET_DialHangup();
+#endif
 	NET_ClearLaggedList(&g_pLagData[0]);
 	NET_ClearLaggedList(&g_pLagData[1]);
 
 	NET_Config(FALSE);
+#if HLDC_MP
+	if (winsock_initialized)
+		WSACleanup();
+	winsock_initialized = FALSE;
+	noip = TRUE;
+#endif
 }
 
 #define MAX_GRAPH_WIDTH	256
@@ -770,12 +1138,7 @@ typedef struct
 
 netgraph_percentile_t	netgraph_percentiles[MAX_GRAPH_WIDTH];
 
-// The real UPDATE_BACKUP/UPDATE_MASK are RUNTIME globals on this port (4 for
-// single player, 32 for multiplayer, set by CL_ReallocateDynamicData), not the
-// compile-time constants declared in protocol.h -- see CLAUDE.md. Defined here
-// (rather than just declared extern) so the link succeeds; still initialized
-// from the compile-time UPDATE_BACKUP/UPDATE_MASK, so behavior is unchanged
-// pending the broader project-wide fix noted there.
+// CL_ReallocateDynamicData selects the frame history size for the server.
 int cl_update_backup = UPDATE_BACKUP;
 int cl_update_mask = UPDATE_MASK;
 

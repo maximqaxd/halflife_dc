@@ -297,6 +297,10 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLi
 					quit = TRUE;
 					break;
 				}
+#if HLDC_MP
+				if (NET_DialMessage(msg.message, msg.wParam, msg.lParam))
+					continue;
+#endif
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
 

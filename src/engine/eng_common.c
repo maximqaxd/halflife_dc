@@ -4193,7 +4193,56 @@ COM_ClearCustomizationList
 */
 void COM_ClearCustomizationList( customization_t* pHead, qboolean bCleanDecals )
 {
+#if HLDC_MP
+	customization_t *pCurrent, *pNext;
+	cachewad_t *pWad;
+	cacheentry_t *pic;
+	int i, player;
+
+	player = -1;
+	if (bCleanDecals && cls.state == ca_active)
+	{
+		for (i = 0; i < MAX_CLIENTS; i++)
+		{
+			if (pHead == &cl.players[i].customdata)
+			{
+				player = i;
+				break;
+			}
+		}
+	}
+	for (pCurrent = pHead->pNext; pCurrent; pCurrent = pNext)
+	{
+		pNext = pCurrent->pNext;
+		if (pCurrent->bInUse)
+		{
+			if (pCurrent->pBuffer)
+				free(pCurrent->pBuffer);
+			if (pCurrent->pInfo)
+			{
+				if (pCurrent->resource.type == t_decal)
+				{
+					if (player >= 0)
+						R_DecalRemoveAll(-1 - player);
+					pWad = (cachewad_t*)pCurrent->pInfo;
+					free(pWad->lumps);
+					for (i = 0; i < pWad->cacheCount; i++)
+					{
+						pic = &pWad->cache[i];
+						if (Cache_Check(&pic->cache))
+							Cache_Free(&pic->cache, 0);
+					}
+					free(pWad->cache);
+				}
+				free(pCurrent->pInfo);
+			}
+		}
+		free(pCurrent);
+	}
+	pHead->pNext = NULL;
+#else
 	Sys_Error("Customization\n");
+#endif
 }
 
 qboolean COM_CreateCustomization( customization_t* pListHead, resource_t* pResource,

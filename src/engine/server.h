@@ -82,7 +82,7 @@ typedef struct server_static_s
 	int			serverflags;			// episode completion information
 
 	server_log_t log;
-#ifdef HLDC_MP
+#if HLDC_MP
 	svstats_t	stats;
 #else
 	byte		reserved[20];
@@ -145,7 +145,7 @@ typedef struct
 	sizebuf_t	reliable_datagram;
 	byte		reliable_datagram_buf[MAX_DATAGRAM];
 
-#ifdef HLDC_MP
+#if HLDC_MP
 	// the master buffer is used for building log packets
 	sizebuf_t	master;
 	byte		master_buf[MAX_DATAGRAM];
@@ -165,12 +165,6 @@ typedef struct
 	byte		signon_buffers[MAX_SIGNON_BUFFERS][MAX_DATAGRAM];
 } server_t;
 
-#define SERVER_FIELD_OFFSET(type, field) ((unsigned long)&(((type*)0)->field))
-typedef char server_datagram_offsetcheck[(SERVER_FIELD_OFFSET(server_t, datagram) == 0x1E1F4) ? 1 : -1];
-typedef char server_reliable_datagram_offsetcheck[(SERVER_FIELD_OFFSET(server_t, reliable_datagram) == 0x1F1A4) ? 1 : -1];
-typedef char server_multicast_offsetcheck[(SERVER_FIELD_OFFSET(server_t, multicast) == 0x20154) ? 1 : -1];
-typedef char server_signon_offsetcheck[(SERVER_FIELD_OFFSET(server_t, signon) == 0x20564) ? 1 : -1];
-#undef SERVER_FIELD_OFFSET
 
 typedef struct
 {
@@ -273,7 +267,7 @@ typedef struct client_s
 	resource_t* uploadresource;			// The resource we're trying to retrieve from the client (e.g. spray)
 	char		uploadfntmp[MAX_QPATH];
 	CRC32_t		uploadfinalCRC;
-#ifdef HLDC_MP
+#if HLDC_MP
 	char		uploadfn[MAX_QPATH];
 #else
 	char		uploadfn[32];
@@ -286,7 +280,7 @@ typedef struct client_s
 	int			nTotalToTransfer;
 	int			nRemainingToTransfer;
 
-	#ifdef HLDC_MP
+	#if HLDC_MP
 	double		fLastStatusUpdate;		// The time of the last upload status
 #else
 	float		fLastStatusUpdate;		// The time of the last upload status

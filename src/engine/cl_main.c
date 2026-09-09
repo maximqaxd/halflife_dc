@@ -1258,6 +1258,11 @@ void CL_CheckForResend( void )
 		return;
 	}
 
+#if HLDC_MP
+	if (!adr.port && adr.type == NA_IP)
+		adr.port = BigShort((unsigned short)atoi(PORT_SERVER));
+#endif
+
 	// Only retry so many times before failure.
 	if (cls.connect_retry >= CL_CONNECTION_RETRIES)
 	{
@@ -1323,7 +1328,13 @@ void CL_Connect_f( void )
 		return;
 	}
 
+#if HLDC_MP
 	server = Cmd_Args();
+	if (server && server[0] == '"')
+		server = Cmd_Argv(1);
+#else
+	server = Cmd_Args();
+#endif
 	if (!server)
 		return;
 
@@ -1990,7 +2001,7 @@ void CL_SendCmd( void )
 	{
 
 	// save this command off for prediction
-	i = cls.netchan.outgoing_sequence & UPDATE_MASK;
+	i = cls.netchan.outgoing_sequence & cl_update_mask;
 	cmd = &cl.frames[i].cmd;
 	cl.frames[i].senttime = realtime;
 	cl.frames[i].receivedtime = -1;		// we haven't gotten a reply yet
@@ -2049,17 +2060,17 @@ void CL_SendCmd( void )
 
 	memset(&nullcmd, 0, sizeof(nullcmd));
 
-	i = (cls.netchan.outgoing_sequence - 2) & UPDATE_MASK;
+	i = (cls.netchan.outgoing_sequence - 2) & cl_update_mask;
 	cmd = &cl.frames[i].cmd;
 	MSG_WriteUsercmdByProtocol(&buf, cmd, &nullcmd);
 	oldcmd = cmd;
 
-	i = (cls.netchan.outgoing_sequence - 1) & UPDATE_MASK;
+	i = (cls.netchan.outgoing_sequence - 1) & cl_update_mask;
 	cmd = &cl.frames[i].cmd;
 	MSG_WriteUsercmdByProtocol(&buf, cmd, oldcmd);
 	oldcmd = cmd;
 
-	i = (cls.netchan.outgoing_sequence) & UPDATE_MASK;
+	i = (cls.netchan.outgoing_sequence) & cl_update_mask;
 	cmd = &cl.frames[i].cmd;
 	MSG_WriteUsercmdByProtocol(&buf, cmd, oldcmd);
 
@@ -2073,17 +2084,17 @@ void CL_SendCmd( void )
 	in_impulse = 0;
 
 	// request delta compression of entities
-	if (cls.netchan.outgoing_sequence - cl.validsequence >= UPDATE_BACKUP - 1)
+	if (cls.netchan.outgoing_sequence - cl.validsequence >= cl_update_backup - 1)
 		cl.validsequence = 0;
 
 	if (cl.validsequence && !cl_nodelta.value && cls.state == ca_active)
 	{
-		cl.frames[cls.netchan.outgoing_sequence & UPDATE_MASK].delta_sequence = cl.validsequence;
+		cl.frames[cls.netchan.outgoing_sequence & cl_update_mask].delta_sequence = cl.validsequence;
 		MSG_WriteByte(&buf, clc_delta);
 		MSG_WriteByte(&buf, cl.validsequence & 255);
 	}
 	else
-		cl.frames[cls.netchan.outgoing_sequence & UPDATE_MASK].delta_sequence = -1;
+		cl.frames[cls.netchan.outgoing_sequence & cl_update_mask].delta_sequence = -1;
 
 
 //

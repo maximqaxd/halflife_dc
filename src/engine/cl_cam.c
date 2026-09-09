@@ -346,8 +346,8 @@ void Cam_GetPredictedFirstPersonOrigin( vec_t* v )
 	frame_t* frame, * prevframe;
 	player_state_t* state, * prevstate;
 
-	frame = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK];
-	prevframe = &cl.frames[(cls.netchan.incoming_sequence - 1) & UPDATE_MASK];
+	frame = &cl.frames[cls.netchan.incoming_sequence & cl_update_mask];
+	prevframe = &cl.frames[(cls.netchan.incoming_sequence - 1) & cl_update_mask];
 
 	state = &frame->playerstate[spec_track];
 	prevstate = &prevframe->playerstate[spec_track];
@@ -412,7 +412,7 @@ void Cam_TrackFirstPerson( usercmd_t* cmd )
 		return;
 	}
 
-	frame = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK];
+	frame = &cl.frames[cls.netchan.incoming_sequence & cl_update_mask];
 	player = frame->playerstate + spec_track;
 	self = frame->playerstate + cl.playernum;
 
@@ -446,7 +446,7 @@ void Cam_TrackTopDown( usercmd_t* cmd )
 		return;
 	}
 
-	frame = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK];
+	frame = &cl.frames[cls.netchan.incoming_sequence & cl_update_mask];
 	player = frame->playerstate + spec_track;
 	self = frame->playerstate + cl.playernum;
 
@@ -504,7 +504,7 @@ void Cam_Track( usercmd_t* cmd )
 		return;
 	}
 
-	frame = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK];
+	frame = &cl.frames[cls.netchan.incoming_sequence & cl_update_mask];
 	player = frame->playerstate + spec_track;
 	self = frame->playerstate + cl.playernum;
 
@@ -596,7 +596,7 @@ void Cam_SetView( void )
 		!autocam || !locked)
 		return;
 
-	frame = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK];
+	frame = &cl.frames[cls.netchan.incoming_sequence & cl_update_mask];
 	player = frame->playerstate + spec_track;
 	self = frame->playerstate + cl.playernum;
 
@@ -669,7 +669,7 @@ void Cam_FinishMove( usercmd_t* cmd )
 #if 0
 	if (autocam && locked)
 	{
-		frame = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK];
+		frame = &cl.frames[cls.netchan.incoming_sequence & cl_update_mask];
 		player = frame->playerstate + spec_track;
 		self = frame->playerstate + cl.playernum;
 

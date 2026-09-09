@@ -1286,11 +1286,13 @@ This is sent just before a server changes levels
 */
 void Host_Reconnect_f( void )
 {
+#if !HLDC_MP
 	if (cmd_source == src_command)
 	{
 		Con_Printf("reconnect is not valid from the console\n");
 		return;
 	}
+#endif
 
 	if (cls.state == ca_dedicated ||
 		cls.state == ca_disconnected ||
@@ -1317,12 +1319,17 @@ User command to connect to server
 void Host_Connect_f( void )
 {
 	char	name[MAX_QPATH];
+#if HLDC_MP
+	char *server;
+#endif
 
+#if !HLDC_MP
 	if (cmd_source == src_command)
 	{
 		Con_Printf("connect is not valid from the console\n");
 		return;
 	}
+#endif
 
 	if (Cmd_Argc() < 2 || !Cmd_Args())
 	{
@@ -1330,7 +1337,21 @@ void Host_Connect_f( void )
 		return;
 	}
 
+#if HLDC_MP
+	server = Cmd_Args();
+	if (server[0] == '"')
+		server = Cmd_Argv(1);
+	if (strlen(server) >= sizeof(name))
+	{
+		Con_Printf("Server address is too long\n");
+		return;
+	}
+	if (!NET_DialBeforeConnect(server))
+		return;
+	strcpy(name, server);
+#else
 	strcpy(name, Cmd_Args());
+#endif
 	strncpy(cls.servername, name, sizeof(cls.servername) - 1);
 	CL_Connect_f();
 }

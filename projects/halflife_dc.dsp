@@ -8069,6 +8069,10 @@ NODEP_CPP_NET_C=\
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\network\net_dial.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\network\net_ws.c
 
 !IF  "$(CFG)" == "halflife_dc - Win32 (WCE SH4) Release"

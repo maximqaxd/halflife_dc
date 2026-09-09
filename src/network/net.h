@@ -77,6 +77,20 @@ void		NET_SendPacket( netsrc_t sock, int length, void* data, netadr_t to );
 // Start up/shut down sockets layer
 void		NET_Config( qboolean multiplayer );
 
+#if HLDC_MP
+#ifdef __cplusplus
+extern "C" {
+#endif
+void NET_DialInit( void );
+qboolean NET_DialBeforeConnect( char *server );
+void NET_DialFrame( void );
+void NET_DialHangup( void );
+qboolean NET_DialMessage( unsigned int message, unsigned long state, long error );
+#ifdef __cplusplus
+}
+#endif
+#endif
+
 // Compare addresses
 qboolean	NET_CompareAdr( netadr_t a, netadr_t b );
 qboolean	NET_CompareClassBAdr( netadr_t a, netadr_t b );
@@ -125,11 +139,7 @@ typedef struct netchan_s
 	int			drop_count;			// dropped packets, cleared each level
 	int			good_count;			// cleared each level
 
-#ifdef HLDC_MP
-	int			qport;
-#else
 	int			skipped_updates;
-#endif
 
 // bandwidth estimator
 	float		cleartime;			// if realtime > nc->cleartime, free to go

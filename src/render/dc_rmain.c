@@ -775,7 +775,7 @@ void R_DrawEntitiesOnList( void )
 			if (currententity->index > 0 && currententity->index <= cl.maxclients)
 			{
 				R_StudioDrawPlayer(STUDIO_RENDER | STUDIO_EVENTS,
-					&cl.frames[cl.parsecount & UPDATE_MASK].playerstate[currententity->index - 1]);
+					&cl.frames[cl.parsecount & cl_update_mask].playerstate[currententity->index - 1]);
 			}
 			else
 			{
@@ -790,7 +790,7 @@ void R_DrawEntitiesOnList( void )
 						if (currententity->index > 0 && currententity->index <= cl.maxclients)
 						{
 							R_StudioDrawPlayer(0,
-								&cl.frames[cl.parsecount & UPDATE_MASK].playerstate[currententity->index - 1]);
+								&cl.frames[cl.parsecount & cl_update_mask].playerstate[currententity->index - 1]);
 						}
 						else
 						{

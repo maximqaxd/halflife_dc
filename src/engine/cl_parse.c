@@ -393,7 +393,18 @@ void CL_ParseStartSoundPacket( void )
 		}
 		else
 		{
-			sfx = S_GetSfxByIndex(sound_num);
+#if HLDC_MP
+			if (cls.netchan.remote_address.type == NA_IP)
+			{
+				if (sound_num < 0 || sound_num >= MAX_SOUNDS)
+					Host_Error("CL_ParseStartSoundPacket: sound = %i", sound_num);
+				sfx = cl.sound_precache[sound_num];
+				if (!sfx)
+					return;
+			}
+			else
+#endif
+				sfx = S_GetSfxByIndex(sound_num);
 		}
 
 		if (channel == CHAN_STATIC)
@@ -1181,7 +1192,7 @@ void CL_ParseServerInfo( void )
 
 	cl.maxclients = MSG_ReadByte();
 
-	if (cl.maxclients < 1 || cl.maxclients > 1)
+	if (cl.maxclients < 1 || cl.maxclients > MAX_CLIENTS)
 	{
 		Con_Printf("Bad maxclients (%u) from server\n", cl.maxclients);
 		return;
@@ -1247,7 +1258,12 @@ void CL_ParseBaseline( cl_entity_t* ent )
 	else
 		ent->baseline.scale = MSG_ReadByte() * (1.0f / 10.0f);
 
-	ent->baseline.colormap = MSG_ReadByte();
+#if HLDC_MP
+	if (cls.netchan.remote_address.type == NA_IP && PROTOCOL_VERSION == PROTOCOL_VERSION_CURRENT)
+		ent->baseline.colormap = MSG_ReadWord();
+	else
+#endif
+		ent->baseline.colormap = MSG_ReadByte();
 	ent->baseline.skin = MSG_ReadShort();
 	ent->baseline.solid = MSG_ReadByte();
 

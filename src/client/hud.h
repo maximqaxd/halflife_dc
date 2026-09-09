@@ -193,7 +193,7 @@ private:
 
 };
 
-#ifdef HLDC_MP
+#if HLDC_MP
 //
 //-----------------------------------------------------
 //
@@ -607,7 +607,7 @@ public:
 	CHudFlashlight m_Flash;
 	CHudCrouchState m_CrouchState;
 	CHudMessage m_Message;
-#ifdef HLDC_MP
+#if HLDC_MP
 	CHudScoreboard m_Scoreboard;
 	CHudMOTD    m_MOTD;
 	CHudStatusBar    m_StatusBar;
@@ -630,7 +630,7 @@ public:
 
 	// user messages
 	int _cdecl MsgFunc_Damage(const char *pszName, int iSize, void *pbuf );
-#ifdef HLDC_MP
+#if HLDC_MP
 	int _cdecl MsgFunc_GameMode(const char *pszName, int iSize, void *pbuf );
 #endif // HLDC_MP
 	int _cdecl MsgFunc_HudColor(const char *pszName, int iSize, void *pbuf );

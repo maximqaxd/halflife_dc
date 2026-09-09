@@ -70,7 +70,7 @@ int CHud :: MsgFunc_HudColor(const char *pszName, int iSize, void *pbuf )
 	return 1;
 }
 
-#ifdef HLDC_MP
+#if HLDC_MP
 int CHud :: MsgFunc_GameMode(const char *pszName, int iSize, void *pbuf )
 {
 	BEGIN_READ( pbuf, iSize );

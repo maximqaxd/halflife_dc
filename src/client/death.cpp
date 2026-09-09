@@ -13,11 +13,12 @@
 *
 ****/
 
-#ifdef HLDC_MP
+#include "hud.h"
+
+#if HLDC_MP
 //
 // death notice
 //
-#include "hud.h"
 #include "util.h"
 #include "parsemsg.h"
 
