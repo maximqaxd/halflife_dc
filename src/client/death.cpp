@@ -91,10 +91,10 @@ int CHudDeathNotice :: Draw( float flTime )
 
 		// Draw the death notice
 
-		y = DEATHNOTICE_TOP + (20 * i);  //!!!
+		y = DEATHNOTICE_TOP + scr_safe_y + (20 * i);  //!!!
 
 		int id = (rgDeathNoticeList[i].iId == -1) ? m_HUD_d_skull : rgDeathNoticeList[i].iId;
-		x = ScreenWidth - ConsoleStringLen(rgDeathNoticeList[i].szVictim) - (gHUD.GetSpriteRect(id).right - gHUD.GetSpriteRect(id).left);
+		x = ScreenWidth - ConsoleStringLen(rgDeathNoticeList[i].szVictim) - (gHUD.GetSpriteRect(id).right - gHUD.GetSpriteRect(id).left) - scr_safe_x;
 
 		if ( !rgDeathNoticeList[i].iSuicide )
 		{

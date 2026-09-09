@@ -185,8 +185,8 @@ int CHudStatusBar :: Draw( float fTime )
 		else
 			Y_START = ScreenHeight - 35;
 
-		int x = 5;
-		int y = Y_START - ( TextHeight * i ); // draw along bottom of screen
+		int x = scr_safe_x + 5;
+		int y = Y_START - scr_safe_y - ( TextHeight * i ); // draw along bottom of screen
 
 		// let user set status ID bar centering
 		if ( (i == STATUSBAR_ID_LINE) && CVAR_GET_FLOAT("hud_centerid") )

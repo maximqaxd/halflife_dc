@@ -79,7 +79,7 @@ int CHudMOTD :: Draw( float fTime )
 	m_flActiveTill = min( gHUD.m_flTime + MOTD_DISPLAY_TIME, m_flActiveTill );
 
 	// find the top of where the MOTD should be drawn,  so the whole thing is centered in the screen
-	int ypos = max(((ScreenHeight - (m_iLines * LINE_HEIGHT)) / 2) - 40, 30 ); // shift it up slightly
+	int ypos = max(((ScreenHeight - (m_iLines * LINE_HEIGHT)) / 2) - 40, 30 + scr_safe_y ); // shift it up slightly
 	char *ch = m_szMOTD;
 	while ( *ch )
 	{
@@ -95,7 +95,7 @@ int CHudMOTD :: Draw( float fTime )
 		// find where to start drawing the line
 		int xpos = (ScreenWidth - line_length) / 2;
 
-		gHUD.DrawHudString( xpos, ypos, ScreenWidth, ch, 255, 180, 0 );
+		gHUD.DrawHudString( xpos, ypos, ScreenWidth - scr_safe_x, ch, 255, 180, 0 );
 
 		ypos += LINE_HEIGHT;
 
@@ -105,7 +105,7 @@ int CHudMOTD :: Draw( float fTime )
 		if ( *ch == '\n' )
 			ch++;
 
-		if ( ypos > (ScreenHeight - 20) )
+		if ( ypos > (ScreenHeight - 20 - scr_safe_y) )
 			break;  // don't let it draw too low
 	}
 	

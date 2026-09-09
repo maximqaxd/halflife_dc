@@ -29,7 +29,7 @@
 #define MAX_CHARS_PER_LINE	128  /* it can be less than this, depending on char size */
 
 // allow 20 pixels on either side of the text
-#define MAX_LINE_WIDTH  ( ScreenWidth - 40 )
+#define MAX_LINE_WIDTH  ( ScreenWidth - 40 - (scr_safe_x * 2) )
 #define LINE_START  10
 static float SCROLL_SPEED = 5;
 
@@ -80,7 +80,7 @@ void ScrollTextUp( void )
 
 int CHudSayText :: Draw( float flTime )
 {
-	int y = Y_START + scr_safe_y;
+	int y = Y_START - scr_safe_y;
 
 	// make sure the scrolltime is within reasonable bounds,  to guard against the clock being reset
 	flScrollTime = min( flScrollTime, flTime + SCROLL_SPEED );
@@ -105,7 +105,7 @@ int CHudSayText :: Draw( float flTime )
 	for ( int i = 0; i < MAX_LINES; i++ )
 	{
 		if ( *g_szLineBuffer[i] )
-			DrawConsoleString( LINE_START, y, g_szLineBuffer[i] );
+			DrawConsoleString( LINE_START + scr_safe_x, y, g_szLineBuffer[i] );
 
 		y += line_height;
 	}

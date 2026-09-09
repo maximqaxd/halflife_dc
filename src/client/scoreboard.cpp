@@ -94,9 +94,9 @@ We have a minimum width of 1-320 - we could have the field widths scale with it?
 		
 
 // Y positions
-#define ROW_GAP  13
-#define ROW_RANGE_MIN 15
-#define ROW_RANGE_MAX ( ScreenHeight - 50 )
+#define ROW_GAP  16
+#define ROW_RANGE_MIN ( 15 + scr_safe_y )
+#define ROW_RANGE_MAX ( ScreenHeight - 50 - scr_safe_y )
 
 int CHudScoreboard :: Draw( float fTime )
 {
@@ -124,12 +124,12 @@ int CHudScoreboard :: Draw( float fTime )
 	gHUD.DrawHudString( DEATHS_RANGE_MIN + xpos_rel + 5, ypos, ScreenWidth, "deaths", 255, 140, 0 );
 	gHUD.DrawHudString( PING_RANGE_MAX + xpos_rel - 35, ypos, ScreenWidth, "latency", 255, 140, 0 );
 
-	list_slot += 1.2;
+	list_slot += 1.6;
 	ypos = ROW_RANGE_MIN + (list_slot * ROW_GAP);
 	xpos = NAME_RANGE_MIN + xpos_rel;
 	FillRGBA( xpos - 5, ypos, PING_RANGE_MAX - 5, 1, 255, 140, 0, 255);  // draw the seperator line
 	
-	list_slot += 0.8;
+	list_slot += 0.4;
 
 	if ( !gHUD.m_Teamplay )
 	{
@@ -232,7 +232,7 @@ int CHudScoreboard :: Draw( float fTime )
 		if ( team_info->ownteam ) // if it is their team, draw the background different color
 		{
 			// overlay the background in blue,  then draw the score text over it
-			FillRGBA( NAME_RANGE_MIN + xpos_rel - 5, ypos, PING_RANGE_MAX - 5, ROW_GAP, 0, 0, 255, 70 );
+			FillRGBA( NAME_RANGE_MIN + xpos_rel - 5, ypos, PING_RANGE_MAX - 5, gHUD.m_scrinfo.iCharHeight, 0, 0, 255, 70 );
 		}
 
 		// draw their name (left to right)
@@ -322,17 +322,17 @@ int CHudScoreboard :: DrawPlayers( int xpos_rel, float list_slot, int nameoffset
 		{
 			if ( pl_info->thisplayer )
 			{  // green is the suicide color? i wish this could do grey...
-				FillRGBA( NAME_RANGE_MIN + xpos_rel - 5, ypos, PING_RANGE_MAX - 5, ROW_GAP, 80, 155, 0, 70 );
+				FillRGBA( NAME_RANGE_MIN + xpos_rel - 5, ypos, PING_RANGE_MAX - 5, gHUD.m_scrinfo.iCharHeight, 80, 155, 0, 70 );
 			}
 			else
 			{  // Highlight the killers name - overlay the background in red,  then draw the score text over it
-				FillRGBA( NAME_RANGE_MIN + xpos_rel - 5, ypos, PING_RANGE_MAX - 5, ROW_GAP, 255, 0, 0, ((float)15 * (float)(m_fLastKillTime - gHUD.m_flTime)) );
+				FillRGBA( NAME_RANGE_MIN + xpos_rel - 5, ypos, PING_RANGE_MAX - 5, gHUD.m_scrinfo.iCharHeight, 255, 0, 0, ((float)15 * (float)(m_fLastKillTime - gHUD.m_flTime)) );
 			}
 		}
 		else if ( pl_info->thisplayer ) // if it is their name, draw it a different color
 		{
 			// overlay the background in blue,  then draw the score text over it
-			FillRGBA( NAME_RANGE_MIN + xpos_rel - 5, ypos, PING_RANGE_MAX - 5, ROW_GAP, 0, 0, 255, 70 );
+			FillRGBA( NAME_RANGE_MIN + xpos_rel - 5, ypos, PING_RANGE_MAX - 5, gHUD.m_scrinfo.iCharHeight, 0, 0, 255, 70 );
 		}
 
 		// draw their name (left to right)
