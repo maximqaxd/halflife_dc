@@ -468,8 +468,8 @@ void CL_ParsePacketEntities( qboolean delta )
 			CL_FlushEntityPacket(TRUE);
 			if (newp->entities)
 				MnemoFreeDbg(newp->entities);
-			dummy.num_entities = 0;
-			dummy.entities = NULL;
+			newp->num_entities = 0;
+			newp->entities = NULL;
 			return;
 		}
 		cl.validsequence = cls.netchan.incoming_sequence;
@@ -528,8 +528,8 @@ void CL_ParsePacketEntities( qboolean delta )
 
 				if (newp->entities)
 					MnemoFreeDbg(newp->entities);
-				dummy.num_entities = 0;
-				dummy.entities = NULL;
+				newp->num_entities = 0;
+				newp->entities = NULL;
 				MSG_EndBitReading(&net_message);
 				return;
 			}
