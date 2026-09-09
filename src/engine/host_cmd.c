@@ -2956,7 +2956,25 @@ void DirectoryCopy( const char* pPath, void* pFile )
 			COM_FixSlashes(szName);
 			pCopy = Sys_OpenHandle(szName, "rb");
 			fileSize = Bfilesize_path(szName);
+#if HLDC_FIXES
+			if (fileSize >= 12 && !strcmp(COM_FileExtension(pFound), "hl2"))
+			{
+				int header[3];
+
+				// Older saves can retain records beyond the declared decal count.
+				if (DC_fread(header, sizeof(header), 1, pCopy) == 1 &&
+					header[0] == SAVEFILE_HEADER && header[1] == SAVEGAME_VERSION &&
+					header[2] >= 0 && header[2] <= (fileSize - 12) / 32)
+					fileSize = 12 + header[2] * 32;
+				DC_fseek(pCopy, 0, SEEK_SET);
+			}
+			// The archive reserves a full path record, including its padding.
+			memset(fileName, 0, sizeof(fileName));
+			strncpy(fileName, pFound, sizeof(fileName) - 1);
+			DC_fwrite(fileName, sizeof(char), sizeof(fileName), pFile);
+#else
 			DC_fwrite(pFound, sizeof(char), MAX_PATH, pFile);		// Filename can only be as long as a map name + extension
+#endif
 			DC_fwrite(&fileSize, sizeof(int), 1, pFile);
 			FileCopy(pFile, pCopy, fileSize);
 			Sys_CloseHandle(pCopy);
