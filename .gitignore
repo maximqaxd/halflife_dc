@@ -38,6 +38,7 @@ __pycache__/
 
 # Local notes, diagnostics and symbol-port data
 *.[mM][dD]
+!README.md
 /crash.txt
 /dbgeng_dump.obj
 /portdata/

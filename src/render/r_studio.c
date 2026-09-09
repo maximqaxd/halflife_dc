@@ -1909,8 +1909,11 @@ int R_StudioDrawModel( int flags, int checkBBox )
 		return result;
 	}
 
-	pstudiohdr = (studiohdr_t*)Mod_Extradata(currententity->model);
 	r_studio_model = currententity->model;
+	pstudiohdr = (studiohdr_t*)Mod_Extradata(currententity->model);
+
+	if (Mod_IsStudioNeoModel(pstudiohdr))
+		return R_StudioDrawModel_Neo(flags, checkBBox);
 
 	R_StudioSetUpTransform(0);
 
