@@ -3,6 +3,20 @@
 
 #define HLDC_MP 0
 
+//
+// Opt-in corrections for defects that shipped in the Dreamcast game.
+//
+// The engine reproduces the original behaviour by default, so a build with
+// HLDC_FIXES left at 0 behaves exactly like the released game. Set it to 1 to
+// get a corrected engine instead.
+//
+// Every guarded site names the symptom it produces in the game, so a fix can
+// be turned off again when tracking down a difference in behaviour.
+//
+#ifndef HLDC_FIXES
+#define HLDC_FIXES 0
+#endif
+
 #ifdef _WIN32_WCE
 
 // Pull the C runtime headers in first. The shims below deliberately shadow a

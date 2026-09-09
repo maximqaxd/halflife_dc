@@ -13,6 +13,11 @@
 extern "C" {
 #endif
 
+#if HLDC_MP
+qboolean CL_CanUploadSpray( const char* name );
+const byte* CL_GetSprayData( byte* hash, int size );
+#endif
+
 #define MAX_DECALS				1024		// MAX decals in world
 
 #if defined ( GLQUAKE )

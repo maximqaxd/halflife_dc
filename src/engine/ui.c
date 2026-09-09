@@ -185,6 +185,9 @@ UI_Init
 */
 void UI_Init( void )
 {
+#if HLDC_MP
+	UI_MultiplayerInit();
+#endif
 }
 
 /*

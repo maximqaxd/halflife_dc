@@ -56,6 +56,11 @@ extern	cvar_t		scr_netusage;
 extern	cvar_t		scr_graphmedian;
 extern	cvar_t		scr_downloading;
 
+#if HLDC_MP
+void CL_BeginServerLoad( void );
+void CL_SetServerLoadProgress( int percent );
+qboolean CL_IsServerLoading( void );
+#endif
 void CL_StartProgressBar( void );
 void CL_StopProgressBar( void );
 qboolean CL_UpdateProgressBar( void );

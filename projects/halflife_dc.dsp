@@ -143,7 +143,6 @@ DEP_CPP_AFILE=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -211,7 +210,6 @@ DEP_CPP_AFILE=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -286,7 +284,6 @@ DEP_CPP_AUDIO=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -355,7 +352,6 @@ DEP_CPP_AUDIO=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -433,7 +429,6 @@ DEP_CPP_AUDIO_=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -503,7 +498,6 @@ DEP_CPP_AUDIO_=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -582,7 +576,6 @@ DEP_CPP_AUDIO_M=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -656,7 +649,6 @@ DEP_CPP_AUDIO_M=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -734,7 +726,6 @@ DEP_CPP_AUDIO_S=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -803,7 +794,6 @@ DEP_CPP_AUDIO_S=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -880,7 +870,6 @@ DEP_CPP_AUDIO_ST=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -950,7 +939,6 @@ DEP_CPP_AUDIO_ST=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -1023,7 +1011,6 @@ DEP_CPP_BUILD=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -1156,7 +1143,6 @@ DEP_CPP_CHASE=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -1290,7 +1276,6 @@ DEP_CPP_CL_CA=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -1500,7 +1485,6 @@ DEP_CPP_CL_DR=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -1639,7 +1623,6 @@ DEP_CPP_CL_EN=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -1780,7 +1763,6 @@ DEP_CPP_CL_IN=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -1921,7 +1903,6 @@ DEP_CPP_CL_MA=\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
 	"..\src\engine\hashpak.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -2070,7 +2051,6 @@ DEP_CPP_CL_PA=\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
 	"..\src\engine\hashpak.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -2214,7 +2194,6 @@ DEP_CPP_CL_PR=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -2354,7 +2333,6 @@ DEP_CPP_CL_TE=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -2497,7 +2475,6 @@ DEP_CPP_CMD_C=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -2633,7 +2610,6 @@ DEP_CPP_CMODE=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -2769,7 +2745,6 @@ DEP_CPP_COMMO=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -2907,7 +2882,6 @@ DEP_CPP_CONSO=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -3042,7 +3016,6 @@ DEP_CPP_CRC_C=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -3178,7 +3151,6 @@ DEP_CPP_CVAR_=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -3313,7 +3285,6 @@ DEP_CPP_D3DMA=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -3381,7 +3352,6 @@ DEP_CPP_D3DMA=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -3456,7 +3426,6 @@ DEP_CPP_DC_AC=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -3591,7 +3560,6 @@ DEP_CPP_DC_D3=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -3659,7 +3627,6 @@ DEP_CPP_DC_D3=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -3734,7 +3701,6 @@ DEP_CPP_DC_DE=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -3871,7 +3837,6 @@ DEP_CPP_DC_DR=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -4017,7 +3982,6 @@ DEP_CPP_DC_MO=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -4159,7 +4123,6 @@ DEP_CPP_DC_RE=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -4292,7 +4255,6 @@ DEP_CPP_DC_RL=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -4429,7 +4391,6 @@ DEP_CPP_DC_RM=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -4574,7 +4535,6 @@ DEP_CPP_DC_RMI=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -4709,7 +4669,6 @@ DEP_CPP_DC_RS=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -4854,7 +4813,6 @@ DEP_CPP_DC_SC=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -4987,7 +4945,6 @@ DEP_CPP_DC_VI=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -5123,7 +5080,6 @@ DEP_CPP_DC_WA=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -5264,7 +5220,6 @@ DEP_CPP_DECAL=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -5332,7 +5287,6 @@ DEP_CPP_DECAL=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -5426,7 +5380,6 @@ DEP_CPP_ENG_C=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -5491,7 +5444,6 @@ DEP_CPP_ENG_C=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -5564,7 +5516,6 @@ DEP_CPP_ENG_CD=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\hud_handlers.h"\
 	"..\src\engine\info.h"\
@@ -5634,7 +5585,6 @@ DEP_CPP_ENG_CD=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\hud_handlers.h"\
 	"..\src\engine\info.h"\
@@ -5710,7 +5660,6 @@ DEP_CPP_ENTIT=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -5775,7 +5724,6 @@ DEP_CPP_ENTIT=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -5847,7 +5795,6 @@ DEP_CPP_GLHUD=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -5983,7 +5930,6 @@ DEP_CPP_HASHP=\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
 	"..\src\engine\hashpak.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -6119,7 +6065,6 @@ DEP_CPP_HOST_=\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
 	"..\src\engine\hashpak.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -6262,7 +6207,6 @@ DEP_CPP_HOST_C=\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
 	"..\src\engine\hashpak.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -6411,7 +6355,6 @@ DEP_CPP_HUD_C=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -6549,7 +6492,6 @@ DEP_CPP_IN_DC=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\in_dc.h"\
 	"..\src\engine\info.h"\
@@ -6690,7 +6632,6 @@ DEP_CPP_IN_JO=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\in_dc.h"\
 	"..\src\engine\info.h"\
@@ -6760,7 +6701,6 @@ DEP_CPP_IN_JO=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\in_dc.h"\
 	"..\src\engine\info.h"\
@@ -6837,7 +6777,6 @@ DEP_CPP_IN_KB=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\in_dc.h"\
 	"..\src\engine\info.h"\
@@ -6907,7 +6846,6 @@ DEP_CPP_IN_KB=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\in_dc.h"\
 	"..\src\engine\info.h"\
@@ -6984,7 +6922,6 @@ DEP_CPP_IN_MO=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\in_dc.h"\
 	"..\src\engine\info.h"\
@@ -7054,7 +6991,6 @@ DEP_CPP_IN_MO=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\in_dc.h"\
 	"..\src\engine\info.h"\
@@ -7131,7 +7067,6 @@ DEP_CPP_INFO_=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -7196,7 +7131,6 @@ DEP_CPP_INFO_=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -7268,7 +7202,6 @@ DEP_CPP_KEYS_=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -7403,7 +7336,6 @@ DEP_CPP_KZAP_=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -7469,7 +7401,6 @@ DEP_CPP_KZAP_=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -7542,7 +7473,6 @@ DEP_CPP_L_STU=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -7675,7 +7605,6 @@ DEP_CPP_MATHL=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -7813,7 +7742,6 @@ DEP_CPP_MNEMO=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -7885,7 +7813,6 @@ DEP_CPP_MNEMO=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -7961,7 +7888,6 @@ DEP_CPP_NET_C=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -8100,7 +8026,6 @@ DEP_CPP_NET_W=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -8235,7 +8160,6 @@ DEP_CPP_PHYSI=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -8368,7 +8292,6 @@ DEP_CPP_PMOVE=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -8507,7 +8430,6 @@ DEP_CPP_PMOVET=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -8645,7 +8567,6 @@ DEP_CPP_PR_CM=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -8785,7 +8706,6 @@ DEP_CPP_PR_ED=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -8920,7 +8840,6 @@ DEP_CPP_QGL_C=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -8986,7 +8905,6 @@ DEP_CPP_QGL_C=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -9060,7 +8978,6 @@ DEP_CPP_R_PAR=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -9202,7 +9119,6 @@ DEP_CPP_R_STU=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -9349,7 +9265,6 @@ DEP_CPP_R_STUD=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -9417,7 +9332,6 @@ DEP_CPP_R_STUD=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -9492,7 +9406,6 @@ DEP_CPP_R_TRA=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -9633,7 +9546,6 @@ DEP_CPP_R_TRI=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -9776,7 +9688,6 @@ DEP_CPP_SND_N=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -9914,7 +9825,6 @@ DEP_CPP_SV_MA=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -10058,7 +9968,6 @@ DEP_CPP_SV_MO=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -10193,7 +10102,6 @@ DEP_CPP_SV_PH=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -10334,7 +10242,6 @@ DEP_CPP_SV_UP=\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
 	"..\src\engine\hashpak.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -10469,7 +10376,6 @@ DEP_CPP_SV_US=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -10606,7 +10512,6 @@ DEP_CPP_SYS_D=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -10765,7 +10670,6 @@ DEP_CPP_SYS_E=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -10835,7 +10739,6 @@ DEP_CPP_SYS_E=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -10912,7 +10815,6 @@ DEP_CPP_TEXT_=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -10980,7 +10882,6 @@ DEP_CPP_TEXT_=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -11055,7 +10956,6 @@ DEP_CPP_TEXTU=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -11192,7 +11092,6 @@ DEP_CPP_TMESS=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -11332,7 +11231,6 @@ DEP_CPP_UI_C9a=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -11398,7 +11296,6 @@ DEP_CPP_UI_C9a=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -11471,7 +11368,6 @@ DEP_CPP_VIEW_=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -11613,7 +11509,6 @@ DEP_CPP_VMU_C=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -11682,7 +11577,6 @@ DEP_CPP_VMU_C=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -11758,7 +11652,6 @@ DEP_CPP_WAD_C=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -11891,7 +11784,6 @@ DEP_CPP_WON_C=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -11957,7 +11849,6 @@ DEP_CPP_WON_C=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -12030,7 +11921,6 @@ DEP_CPP_WORLD=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -12168,7 +12058,6 @@ DEP_CPP_ZAP_C=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -12234,7 +12123,6 @@ DEP_CPP_ZAP_C=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -12309,7 +12197,6 @@ DEP_CPP_ZAPSA=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -12375,7 +12262,6 @@ DEP_CPP_ZAPSA=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\
@@ -12448,7 +12334,6 @@ DEP_CPP_ZONE_=\
 	"..\src\engine\eiface.h"\
 	"..\src\engine\game_entity_api.h"\
 	"..\src\engine\glquake.h"\
-	"..\src\engine\hldc_fixes.h"\
 	"..\src\engine\host_cmd.h"\
 	"..\src\engine\info.h"\
 	"..\src\engine\input.h"\

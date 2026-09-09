@@ -37,6 +37,14 @@ void UI_Activate( void );
 void UI_Deactivate( void );
 
 void UI_KeyEvent( int key );
+#if HLDC_MP
+void UI_MultiplayerInit( void );
+qboolean UI_MultiplayerKeyEvent( int key );
+qboolean UI_OpenChatKeyboard( void );
+qboolean UI_ChatKeyboardActive( void );
+qboolean UI_ChatKeyboardKeyEvent( int key );
+void UI_DrawChatKeyboard( void );
+#endif
 
 void UI_Init( void );
 void UI_Shutdown( void );

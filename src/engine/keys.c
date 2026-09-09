@@ -1007,6 +1007,10 @@ void Key_Event( int key, qboolean down )
 		switch (key_dest)
 		{
 		case key_message:
+#if HLDC_MP
+			if (UI_ChatKeyboardKeyEvent(key))
+				break;
+#endif
 			Key_Message(key);
 			break;
 
@@ -1016,6 +1020,10 @@ void Key_Event( int key, qboolean down )
 			break;
 
 		case key_ui:
+#if HLDC_MP
+			if (UI_MultiplayerKeyEvent(key))
+				break;
+#endif
 			M_EncodeStateFlags(key);
 			break;
 

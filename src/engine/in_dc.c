@@ -1128,6 +1128,10 @@ IN_Move
 */
 void IN_Move( usercmd_t* cmd )
 {
+#if HLDC_MP
+	if (UI_ChatKeyboardActive())
+		return;
+#endif
 	if (pMouseDevice)
 		IN_MouseMove(cmd);
 
@@ -1508,7 +1512,11 @@ void IN_Commands( void )
 	for (i = 0; i < MAX_JOY_BUTTONS; i++)
 	{
 		joymenubuttons[i] = 0;
-		if (key_dest != key_message)
+		if (key_dest != key_message
+#if HLDC_MP
+			|| UI_ChatKeyboardActive()
+#endif
+		)
 		{
 			if (pJoystickDevice->buttonUsage[i] != JOY_USAGE_NONE
 				&& pJoystickDevice->buttonChanged[pJoystickDevice->buttonUsage[i]]

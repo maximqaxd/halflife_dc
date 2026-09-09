@@ -252,6 +252,9 @@ byte* LoadBMP16( void* fin, qboolean is15bit );
 void LoadBMP8( int* phFile, byte** pPalette, int* nPalette, byte** pImage );
 void COM_Log( char* pszFile, char* fmt, ... );
 void COM_ListMaps( char* pszSubString );
+#if HLDC_MP
+void COM_EnumeratePlayerFiles( void (*callback)(void*, const char*), void* context );
+#endif
 
 unsigned char COM_Nibble( char c );
 void COM_CheckAuthenticationType( void );

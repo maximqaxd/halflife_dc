@@ -217,8 +217,6 @@ static qboolean NET_DialStart( char *profile )
 		NET_DialHangup();
 		return FALSE;
 	}
-	else
-		Con_Printf("Dialing; net_hangup cancels\n");
 	return TRUE;
 }
 

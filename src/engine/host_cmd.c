@@ -1299,6 +1299,10 @@ void Host_Reconnect_f( void )
 		cls.state == ca_connecting)
 		return;
 
+#if HLDC_MP
+	CL_BeginServerLoad();
+	if (!CL_IsServerLoading())
+#endif
 	SCR_BeginLoadingPlaque();
 
 	cls.signon = 0;		// need new connection messages

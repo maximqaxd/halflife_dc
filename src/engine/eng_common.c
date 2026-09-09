@@ -2616,6 +2616,90 @@ typedef struct searchpath_s
 
 searchpath_t* com_searchpaths;
 
+#if HLDC_MP
+static void COM_ScanPlayerDirectory( char* base, char* directory,
+	void (*callback)(void*, const char*), void* context, int depth )
+{
+	WIN32_FIND_DATAW data;
+	WCHAR pattern[MAX_OSPATH];
+	HANDLE find;
+	char path[MAX_OSPATH], name[MAX_OSPATH];
+	int i;
+
+	if (strlen(base) + strlen(directory) + 4 >= sizeof(path))
+		return;
+	sprintf(path, "%s/%s/*", base, directory);
+	COM_FixSlashes(path);
+	for (i = 0; path[i]; i++)
+		pattern[i] = (byte)path[i];
+	pattern[i] = 0;
+	find = FindFirstFileW(pattern, &data);
+	if (find == INVALID_HANDLE_VALUE)
+		return;
+	do
+	{
+		for (i = 0; data.cFileName[i] && i < sizeof(name) - 1; i++)
+			name[i] = data.cFileName[i] < 128 ? (char)data.cFileName[i] : '?';
+		name[i] = 0;
+		if (name[0] == '.' || strlen(directory) + strlen(name) + 2 >= sizeof(path))
+			continue;
+		sprintf(path, "%s/%s", directory, name);
+		if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		{
+			if (!depth)
+				COM_ScanPlayerDirectory(base, path, callback, context, depth + 1);
+		}
+		else
+			callback(context, path);
+	} while (FindNextFileW(find, &data));
+	FindClose(find);
+}
+
+void COM_EnumeratePlayerFiles( void (*callback)(void*, const char*), void* context )
+{
+	searchpath_t* search;
+	dpackheader_t header;
+	dpackfile_t entry;
+	int handle, length, i, j;
+
+	for (search = com_searchpaths; search; search = search->next)
+	{
+		if (!search->pack)
+		{
+			COM_ScanPlayerDirectory(search->filename, "models/player", callback, context, 0);
+			continue;
+		}
+		length = Sys_FileOpenRead(search->pack->filename, &handle, 0);
+		if (length < 0)
+			continue;
+		if (Sys_FileRead(handle, &header, sizeof(header)) != sizeof(header) ||
+			memcmp(header.id, "PACK", 4) || header.dirofs < sizeof(header) ||
+			header.dirofs > length || header.dirlen < 0 ||
+			header.dirlen > length - header.dirofs || header.dirlen % sizeof(entry))
+		{
+			Sys_FileClose(handle);
+			continue;
+		}
+		Sys_FileSeek(handle, header.dirofs);
+		for (i = 0; i < header.dirlen / sizeof(entry); i++)
+		{
+			if (Sys_FileRead(handle, &entry, sizeof(entry)) != sizeof(entry))
+				break;
+			entry.name[sizeof(entry.name) - 1] = 0;
+			for (j = 0; entry.name[j]; j++)
+			{
+				if (entry.name[j] == '\\')
+					entry.name[j] = '/';
+			}
+			if (!Q_strncasecmp(entry.name, "models/player/", 14))
+				callback(context, entry.name);
+		}
+		Sys_FileClose(handle);
+	}
+}
+#endif
+
+
 void COM_FreeSearchPathEntry( searchpath_t* search )
 {
 	if (search)
@@ -2927,12 +3011,12 @@ Length of a file without keeping it open.
 */
 int COM_FileSize( char* filename )
 {
-	int	hFile = 0;
-	int	len;
+	FILE*	file = NULL;
+	int		len;
 
-	len = COM_FindFileSearch(NULL, NULL, filename, &hFile, NULL);
-	if (hFile)
-		Sys_CloseHandle((void*)hFile);
+	len = COM_FindFileSearch(NULL, NULL, filename, NULL, &file);
+	if (file)
+		Sys_CloseHandle(file);
 
 	return len;
 }

@@ -31,4 +31,17 @@ typedef struct
 	netadr_t	adr;
 } server_cache_t;
 
+#if HLDC_MP
+#ifdef __cplusplus
+extern "C" {
+#endif
+int CL_ServerListCount( void );
+const server_cache_t* CL_ServerListEntry( int index );
+int CL_ServerListPing( int index );
+qboolean CL_RefreshServerList( char* address );
+#ifdef __cplusplus
+}
+#endif
+#endif
+
 #endif

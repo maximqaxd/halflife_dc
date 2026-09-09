@@ -238,7 +238,11 @@ int DispatchDirectUserMsg( const char* pszName, int iSize, void* pBuf )
 			fFound = 1;
 
 			iMsgSize = pList->iSize;
-			if (iMsgSize == -1)
+			if (iMsgSize == -1
+#if HLDC_MP
+				|| pList->iMsg == 0
+#endif
+			)
 				iMsgSize = iSize;
 
 			pfnRet = pList->pfn;
@@ -607,6 +611,9 @@ void CL_RegisterResources( void )
 		return;
 	}
 
+#if HLDC_MP
+	CL_SetServerLoadProgress(90);
+#endif
 	cl.worldmodel = cl.model_precache[1];
 
 	cl_entities->model = cl.worldmodel;
@@ -865,6 +872,15 @@ qboolean CL_RequestMissingResources( void )
 	}
 
 	CL_MoveToOnHandList(p);
+#if HLDC_MP
+	if (!cls.custom && cls.state == ca_uninitialized)
+	{
+		int loaded = CL_CountResourceList(&cl.resourcesonhand);
+		int total = loaded + CL_CountResourceList(&cl.resourcesneeded);
+		if (total > 0)
+			CL_SetServerLoadProgress(10 + 80 * loaded / total);
+	}
+#endif
 	return TRUE;
 }
 
@@ -903,6 +919,9 @@ void CL_StartResourceDownloading( char* pszMessage, qboolean bCustom )
 
 	if (!bCustom)
 	{
+#if HLDC_MP
+		CL_SetServerLoadProgress(10);
+#endif
 		cls.state = ca_uninitialized;
 		cls.custom = FALSE;
 	}
@@ -969,6 +988,10 @@ void CL_ParseResourceList( void )
 		CL_AddToResourceList(resource, &cl.resourcesneeded);
 	}
 
+#if HLDC_MP
+	if (totalsize > 0)
+		CL_SetServerLoadProgress(5 + 5 * CL_CountResourceList(&cl.resourcesneeded) / totalsize);
+#endif
 	if (CL_CountResourceList(&cl.resourcesneeded) < totalsize)
 	{
 		cls.state = ca_connected;
@@ -1164,6 +1187,10 @@ void CL_ParseServerInfo( void )
 	char* str;
 	int		i;
 
+#if HLDC_MP
+	CL_BeginServerLoad();
+	CL_SetServerLoadProgress(5);
+#endif
 	Sys_SetTaskName("CL_ParseServerInfo");
 //
 // wipe the client_state_t struct
@@ -1215,6 +1242,13 @@ void CL_ParseServerInfo( void )
 	cl.gametype = MSG_ReadByte();
 
 	CL_ParseChangeGame(MSG_ReadString());
+#if HLDC_MP
+	if (cls.netchan.remote_address.type == NA_IP && !sv.active)
+	{
+		byte color[3] = { 255, 160, 0 };
+		DispatchDirectUserMsg("HudColor", sizeof(color), color);
+	}
+#endif
 
 	cls.changelevel = FALSE;
 	str = MSG_ReadString();
@@ -1577,7 +1611,60 @@ void CL_ParseRestoreDecals( char* fileName )
 
 void CL_ParseCustomization( void )
 {
+#if HLDC_MP
+	resource_t resource;
+	customization_t* custom;
+	cachewad_t* wad;
+	const byte* data;
+	byte hash[16];
+	int player, size;
+
+	memset(&resource, 0, sizeof(resource));
+	memset(hash, 0, sizeof(hash));
+	player = MSG_ReadByte();
+	resource.type = MSG_ReadByte();
+	strncpy(resource.szFileName, MSG_ReadString(), sizeof(resource.szFileName) - 1);
+	resource.nIndex = MSG_ReadShort();
+	size = MSG_ReadLong();
+	resource.ucFlags = MSG_ReadByte() & ~RES_WASMISSING;
+	if (resource.ucFlags & RES_CUSTOM)
+		MSG_ReadBuf(sizeof(hash), hash);
+	if (msg_badread || player < 0 || player >= MAX_CLIENTS)
+		Host_Error("Invalid player customization");
+	if (resource.type != t_decal || !(resource.ucFlags & RES_CUSTOM))
+		return;
+	COM_ClearCustomizationList(&cl.players[player].customdata, TRUE);
+	data = CL_GetSprayData(hash, size);
+	if (!data || size <= 0)
+		return;
+	custom = (customization_t*)malloc(sizeof(*custom));
+	wad = (cachewad_t*)malloc(sizeof(*wad));
+	if (!custom || !wad)
+	{
+		free(custom);
+		free(wad);
+		return;
+	}
+	memset(custom, 0, sizeof(*custom));
+	memset(wad, 0, sizeof(*wad));
+	custom->pBuffer = malloc(size);
+	if (!custom->pBuffer)
+	{
+		free(custom);
+		free(wad);
+		return;
+	}
+	memcpy(custom->pBuffer, data, size);
+	custom->resource = resource;
+	custom->bInUse = TRUE;
+	custom->pInfo = wad;
+	CustomDecal_Init(wad, custom->pBuffer, size, player);
+	custom->bTranslated = TRUE;
+	custom->nUserData2 = wad->lumpCount;
+	cl.players[player].customdata.pNext = custom;
+#else
 	Sys_Error("Customization\n");
+#endif
 }
 
 void CL_PlayerDropped( int nPlayerNumber )
@@ -1986,6 +2073,12 @@ void CL_ParseServerMessage( void )
 		case svc_nextupload:
 			CL_ParseNextUpload();
 			break;
+
+#if HLDC_MP
+		case svc_customization:
+			CL_ParseCustomization();
+			break;
+#endif
 
 		case svc_resourcerequest:
 			CL_SendResourceListBlock();

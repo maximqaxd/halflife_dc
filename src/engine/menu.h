@@ -67,8 +67,13 @@ typedef struct menupage_s
 	int			items[MAX_MENU_ITEMS];
 } menupage_t;
 
+#if HLDC_MP
+#define MAX_MENU_PAGES		32
+#define MAX_MENU_ITEMDEFS	97
+#else
 #define MAX_MENU_PAGES		29
 #define MAX_MENU_ITEMDEFS	94
+#endif
 #define MI_END			0xfe
 
 extern menuitemdef_t	g_MenuItems[];

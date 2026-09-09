@@ -13,6 +13,10 @@
 #include "hud_handlers.h"
 #include "../util/vmu.h"
 #include <platutil.h>
+#if HLDC_MP
+#include "decal.h"
+#include "cl_servercache.h"
+#endif
 
 #define JOY_AXIS_ACTIONS	5
 
@@ -279,10 +283,19 @@ controlaction_t g_ControlActions[] =
 	{ "slot3", "%slot3short", "%slot3long" },
 	{ "slot4", "%slot4short", "%slot4long" },
 	{ "slot5", "%slot5short", "%slot5long" },
+#if HLDC_MP
+	{ "impulse 201", "SPRAY DECAL", "Spray your decal" },
+	{ "+showscores", "SCOREBOARD", "Hold to show scores" },
+	{ "messagemode", "CHAT", "Send a message to all players" },
+	{ "messagemode2", "TEAM CHAT", "Send a message to your team" },
+#endif
 	{ NULL, NULL, NULL }
 };
 
 controlkey_t g_ControlKeys[MAX_MENU_CONTROL_KEYS];
+#if HLDC_MP
+static const char* g_pszBindFocus;
+#endif
 
 static char *g_ControlKeyNames[][2] =
 {
@@ -465,6 +478,11 @@ menuitemdef_t g_MenuItems[] =
 	{ 0x6e, "%loadgame", "menu load2", "%loadgame_des" },
 	{ 0x70, "%savegame", "menu save", "%savegame_des" },
 	{ 0x6c, "%options", "menu config", "%options_des" },
+#if HLDC_MP
+	{ 0x100, "MULTIPLAYER", "menu multiplayer", "Join a game or set up your player" },
+	{ 0x101, "JOIN GAME", "menu mpbrowser", "Find a server or enter its address" },
+	{ 0x102, "PLAYER SETUP", "menu mpsetup", "Change your name and spray selection" },
+#endif
 	{ 0xa0, "%credits", "menu credits", "%credits_des" },
 	{ 0x71, "", "menu debug", "Jump to level and other debug features" },
 	{ 0x6f, "%reload", "reload", "%reload_des" },
@@ -556,12 +574,24 @@ menuitemdef_t g_MenuItems[] =
 
 menupage_t g_MenuPages[] =
 {
+#if HLDC_MP
+	{ "multiplayer", "menu main", 1,
+		{ 0x02, 0xf1, 0x101, 0x102, 0xa7, MI_END } },
+	{ "mpbrowser", "menu multiplayer", 1,
+		{ 0x02, 0xf1, 0x110, 0xa7, MI_END } },
+	{ "mpsetup", "menu multiplayer", 1,
+		{ 0x02, 0xf1, 0x111, 0xa7, MI_END } },
+#endif
 	{ "splash", "menu splash2", 1,
 		{ 0xf2,  0xfc,  0xfe, } },
 	{ "splash2", NULL, 1,
 		{ 0xf3,  0xfd,  0xfe, } },
 	{ "main", NULL, 1,
-		{ 0x02,  0xf1,  0x66,  0x6d,  0x6c,  0xa0,  0x71,  0xfe, } },
+		{ 0x02,  0xf1,  0x66,  0x6d,  0x6c,
+#if HLDC_MP
+		  0x100,
+#endif
+		  0xa0,  0x71,  0xfe, } },
 	{ "gamemenu", "", 1,
 		{ 0x02,  0xf1,  0x70,  0x6d,  0x6c,  0x74,  0xa7,  0xfe, } },
 	{ "continuemenu", NULL, 1,
@@ -4594,6 +4624,21 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 		m_reserved18 = 0;
 	}
 
+#if HLDC_MP
+	if (g_pszBindFocus)
+	{
+		for (control = 0; control < m_nEntries; control++)
+		{
+			if (!strcmp(g_ControlActions[g_ControlKeys[control].control].pszCommand, g_pszBindFocus))
+			{
+				m_mode = control + 6;
+				m_selection = min(m_mode, max(0, m_nEntries - 2));
+				break;
+			}
+		}
+		g_pszBindFocus = NULL;
+	}
+#endif
 	if (m_mode > m_nEntries + 6)
 		m_mode = m_nEntries + 6;
 
@@ -4716,7 +4761,11 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 			sprintf(bindCommand, "bind \"%s\" \"%s\"\n",
 				Key_KeynumToString(capturedKey), pszCommand);
 			Cbuf_AddText(bindCommand);
+#if HLDC_MP
+			key_dest = key_ui;
+#else
 			key_dest = key_menu;
+#endif
 		}
 	}
 
@@ -4819,7 +4868,7 @@ int CMenuBindItem::FindShiftKey( char* pszName )
 
 	for (i = 0; i < g_nShiftKeys; i++)
 	{
-		if (!Q_stricmp(pszName, g_pszShiftKeys[i]))
+		if (!Q_strcasecmp(pszName, g_pszShiftKeys[i]))
 			return i;
 	}
 	return 0;
@@ -5368,6 +5417,13 @@ Give the artwork back, hand the keyboard over and let the sound run again.
 */
 CMenu::~CMenu( void )
 {
+#if HLDC_MP
+	if (!strncmp(m_szName, "mp", 2) || !strcmp(m_szName, "multiplayer"))
+	{
+		for (int i = 0; i < MAX_MENU_ITEMS; i++)
+			delete m_pItems[i];
+	}
+#endif
 	FreeTextures();
 
 	UI_Deactivate();
@@ -5499,6 +5555,19 @@ void UI_OpenMenu( char* pszMenu )
 
 	if (cls.state == ca_active || cls.state == ca_disconnected)
 	{
+#if HLDC_MP
+		if (!strcmp(pszMenu, "mpsetup"))
+			Host_WriteConfiguration();
+		if (!strcmp(pszMenu, "multiplayer"))
+		{
+			if (!keybindings['t'] || !keybindings['t'][0])
+				Key_SetBinding('t', "impulse 201");
+			if (!keybindings[K_TAB] || !keybindings[K_TAB][0])
+				Key_SetBinding(K_TAB, "+showscores");
+			if (!keybindings['y'] || !keybindings['y'][0])
+				Key_SetBinding('y', "messagemode");
+		}
+#endif
 		Cache_FlushToDisk();
 		Cache_FreeAll();
 
@@ -5559,6 +5628,802 @@ menupage_t* CMenu::FindPage( char* pszName )
 	}
 	return NULL;
 }
+
+#if HLDC_MP
+#define MP_BROWSER_ROWS 4
+#define MP_MENU_ADDRESS 0x110
+#define MP_MENU_PLAYER 0x111
+#define MP_MENU_CHAT 0x112
+
+static cvar_t mp_server = { "mp_server", "", FCVAR_ARCHIVE };
+static cvar_t mp_spray = { "mp_spray", "", FCVAR_ARCHIVE };
+extern char message_type[32];
+
+class CMenuMultiplayerItem : public CMenuItemBase
+{
+public:
+	CMenuMultiplayerItem( CMenu* menu, int page );
+	virtual ~CMenuMultiplayerItem( void );
+	virtual void Draw( float fade, qboolean selected );
+	virtual void Select( void );
+	virtual void Cancel( void );
+	virtual void Up( void );
+	virtual void Down( void );
+	virtual void Left( void );
+	virtual void Right( void );
+	virtual int IsActive( void ) { return 1; }
+	qboolean Key( int key );
+	qboolean IsEditing( void ) { return m_editing; }
+	void Box( int x, int y, int width, int height, int alpha );
+
+private:
+	void Text( const char* text, int x, int y, int width, int alpha );
+	void DrawKeyboard( float fade );
+	void KeyboardSelect( void );
+	void AddModel( const char* name );
+	static void CollectModel( void* context, const char* path );
+	void Model( int direction );
+	void LoadPreview( void );
+	int m_modelCount;
+	int m_model;
+	char (*m_models)[32];
+	char m_previewName[MAX_QPATH];
+	int m_preview;
+	qboolean m_osk;
+	qboolean m_uppercase;
+	int m_oskKey;
+	void Row( const char* label, const char* value, int row, int y, float fade );
+	void Move( int direction );
+	void Edit( const char* value, int limit );
+	void Accept( void );
+	void Character( int direction );
+	void Spray( int direction );
+	void Join( const char* address );
+	int m_page;
+	int m_row;
+	int m_firstServer;
+	int m_cursor;
+	int m_limit;
+	qboolean m_editing;
+	char m_text[128];
+	char m_status[96];
+};
+
+static CMenuMultiplayerItem* g_pMultiplayerItem;
+static CMenuMultiplayerItem* g_pChatKeyboard;
+
+void UI_MultiplayerInit( void )
+{
+	Cvar_RegisterVariable(&mp_server);
+	Cvar_RegisterVariable(&mp_spray);
+}
+
+qboolean UI_MultiplayerKeyEvent( int key )
+{
+	if (!gpActiveMenu || !gfDrawMenu || gpActiveMenu->m_state.flAnimating)
+		return FALSE;
+	return g_pMultiplayerItem ? g_pMultiplayerItem->Key(key) : FALSE;
+}
+
+CMenuMultiplayerItem::CMenuMultiplayerItem( CMenu* menu, int page )
+	: CMenuItemBase(menu)
+{
+	m_page = page;
+	m_row = 0;
+	m_firstServer = 0;
+	m_cursor = 0;
+	m_limit = sizeof(m_text) - 1;
+	m_editing = FALSE;
+	m_osk = FALSE;
+	m_uppercase = TRUE;
+	m_oskKey = 0;
+	m_modelCount = 1;
+	m_model = 0;
+	m_models = (char (*)[32])malloc(32);
+	if (!m_models)
+		Sys_Error("Out of memory listing player models");
+	m_models[0][0] = 0;
+	m_preview = 0;
+	m_previewName[0] = 0;
+	m_text[0] = 0;
+	m_status[0] = 0;
+	if (menu)
+		g_pMultiplayerItem = this;
+	if (page == MP_MENU_PLAYER)
+	{
+		COM_EnumeratePlayerFiles(CollectModel, this);
+		if (!decal_wad && COM_FileSize("decals.wad") > 0)
+			Decal_Init();
+		LoadPreview();
+	}
+	else if (page == MP_MENU_CHAT)
+		Edit("", 120);
+}
+
+CMenuMultiplayerItem::~CMenuMultiplayerItem( void )
+{
+	free(m_models);
+	if (g_pMultiplayerItem == this)
+		g_pMultiplayerItem = NULL;
+	if (m_preview)
+		DC_ForceFreeTextureByName(m_previewName);
+}
+
+
+void CMenuMultiplayerItem::CollectModel( void* context, const char* path )
+{
+	char name[32];
+	const char* start;
+	const char* end;
+	const char* extension;
+	int length;
+
+	if (Q_strncasecmp(path, "models/player/", 14))
+		return;
+	extension = strrchr(path, '.');
+	if (!extension || (Q_strcasecmp(extension, ".mdl") && Q_strcasecmp(extension, ".bmp")))
+		return;
+	start = path + 14;
+	end = strchr(start, '/');
+	if (!end)
+		end = strrchr(start, '.');
+	if (!end)
+		return;
+	length = end - start;
+	if (length < 1 || length >= sizeof(name))
+		return;
+	memcpy(name, start, length);
+	name[length] = 0;
+	((CMenuMultiplayerItem*)context)->AddModel(name);
+}
+
+void CMenuMultiplayerItem::AddModel( const char* name )
+{
+	char path[MAX_QPATH];
+	int i;
+	char (*models)[32];
+
+	if (!name[0] || strlen(name) >= sizeof(m_models[0]))
+		return;
+	for (i = 0; name[i]; i++)
+		if (!(name[i] >= 'a' && name[i] <= 'z') && !(name[i] >= 'A' && name[i] <= 'Z') &&
+			!(name[i] >= '0' && name[i] <= '9') && name[i] != '_' && name[i] != '-')
+			return;
+	for (i = 1; i < m_modelCount; i++)
+		if (!Q_strcasecmp(name, m_models[i]))
+			return;
+	if (strlen(name) * 2 + 19 >= sizeof(path))
+		return;
+	sprintf(path, "models/player/%s/%s.mdl", name, name);
+	if (COM_FileSize(path) < 0)
+		return;
+	models = (char (*)[32])realloc(m_models, (m_modelCount + 1) * sizeof(m_models[0]));
+	if (!models)
+		return;
+	m_models = models;
+	strcpy(m_models[m_modelCount], name);
+	if (!Q_strcasecmp(name, Cvar_VariableString("model")))
+		m_model = m_modelCount;
+	m_modelCount++;
+}
+
+void CMenuMultiplayerItem::Model( int direction )
+{
+	m_model = (m_model + direction + m_modelCount) % m_modelCount;
+	Cvar_Set("model", m_models[m_model]);
+	LoadPreview();
+}
+
+void CMenuMultiplayerItem::LoadPreview( void )
+{
+	byte* data;
+	byte* source;
+	unsigned short* pixels;
+	int length, offset, width, height, compression, stride, x, y, row;
+	unsigned short bits, planes;
+	char* name;
+
+	if (m_preview)
+		DC_ForceFreeTextureByName(m_previewName);
+	m_preview = 0;
+	name = m_models[m_model][0] ? m_models[m_model] : "gordon";
+	sprintf(m_previewName, "models/player/%s/%s.bmp", name, name);
+	data = COM_LoadTempFile(m_previewName, &length);
+	if (!data)
+		return;
+	if (length < 54 || data[0] != 'B' || data[1] != 'M')
+	{
+		COM_FreeTempFile();
+		return;
+	}
+	memcpy(&offset, data + 10, 4);
+	memcpy(&width, data + 18, 4);
+	memcpy(&height, data + 22, 4);
+	memcpy(&planes, data + 26, 2);
+	memcpy(&bits, data + 28, 2);
+	memcpy(&compression, data + 30, 4);
+	if (planes != 1 || bits != 24 || compression || width < 1 || width > 256 ||
+		height == 0 || height < -256 || height > 256 || (width & (width - 1)) ||
+		(abs(height) & (abs(height) - 1)) || offset < 54)
+	{
+		COM_FreeTempFile();
+		return;
+	}
+	stride = (width * 3 + 3) & ~3;
+	if (offset > length || stride * abs(height) > length - offset)
+	{
+		COM_FreeTempFile();
+		return;
+	}
+	pixels = (unsigned short*)malloc(width * abs(height) * 2);
+	if (pixels)
+	{
+		for (y = 0; y < abs(height); y++)
+		{
+			row = height > 0 ? height - 1 - y : y;
+			source = data + offset + row * stride;
+			for (x = 0; x < width; x++, source += 3)
+				pixels[y * width + x] = ((source[2] >> 3) << 11) |
+					((source[1] >> 2) << 5) | (source[0] >> 3);
+		}
+		m_preview = DC_LoadTexture(m_previewName, GLT_SYSTEM, width, abs(height),
+			pixels, FALSE, TEX_TYPE_RGB565_RAW, NULL);
+		free(pixels);
+	}
+	COM_FreeTempFile();
+}
+
+void CMenuMultiplayerItem::DrawKeyboard( float fade )
+{
+	static char* actions[] = { "SPACE", "DEL", "<", ">", "CASE", "DONE", "BACK", "@", "-", "_" };
+	const char* letters = "1234567890QWERTYUIOPASDFGHJKL_ZXCVBNM.-:";
+	char key[2];
+	int i, x, y;
+
+	Text(m_page == MP_MENU_CHAT ? "CHAT" : "ENTER TEXT", 56, 140, 530, (int)(fade * 255));
+	Row(m_page == MP_MENU_PLAYER ? "PLAYER NAME" : m_page == MP_MENU_CHAT ? "MESSAGE" :
+		m_row == 0 ? "SERVER" : "PASSWORD", "", m_row, 184, fade);
+	for (i = 0; i < 50; i++)
+	{
+		x = 50 + (i % 10) * 54;
+		y = 232 + (i / 10) * 34;
+		DCV_TexState_Blend();
+		Box(x, y, 50, 30, (int)(fade * (i == m_oskKey ? 160 : 40)));
+		if (i < 40)
+		{
+			key[0] = m_uppercase ? letters[i] : tolower(letters[i]);
+			key[1] = 0;
+			Text(key, x + 19, y + 4, 35, (int)(fade * 255));
+		}
+		else
+			Text(actions[i - 40], x + 3, y + 4, 46, (int)(fade * 255));
+	}
+	Text("A: TYPE   X: DELETE   B: CANCEL   Select DONE to accept", 56, 414, 530, (int)(fade * 200));
+}
+
+void CMenuMultiplayerItem::KeyboardSelect( void )
+{
+	const char* letters = "1234567890QWERTYUIOPASDFGHJKL_ZXCVBNM.-:";
+
+	if (m_oskKey < 40)
+	{
+		Key(m_uppercase ? letters[m_oskKey] : tolower(letters[m_oskKey]));
+		return;
+	}
+	switch (m_oskKey)
+	{
+	case 40: Key(' '); break;
+	case 41: Key(K_BACKSPACE); break;
+	case 42: if (m_cursor) m_cursor--; break;
+	case 43: if (m_cursor < strlen(m_text)) m_cursor++; break;
+	case 44: m_uppercase = !m_uppercase; break;
+	case 45: Accept(); break;
+	case 46: Cancel(); break;
+	case 47: Key('@'); break;
+	case 48: Key('-'); break;
+	case 49: Key('_'); break;
+	}
+}
+
+qboolean UI_OpenChatKeyboard( void )
+{
+	if (cls.state != ca_active || IN_KeyboardActive() || gfDrawMenu)
+		return FALSE;
+	delete g_pChatKeyboard;
+	g_pChatKeyboard = new CMenuMultiplayerItem(NULL, MP_MENU_CHAT);
+	memset(joymenubuttons, 0, MAX_MENU_BUTTONS * sizeof(joymenubuttons[0]));
+	key_dest = key_message;
+	return TRUE;
+}
+
+qboolean UI_ChatKeyboardActive( void )
+{
+	if (g_pChatKeyboard && (key_dest != key_message || cls.state != ca_active ||
+		gfDrawMenu || !g_pChatKeyboard->IsEditing() || IN_KeyboardActive()))
+	{
+		delete g_pChatKeyboard;
+		g_pChatKeyboard = NULL;
+	}
+	return g_pChatKeyboard != NULL;
+}
+
+qboolean UI_ChatKeyboardKeyEvent( int key )
+{
+	if (!UI_ChatKeyboardActive())
+		return FALSE;
+	if (key < K_JOY1)
+		g_pChatKeyboard->Key(key);
+	return TRUE;
+}
+
+void UI_DrawChatKeyboard( void )
+{
+	if (!UI_ChatKeyboardActive())
+		return;
+	if (joymenubuttons[7] || joymenubuttons[15]) g_pChatKeyboard->Up();
+	if (joymenubuttons[6] || joymenubuttons[14]) g_pChatKeyboard->Down();
+	if (joymenubuttons[5] || joymenubuttons[13]) g_pChatKeyboard->Right();
+	if (joymenubuttons[4] || joymenubuttons[12]) g_pChatKeyboard->Left();
+	if (joymenubuttons[8]) g_pChatKeyboard->Key(K_BACKSPACE);
+	if (joymenubuttons[1]) g_pChatKeyboard->Cancel();
+	else if (joymenubuttons[0]) g_pChatKeyboard->Select();
+	memset(joymenubuttons, 0, MAX_MENU_BUTTONS * sizeof(joymenubuttons[0]));
+	if (UI_ChatKeyboardActive())
+	{
+		Draw_FillRGBA(40, 132, 560, 310, 0, 0, 0, 160);
+		g_pChatKeyboard->Draw(1.0f, TRUE);
+	}
+}
+
+void CMenuMultiplayerItem::Box( int x, int y, int width, int height, int alpha )
+{
+	if (m_pMenu)
+	{
+		m_pMenu->SetColor(255, 144, 0, alpha);
+		m_pMenu->DrawMenuElementBox((float)x, (float)y, (float)(x + width), (float)(y + height));
+	}
+	else
+		Draw_FillRGBA(x, y, width, height, 255, 144, 0, alpha);
+}
+
+void CMenuMultiplayerItem::Text( const char* text, int x, int y, int width, int alpha )
+{
+	char line[96];
+	int i;
+
+	for (i = 0; text[i] && i < sizeof(line) - 1; i++)
+		line[i] = ((byte)text[i] >= 32 && (byte)text[i] < 127) ? text[i] : ' ';
+	line[i] = 0;
+	Font_ApplyScale(0.65f, 0.86667f);
+	while (i && Font_MeasureString((dcfont_t*)draw_chars, (byte*)line) > width)
+		line[--i] = 0;
+	DCV_TexState_Blend();
+	Text_DrawStringShadow(line, x, y, alpha, 0);
+}
+
+void CMenuMultiplayerItem::Row( const char* label, const char* value, int row, int y, float fade )
+{
+	char text[130];
+	int i, first;
+
+	DCV_TexState_Blend();
+	Box(48, y - 3, m_page == MP_MENU_PLAYER && row > 0 ? 362 : 544,
+		25, (int)(fade * (row == m_row ? 100 : 35)));
+	Text(label, 56, y, 180, (int)(fade * 255));
+	if (m_editing && row == m_row)
+	{
+		strcpy(text, m_text);
+		if (m_page == MP_MENU_ADDRESS && m_row == 1)
+			for (i = 0; text[i]; i++)
+				text[i] = '*';
+		i = strlen(text);
+		if (m_cursor == i)
+		{
+			text[i] = '_';
+			text[i + 1] = 0;
+		}
+		else if (((int)(Sys_FloatTime() * 3) & 1) == 0)
+			text[m_cursor] = '_';
+		first = m_cursor > 24 ? m_cursor - 24 : 0;
+		Text(text + first, 240, y, 340, (int)(fade * 255));
+	}
+	else if (value)
+		Text(value, 240, y, m_page == MP_MENU_PLAYER && row > 0 ? 160 : 340,
+			(int)(fade * (row == m_row ? 255 : 160)));
+}
+
+void CMenuMultiplayerItem::Draw( float fade, qboolean selected )
+{
+	const server_cache_t* server;
+	char text[96];
+	int i, index, count;
+	texture_t* texture;
+	int base;
+
+	DCV_TexState_Blend();
+	if (m_editing && m_osk)
+	{
+		DrawKeyboard(fade);
+		return;
+	}
+	if (m_page == MP_MENU_ADDRESS)
+	{
+		Text("JOIN GAME", 56, 140, 530, (int)(fade * 255));
+		Row("SERVER ADDRESS", mp_server.string, 0, 174, fade);
+		Row("PASSWORD", Cvar_VariableString("password")[0] ? "********" : "NONE", 1, 206, fade);
+		Row("REFRESH LAN", "Also query the address above", 2, 238, fade);
+		Text("SERVER", 56, 267, 245, (int)(fade * 180));
+		Text("MAP", 320, 267, 110, (int)(fade * 180));
+		Text("PLAYERS", 435, 267, 75, (int)(fade * 180));
+		Text("PING", 533, 267, 55, (int)(fade * 180));
+		count = CL_ServerListCount();
+		for (i = 0; i < MP_BROWSER_ROWS; i++)
+		{
+			index = m_firstServer + i;
+			server = CL_ServerListEntry(index);
+			DCV_TexState_Blend();
+			m_pMenu->SetColor(255, 144, 0, (int)(fade * (m_row == i + 3 ? 100 : 30)));
+			m_pMenu->DrawMenuElementBox(48, (float)(287 + i * 22), 592, (float)(308 + i * 22));
+			if (!server)
+			{
+				if (!i && !count)
+					Text("No servers found. Refresh or enter an address.", 56, 290, 520, (int)(fade * 180));
+				continue;
+			}
+			Text(server->name, 56, 290 + i * 22, 250, (int)(fade * 255));
+			Text(server->map, 320, 290 + i * 22, 110, (int)(fade * 200));
+			sprintf(text, "%d/%d%s", server->inuse, server->maxplayers, server->password ? " *" : "");
+			Text(text, 435, 290 + i * 22, 85, (int)(fade * 200));
+			sprintf(text, "%d", CL_ServerListPing(index));
+			Text(text, 533, 290 + i * 22, 55, (int)(fade * 200));
+		}
+		Row("CONNECT", "Join the address above", 7, 386, fade);
+	}
+	else if (m_page == MP_MENU_PLAYER)
+	{
+		Text("PLAYER SETUP", 56, 140, 530, (int)(fade * 255));
+		Row("PLAYER NAME", Cvar_VariableString("name"), 0, 184, fade);
+		Row("PLAYER MODEL", m_models[m_model][0] ? m_models[m_model] : "GORDON", 1, 224, fade);
+		Row("SPRAY DECAL", mp_spray.string[0] ? mp_spray.string : "NONE", 2, 264, fade);
+		Row("CONTROLS", "Spray / scores / chat", 3, 304, fade);
+		Row("SAVE SETTINGS", "Memory card", 4, 344, fade);
+		Text("Spray changes apply on your next connection.", 56, 386, 350, (int)(fade * 180));
+		if (m_preview)
+		{
+			GL_BindStage(m_preview, 0);
+			m_pMenu->SetColor(255, 255, 255, (int)(fade * 255));
+			DCV_TexState_Blend();
+			DCV_FlushIfLarge();
+			base = DCV_GetVertCount();
+			DCV_AddPolyIndices(base, 4);
+			DCV_AddVertex(462, 220, dc_depthhud.value, 0, 0);
+			DCV_AddVertex(574, 220, dc_depthhud.value, 1, 0);
+			DCV_AddVertex(462, 332, dc_depthhud.value, 0, 1);
+			DCV_AddVertex(574, 332, dc_depthhud.value, 1, 1);
+		}
+		else
+			Text("NO PREVIEW", 448, 260, 140, (int)(fade * 150));
+		if (decal_wad && mp_spray.string[0])
+		{
+			for (i = 0; i < decal_wad->lumpCount; i++)
+			{
+				if (!strcmp(decal_wad->lumps[i].name, mp_spray.string))
+				{
+					texture = Draw_DecalTexture(Draw_CacheIndex(decal_wad, decal_wad->lumps[i].name));
+					if (texture)
+					{
+						GL_BindStage(texture->gl_texturenum, 0);
+						DCV_TexState_Blend();
+						m_pMenu->SetColor(255, 255, 255, (int)(fade * 255));
+						DCV_FlushIfLarge();
+						base = DCV_GetVertCount();
+						DCV_AddPolyIndices(base, 4);
+						DCV_AddVertex(486, 344, dc_depthhud.value, 0, 0);
+						DCV_AddVertex(550, 344, dc_depthhud.value, 1, 0);
+						DCV_AddVertex(486, 408, dc_depthhud.value, 0, 1);
+						DCV_AddVertex(550, 408, dc_depthhud.value, 1, 1);
+					}
+					break;
+				}
+			}
+		}
+	}
+	else
+	{
+		Text("CHAT", 56, 140, 530, (int)(fade * 255));
+		Row("MESSAGE", "", 0, 184, fade);
+	}
+	if (m_editing)
+		Text("UP/DOWN: LETTER   LEFT/RIGHT: CURSOR   X: DELETE   A: OK   B: CANCEL", 56, 448, 530, (int)(fade * 200));
+	else
+		Text(m_status[0] ? m_status : "A / ENTER: SELECT     B / ESC: BACK", 56, 448, 530, (int)(fade * 200));
+	g_nTextCharGap = 0;
+}
+
+void CMenuMultiplayerItem::Edit( const char* value, int limit )
+{
+	m_limit = min(limit, (int)sizeof(m_text) - 1);
+	strncpy(m_text, value, m_limit);
+	m_text[m_limit] = 0;
+	m_cursor = strlen(m_text);
+	m_editing = TRUE;
+	m_osk = !IN_KeyboardActive();
+	m_oskKey = 0;
+	m_status[0] = 0;
+}
+
+void CMenuMultiplayerItem::Accept( void )
+{
+	if (m_page == MP_MENU_PLAYER)
+	{
+		if (!m_text[0])
+			return;
+		Cvar_Set("name", m_text);
+	}
+	else if (m_page == MP_MENU_CHAT)
+	{
+		char command[144];
+		sprintf(command, "%s \"%s\"", !strcmp(message_type, "say_team") ? "say_team" : "say", m_text);
+		if (m_text[0])
+		{
+			Cbuf_AddText(command);
+			Cbuf_AddText("\n");
+		}
+		key_dest = key_game;
+	}
+	else
+		Cvar_Set(m_row == 0 ? "mp_server" : "password", m_text);
+	m_editing = FALSE;
+	memset(m_text, 0, sizeof(m_text));
+}
+
+void CMenuMultiplayerItem::Character( int direction )
+{
+	const char* alphabet = " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-:@";
+	const char* at;
+	int length = strlen(m_text);
+	int count = strlen(alphabet);
+	int index;
+
+	if (m_cursor >= m_limit)
+		return;
+	at = strchr(alphabet, m_text[m_cursor]);
+	index = at && *at ? (int)(at - alphabet) : 0;
+	index = (index + direction + count) % count;
+	if (m_page == MP_MENU_ADDRESS && m_row == 0 && !index)
+		index = direction > 0 ? 1 : count - 1;
+	m_text[m_cursor] = alphabet[index];
+	if (m_cursor == length)
+		m_text[length + 1] = 0;
+}
+
+void CMenuMultiplayerItem::Spray( int direction )
+{
+	int i, count;
+
+	count = decal_wad ? decal_wad->lumpCount : 0;
+	if (!count)
+	{
+		strcpy(m_status, "No local decals loaded. Load a map to preview sprays.");
+		return;
+	}
+	for (i = 0; i < count; i++)
+		if (!strcmp(decal_wad->lumps[i].name, mp_spray.string))
+			break;
+	i = (i + direction + count + 1) % (count + 1);
+	if (i == count)
+	{
+		Cvar_Set("mp_spray", "");
+		return;
+	}
+	if (CL_CanUploadSpray(decal_wad->lumps[i].name))
+		Cvar_Set("mp_spray", decal_wad->lumps[i].name);
+	else
+		strcpy(m_status, "This decal cannot be used as a spray.");
+}
+
+void CMenuMultiplayerItem::Join( const char* address )
+{
+	char command[MAX_QPATH + 16];
+	int i, length;
+
+	length = strlen(address);
+	if (!length || length >= MAX_QPATH)
+	{
+		strcpy(m_status, "Enter a server address first.");
+		return;
+	}
+	for (i = 0; i < length; i++)
+	{
+		if ((byte)address[i] <= 32 || address[i] == '"' || address[i] == ';' || address[i] == '\\')
+		{
+			strcpy(m_status, "Invalid server address.");
+			return;
+		}
+	}
+	sprintf(command, "connect \"%s\"", address);
+	Host_WriteConfiguration();
+	m_pMenu->ExecuteCommand(command, 1, 1);
+}
+
+void CMenuMultiplayerItem::Select( void )
+{
+	const server_cache_t* server;
+	char address[MAX_QPATH];
+
+	if (m_editing)
+	{
+		if (m_osk)
+			KeyboardSelect();
+		else
+			Accept();
+		return;
+	}
+	m_status[0] = 0;
+	if (m_page == MP_MENU_ADDRESS)
+	{
+		if (m_row == 0)
+			Edit(mp_server.string, MAX_QPATH - 1);
+		else if (m_row == 1)
+			Edit(Cvar_VariableString("password"), MAX_QPATH - 1);
+		else if (m_row == 2)
+		{
+			m_firstServer = 0;
+			strcpy(m_status, CL_RefreshServerList(mp_server.string) ?
+				"Searching LAN and the selected server..." : "Could not resolve the server address.");
+		}
+		else if (m_row == 7)
+			Join(mp_server.string);
+		else
+		{
+			server = CL_ServerListEntry(m_firstServer + m_row - 3);
+			if (server)
+			{
+				sprintf(address, "%u.%u.%u.%u:%u", server->adr.ip[0], server->adr.ip[1],
+					server->adr.ip[2], server->adr.ip[3], (unsigned short)BigShort(server->adr.port));
+				Cvar_Set("mp_server", address);
+				Join(mp_server.string);
+			}
+		}
+	}
+	else if (m_page == MP_MENU_PLAYER)
+	{
+		if (m_row == 0)
+			Edit(Cvar_VariableString("name"), MAX_SCOREBOARDNAME - 1);
+		else if (m_row == 1)
+			Model(1);
+		else if (m_row == 2)
+			Spray(1);
+		else if (m_row == 3)
+		{
+			g_pszBindFocus = "impulse 201";
+			m_pMenu->ExecuteCommand("menu custom", 1, 1);
+		}
+		else
+			Host_WriteConfiguration();
+	}
+
+}
+
+void CMenuMultiplayerItem::Cancel( void )
+{
+	if (m_editing)
+	{
+		m_editing = FALSE;
+		memset(m_text, 0, sizeof(m_text));
+		if (m_page == MP_MENU_CHAT)
+			key_dest = key_game;
+	}
+	else
+	{
+		if (m_page == MP_MENU_PLAYER)
+			Host_WriteConfiguration();
+		m_pMenu->Cancel();
+	}
+}
+
+void CMenuMultiplayerItem::Move( int direction )
+{
+	int count = m_page == MP_MENU_ADDRESS ? 8 : m_page == MP_MENU_PLAYER ? 5 : 1;
+	if (m_editing)
+	{
+		if (m_osk)
+			m_oskKey = (m_oskKey + direction * 10 + 50) % 50;
+		else
+			Character(direction);
+		return;
+	}
+	if (m_page == MP_MENU_ADDRESS)
+	{
+		if (direction > 0 && m_row == 6 && m_firstServer + MP_BROWSER_ROWS < CL_ServerListCount())
+		{
+			m_firstServer++;
+			return;
+		}
+		if (direction < 0 && m_row == 3 && m_firstServer)
+		{
+			m_firstServer--;
+			return;
+		}
+	}
+	m_row = (m_row + direction + count) % count;
+	while (m_page == MP_MENU_ADDRESS && m_row >= 3 && m_row <= 6 &&
+		m_firstServer + m_row - 3 >= CL_ServerListCount())
+		m_row = (m_row + direction + count) % count;
+	m_status[0] = 0;
+}
+
+void CMenuMultiplayerItem::Up( void )
+{
+	Move(-1);
+}
+
+void CMenuMultiplayerItem::Down( void )
+{
+	Move(1);
+}
+
+void CMenuMultiplayerItem::Left( void )
+{
+	if (m_editing)
+	{
+		if (m_osk)
+			m_oskKey = (m_oskKey + 49) % 50;
+		else if (m_cursor)
+			m_cursor--;
+	}
+	else if (m_page == MP_MENU_PLAYER && m_row == 1)
+		Model(-1);
+	else if (m_page == MP_MENU_PLAYER && m_row == 2)
+		Spray(-1);
+}
+
+void CMenuMultiplayerItem::Right( void )
+{
+	if (m_editing)
+	{
+		if (m_osk)
+			m_oskKey = (m_oskKey + 1) % 50;
+		else if (m_cursor < strlen(m_text))
+			m_cursor++;
+	}
+	else if (m_page == MP_MENU_PLAYER && m_row == 1)
+		Model(1);
+	else if (m_page == MP_MENU_PLAYER && m_row == 2)
+		Spray(1);
+}
+
+qboolean CMenuMultiplayerItem::Key( int key )
+{
+	int length;
+
+	if (!m_editing)
+		return FALSE;
+	length = strlen(m_text);
+	if (key == K_ENTER) Accept();
+	else if (key == K_ESCAPE) Cancel();
+	else if (key == K_LEFTARROW) Left();
+	else if (key == K_RIGHTARROW) Right();
+	else if (key == K_UPARROW) Up();
+	else if (key == K_DOWNARROW) Down();
+	else if (key == K_BACKSPACE && m_cursor)
+	{
+		memmove(m_text + m_cursor - 1, m_text + m_cursor, length - m_cursor + 1);
+		m_cursor--;
+	}
+	else if (key == K_DEL && m_cursor < length)
+		memmove(m_text + m_cursor, m_text + m_cursor + 1, length - m_cursor);
+	else if (key >= 32 && key < 127 && key != '"' && key != ';' && key != '\\')
+	{
+		if (!(m_page == MP_MENU_ADDRESS && m_row == 0 && key == ' ') && length < m_limit)
+		{
+			memmove(m_text + m_cursor + 1, m_text + m_cursor, length - m_cursor + 1);
+			m_text[m_cursor++] = key;
+		}
+	}
+	return TRUE;
+}
+#endif
 
 void CMenu::Build( char* pszMenu )
 {
@@ -5643,6 +6508,23 @@ void CMenu::Build( char* pszMenu )
 				// that unlocks it has been entered
 				if (id != 0x71 || gfSecretCode)
 				{
+#if HLDC_MP
+					if (id >= 0x110 && id <= 0x112)
+					{
+						*ppItem = new CMenuMultiplayerItem(this, id);
+					}
+					else if (id >= 0x100 && id <= 0x102)
+					{
+						*ppItem = new CMenuTextItem(this, FindItemDef(id), left, top, 0);
+						top += spacing;
+						if (first)
+						{
+							left += first;
+							first += 8;
+						}
+					}
+					else
+#endif
 					if (id < 0x65)
 					{
 						*ppItem = new CMenuTitleItem(this);
@@ -6032,6 +6914,11 @@ void CMenu::Input( void )
 		Cbuf_AddText("\n");
 		return;
 	}
+
+#if HLDC_MP
+	if (joymenubuttons[8])
+		UI_MultiplayerKeyEvent(K_BACKSPACE);
+#endif
 
 	// start backs out of the in-game page and confirms everywhere else
 	if (joymenubuttons[3])

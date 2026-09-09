@@ -3,6 +3,7 @@
 #include "quakedef.h"
 #include "dreamcast_crt.h"
 #include "dc_accum.h"
+#include "ui.h"
 /*
 
 background clear
@@ -692,6 +693,10 @@ void SCR_UpdateScreen( void )
 
 	if (scr_disabled_for_loading)
 	{
+#if HLDC_MP
+		if (CL_IsServerLoading())
+			return;
+#endif
 		if (realtime - scr_disabled_time <= 60)
 			return;
 
@@ -807,6 +812,9 @@ void SCR_UpdateScreen( void )
 		SCR_DrawDownloadProgress();
 
 		Host_DrawMessage();
+#if HLDC_MP
+		UI_DrawChatKeyboard();
+#endif
 
 		GLFinishHud();
 	}

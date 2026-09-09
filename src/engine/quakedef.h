@@ -138,7 +138,6 @@ typedef struct _UserMsg
 #define	STAT_WEAPON			2
 
 
-#include "hldc_fixes.h"
 #include "platform.h"
 #include "bothdefs.h"
 #include "mathlib.h"

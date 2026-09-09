@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #endif
 #include "quakedef.h"
+#include "ui.h"
 #include "winquake.h"
 
 qboolean	con_loading = FALSE;
@@ -177,8 +178,14 @@ Con_MessageMode_f
 */
 void Con_MessageMode_f( void )
 {
+#if HLDC_MP
+	if (cls.state != ca_active || (key_dest != key_game && key_dest != key_console))
+		return;
+#endif
 	con_backscroll = 0;
+#if !HLDC_MP
 	key_dest = key_message;
+#endif
 
 	if (Cmd_Argc() == 2)
 	{
@@ -188,6 +195,11 @@ void Con_MessageMode_f( void )
 	{
 		strcpy(message_type, "say");
 	}
+#if HLDC_MP
+	if (UI_OpenChatKeyboard())
+		return;
+	key_dest = key_message;
+#endif
 }
 
 
@@ -198,9 +210,20 @@ Con_MessageMode2_f
 */
 void Con_MessageMode2_f( void )
 {
+#if HLDC_MP
+	if (cls.state != ca_active || (key_dest != key_game && key_dest != key_console))
+		return;
+#endif
 	con_backscroll = 0;
+#if !HLDC_MP
 	key_dest = key_message;
+#endif
 	strcpy(message_type, "say_team");
+#if HLDC_MP
+	if (UI_OpenChatKeyboard())
+		return;
+	key_dest = key_message;
+#endif
 }
 
 
@@ -676,7 +699,11 @@ void Con_DrawNotify( void )
 		v += Font_CharHeight(draw_chars);
 	}
 
-	if (key_dest == key_message)
+	if (key_dest == key_message
+#if HLDC_MP
+		&& !UI_ChatKeyboardActive()
+#endif
+	)
 	{
 		clearnotify = 0;
 		scr_copytop = 1;

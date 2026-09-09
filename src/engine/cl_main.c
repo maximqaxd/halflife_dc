@@ -21,6 +21,9 @@
 
 // Current long-running task, for the crash screen.
 static char g_szTaskName[64];
+#if HLDC_MP
+static int cl_serverload_progress = -1;
+#endif
 
 void Cmd_fullserverinfo_f( void );
 
@@ -110,7 +113,11 @@ void CL_RecordDownloadStats (void)
 }
 cvar_t	cl_slisttimeout = { "cl_slist", "10.0" };
 cvar_t	cl_allowdownload = { "cl_allowdownload", "0" };
+#if HLDC_MP
+cvar_t	cl_allowupload = { "cl_allowupload", "1", FCVAR_ARCHIVE };
+#else
 cvar_t	cl_allowupload = { "cl_allowupload", "0" };
+#endif
 cvar_t	cl_upload_max = { "cl_upload_max", "0" };
 cvar_t	cl_download_max = { "cl_download_max", "0" };
 cvar_t	cl_download_ingame = { "cl_download_ingame", "0" };
@@ -121,6 +128,9 @@ client_static_t	cls;
 client_state_t cl;
 
 static server_cache_t	cached_servers[MAX_LOCAL_SERVERS];
+#if HLDC_MP
+static int server_pings[MAX_LOCAL_SERVERS];
+#endif
 
 // FIXME: put these on hunk?
 efrag_t			cl_efrags[MAX_EFRAGS];
@@ -342,6 +352,48 @@ Populates the client's server_cache_t structrue
 Replaces Slist command
 =================
 */
+#if HLDC_MP
+int CL_ServerListCount( void )
+{
+	return num_servers;
+}
+
+const server_cache_t* CL_ServerListEntry( int index )
+{
+	if (index < 0 || index >= num_servers)
+		return NULL;
+	return &cached_servers[index];
+}
+
+int CL_ServerListPing( int index )
+{
+	if (index < 0 || index >= num_servers)
+		return 0;
+	return server_pings[index];
+}
+
+qboolean CL_RefreshServerList( char* address )
+{
+	netadr_t adr;
+
+	memset(&adr, 0, sizeof(adr));
+	if (address[0])
+	{
+		if (!NET_StringToAdr(address, &adr) || adr.type != NA_IP)
+			return FALSE;
+		if (!adr.port)
+			adr.port = BigShort((unsigned short)atoi(PORT_SERVER));
+	}
+	num_servers = 0;
+	memset(cached_servers, 0, sizeof(cached_servers));
+	memset(server_pings, 0, sizeof(server_pings));
+	CL_PingServers_f();
+	if (address[0])
+		Netchan_OutOfBandPrint(NS_CLIENT, adr, "details");
+	return TRUE;
+}
+#endif
+
 void CL_Slist_f( void )
 {
 	int i;
@@ -468,6 +520,9 @@ void CL_AddToServerCache( netadr_t adr, char* name, char* map, char* desc, char*
 		active, maxplayers, NET_AdrToString(adr), gamedir, desc);
 
 	cached_servers[num_servers].adr = adr;
+#if HLDC_MP
+	server_pings[num_servers] = (int)((Sys_FloatTime() - cls.slist_time) * 1000.0f);
+#endif
 
 	strncpy(cached_servers[num_servers].name, name, sizeof(cached_servers[num_servers].name) - 1);
 	cached_servers[num_servers].name[sizeof(cached_servers[num_servers].name) - 1] = 0;
@@ -648,7 +703,7 @@ void CL_ServerListInfo( void )
 	while (1)
 	{
 		name = MSG_ReadString();
-		if (!name || !name[0] || !Q_stricmp(name, "end-of-list") || !Q_stricmp(name, "more-in-list"))
+		if (!name || !name[0] || !Q_strcasecmp(name, "end-of-list") || !Q_strcasecmp(name, "more-in-list"))
 			break;
 		strcpy(modname, name);
 		players = atoi(MSG_ReadString());
@@ -658,7 +713,7 @@ void CL_ServerListInfo( void )
 	}
 	Con_Printf("%i servers\n", count);
 
-	if (name && name[0] && !Q_stricmp(name, "more-in-list"))
+	if (name && name[0] && !Q_strcasecmp(name, "more-in-list"))
 	{
 		sprintf(request, "%c%s", 'x', modname);
 		NET_SendPacket(NS_CLIENT, strlen(request) + 1, request, net_from);
@@ -702,7 +757,7 @@ void CL_ConnectionlessPacket( void )
 			MSG_WriteString(&cls.netchan.message, "new");
 
 			// Report connection success.
-			if (Q_stricmp("loopback", NET_AdrToString(net_from)))
+			if (Q_strcasecmp("loopback", NET_AdrToString(net_from)))
 				Con_Printf("Connection accepted by %s\n", NET_AdrToString(net_from));
 
 			// Mark client as connected
@@ -716,6 +771,9 @@ void CL_ConnectionlessPacket( void )
 			// Bump connection time to now so we don't resend a connection
 			// Request
 			cls.connect_time = realtime;
+#if HLDC_MP
+			CL_BeginServerLoad();
+#endif
 		}
 	}
 	else if (c == S2C_CHALLENGE)
@@ -1026,6 +1084,13 @@ This is also called on Host_Error, so it shouldn't cause any errors
 */
 void CL_Disconnect( void )
 {
+#if HLDC_MP
+	if (CL_IsServerLoading())
+	{
+		SCR_EndLoadingPlaque();
+		CL_StopProgressBar();
+	}
+#endif
 	cls.connect_time = -99999.0;
 	cls.connect_retry = 0;
 
@@ -1360,7 +1425,7 @@ void CL_Connect_f( void )
 		// Try to find server in cache
 		for (i = 0; i < num_servers; i++)
 		{
-		if (!Q_strnicmp(server, cached_servers[i].name, strlen(cached_servers[i].name)))
+		if (!Q_strncasecmp(server, cached_servers[i].name, strlen(cached_servers[i].name)))
 			{
 				strncpy(name, NET_AdrToString(cached_servers[i].adr), sizeof(name));
 				break;
@@ -1381,7 +1446,7 @@ void CL_Connect_f( void )
 	cls.connect_retry = 0;
 	gfExtendedError = FALSE;
 
-	if (Q_strnicmp(cls.servername, "local", 5))
+	if (Q_strncasecmp(cls.servername, "local", 5))
 		NET_Config(TRUE);
 }
 
@@ -1471,6 +1536,9 @@ void CL_SignonReply( void )
 {
 	char 	str[8192];
 
+#if HLDC_MP
+	CL_SetServerLoadProgress(cls.signon == 1 ? 95 : cls.signon == 2 ? 98 : 100);
+#endif
 	switch (cls.signon)
 	{
 	case 1:
@@ -2189,8 +2257,223 @@ CL_BeginUpload_f
 Starts file upload to server, handles both normal files and MD5-hashed resources
 =================
 */
+#if HLDC_MP
+static byte* cl_spraydata;
+static int cl_spraysize;
+static byte cl_sprayhash[16];
+
+static byte* CL_BuildSprayWad( byte* data, int length, int* size )
+{
+	miptex_t source, *mip;
+	wadinfo_t* header;
+	lumpinfo_t* lump;
+	byte* wad;
+	byte* palette;
+	byte* pixels;
+	int w, h, x, y, level, offset, count, paletteOffset;
+	unsigned short colors;
+
+	if (length < sizeof(source))
+		return NULL;
+	memcpy(&source, data, sizeof(source));
+	if (source.width < 16 || source.height < 16 || source.width > 256 || source.height > 256 ||
+		(source.width & 15) || (source.height & 15))
+		return NULL;
+	count = source.width * source.height;
+	for (level = 0; level < 4; level++)
+	{
+		if (source.offsets[level] < sizeof(source) || source.offsets[level] > length ||
+			(count >> (level * 2)) > length - source.offsets[level])
+			return NULL;
+	}
+	paletteOffset = source.offsets[3] + (count >> 6);
+	if (paletteOffset > length - 770)
+		return NULL;
+	memcpy(&colors, data + paletteOffset, 2);
+	if (colors != 256)
+		return NULL;
+	palette = data + paletteOffset + 2;
+	w = source.width;
+	h = source.height;
+	while (w > 64 || h > 64)
+	{
+		w = max(16, w / 2);
+		h = max(16, h / 2);
+	}
+	w = (w + 15) & ~15;
+	h = (h + 15) & ~15;
+	count = w * h;
+	offset = sizeof(miptex_t) + count + (count >> 2) + (count >> 4) + (count >> 6) + 770;
+	offset = (offset + 3) & ~3;
+	*size = sizeof(wadinfo_t) + offset + sizeof(lumpinfo_t);
+	wad = (byte*)malloc(*size);
+	if (!wad)
+		return NULL;
+	memset(wad, 0, *size);
+	header = (wadinfo_t*)wad;
+	memcpy(header->identification, "WAD3", 4);
+	header->numlumps = 1;
+	header->infotableofs = sizeof(wadinfo_t) + offset;
+	mip = (miptex_t*)(wad + sizeof(wadinfo_t));
+	strcpy(mip->name, "{logo");
+	mip->width = w;
+	mip->height = h;
+	offset = sizeof(miptex_t);
+	for (level = 0; level < 4; level++)
+	{
+		mip->offsets[level] = offset;
+		pixels = (byte*)mip + offset;
+		for (y = 0; y < (h >> level); y++)
+			for (x = 0; x < (w >> level); x++)
+				*pixels++ = data[source.offsets[0] + (y * source.height / (h >> level)) * source.width +
+					x * source.width / (w >> level)];
+		offset += count >> (level * 2);
+	}
+	memcpy((byte*)mip + offset, &colors, 2);
+	memcpy((byte*)mip + offset + 2, palette, 768);
+	lump = (lumpinfo_t*)(wad + header->infotableofs);
+	lump->filepos = sizeof(wadinfo_t);
+	lump->disksize = lump->size = header->infotableofs - sizeof(wadinfo_t);
+	lump->type = 67;
+	strcpy(lump->name, "{logo");
+	return wad;
+}
+
+static byte* CL_ReadSpray( const char* name, int* spraySize )
+{
+	FileList_t *list, *file;
+	wadinfo_t header;
+	lumpinfo_t lump;
+	byte *raw, *wad;
+	char clean[16];
+	int i, size, length, candidateSize;
+
+	wad = NULL;
+	size = 0;
+	list = NULL;
+	if (!name[0])
+		return NULL;
+	COM_BuildFileList("decals.wad", &list);
+	for (file = list; file; file = file->next)
+	{
+		COM_FileSeek(file->handles[0], file->handles[1], file->handles[2], 0);
+		if (Sys_FileRead(file->handles[2], &header, sizeof(header)) != sizeof(header) ||
+			memcmp(header.identification, "WAD3", 4) || header.numlumps < 0 ||
+			header.infotableofs < sizeof(header) || header.infotableofs > file->fileLen ||
+			header.numlumps > (file->fileLen - header.infotableofs) / sizeof(lump))
+			continue;
+		for (i = 0; i < header.numlumps; i++)
+		{
+			COM_FileSeek(file->handles[0], file->handles[1], file->handles[2], header.infotableofs + i * sizeof(lump));
+			if (Sys_FileRead(file->handles[2], &lump, sizeof(lump)) != sizeof(lump))
+				break;
+			memcpy(clean, lump.name, sizeof(clean));
+			clean[15] = 0;
+			if (Q_strcasecmp(clean, name) || lump.compression || lump.filepos < sizeof(header) ||
+				lump.filepos > file->fileLen || lump.disksize < sizeof(miptex_t) ||
+				lump.disksize > 100000 || lump.disksize > file->fileLen - lump.filepos)
+				continue;
+			raw = (byte*)malloc(lump.disksize);
+			if (!raw)
+				break;
+			COM_FileSeek(file->handles[0], file->handles[1], file->handles[2], lump.filepos);
+			length = Sys_FileRead(file->handles[2], raw, lump.disksize);
+			if (length == lump.disksize)
+			{
+				byte* candidate = CL_BuildSprayWad(raw, length, &candidateSize);
+				if (candidate)
+				{
+					free(wad);
+					wad = candidate;
+					size = candidateSize;
+				}
+			}
+			free(raw);
+			break;
+		}
+	}
+	COM_CloseUnusedFiles(list);
+	COM_DestroyMultipleFileList(&list);
+	*spraySize = size;
+	return wad;
+}
+
+qboolean CL_CanUploadSpray( const char* name )
+{
+	byte* data;
+	int size;
+
+	data = CL_ReadSpray(name, &size);
+	if (!data)
+		return FALSE;
+	free(data);
+	return TRUE;
+}
+
+static void CL_LoadSpray( const char* name )
+{
+	MD5Context_t context;
+
+	free(cl_spraydata);
+	cl_spraydata = NULL;
+	cl_spraysize = 0;
+	cl_spraydata = CL_ReadSpray(name, &cl_spraysize);
+	if (cl_spraydata)
+	{
+		MD5Init(&context);
+		MD5Update(&context, cl_spraydata, cl_spraysize);
+		MD5Final(cl_sprayhash, &context);
+	}
+}
+
+const byte* CL_GetSprayData( byte* hash, int size )
+{
+	if (size != cl_spraysize || memcmp(hash, cl_sprayhash, sizeof(cl_sprayhash)))
+		return NULL;
+	return cl_spraydata;
+}
+#endif
+
 void CL_BeginUpload_f( void )
 {
+#if HLDC_MP
+	char* name;
+	int error;
+
+	if (cls.state == ca_disconnected || cls.state == ca_dedicated || Cmd_Argc() < 2)
+		return;
+	name = Cmd_Argv(1);
+	error = -1;
+	if (cl_allowupload.value && cl_spraydata && strlen(name) == 36 &&
+		!Q_strncasecmp(name, "!MD5", 4) && !Q_strcasecmp(name + 4, COM_BinPrintf(cl_sprayhash, 16)))
+	{
+		if (!cl_upload_max.value || cl_spraysize <= cl_upload_max.value)
+		{
+			if (cls.upload)
+				COM_FreeFile(cls.upload);
+			cls.upload = (FILE*)malloc(cl_spraysize);
+			if (cls.upload)
+			{
+				memcpy(cls.upload, cl_spraydata, cl_spraysize);
+				cls.uploadsize = cl_spraysize;
+				cls.uploadpos = 0;
+				cls.uploading = FALSE;
+				g_bSkipUpload = FALSE;
+				CRC32_Init(&cls.uploadCRC);
+				if (Cmd_Argc() == 4)
+					CL_SetupResume(atoi(Cmd_Argv(2)), atol(Cmd_Argv(3)));
+				CL_ParseNextUpload();
+				return;
+			}
+		}
+		error = -2;
+	}
+	MSG_WriteByte(&cls.netchan.message, clc_upload);
+	MSG_WriteShort(&cls.netchan.message, -1);
+	MSG_WriteShort(&cls.netchan.message, -1);
+	MSG_WriteLong(&cls.netchan.message, error);
+	MSG_WriteByte(&cls.netchan.message, 0);
+#endif
 }
 
 /*
@@ -2241,8 +2524,16 @@ void CL_SendResourceListBlock( void )
 		MSG_WriteByte(&cls.netchan.message, cl.resourcelist[i].type);
 		MSG_WriteString(&cls.netchan.message, cl.resourcelist[i].szFileName);
 		MSG_WriteShort(&cls.netchan.message, cl.resourcelist[i].nIndex);
+#if HLDC_MP
+		MSG_WriteLong(&cls.netchan.message, cl.resourcelist[i].ucFlags & RES_CUSTOM ? cl_spraysize : 1000);
+#else
 		MSG_WriteLong(&cls.netchan.message, 1000);
+#endif
 		MSG_WriteByte(&cls.netchan.message, cl.resourcelist[i].ucFlags);
+#if HLDC_MP
+		if (cl.resourcelist[i].ucFlags & RES_CUSTOM)
+			SZ_Write(&cls.netchan.message, cl_sprayhash, sizeof(cl_sprayhash));
+#endif
 	}
 
     u = (unsigned short)i;
@@ -2291,6 +2582,20 @@ CL_CreateResourceList
 */
 void CL_CreateResourceList( void )
 {
+#if HLDC_MP
+	resource_t* resource;
+
+	cl.num_resources = 0;
+	CL_LoadSpray(sv.active ? "" : Cvar_VariableString("mp_spray"));
+	if (!cl_spraydata)
+		return;
+	resource = &cl.resourcelist[0];
+	memset(resource, 0, sizeof(*resource));
+	strcpy(resource->szFileName, "pldecal.wad");
+	resource->type = t_decal;
+	resource->ucFlags = RES_CUSTOM;
+	cl.num_resources = 1;
+#else
 	FILE* fp;
 	int			nSize;
 	char		szFileName[128];
@@ -2325,6 +2630,7 @@ void CL_CreateResourceList( void )
 
 	if (fp)
 		Sys_CloseHandle(fp);
+#endif
 }
 
 /*
@@ -2769,6 +3075,37 @@ float	cl_progress_start;
 // Elapsed time (from cl_progress_start) the bar was last redrawn at
 static float	cl_progress_lastupdate;
 
+#if HLDC_MP
+qboolean CL_IsServerLoading( void )
+{
+	return cl_serverload_progress >= 0;
+}
+
+void CL_BeginServerLoad( void )
+{
+	if (cls.netchan.remote_address.type != NA_IP || sv.active ||
+		CL_IsServerLoading())
+		return;
+
+	cl_serverload_progress = 0;
+	cl_progress_lastupdate = 0;
+	CL_StartProgressBar();
+	SCR_BeginLoadingPlaque();
+	CL_SetServerLoadProgress(1);
+}
+
+void CL_SetServerLoadProgress( int percent )
+{
+	if (!CL_IsServerLoading())
+		return;
+	percent = min(100, max(0, percent));
+	if (percent <= cl_serverload_progress)
+		return;
+	cl_serverload_progress = percent;
+	DCV_SetProgress(percent);
+}
+#endif
+
 /*
 =================
 CL_StartProgressBar
@@ -2795,6 +3132,9 @@ void CL_StopProgressBar( void )
 {
 	Sys_SetTaskName("end");
 	cl_progress_start = 0;
+#if HLDC_MP
+	cl_serverload_progress = -1;
+#endif
 	DCV_SetProgress(0);
 	Host_UpdateScreenSaver(FALSE);
 }
@@ -2825,6 +3165,11 @@ qboolean CL_UpdateProgressBar( void )
 	if (sinceupdate > 0.1f)
 	{
 		S_ExtraUpdate();
+#if HLDC_MP
+		if (CL_IsServerLoading())
+			DCV_SetProgress(cl_serverload_progress);
+		else
+#endif
 		DCV_SetProgress((int)(elapsed * 5.0f));
 		IN_Accumulate();
 	}
