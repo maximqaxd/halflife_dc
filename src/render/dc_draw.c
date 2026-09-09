@@ -375,7 +375,7 @@ static void DC_CacheTextureToRam( dctexture_t *slot )
 
 	if (slot->pbCacheData == NULL && slot->cbData > 0 && !Mnemo_LastChanceActive())
 	{
-		slot->pCacheBlock = MnemoAlloc(slot->cbData + sizeof(DDSURFACEDESC2), 0x8000A0, 0,
+		slot->pCacheBlock = MnemoAlloc(slot->cbData + sizeof(DDSURFACEDESC2), MNEMO_FLAG_MALLOC | MNEMO_FLAG_NO_RECLAIM, 0,
 			Bmakename(slot->pszName ? slot->pszName : "<nameless>", 3));
 		if (slot->pCacheBlock)
 		{
@@ -999,7 +999,7 @@ int DCV_UpdateTextureSubRect( int texnum, int x, int y, int w, int h, const unsi
 			for (row = 0; row < h; row++)
 			{
 				s = src + (src_pitch * y + x);
-				dst = (unsigned short *)ddsd.lpSurface + (ddsd.dwWidth * y + x);
+				dst = (unsigned short *)ddsd.lpSurface + ((ddsd.lPitch / (LONG)sizeof(unsigned short)) * y + x);
 				for (col = 0; col < w; col++)
 					*dst++ = *s++;
 				y++;

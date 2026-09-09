@@ -62,9 +62,8 @@ msurface_t*	gDecalSurfs[MAX_DECALSURFS + 1];
 int			gDecalSurfCount;
 
 
-// Set by R_SetRenderMode: non-zero while an entity is being drawn with the
-// alpha-tested 2D state (kRenderTransAlpha). Those surfaces carry their own
-// per-vertex colour and are skipped by the lightmap blend pass.
+// Set by R_SetRenderMode while an entity is using its per-vertex alpha color.
+// These surfaces are skipped by the lightmap blend pass.
 int			r_alphatestmode;
 
 // Texture upload target/type constants and the entry point itself; the
@@ -691,30 +690,31 @@ poly->verts[i][3] (packed ARGB DWORD).
 */
 static void DC_SurfacePolyApplyBlockLights( msurface_t* surf )
 {
+	glpoly_t*	p;
 	int			i;
 	unsigned r, g, b;
 
-	if (!surf || !surf->polys)
+	if (!surf || !(p = surf->polys) || p->numverts <= 0)
 		return;
 
-	for (i = 0; i < surf->polys->numverts; i++)
+	for (i = 0; i < p->numverts; i++)
 	{
 		if (!surf->samples)
 		{
-			*(DWORD*)&surf->polys->verts[i][3] = 0xFFFFFFFFu;
+			*(DWORD*)&p->verts[i][3] = 0xFFFFFFFFu;
 		}
 		else
 		{
 			colorVec*	c = &blocklights[
-				((int)(surf->polys->verts[i][7] * BLOCK_HEIGHT * 16.0f - 8.0f
+				((int)(p->verts[i][7] * BLOCK_HEIGHT * 16.0f - 8.0f
 					- (float)(surf->light_t << 4)) >> 4) * ((surf->extents[0] >> 4) + 1)
-				+ ((int)(surf->polys->verts[i][6] * BLOCK_WIDTH * 16.0f - 8.0f
+				+ ((int)(p->verts[i][6] * BLOCK_WIDTH * 16.0f - 8.0f
 					- (float)(surf->light_s << 4)) >> 4)];
 
 			r = c->r >> 8; if (r > 255) r = 255;
 			g = c->g >> 8; if (g > 255) g = 255;
 			b = c->b >> 8; if (b > 255) b = 255;
-			*(DWORD*)&surf->polys->verts[i][3] = 0xFF000000u | (r << 16) | (g << 8) | b;
+			*(DWORD*)&p->verts[i][3] = 0xFF000000u | (r << 16) | (g << 8) | b;
 		}
 	}
 }
@@ -1378,7 +1378,7 @@ void R_SetRenderMode( cl_entity_t* pEntity )
 		{
 			r_alphatestmode = 1;
 			DCV_SetColor(255, 255, 255, 255);
-			DCV_2D_SetupStates();
+			DCV_TexState_BlendFog();
 		}
 		else
 		{
