@@ -105,6 +105,10 @@ SOURCE=.\neoanim.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\neomesh.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\common\pvrtex.c
 # End Source File
 # Begin Source File
@@ -158,6 +162,10 @@ SOURCE=.\studiomdl.h
 # Begin Source File
 
 SOURCE=.\neoanim.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\neomesh.h
 # End Source File
 # Begin Source File
 

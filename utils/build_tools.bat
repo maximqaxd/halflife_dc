@@ -33,7 +33,7 @@ set OUT=%~dp0build
 if not exist "%OUT%" mkdir "%OUT%"
 
 echo Using %VCROOT%
-call :build studiomdl "studiomdl.c write.c neoanim.c tristrip.c bmpread.c ..\common\pvrtex.c ..\common\cmdlib.c ..\common\lbmlib.c ..\common\mathlib.c ..\common\scriplib.c ..\common\trilib.c"
+call :build studiomdl "studiomdl.c write.c neoanim.c neomesh.c tristrip.c bmpread.c ..\common\pvrtex.c ..\common\cmdlib.c ..\common\lbmlib.c ..\common\mathlib.c ..\common\scriplib.c ..\common\trilib.c"
 if errorlevel 1 exit /b 1
 call :build qlumpy "qlumpy.c quakegrb.c ..\common\pvrtex.c ..\common\cmdlib.c ..\common\lbmlib.c ..\common\scriplib.c ..\common\wadlib.c"
 if errorlevel 1 exit /b 1

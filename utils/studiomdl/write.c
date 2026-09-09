@@ -30,6 +30,7 @@
 #include "..\..\src\engine\studio.h"
 #include "studiomdl.h"
 #include "neoanim.h"
+#include "neomesh.h"
 
 
 int totalframes = 0;
@@ -489,8 +490,11 @@ void WriteModel( )
 		ALIGN( pData );			
 
 		pnorm = (vec3_t *)pData;
-		pData += model[i]->numnorms * sizeof( vec3_t );
-		pmodel[i].normindex		= ((byte *)pnorm - pStart); 
+		pmodel[i].normindex		= (pData - pStart);
+		if (neomodel)
+			pData += model[i]->numnorms;
+		else
+			pData += model[i]->numnorms * sizeof( vec3_t );
 		ALIGN( pData );
 
 		for (j = 0; j < model[i]->numverts; j++)
@@ -498,9 +502,21 @@ void WriteModel( )
 			VectorCopy( model[i]->vert[j].org, pvert[j] );
 		}
 
-		for (j = 0; j < model[i]->numnorms; j++)
+		if (neomodel)
 		{
-			VectorCopy( model[i]->normal[normimap[j]].org, pnorm[j] );
+			byte *pnormindex = (byte *)pnorm;
+
+			for (j = 0; j < model[i]->numnorms; j++)
+			{
+				pnormindex[j] = (byte)NeoNormalIndex( model[i]->normal[normimap[j]].org );
+			}
+		}
+		else
+		{
+			for (j = 0; j < model[i]->numnorms; j++)
+			{
+				VectorCopy( model[i]->normal[normimap[j]].org, pnorm[j] );
+			}
 		}
 		printf("vertices  %6d bytes (%d vertices, %d normals)\n", pData - cur, model[i]->numverts, model[i]->numnorms);
 		cur = (int)pData;
@@ -533,8 +549,16 @@ void WriteModel( )
 			numCmdBytes = BuildTris( model[i]->pmesh[j]->triangle, model[i]->pmesh[j], &pCmdSrc );
 
 			pmesh[j].triindex	= (pData - pStart);
-			memcpy( pData, pCmdSrc, numCmdBytes );
-			pData += numCmdBytes;
+			if (neomodel)
+			{
+				pData += NeoPackMeshCommands( (const short *)pCmdSrc, (short *)pData,
+					NeoMeshCommandBound( numCmdBytes ) );
+			}
+			else
+			{
+				memcpy( pData, pCmdSrc, numCmdBytes );
+				pData += numCmdBytes;
+			}
 			ALIGN( pData );
 			total_tris += pmesh[j].numtris;
 			total_strips += numcommandnodes;
