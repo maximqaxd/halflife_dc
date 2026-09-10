@@ -31,7 +31,7 @@
 
 class CLegacyCineMonster : public CBaseMonster
 {
-	friend void SR_Register_h_cine( void ); //SR_FRIEND
+	friend void SR_Register_CLegacyCineMonster( void ); //SR_FRIEND
 
 
 
@@ -201,7 +201,7 @@ void CLegacyCineMonster :: CineThink( void )
 // e3/prealpha only. 
 class CCineBlood : public CBaseEntity
 {
-	friend void SR_Register_h_cine( void ); //SR_FRIEND
+	friend void SR_Register_CCineBlood( void ); //SR_FRIEND
 
 
 
@@ -274,10 +274,15 @@ void CCineBlood :: Spawn ( void )
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_h_cine( void )
+void SR_Register_CCineBlood( void )
 {
-	SR_REGISTER( "DU", CLegacyCineMonster, CineThink );
-	SR_REGISTER( "DT", CCineBlood, BloodStart );
-	SR_REGISTER( "DS", CCineBlood, BloodGush );
+	SR_REGISTER( "CO", CCineBlood, BloodGush );
+	SR_REGISTER( "CP", CCineBlood, BloodStart );
+}
+
+void SR_Register_CLegacyCineMonster( void )
+{
+	SR_REGISTER( "FZ", CLegacyCineMonster, CineThink );
+	SR_REGISTER( "GA", CBaseEntity, SUB_Remove );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

@@ -37,7 +37,7 @@
 
 class CBarnacle : public CBaseMonster
 {
-	friend void SR_Register_barnacle( void ); //SR_FRIEND
+	friend void SR_Register_CBarnacle( void ); //SR_FRIEND
 
 
 
@@ -449,9 +449,9 @@ CBaseEntity *CBarnacle :: TongueTouchEnt ( float *pflLength )
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_barnacle( void )
+void SR_Register_CBarnacle( void )
 {
-	SR_REGISTER( "AQ", CBarnacle, BarnacleThink );
-	SR_REGISTER( "AR", CBarnacle, WaitTillDead );
+	SR_REGISTER( "AP", CBarnacle, BarnacleThink );
+	SR_REGISTER( "ZZ", CBarnacle, WaitTillDead );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

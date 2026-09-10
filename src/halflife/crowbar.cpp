@@ -28,7 +28,7 @@
 
 class CCrowbar : public CBasePlayerWeapon
 {
-	friend void SR_Register_crowbar( void ); //SR_FRIEND
+	friend void SR_Register_CCrowbar( void ); //SR_FRIEND
 
 
 
@@ -348,9 +348,9 @@ int CCrowbar::Swing( int fFirst )
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_crowbar( void )
+void SR_Register_CCrowbar( void )
 {
-	SR_REGISTER( "CK", CCrowbar, SwingAgain );
-	SR_REGISTER( "CJ", CCrowbar, Smack );
+	SR_REGISTER( "DB", CCrowbar, SwingAgain );
+	SR_REGISTER( "ZX", CCrowbar, Smack );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

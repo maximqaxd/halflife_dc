@@ -557,10 +557,14 @@ FEntIsVisible(
 	}
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_subs( void )
+void SR_Register_CBaseDelay( void )
 {
-	SR_REGISTER( "HF", CBaseDelay, DelayThink );
-	SR_REGISTER( "HH", CBaseToggle, LinearMoveDone );
-	SR_REGISTER( "HG", CBaseToggle, AngularMoveDone );
+	SR_REGISTER( "AV", CBaseDelay, DelayThink );
+}
+
+void SR_Register_CBaseToggle( void )
+{
+	SR_REGISTER( "BU", CBaseToggle, AngularMoveDone );
+	SR_REGISTER( "BV", CBaseToggle, LinearMoveDone );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

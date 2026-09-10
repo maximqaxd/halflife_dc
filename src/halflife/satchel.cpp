@@ -42,7 +42,7 @@ enum satchel_radio_e {
 
 class CSatchelCharge : public CGrenade
 {
-	friend void SR_Register_satchel( void ); //SR_FRIEND
+	friend void SR_Register_CSatchelCharge( void ); //SR_FRIEND
 
 
 
@@ -543,9 +543,10 @@ void DeactivateSatchels( CBasePlayer *pOwner )
 #endif
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_satchel( void )
+void SR_Register_CSatchelCharge( void )
 {
-	SR_REGISTER( "GT", CSatchelCharge, SatchelSlide );
-	SR_REGISTER( "GU", CSatchelCharge, SatchelThink );
+	SR_REGISTER( "IK", CSatchelCharge, DetonateUse );
+	SR_REGISTER( "IL", CSatchelCharge, SatchelSlide );
+	SR_REGISTER( "IM", CSatchelCharge, SatchelThink );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

@@ -1447,15 +1447,49 @@ void CWeaponBox::SetObjectCollisionBox( void )
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_weapons( void )
+void SR_Register_CBasePlayerAmmo( void )
 {
-	SR_REGISTER( "JD", CBasePlayerItem, DestroyItem );
-	SR_REGISTER( "JC", CBasePlayerItem, DefaultTouch );
-	SR_REGISTER( "JE", CBasePlayerItem, FallThink );
-	SR_REGISTER( "JF", CBasePlayerItem, Materialize );
-	SR_REGISTER( "JB", CBasePlayerItem, AttemptToMaterialize );
-	SR_REGISTER( "IZ", CBasePlayerAmmo, DefaultTouch );
-	SR_REGISTER( "JA", CBasePlayerAmmo, Materialize );
-	SR_REGISTER( "JG", CWeaponBox, Kill );
+	SR_REGISTER( "BO", CBasePlayerAmmo, DefaultTouch );
+	SR_REGISTER( "BP", CBasePlayerAmmo, Materialize );
+	SR_REGISTER( "BQ", CBaseEntity, SUB_Remove );
+}
+
+void SR_Register_CBasePlayerItem( void )
+{
+	SR_REGISTER( "AY", CBasePlayerItem, AttemptToMaterialize );
+	SR_REGISTER( "BR", CBasePlayerItem, DefaultTouch );
+	SR_REGISTER( "BS", CBasePlayerItem, FallThink );
+	SR_REGISTER( "BT", CBaseEntity, SUB_Remove );
+}
+
+void SR_Register_CBasePlayerItem_2( void )
+{
+	SR_REGISTER( "FE", CBasePlayerItem, DestroyItem );
+}
+
+void SR_Register_CBasePlayerItem_3( void )
+{
+	SR_REGISTER( "IJ", CBasePlayerItem, DestroyItem );
+}
+
+void SR_Register_CBasePlayerItem_4( void )
+{
+	SR_REGISTER( "JF", CBasePlayerItem, DestroyItem );
+}
+
+void SR_Register_CBasePlayerItem_5( void )
+{
+	SR_REGISTER( "KK", CBasePlayerItem, DestroyItem );
+}
+
+void SR_Register_CWeaponBox( void )
+{
+	SR_REGISTER( "KU", CBaseEntity, SUB_Remove );
+	SR_REGISTER( "BM", CWeaponBox, Kill );
+}
+
+void SR_Register_CBasePlayerItem_6( void )
+{
+	SR_REGISTER( "KV", CBasePlayerItem, DefaultTouch );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

@@ -79,7 +79,7 @@ public:
 
 class CFuncTrackTrain : public CBaseEntity
 {
-	friend void SR_Register_plats( void ); //SR_FRIEND
+	friend void SR_Register_CFuncTrackTrain( void ); //SR_FRIEND
 
 
 

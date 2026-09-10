@@ -21,7 +21,7 @@
 //
 class CBaseMonster : public CBaseToggle
 {
-	friend void SR_Register_combat( void ); //SR_FRIEND
+	friend void SR_Register_CBaseMonster( void ); //SR_FRIEND
 
 
 

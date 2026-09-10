@@ -83,7 +83,7 @@ void CShower::Touch( CBaseEntity *pOther )
 
 class CEnvExplosion : public CBaseMonster
 {
-	friend void SR_Register_explode( void ); //SR_FRIEND
+	friend void SR_Register_CEnvExplosion( void ); //SR_FRIEND
 
 
 
@@ -290,8 +290,8 @@ void ExplosionCreate( const Vector &center, const Vector &angles, edict_t *pOwne
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_explode( void )
+void SR_Register_CEnvExplosion( void )
 {
-	SR_REGISTER( "DE", CEnvExplosion, Smoke );
+	SR_REGISTER( "ZJ", CEnvExplosion, Smoke );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

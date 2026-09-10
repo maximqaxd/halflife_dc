@@ -436,9 +436,9 @@ class CItemLongJump : public CItem
 LINK_ENTITY_TO_CLASS( item_longjump, CItemLongJump );
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_items( void )
+void SR_Register_CItem( void )
 {
-	SR_REGISTER( "EH", CItem, ItemTouch );
-	SR_REGISTER( "EI", CItem, Materialize );
+	SR_REGISTER( "FP", CItem, ItemTouch );
+	SR_REGISTER( "FQ", CItem, Materialize );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

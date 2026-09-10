@@ -45,7 +45,7 @@ enum SS_INTERRUPT
 
 class CCineMonster : public CBaseMonster
 {
-	friend void SR_Register_scripted( void ); //SR_FRIEND
+	friend void SR_Register_CCineMonster( void ); //SR_FRIEND
 
 
 

@@ -827,14 +827,3 @@ CBaseEntity * CBaseEntity::Create( char *szName, const Vector &vecOrigin, const 
 	DispatchSpawn( pEntity->edict() );
 	return pEntity;
 }
-
-// BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_cbase( void )
-{
-	SR_REGISTER( "BS", CBaseEntity, SUB_Remove );
-	SR_REGISTER( "BQ", CBaseEntity, SUB_DoNothing );
-	SR_REGISTER( "BT", CBaseEntity, SUB_StartFadeOut );
-	SR_REGISTER( "BR", CBaseEntity, SUB_FadeOut );
-	SR_REGISTER( "BP", CBaseEntity, SUB_CallUseToggle );
-}
-// END GENERATED SAVE-RESTORE EXPORTS

@@ -279,7 +279,7 @@ void CFuncMonsterClip::Spawn( void )
 // =================== FUNC_ROTATING ==============================================
 class CFuncRotating : public CBaseEntity
 {
-	friend void SR_Register_bmodels( void ); //SR_FRIEND
+	friend void SR_Register_CFuncRotating( void ); //SR_FRIEND
 
 
 
@@ -749,7 +749,7 @@ void CFuncRotating :: Blocked( CBaseEntity *pOther )
 
 class CPendulum : public CBaseEntity
 {
-	friend void SR_Register_bmodels( void ); //SR_FRIEND
+	friend void SR_Register_CPendulum( void ); //SR_FRIEND
 
 
 
@@ -996,16 +996,22 @@ void CPendulum :: RopeTouch ( CBaseEntity *pOther )
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_bmodels( void )
+void SR_Register_CFuncRotating( void )
 {
-	SR_REGISTER( "AX", CFuncRotating, SpinUp );
-	SR_REGISTER( "AW", CFuncRotating, SpinDown );
-	SR_REGISTER( "AT", CFuncRotating, HurtTouch );
-	SR_REGISTER( "AV", CFuncRotating, RotatingUse );
-	SR_REGISTER( "AU", CFuncRotating, Rotate );
-	SR_REGISTER( "BB", CPendulum, Swing );
-	SR_REGISTER( "AY", CPendulum, PendulumUse );
-	SR_REGISTER( "BA", CPendulum, Stop );
-	SR_REGISTER( "AZ", CPendulum, RopeTouch );
+	SR_REGISTER( "DU", CFuncRotating, HurtTouch );
+	SR_REGISTER( "DV", CFuncRotating, Rotate );
+	SR_REGISTER( "DW", CFuncRotating, RotatingUse );
+	SR_REGISTER( "DX", CBaseEntity, SUB_CallUseToggle );
+	SR_REGISTER( "DY", CFuncRotating, SpinDown );
+	SR_REGISTER( "DZ", CFuncRotating, SpinUp );
+}
+
+void SR_Register_CPendulum( void )
+{
+	SR_REGISTER( "HR", CPendulum, PendulumUse );
+	SR_REGISTER( "HS", CPendulum, RopeTouch );
+	SR_REGISTER( "HT", CBaseEntity, SUB_CallUseToggle );
+	SR_REGISTER( "HU", CPendulum, Stop );
+	SR_REGISTER( "HV", CPendulum, Swing );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

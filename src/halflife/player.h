@@ -70,7 +70,7 @@ typedef enum
 
 class CBasePlayer : public CBaseMonster
 {
-	friend void SR_Register_player( void ); //SR_FRIEND
+	friend void SR_Register_CBasePlayer( void ); //SR_FRIEND
 
 
 

@@ -39,7 +39,7 @@
 
 class CTentacle : public CBaseMonster
 {
-	friend void SR_Register_tentacle( void ); //SR_FRIEND
+	friend void SR_Register_CTentacle( void ); //SR_FRIEND
 
 
 
@@ -1065,13 +1065,13 @@ void CTentacleMaw :: Precache( )
 #endif
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_tentacle( void )
+void SR_Register_CTentacle( void )
 {
-	SR_REGISTER( "HK", CTentacle, Cycle );
-	SR_REGISTER( "HJ", CTentacle, CommandUse );
-	SR_REGISTER( "HN", CTentacle, Start );
-	SR_REGISTER( "HL", CTentacle, DieThink );
-	SR_REGISTER( "HO", CTentacle, Test );
-	SR_REGISTER( "HM", CTentacle, HitTouch );
+	SR_REGISTER( "JL", CTentacle, CommandUse );
+	SR_REGISTER( "JM", CTentacle, Cycle );
+	SR_REGISTER( "JN", CTentacle, DieThink );
+	SR_REGISTER( "JO", CTentacle, HitTouch );
+	SR_REGISTER( "JP", CTentacle, Start );
+	SR_REGISTER( "JQ", CTentacle, Test );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

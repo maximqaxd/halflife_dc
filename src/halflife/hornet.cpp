@@ -425,13 +425,18 @@ void CHornet::DieTouch ( CBaseEntity *pOther )
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_hornet( void )
+void SR_Register_CHornet( void )
 {
-	SR_REGISTER( "EC", CHornet, StartTrack );
-	SR_REGISTER( "EB", CHornet, StartDart );
-	SR_REGISTER( "ED", CHornet, TrackTarget );
-	SR_REGISTER( "EE", CHornet, TrackTouch );
-	SR_REGISTER( "DZ", CHornet, DartTouch );
-	SR_REGISTER( "EA", CHornet, DieTouch );
+	SR_REGISTER( "FG", CHornet, StartDart );
+}
+
+void SR_Register_CHornet_2( void )
+{
+	SR_REGISTER( "FH", CHornet, DartTouch );
+	SR_REGISTER( "FI", CHornet, DieTouch );
+	SR_REGISTER( "FJ", CBaseEntity, SUB_Remove );
+	SR_REGISTER( "FK", CHornet, StartTrack );
+	SR_REGISTER( "FL", CHornet, TrackTarget );
+	SR_REGISTER( "FM", CHornet, TrackTouch );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

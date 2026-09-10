@@ -53,7 +53,10 @@ typedef enum
 
 class CBaseTurret : public CBaseMonster
 {
-	friend void SR_Register_turret( void ); //SR_FRIEND
+	friend void SR_Register_CBaseTurret_4( void ); //SR_FRIEND
+	friend void SR_Register_CBaseTurret_3( void ); //SR_FRIEND
+	friend void SR_Register_CBaseTurret_2( void ); //SR_FRIEND
+	friend void SR_Register_CBaseTurret( void ); //SR_FRIEND
 
 
 
@@ -1161,7 +1164,7 @@ int	CBaseTurret::Classify ( void )
 //=========================================================
 class CSentry : public CBaseTurret
 {
-	friend void SR_Register_turret( void ); //SR_FRIEND
+	friend void SR_Register_CBaseTurret_3( void ); //SR_FRIEND
 
 
 
@@ -1338,19 +1341,34 @@ void CSentry ::	SentryDeath( void )
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_turret( void )
+void SR_Register_CBaseTurret( void )
 {
-	SR_REGISTER( "IU", CBaseTurret, TurretUse );
-	SR_REGISTER( "IL", CBaseTurret, ActiveThink );
-	SR_REGISTER( "IQ", CBaseTurret, SearchThink );
-	SR_REGISTER( "IM", CBaseTurret, AutoSearchThink );
-	SR_REGISTER( "IT", CBaseTurret, TurretDeath );
-	SR_REGISTER( "IR", CBaseTurret, SpinDownCall );
-	SR_REGISTER( "IS", CBaseTurret, SpinUpCall );
-	SR_REGISTER( "IN", CBaseTurret, Deploy );
-	SR_REGISTER( "IP", CBaseTurret, Retire );
-	SR_REGISTER( "IO", CBaseTurret, Initialize );
-	SR_REGISTER( "IW", CSentry, SentryTouch );
-	SR_REGISTER( "IV", CSentry, SentryDeath );
+	SR_REGISTER( "BY", CBaseTurret, ActiveThink );
+	SR_REGISTER( "BZ", CBaseTurret, AutoSearchThink );
+	SR_REGISTER( "CA", CBaseTurret, Deploy );
+	SR_REGISTER( "CB", CBaseTurret, Retire );
+	SR_REGISTER( "CC", CBaseTurret, SUB_DoNothing );
+	SR_REGISTER( "CD", CBaseTurret, SearchThink );
+	SR_REGISTER( "CE", CBaseTurret, TurretDeath );
+	SR_REGISTER( "CF", CBaseTurret, TurretUse );
+}
+
+void SR_Register_CBaseTurret_2( void )
+{
+	SR_REGISTER( "GG", CBaseTurret, Initialize );
+}
+
+void SR_Register_CBaseTurret_3( void )
+{
+	SR_REGISTER( "IQ", CBaseTurret, Deploy );
+	SR_REGISTER( "IR", CBaseTurret, Initialize );
+	SR_REGISTER( "IS", CSentry, SentryDeath );
+	SR_REGISTER( "IT", CSentry, SentryTouch );
+}
+
+void SR_Register_CBaseTurret_4( void )
+{
+	SR_REGISTER( "KP", CBaseTurret, ActiveThink );
+	SR_REGISTER( "KQ", CBaseTurret, Initialize );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

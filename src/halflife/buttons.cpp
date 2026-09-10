@@ -874,7 +874,7 @@ void CRotButton::Spawn( void )
 
 class CMomentaryRotButton : public CBaseToggle
 {
-	friend void SR_Register_buttons( void ); //SR_FRIEND
+	friend void SR_Register_CMomentaryRotButton( void ); //SR_FRIEND
 
 
 
@@ -1135,7 +1135,7 @@ void CMomentaryRotButton::UpdateSelfReturn( float value )
 
 class CEnvSpark : public CBaseEntity
 {
-	friend void SR_Register_buttons( void ); //SR_FRIEND
+	friend void SR_Register_CEnvSpark( void ); //SR_FRIEND
 
 
 
@@ -1310,19 +1310,46 @@ int CButtonTarget::TakeDamage( entvars_t* pevInflictor, entvars_t* pevAttacker, 
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_CBaseButton( void )
+{
+	SR_REGISTER( "AR", CBaseButton, ButtonReturn );
+	SR_REGISTER( "AS", CBaseButton, ButtonSpark );
+	SR_REGISTER( "AT", CBaseButton, ButtonTouch );
+	SR_REGISTER( "AU", CBaseButton, ButtonUse );
+	SR_REGISTER( "YA", CBaseButton, TriggerAndWait );
+	SR_REGISTER( "YB", CBaseButton, ButtonBackHome );
+}
+
 void SR_Register_buttons( void )
 {
-	SR_REGISTER( "BM", CMomentaryRotButton, Off );
-	SR_REGISTER( "BN", CMomentaryRotButton, Return );
-	SR_REGISTER( "BL", CEnvSpark, SparkThink );
-	SR_REGISTER( "BJ", CEnvSpark, SparkStart );
-	SR_REGISTER( "BK", CEnvSpark, SparkStop );
-	SR_REGISTER( "BO", CMultiSource, Register );
-	SR_REGISTER( "BG", CBaseButton, ButtonTouch );
-	SR_REGISTER( "BF", CBaseButton, ButtonSpark );
-	SR_REGISTER( "BI", CBaseButton, TriggerAndWait );
-	SR_REGISTER( "BE", CBaseButton, ButtonReturn );
-	SR_REGISTER( "BD", CBaseButton, ButtonBackHome );
-	SR_REGISTER( "BH", CBaseButton, ButtonUse );
+	SR_REGISTER( "BH", CBaseEntity, SUB_StartFadeOut );
+	SR_REGISTER( "BC", CBaseEntity, SUB_CallUseToggle );
+	SR_REGISTER( "BD", CBaseEntity, SUB_FadeOut );
+	SR_REGISTER( "BE", CBaseEntity, SUB_Remove );
+}
+
+void SR_Register_CEnvSpark( void )
+{
+	SR_REGISTER( "DH", CEnvSpark, SparkStart );
+	SR_REGISTER( "DI", CEnvSpark, SparkStop );
+	SR_REGISTER( "DJ", CEnvSpark, SparkThink );
+}
+
+void SR_Register_CMomentaryRotButton( void )
+{
+	SR_REGISTER( "GH", CMomentaryRotButton, Off );
+	SR_REGISTER( "GI", CMomentaryRotButton, Return );
+}
+
+void SR_Register_CMultiSource( void )
+{
+	SR_REGISTER( "GR", CMultiSource, Register );
+	SR_REGISTER( "GS", CMultiSource, SUB_DoNothing );
+}
+
+void SR_Register_CBaseButton_2( void )
+{
+	SR_REGISTER( "IC", CBaseButton, ButtonTouch );
+	SR_REGISTER( "ID", CBaseButton, ButtonUse );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

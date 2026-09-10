@@ -101,7 +101,7 @@ void CInfoBM::KeyValue( KeyValueData* pkvd )
 //=========================================================
 class CBMortar : public CBaseEntity
 {
-	friend void SR_Register_bigmomma( void ); //SR_FRIEND
+	friend void SR_Register_CBMortar( void ); //SR_FRIEND
 
 
 
@@ -1268,8 +1268,8 @@ void CBMortar::Touch( CBaseEntity *pOther )
 #endif
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_bigmomma( void )
+void SR_Register_CBMortar( void )
 {
-	SR_REGISTER( "AS", CBMortar, Animate );
+	SR_REGISTER( "AO", CBMortar, Animate );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

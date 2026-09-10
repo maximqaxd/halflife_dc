@@ -22,7 +22,7 @@ typedef enum { matGlass = 0, matWood, matMetal, matFlesh, matCinderBlock, matCei
 
 class CBreakable : public CBaseDelay
 {
-	friend void SR_Register_func_break( void ); //SR_FRIEND
+	friend void SR_Register_CBreakable( void ); //SR_FRIEND
 
 
 

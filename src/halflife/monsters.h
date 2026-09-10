@@ -143,7 +143,7 @@ enum
 //
 class CGib : public CBaseEntity
 {
-	friend void SR_Register_combat( void ); //SR_FRIEND
+	friend void SR_Register_CGib( void ); //SR_FRIEND
 
 
 

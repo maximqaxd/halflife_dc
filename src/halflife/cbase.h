@@ -142,7 +142,41 @@ public:
 //
 class CBaseEntity 
 {
-	friend void SR_Register_cbase( void ); //SR_FRIEND
+	friend void SR_Register_scripted( void ); //SR_FRIEND
+	friend void SR_Register_gauss( void ); //SR_FRIEND
+	friend void SR_Register_effects( void ); //SR_FRIEND
+	friend void SR_Register_crossbow( void ); //SR_FRIEND
+	friend void SR_Register_buttons( void ); //SR_FRIEND
+	friend void SR_Register_CWeaponBox( void ); //SR_FRIEND
+	friend void SR_Register_CTripmineGrenade( void ); //SR_FRIEND
+	friend void SR_Register_CSquidSpit( void ); //SR_FRIEND
+	friend void SR_Register_CSqueakGrenade( void ); //SR_FRIEND
+	friend void SR_Register_CSprite( void ); //SR_FRIEND
+	friend void SR_Register_CSpeaker( void ); //SR_FRIEND
+	friend void SR_Register_CPendulum( void ); //SR_FRIEND
+	friend void SR_Register_COsprey( void ); //SR_FRIEND
+	friend void SR_Register_CMortar( void ); //SR_FRIEND
+	friend void SR_Register_CLightning( void ); //SR_FRIEND
+	friend void SR_Register_CLegacyCineMonster( void ); //SR_FRIEND
+	friend void SR_Register_CLaser( void ); //SR_FRIEND
+	friend void SR_Register_CItemSoda( void ); //SR_FRIEND
+	friend void SR_Register_CHornet_2( void ); //SR_FRIEND
+	friend void SR_Register_CHGruntRepel( void ); //SR_FRIEND
+	friend void SR_Register_CGibShooter( void ); //SR_FRIEND
+	friend void SR_Register_CGib( void ); //SR_FRIEND
+	friend void SR_Register_CFuncRotating( void ); //SR_FRIEND
+	friend void SR_Register_CDecal( void ); //SR_FRIEND
+	friend void SR_Register_CCrossbowBolt( void ); //SR_FRIEND
+	friend void SR_Register_CCineMonster( void ); //SR_FRIEND
+	friend void SR_Register_CBreakable( void ); //SR_FRIEND
+	friend void SR_Register_CBloodSplat( void ); //SR_FRIEND
+	friend void SR_Register_CBaseTrigger( void ); //SR_FRIEND
+	friend void SR_Register_CBasePlayerItem( void ); //SR_FRIEND
+	friend void SR_Register_CBasePlayerAmmo( void ); //SR_FRIEND
+	friend void SR_Register_CBasePlayer( void ); //SR_FRIEND
+	friend void SR_Register_CBaseMonster( void ); //SR_FRIEND
+	friend void SR_Register_CApache( void ); //SR_FRIEND
+	friend void SR_Register_CAmbientGeneric( void ); //SR_FRIEND
 
 
 
@@ -433,7 +467,7 @@ void PlayLockSounds(entvars_t *pev, locksound_t *pls, int flocked, int fbutton);
 
 class CMultiSource : public CPointEntity
 {
-	friend void SR_Register_buttons( void ); //SR_FRIEND
+	friend void SR_Register_CMultiSource( void ); //SR_FRIEND
 
 
 
@@ -475,7 +509,7 @@ public:
 //
 class CBaseDelay : public CBaseEntity
 {
-	friend void SR_Register_subs( void ); //SR_FRIEND
+	friend void SR_Register_CBaseDelay( void ); //SR_FRIEND
 
 
 
@@ -552,7 +586,7 @@ public:
 
 class CBaseToggle : public CBaseAnimating
 {
-	friend void SR_Register_subs( void ); //SR_FRIEND
+	friend void SR_Register_CBaseToggle( void ); //SR_FRIEND
 
 
 
@@ -742,7 +776,8 @@ char *ButtonSound( int sound );				// get string of button sound number
 //
 class CBaseButton : public CBaseToggle
 {
-	friend void SR_Register_buttons( void ); //SR_FRIEND
+	friend void SR_Register_CBaseButton_2( void ); //SR_FRIEND
+	friend void SR_Register_CBaseButton( void ); //SR_FRIEND
 
 
 

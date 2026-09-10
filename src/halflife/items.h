@@ -18,7 +18,7 @@
 
 class CItem : public CBaseEntity
 {
-	friend void SR_Register_items( void ); //SR_FRIEND
+	friend void SR_Register_CItem( void ); //SR_FRIEND
 
 
 

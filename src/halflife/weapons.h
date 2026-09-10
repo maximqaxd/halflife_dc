@@ -24,7 +24,9 @@ void DeactivateSatchels( CBasePlayer *pOwner );
 // Contact Grenade / Timed grenade / Satchel Charge
 class CGrenade : public CBaseMonster
 {
-	friend void SR_Register_ggrenade( void ); //SR_FRIEND
+	friend void SR_Register_CRpgRocket( void ); //SR_FRIEND
+	friend void SR_Register_CGrenade( void ); //SR_FRIEND
+	friend void SR_Register_CApacheHVR( void ); //SR_FRIEND
 
 
 
@@ -230,7 +232,12 @@ typedef struct
 // Items that the player has in their inventory that they can use
 class CBasePlayerItem : public CBaseAnimating
 {
-	friend void SR_Register_weapons( void ); //SR_FRIEND
+	friend void SR_Register_CBasePlayerItem_6( void ); //SR_FRIEND
+	friend void SR_Register_CBasePlayerItem_5( void ); //SR_FRIEND
+	friend void SR_Register_CBasePlayerItem_4( void ); //SR_FRIEND
+	friend void SR_Register_CBasePlayerItem_3( void ); //SR_FRIEND
+	friend void SR_Register_CBasePlayerItem_2( void ); //SR_FRIEND
+	friend void SR_Register_CBasePlayerItem( void ); //SR_FRIEND
 
 
 
@@ -373,7 +380,7 @@ public:
 
 class CBasePlayerAmmo : public CBaseEntity
 {
-	friend void SR_Register_weapons( void ); //SR_FRIEND
+	friend void SR_Register_CBasePlayerAmmo( void ); //SR_FRIEND
 
 
 
@@ -450,7 +457,7 @@ extern MULTIDAMAGE gMultiDamage;
 //=========================================================
 class CWeaponBox : public CBaseEntity
 {
-	friend void SR_Register_weapons( void ); //SR_FRIEND
+	friend void SR_Register_CWeaponBox( void ); //SR_FRIEND
 
 
 

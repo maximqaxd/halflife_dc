@@ -42,7 +42,7 @@ enum squeak_e {
 
 class CSqueakGrenade : public CGrenade
 {
-	friend void SR_Register_squeakgrenade( void ); //SR_FRIEND
+	friend void SR_Register_CSqueakGrenade( void ); //SR_FRIEND
 
 
 
@@ -612,9 +612,10 @@ void CSqueak::WeaponIdle( void )
 #endif
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_squeakgrenade( void )
+void SR_Register_CSqueakGrenade( void )
 {
-	SR_REGISTER( "HE", CSqueakGrenade, SuperBounceTouch );
-	SR_REGISTER( "HD", CSqueakGrenade, HuntThink );
+	SR_REGISTER( "JG", CSqueakGrenade, HuntThink );
+	SR_REGISTER( "JH", CBaseEntity, SUB_Remove );
+	SR_REGISTER( "JI", CSqueakGrenade, SuperBounceTouch );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

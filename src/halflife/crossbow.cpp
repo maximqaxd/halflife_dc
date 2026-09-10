@@ -33,7 +33,7 @@
 // speed - the ideal magnitude of my velocity
 class CCrossbowBolt : public CBaseEntity
 {
-	friend void SR_Register_crossbow( void ); //SR_FRIEND
+	friend void SR_Register_CCrossbowBolt( void ); //SR_FRIEND
 
 
 
@@ -619,8 +619,14 @@ LINK_ENTITY_TO_CLASS( ammo_crossbow, CCrossbowAmmo );
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
 void SR_Register_crossbow( void )
 {
-	SR_REGISTER( "CH", CCrossbowBolt, BubbleThink );
-	SR_REGISTER( "CG", CCrossbowBolt, BoltTouch );
-	SR_REGISTER( "CI", CCrossbowBolt, ExplodeThink );
+	SR_REGISTER( "CW", CBaseEntity, SUB_Remove );
+}
+
+void SR_Register_CCrossbowBolt( void )
+{
+	SR_REGISTER( "CX", CCrossbowBolt, BoltTouch );
+	SR_REGISTER( "CY", CCrossbowBolt, BubbleThink );
+	SR_REGISTER( "CZ", CCrossbowBolt, ExplodeThink );
+	SR_REGISTER( "DA", CBaseEntity, SUB_Remove );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

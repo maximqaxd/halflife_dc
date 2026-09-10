@@ -42,7 +42,7 @@ extern Vector VecBModelOrigin( entvars_t* pevBModel );
 
 class CFrictionModifier : public CBaseEntity
 {
-	friend void SR_Register_triggers( void ); //SR_FRIEND
+	friend void SR_Register_CFrictionModifier( void ); //SR_FRIEND
 
 
 
@@ -279,7 +279,7 @@ void CTriggerRelay::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE
 
 class CMultiManager : public CBaseToggle
 {
-	friend void SR_Register_triggers( void ); //SR_FRIEND
+	friend void SR_Register_CMultiManager( void ); //SR_FRIEND
 
 
 
@@ -546,7 +546,13 @@ void CRenderFxManager :: Use ( CBaseEntity *pActivator, CBaseEntity *pCaller, US
 
 class CBaseTrigger : public CBaseToggle
 {
-	friend void SR_Register_triggers( void ); //SR_FRIEND
+	friend void SR_Register_CBaseTrigger_7( void ); //SR_FRIEND
+	friend void SR_Register_CBaseTrigger_6( void ); //SR_FRIEND
+	friend void SR_Register_CBaseTrigger_5( void ); //SR_FRIEND
+	friend void SR_Register_CBaseTrigger_4( void ); //SR_FRIEND
+	friend void SR_Register_CBaseTrigger_3( void ); //SR_FRIEND
+	friend void SR_Register_CBaseTrigger_2( void ); //SR_FRIEND
+	friend void SR_Register_CBaseTrigger( void ); //SR_FRIEND
 
 
 
@@ -618,7 +624,7 @@ void CBaseTrigger :: KeyValue( KeyValueData *pkvd )
 
 class CTriggerHurt : public CBaseTrigger
 {
-	friend void SR_Register_triggers( void ); //SR_FRIEND
+	friend void SR_Register_CBaseTrigger_3( void ); //SR_FRIEND
 
 
 
@@ -1376,7 +1382,7 @@ void CFireAndDie::Think( void )
 #define SF_CHANGELEVEL_USEONLY		0x0002
 class CChangeLevel : public CBaseTrigger
 {
-	friend void SR_Register_triggers( void ); //SR_FRIEND
+	friend void SR_Register_CChangeLevel( void ); //SR_FRIEND
 
 
 
@@ -2012,7 +2018,7 @@ LINK_ENTITY_TO_CLASS( info_teleport_destination, CPointEntity );
 
 class CTriggerSave : public CBaseTrigger
 {
-	friend void SR_Register_triggers( void ); //SR_FRIEND
+	friend void SR_Register_CTriggerSave( void ); //SR_FRIEND
 
 
 
@@ -2063,7 +2069,7 @@ void CTriggerSave::SaveTouch( CBaseEntity *pOther )
 
 class CTriggerEndSection : public CBaseTrigger
 {
-	friend void SR_Register_triggers( void ); //SR_FRIEND
+	friend void SR_Register_CTriggerEndSection( void ); //SR_FRIEND
 
 
 
@@ -2151,7 +2157,7 @@ void CTriggerEndSection :: KeyValue( KeyValueData *pkvd )
 
 class CTriggerGravity : public CBaseTrigger
 {
-	friend void SR_Register_triggers( void ); //SR_FRIEND
+	friend void SR_Register_CTriggerGravity( void ); //SR_FRIEND
 
 
 
@@ -2261,7 +2267,7 @@ void CTriggerChangeTarget::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, U
 
 class CTriggerCamera : public CBaseDelay
 {
-	friend void SR_Register_triggers( void ); //SR_FRIEND
+	friend void SR_Register_CTriggerCamera( void ); //SR_FRIEND
 
 
 
@@ -2604,25 +2610,80 @@ void CTriggerPlayerFreeze::Use( CBaseEntity* pActivator, CBaseEntity* pCaller, U
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_triggers( void )
+void SR_Register_CBaseTrigger( void )
 {
-	SR_REGISTER( "HY", CFrictionModifier, ChangeFriction );
-	SR_REGISTER( "HZ", CMultiManager, ManagerThink );
-	SR_REGISTER( "IA", CMultiManager, ManagerUse );
-	SR_REGISTER( "HT", CBaseTrigger, TeleportTouch );
-	SR_REGISTER( "HR", CBaseTrigger, MultiTouch );
-	SR_REGISTER( "HQ", CBaseTrigger, HurtTouch );
-	SR_REGISTER( "HS", CBaseTrigger, MultiWaitOver );
-	SR_REGISTER( "HP", CBaseTrigger, CounterUse );
-	SR_REGISTER( "HU", CBaseTrigger, ToggleUse );
-	SR_REGISTER( "IF", CTriggerHurt, RadiationThink );
-	SR_REGISTER( "HX", CChangeLevel, UseChangeLevel );
-	SR_REGISTER( "HV", CChangeLevel, ExecuteChangeLevel );
-	SR_REGISTER( "HW", CChangeLevel, TouchChangeLevel );
-	SR_REGISTER( "IG", CTriggerSave, SaveTouch );
-	SR_REGISTER( "IC", CTriggerEndSection, EndSectionTouch );
-	SR_REGISTER( "ID", CTriggerEndSection, EndSectionUse );
-	SR_REGISTER( "IE", CTriggerGravity, GravityTouch );
-	SR_REGISTER( "IB", CTriggerCamera, FollowTarget );
+	SR_REGISTER( "BW", CBaseTrigger, MultiWaitOver );
+	SR_REGISTER( "BX", CBaseEntity, SUB_Remove );
+}
+
+void SR_Register_CChangeLevel( void )
+{
+	SR_REGISTER( "AZ", CChangeLevel, ExecuteChangeLevel );
+	SR_REGISTER( "CM", CChangeLevel, TouchChangeLevel );
+	SR_REGISTER( "CN", CChangeLevel, UseChangeLevel );
+}
+
+void SR_Register_CFrictionModifier( void )
+{
+	SR_REGISTER( "DQ", CFrictionModifier, ChangeFriction );
+}
+
+void SR_Register_CMultiManager( void )
+{
+	SR_REGISTER( "GP", CMultiManager, ManagerThink );
+	SR_REGISTER( "GQ", CMultiManager, ManagerUse );
+}
+
+void SR_Register_CTriggerCamera( void )
+{
+	SR_REGISTER( "JW", CTriggerCamera, FollowTarget );
+}
+
+void SR_Register_CBaseTrigger_2( void )
+{
+	SR_REGISTER( "JX", CBaseTrigger, CounterUse );
+}
+
+void SR_Register_CTriggerEndSection( void )
+{
+	SR_REGISTER( "JY", CTriggerEndSection, EndSectionTouch );
+	SR_REGISTER( "JZ", CTriggerEndSection, EndSectionUse );
+}
+
+void SR_Register_CTriggerGravity( void )
+{
+	SR_REGISTER( "KA", CTriggerGravity, GravityTouch );
+}
+
+void SR_Register_CBaseTrigger_3( void )
+{
+	SR_REGISTER( "KB", CBaseTrigger, HurtTouch );
+	SR_REGISTER( "KC", CTriggerHurt, RadiationThink );
+	SR_REGISTER( "KD", CBaseTrigger, ToggleUse );
+}
+
+void SR_Register_CBaseTrigger_4( void )
+{
+	SR_REGISTER( "KE", CBaseTrigger, ToggleUse );
+}
+
+void SR_Register_CBaseTrigger_5( void )
+{
+	SR_REGISTER( "KF", CBaseTrigger, MultiTouch );
+}
+
+void SR_Register_CBaseTrigger_6( void )
+{
+	SR_REGISTER( "KG", CBaseTrigger, ToggleUse );
+}
+
+void SR_Register_CTriggerSave( void )
+{
+	SR_REGISTER( "KH", CTriggerSave, SaveTouch );
+}
+
+void SR_Register_CBaseTrigger_7( void )
+{
+	SR_REGISTER( "KI", CBaseTrigger, TeleportTouch );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

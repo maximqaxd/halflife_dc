@@ -32,7 +32,8 @@ extern int iHornetPuff;
 //=========================================================
 class CHornet : public CBaseMonster
 {
-	friend void SR_Register_hornet( void ); //SR_FRIEND
+	friend void SR_Register_CHornet_2( void ); //SR_FRIEND
+	friend void SR_Register_CHornet( void ); //SR_FRIEND
 
 
 

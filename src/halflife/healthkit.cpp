@@ -98,7 +98,7 @@ BOOL CHealthKit::MyTouch( CBasePlayer *pPlayer )
 //-------------------------------------------------------------
 class CWallHealth : public CBaseToggle
 {
-	friend void SR_Register_healthkit( void ); //SR_FRIEND
+	friend void SR_Register_CWallHealth( void ); //SR_FRIEND
 
 
 
@@ -276,9 +276,10 @@ void CWallHealth::Off(void)
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_healthkit( void )
+void SR_Register_CWallHealth( void )
 {
-	SR_REGISTER( "DW", CWallHealth, Off );
-	SR_REGISTER( "DX", CWallHealth, Recharge );
+	SR_REGISTER( "KR", CWallHealth, Off );
+	SR_REGISTER( "KS", CWallHealth, Recharge );
+	SR_REGISTER( "KT", CWallHealth, SUB_DoNothing );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

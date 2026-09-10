@@ -32,7 +32,7 @@
 
 class CSprite : public CPointEntity
 {
-	friend void SR_Register_effects( void ); //SR_FRIEND
+	friend void SR_Register_CSprite( void ); //SR_FRIEND
 
 
 
@@ -114,7 +114,7 @@ private:
 
 class CBeam : public CBaseEntity
 {
-	friend void SR_Register_effects( void ); //SR_FRIEND
+	friend void SR_Register_CBeam( void ); //SR_FRIEND
 
 
 
@@ -207,7 +207,7 @@ public:
 
 class CLightning : public CBeam
 {
-	friend void SR_Register_effects( void ); //SR_FRIEND
+	friend void SR_Register_CLightning( void ); //SR_FRIEND
 
 
 
@@ -276,7 +276,7 @@ public:
 
 class CLaser : public CBeam
 {
-	friend void SR_Register_effects( void ); //SR_FRIEND
+	friend void SR_Register_CLaser( void ); //SR_FRIEND
 
 
 

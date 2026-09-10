@@ -921,7 +921,7 @@ BOOL CBaseMonster :: CineCleanup( )
 
 class CScriptedSentence : public CBaseToggle
 {
-	friend void SR_Register_scripted( void ); //SR_FRIEND
+	friend void SR_Register_CScriptedSentence( void ); //SR_FRIEND
 
 
 
@@ -1275,10 +1275,20 @@ int CFurniture::Classify ( void )
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_CCineMonster( void )
+{
+	SR_REGISTER( "CQ", CCineMonster, CineThink );
+	SR_REGISTER( "CR", CBaseEntity, SUB_Remove );
+}
+
 void SR_Register_scripted( void )
 {
-	SR_REGISTER( "GY", CScriptedSentence, FindThink );
-	SR_REGISTER( "GX", CScriptedSentence, DelayThink );
-	SR_REGISTER( "GW", CCineMonster, CineThink );
+	SR_REGISTER( "EG", CBaseEntity, SUB_Remove );
+}
+
+void SR_Register_CScriptedSentence( void )
+{
+	SR_REGISTER( "IO", CScriptedSentence, DelayThink );
+	SR_REGISTER( "IP", CScriptedSentence, FindThink );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

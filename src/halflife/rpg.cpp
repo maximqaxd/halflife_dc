@@ -40,7 +40,7 @@ enum rpg_e {
 
 class CLaserSpot : public CBaseEntity
 {
-	friend void SR_Register_rpg( void ); //SR_FRIEND
+	friend void SR_Register_CLaserSpot( void ); //SR_FRIEND
 
 
 
@@ -170,7 +170,7 @@ void CLaserSpot::Precache( void )
 
 class CRpgRocket : public CGrenade
 {
-	friend void SR_Register_rpg( void ); //SR_FRIEND
+	friend void SR_Register_CRpgRocket( void ); //SR_FRIEND
 
 
 
@@ -729,11 +729,16 @@ LINK_ENTITY_TO_CLASS( ammo_rpgclip, CRpgAmmo );
 #endif
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_rpg( void )
+void SR_Register_CLaserSpot( void )
 {
-	SR_REGISTER( "GP", CLaserSpot, Revive );
-	SR_REGISTER( "GQ", CRpgRocket, FollowThink );
-	SR_REGISTER( "GR", CRpgRocket, IgniteThink );
-	SR_REGISTER( "GS", CRpgRocket, RocketTouch );
+	SR_REGISTER( "FW", CLaserSpot, Revive );
+}
+
+void SR_Register_CRpgRocket( void )
+{
+	SR_REGISTER( "IG", CGrenade, ExplodeTouch );
+	SR_REGISTER( "IH", CRpgRocket, FollowThink );
+	SR_REGISTER( "II", CRpgRocket, IgniteThink );
+	SR_REGISTER( "ZY", CRpgRocket, RocketTouch );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

@@ -2379,7 +2379,7 @@ Schedule_t* CHGrunt :: GetScheduleOfType ( int Type )
 
 class CHGruntRepel : public CBaseMonster
 {
-	friend void SR_Register_hgrunt( void ); //SR_FRIEND
+	friend void SR_Register_CHGruntRepel( void ); //SR_FRIEND
 
 
 
@@ -2534,8 +2534,9 @@ void CDeadHGrunt :: Spawn( void )
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_hgrunt( void )
+void SR_Register_CHGruntRepel( void )
 {
-	SR_REGISTER( "DY", CHGruntRepel, RepelUse );
+	SR_REGISTER( "FC", CHGruntRepel, RepelUse );
+	SR_REGISTER( "FD", CBaseEntity, SUB_Remove );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

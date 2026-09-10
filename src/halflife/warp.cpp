@@ -27,7 +27,7 @@
 
 class CWarpBall : public CBaseEntity
 {
-	friend void SR_Register_warp( void ); //SR_FRIEND
+	friend void SR_Register_CWarpBall( void ); //SR_FRIEND
 
 
 public:
@@ -283,9 +283,9 @@ int CWarpBall::Classify( void )
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_warp( void )
+void SR_Register_CWarpBall( void )
 {
-	SR_REGISTER( "IX", CWarpBall, BallThink );
-	SR_REGISTER( "IY", CWarpBall, WarpBallUse );
+	SR_REGISTER( "ZD", CWarpBall, WarpBallUse );
+	SR_REGISTER( "ZE", CWarpBall, BallThink );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

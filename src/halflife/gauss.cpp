@@ -855,3 +855,11 @@ LINK_ENTITY_TO_CLASS( ammo_gaussclip, CGaussAmmo );
 
 
 #endif
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_gauss( void )
+{
+	SR_REGISTER( "EI", CBaseEntity, SUB_FadeOut );
+	SR_REGISTER( "EJ", CBaseEntity, SUB_Remove );
+}
+// END GENERATED SAVE-RESTORE EXPORTS

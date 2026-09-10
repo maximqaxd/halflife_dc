@@ -771,7 +771,6 @@ int	CBreakable :: DamageDecal( int bitsDamageType )
 
 class CPushable : public CBreakable
 {
-	friend void SR_Register_func_break( void ); //SR_FRIEND
 
 
 
@@ -1004,9 +1003,10 @@ int CPushable::TakeDamage( entvars_t* pevInflictor, entvars_t* pevAttacker, floa
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_func_break( void )
+void SR_Register_CBreakable( void )
 {
-	SR_REGISTER( "DF", CBreakable, BreakTouch );
-	SR_REGISTER( "DG", CBreakable, Die );
+	SR_REGISTER( "CI", CBreakable, BreakTouch );
+	SR_REGISTER( "CJ", CBreakable, Die );
+	SR_REGISTER( "CK", CBaseEntity, SUB_Remove );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

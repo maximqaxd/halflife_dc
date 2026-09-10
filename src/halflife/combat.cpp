@@ -1666,14 +1666,21 @@ void CBaseMonster :: MakeDamageBloodDecal ( int cCount, float flNoise, TraceResu
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_combat( void )
+void SR_Register_CBaseMonster( void )
 {
-	SR_REGISTER( "BX", CBaseMonster, MonsterUse );
-	SR_REGISTER( "BU", CBaseMonster, CallMonsterThink );
-	SR_REGISTER( "BV", CBaseMonster, CorpseFallThink );
-	SR_REGISTER( "BW", CBaseMonster, MonsterInitThink );
-	SR_REGISTER( "BY", CGib, BounceGibTouch );
-	SR_REGISTER( "BZ", CGib, StickyGibTouch );
-	SR_REGISTER( "CA", CGib, WaitTillLand );
+	SR_REGISTER( "BA", CBaseMonster, CallMonsterThink );
+	SR_REGISTER( "BI", CBaseMonster, CorpseFallThink );
+	SR_REGISTER( "BJ", CBaseMonster, MonsterInitThink );
+	SR_REGISTER( "BK", CBaseMonster, MonsterUse );
+	SR_REGISTER( "BL", CBaseEntity, SUB_Remove );
+}
+
+void SR_Register_CGib( void )
+{
+	SR_REGISTER( "EK", CGib, BounceGibTouch );
+	SR_REGISTER( "EL", CBaseEntity, SUB_Remove );
+	SR_REGISTER( "EM", CBaseEntity, SUB_StartFadeOut );
+	SR_REGISTER( "EO", CGib, WaitTillLand );
+	SR_REGISTER( "BG", CGib, StickyGibTouch );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

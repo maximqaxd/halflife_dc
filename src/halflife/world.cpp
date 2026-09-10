@@ -104,7 +104,7 @@ BODY QUE
 
 class CDecal : public CBaseEntity
 {
-	friend void SR_Register_world( void ); //SR_FRIEND
+	friend void SR_Register_CDecal( void ); //SR_FRIEND
 
 
 
@@ -754,9 +754,11 @@ void CWorld :: KeyValue( KeyValueData *pkvd )
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_world( void )
+void SR_Register_CDecal( void )
 {
-	SR_REGISTER( "JH", CDecal, StaticDecal );
-	SR_REGISTER( "JI", CDecal, TriggerDecal );
+	SR_REGISTER( "DC", CDecal, SUB_DoNothing );
+	SR_REGISTER( "DD", CBaseEntity, SUB_Remove );
+	SR_REGISTER( "DE", CDecal, StaticDecal );
+	SR_REGISTER( "DF", CDecal, TriggerDecal );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

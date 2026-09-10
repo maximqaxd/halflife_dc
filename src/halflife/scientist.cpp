@@ -1192,7 +1192,7 @@ void CDeadScientist :: Spawn( )
 
 class CSittingScientist : public CScientist // kdb: changed from public CBaseMonster so he can speak
 {
-	friend void SR_Register_scientist( void ); //SR_FRIEND
+	friend void SR_Register_CSittingScientist( void ); //SR_FRIEND
 
 
 
@@ -1473,8 +1473,8 @@ int CSittingScientist :: FIdleSpeak ( void )
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_scientist( void )
+void SR_Register_CSittingScientist( void )
 {
-	SR_REGISTER( "GV", CSittingScientist, SittingThink );
+	SR_REGISTER( "IU", CSittingScientist, SittingThink );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

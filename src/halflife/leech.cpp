@@ -71,7 +71,7 @@
 
 class CLeech : public CBaseMonster
 {
-	friend void SR_Register_leech( void ); //SR_FRIEND
+	friend void SR_Register_CLeech( void ); //SR_FRIEND
 
 
 
@@ -738,9 +738,9 @@ void CLeech::Killed(entvars_t *pevAttacker, int iGib)
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_leech( void )
+void SR_Register_CLeech( void )
 {
-	SR_REGISTER( "EK", CLeech, SwimThink );
-	SR_REGISTER( "EJ", CLeech, DeadThink );
+	SR_REGISTER( "FX", CLeech, DeadThink );
+	SR_REGISTER( "FY", CLeech, SwimThink );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

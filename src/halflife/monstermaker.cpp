@@ -33,7 +33,7 @@
 //=========================================================
 class CMonsterMaker : public CBaseMonster
 {
-	friend void SR_Register_monstermaker( void ); //SR_FRIEND
+	friend void SR_Register_CMonsterMaker( void ); //SR_FRIEND
 
 
 
@@ -307,10 +307,11 @@ void CMonsterMaker :: DeathNotice ( entvars_t *pevChild )
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_monstermaker( void )
+void SR_Register_CMonsterMaker( void )
 {
-	SR_REGISTER( "EN", CMonsterMaker, ToggleUse );
-	SR_REGISTER( "EL", CMonsterMaker, CyclicUse );
-	SR_REGISTER( "EM", CMonsterMaker, MakerThink );
+	SR_REGISTER( "GJ", CMonsterMaker, CyclicUse );
+	SR_REGISTER( "GK", CMonsterMaker, MakerThink );
+	SR_REGISTER( "GL", CMonsterMaker, SUB_DoNothing );
+	SR_REGISTER( "GM", CMonsterMaker, ToggleUse );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

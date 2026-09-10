@@ -34,7 +34,7 @@ LINK_ENTITY_TO_CLASS( info_target, CPointEntity );
 
 class CBubbling : public CBaseEntity
 {
-	friend void SR_Register_effects( void ); //SR_FRIEND
+	friend void SR_Register_CBubbling( void ); //SR_FRIEND
 
 
 
@@ -1323,7 +1323,7 @@ void CSprite::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useTy
 
 class CGibShooter : public CBaseDelay
 {
-	friend void SR_Register_effects( void ); //SR_FRIEND
+	friend void SR_Register_CGibShooter( void ); //SR_FRIEND
 
 
 
@@ -1606,7 +1606,7 @@ CGib *CEnvShooter :: CreateGib ( void )
 
 class CTestEffect : public CBaseDelay
 {
-	friend void SR_Register_effects( void ); //SR_FRIEND
+	friend void SR_Register_CTestEffect( void ); //SR_FRIEND
 
 
 
@@ -2217,7 +2217,7 @@ void CEnvBeverage::Spawn( void )
 //=========================================================
 class CItemSoda : public CBaseEntity
 {
-	friend void SR_Register_effects( void ); //SR_FRIEND
+	friend void SR_Register_CItemSoda( void ); //SR_FRIEND
 
 
 
@@ -2296,21 +2296,59 @@ void CItemSoda::CanTouch ( CBaseEntity *pOther )
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_CBubbling( void )
+{
+	SR_REGISTER( "CL", CBubbling, FizzThink );
+}
+
 void SR_Register_effects( void )
 {
-	SR_REGISTER( "CR", CBubbling, FizzThink );
-	SR_REGISTER( "CS", CGibShooter, ShootThink );
-	SR_REGISTER( "DD", CTestEffect, TestThink );
-	SR_REGISTER( "CT", CItemSoda, CanThink );
-	SR_REGISTER( "CU", CItemSoda, CanTouch );
-	SR_REGISTER( "DA", CSprite, AnimateThink );
-	SR_REGISTER( "DC", CSprite, ExpandThink );
-	SR_REGISTER( "DB", CSprite, AnimateUntilDead );
-	SR_REGISTER( "CQ", CBeam, TriggerTouch );
-	SR_REGISTER( "CX", CLightning, StrikeThink );
-	SR_REGISTER( "CW", CLightning, DamageThink );
-	SR_REGISTER( "CY", CLightning, StrikeUse );
-	SR_REGISTER( "CZ", CLightning, ToggleUse );
-	SR_REGISTER( "CV", CLaser, StrikeThink );
+	SR_REGISTER( "DG", CBaseEntity, SUB_Remove );
+}
+
+void SR_Register_CGibShooter( void )
+{
+	SR_REGISTER( "EP", CBaseEntity, SUB_Remove );
+	SR_REGISTER( "EQ", CGibShooter, ShootThink );
+}
+
+void SR_Register_CItemSoda( void )
+{
+	SR_REGISTER( "FR", CItemSoda, CanThink );
+	SR_REGISTER( "FS", CItemSoda, CanTouch );
+	SR_REGISTER( "FT", CBaseEntity, SUB_Remove );
+}
+
+void SR_Register_CLaser( void )
+{
+	SR_REGISTER( "FU", CBaseEntity, SUB_Remove );
+	SR_REGISTER( "FV", CLaser, StrikeThink );
+}
+
+void SR_Register_CLightning( void )
+{
+	SR_REGISTER( "GB", CLightning, DamageThink );
+	SR_REGISTER( "GC", CBaseEntity, SUB_Remove );
+	SR_REGISTER( "GD", CLightning, StrikeThink );
+	SR_REGISTER( "GE", CLightning, StrikeUse );
+	SR_REGISTER( "GF", CLightning, ToggleUse );
+}
+
+void SR_Register_CSprite( void )
+{
+	SR_REGISTER( "JC", CSprite, AnimateThink );
+	SR_REGISTER( "JD", CSprite, ExpandThink );
+	SR_REGISTER( "JE", CBaseEntity, SUB_Remove );
+	SR_REGISTER( "ZA", CSprite, AnimateUntilDead );
+}
+
+void SR_Register_CTestEffect( void )
+{
+	SR_REGISTER( "JR", CTestEffect, TestThink );
+}
+
+void SR_Register_CBeam( void )
+{
+	SR_REGISTER( "KJ", CBeam, TriggerTouch );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

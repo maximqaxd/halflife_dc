@@ -29,7 +29,7 @@ extern DLL_GLOBAL int		g_iSkillLevel;
 
 class CApache : public CBaseMonster
 {
-	friend void SR_Register_apache( void ); //SR_FRIEND
+	friend void SR_Register_CApache( void ); //SR_FRIEND
 
 
 
@@ -952,7 +952,7 @@ void CApache::TraceAttack( entvars_t *pevAttacker, float flDamage, Vector vecDir
 
 class CApacheHVR : public CGrenade
 {
-	friend void SR_Register_apache( void ); //SR_FRIEND
+	friend void SR_Register_CApacheHVR( void ); //SR_FRIEND
 
 
 
@@ -1076,15 +1076,20 @@ void CApacheHVR :: AccelerateThink( void  )
 #endif
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_apache( void )
+void SR_Register_CApache( void )
 {
-	SR_REGISTER( "AL", CApache, HuntThink );
-	SR_REGISTER( "AK", CApache, FlyTouch );
-	SR_REGISTER( "AI", CApache, CrashTouch );
-	SR_REGISTER( "AJ", CApache, DyingThink );
-	SR_REGISTER( "AN", CApache, StartupUse );
-	SR_REGISTER( "AM", CApache, NullThink );
-	SR_REGISTER( "AP", CApacheHVR, IgniteThink );
-	SR_REGISTER( "AO", CApacheHVR, AccelerateThink );
+	SR_REGISTER( "AF", CApache, CrashTouch );
+	SR_REGISTER( "AG", CApache, DyingThink );
+	SR_REGISTER( "AH", CApache, FlyTouch );
+	SR_REGISTER( "AI", CApache, HuntThink );
+	SR_REGISTER( "AJ", CBaseEntity, SUB_Remove );
+	SR_REGISTER( "AK", CApache, StartupUse );
+}
+
+void SR_Register_CApacheHVR( void )
+{
+	SR_REGISTER( "AL", CApacheHVR, AccelerateThink );
+	SR_REGISTER( "AM", CGrenade, ExplodeTouch );
+	SR_REGISTER( "AN", CApacheHVR, IgniteThink );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

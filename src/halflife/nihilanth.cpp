@@ -27,7 +27,7 @@
 
 class CNihilanth : public CBaseMonster
 {
-	friend void SR_Register_nihilanth( void ); //SR_FRIEND
+	friend void SR_Register_CNihilanth( void ); //SR_FRIEND
 
 
 
@@ -188,7 +188,7 @@ IMPLEMENT_SAVERESTORE( CNihilanth, CBaseMonster );
 
 class CNihilanthHVR : public CBaseMonster
 {
-	friend void SR_Register_nihilanth( void ); //SR_FRIEND
+	friend void SR_Register_CNihilanthHVR( void ); //SR_FRIEND
 
 
 
@@ -1870,22 +1870,23 @@ void CNihilanthHVR::BounceTouch( CBaseEntity *pOther )
 #endif
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_nihilanth( void )
+void SR_Register_CNihilanth( void )
 {
-	SR_REGISTER( "EV", CNihilanth, StartupThink );
-	SR_REGISTER( "ET", CNihilanth, HuntThink );
-	SR_REGISTER( "ER", CNihilanth, CrashTouch );
-	SR_REGISTER( "ES", CNihilanth, DyingThink );
-	SR_REGISTER( "EW", CNihilanth, StartupUse );
-	SR_REGISTER( "EU", CNihilanth, NullThink );
-	SR_REGISTER( "EQ", CNihilanth, CommandUse );
-	SR_REGISTER( "EZ", CNihilanthHVR, HoverThink );
-	SR_REGISTER( "EY", CNihilanthHVR, DissipateThink );
-	SR_REGISTER( "FD", CNihilanthHVR, ZapThink );
-	SR_REGISTER( "FB", CNihilanthHVR, TeleportThink );
-	SR_REGISTER( "FC", CNihilanthHVR, TeleportTouch );
-	SR_REGISTER( "FA", CNihilanthHVR, RemoveTouch );
-	SR_REGISTER( "EX", CNihilanthHVR, BounceTouch );
-	SR_REGISTER( "FE", CNihilanthHVR, ZapTouch );
+	SR_REGISTER( "GT", CNihilanth, CommandUse );
+	SR_REGISTER( "GU", CNihilanth, DyingThink );
+	SR_REGISTER( "GV", CNihilanth, HuntThink );
+	SR_REGISTER( "GW", CNihilanth, StartupThink );
+}
+
+void SR_Register_CNihilanthHVR( void )
+{
+	SR_REGISTER( "GX", CNihilanthHVR, BounceTouch );
+	SR_REGISTER( "GY", CNihilanthHVR, DissipateThink );
+	SR_REGISTER( "GZ", CNihilanthHVR, HoverThink );
+	SR_REGISTER( "HA", CNihilanthHVR, RemoveTouch );
+	SR_REGISTER( "HB", CNihilanthHVR, TeleportThink );
+	SR_REGISTER( "HC", CNihilanthHVR, TeleportTouch );
+	SR_REGISTER( "HD", CNihilanthHVR, ZapThink );
+	SR_REGISTER( "HE", CNihilanthHVR, ZapTouch );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

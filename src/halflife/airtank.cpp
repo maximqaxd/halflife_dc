@@ -22,7 +22,7 @@
 
 class CAirtank : public CGrenade
 {
-	friend void SR_Register_airtank( void ); //SR_FRIEND
+	friend void SR_Register_CAirtank( void ); //SR_FRIEND
 
 
 
@@ -135,9 +135,9 @@ void CAirtank::TankTouch( CBaseEntity *pOther )
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_airtank( void )
+void SR_Register_CAirtank( void )
 {
-	SR_REGISTER( "AG", CAirtank, TankThink );
-	SR_REGISTER( "AH", CAirtank, TankTouch );
+	SR_REGISTER( "AA", CAirtank, TankThink );
+	SR_REGISTER( "AB", CAirtank, TankTouch );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

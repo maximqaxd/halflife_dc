@@ -97,7 +97,8 @@ enum
 
 class CTalkMonster : public CBaseMonster
 {
-	friend void SR_Register_talkmonster( void ); //SR_FRIEND
+	friend void SR_Register_CTalkMonster_2( void ); //SR_FRIEND
+	friend void SR_Register_CTalkMonster( void ); //SR_FRIEND
 
 
 

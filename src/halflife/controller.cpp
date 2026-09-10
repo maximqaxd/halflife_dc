@@ -1136,7 +1136,7 @@ void CController::MoveExecute( CBaseEntity *pTargetEnt, const Vector &vecDir, fl
 //=========================================================
 class CControllerHeadBall : public CBaseMonster
 {
-	friend void SR_Register_controller( void ); //SR_FRIEND
+	friend void SR_Register_CControllerHeadBall( void ); //SR_FRIEND
 
 
 
@@ -1353,7 +1353,7 @@ void CControllerHeadBall::BounceTouch( CBaseEntity *pOther )
 
 class CControllerZapBall : public CBaseMonster
 {
-	friend void SR_Register_controller( void ); //SR_FRIEND
+	friend void SR_Register_CControllerZapBall( void ); //SR_FRIEND
 
 
 
@@ -1461,12 +1461,16 @@ void CControllerZapBall::ExplodeTouch( CBaseEntity *pOther )
 #endif		// !OEM && !HLDEMO
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_controller( void )
+void SR_Register_CControllerHeadBall( void )
 {
-	SR_REGISTER( "CD", CControllerHeadBall, HuntThink );
-	SR_REGISTER( "CC", CControllerHeadBall, DieThink );
-	SR_REGISTER( "CB", CControllerHeadBall, BounceTouch );
-	SR_REGISTER( "CE", CControllerZapBall, AnimateThink );
-	SR_REGISTER( "CF", CControllerZapBall, ExplodeTouch );
+	SR_REGISTER( "BB", CControllerHeadBall, DieThink );
+	SR_REGISTER( "CS", CControllerHeadBall, BounceTouch );
+	SR_REGISTER( "CT", CControllerHeadBall, HuntThink );
+}
+
+void SR_Register_CControllerZapBall( void )
+{
+	SR_REGISTER( "CU", CControllerZapBall, AnimateThink );
+	SR_REGISTER( "CV", CControllerZapBall, ExplodeTouch );
 }
 // END GENERATED SAVE-RESTORE EXPORTS

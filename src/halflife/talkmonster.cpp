@@ -1471,8 +1471,13 @@ void CTalkMonster::Precache( void )
 }
 
 // BEGIN GENERATED SAVE-RESTORE EXPORTS
-void SR_Register_talkmonster( void )
+void SR_Register_CTalkMonster( void )
 {
-	SR_REGISTER( "HI", CTalkMonster, FollowerUse );
+	SR_REGISTER( "AQ", CTalkMonster, FollowerUse );
+}
+
+void SR_Register_CTalkMonster_2( void )
+{
+	SR_REGISTER( "IN", CTalkMonster, FollowerUse );
 }
 // END GENERATED SAVE-RESTORE EXPORTS
