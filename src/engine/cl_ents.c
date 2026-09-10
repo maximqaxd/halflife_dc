@@ -438,6 +438,17 @@ void CL_ParsePacketEntities( qboolean delta )
 	if (!newp_number)
 		newp_number = 1;
 
+#if HLDC_FIXES
+	if (newp_number < 0 || newp_number > MAX_PACKET_ENTITIES)
+	{
+		Con_DPrintf("CL_ParsePacketEntities: bad entity count %i\n", newp_number);
+		if (delta)
+			MSG_ReadByte();		// the stream has one here, same as below
+		CL_FlushEntityPacket(TRUE);
+		return;
+	}
+#endif
+
 	if (!newp->entities || newp->max_entities < newp_number)
 	{
 		newp->entities = (entity_state_t*)DebugRealloc(newp->entities, (int)(sizeof(entity_state_t) * newp_number), __FILE__, __LINE__);
