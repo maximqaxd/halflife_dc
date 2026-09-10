@@ -164,8 +164,8 @@ void SubdividePolygon( int numverts, float* verts )
 		{
 			VectorCopy(verts, poly->verts[i]);
 			s = DotProduct(verts, warpface->texinfo->vecs[0]);
-			t = DotProduct(verts, warpface->texinfo->vecs[1]);
 			poly->verts[i][4] = s;
+			t = DotProduct(verts, warpface->texinfo->vecs[1]);
 			poly->verts[i][5] = t;
 			i++;
 			verts += 3;
