@@ -6285,9 +6285,6 @@ void CMenuMultiplayerItem::Join( const char* address )
 
 void CMenuMultiplayerItem::Select( void )
 {
-	const server_cache_t* server;
-	char address[MAX_QPATH];
-
 	if (m_editing)
 	{
 		if (m_osk)
@@ -6313,12 +6310,9 @@ void CMenuMultiplayerItem::Select( void )
 			Join(mp_server.string);
 		else
 		{
-			server = CL_ServerListEntry(m_firstServer + m_row - 3);
-			if (server)
+			if (CL_ServerListEntry(m_firstServer + m_row - 3))
 			{
-				sprintf(address, "%u.%u.%u.%u:%u", server->adr.ip[0], server->adr.ip[1],
-					server->adr.ip[2], server->adr.ip[3], (unsigned short)BigShort(server->adr.port));
-				Cvar_Set("mp_server", address);
+				Cvar_Set("mp_server", CL_ServerListAddress(m_firstServer + m_row - 3));
 				Join(mp_server.string);
 			}
 		}

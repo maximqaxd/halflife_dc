@@ -380,6 +380,29 @@ int CL_ServerListPing( int index )
 
 /*
 =================
+CL_ServerListAddress
+
+The address of a row in the form the connect command wants it.  A row that came
+back without a port still goes to the port a server listens on unless it was
+told otherwise.
+=================
+*/
+char* CL_ServerListAddress( int index )
+{
+	netadr_t	adr;
+
+	if (index < 0 || index >= num_servers)
+		return "";
+
+	adr = cached_servers[index].adr;
+	if (!adr.port)
+		adr.port = BigShort((unsigned short)atoi(PORT_SERVER));
+
+	return NET_AdrToString(adr);
+}
+
+/*
+=================
 CL_RememberServer
 
 Move a server that has just answered to the front of the remembered list,
@@ -392,6 +415,11 @@ void CL_RememberServer( netadr_t adr, char* name, char* map, int inuse, int maxp
 	saved_server_t	entry;
 	int				i;
 	int				slot;
+
+	// without a port there is nothing to connect back to, and the row would
+	// never match the same server answering again
+	if (!adr.port)
+		return;
 
 	memset(&entry, 0, sizeof(entry));
 	entry.adr = adr;
@@ -440,6 +468,12 @@ static void CL_SeedServerList( void )
 	for (i = 0; i < num_saved_servers && num_servers < MAX_LOCAL_SERVERS; i++)
 	{
 		saved = &saved_servers[i];
+
+		// the row has to carry the port the server answers on, or the reply
+		// lands beside it as a second row for the same machine
+		if (!saved->adr.port)
+			continue;
+
 		p = &cached_servers[num_servers];
 
 		p->adr = saved->adr;

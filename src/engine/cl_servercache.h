@@ -54,6 +54,7 @@ extern "C" {
 int CL_ServerListCount( void );
 const server_cache_t* CL_ServerListEntry( int index );
 int CL_ServerListPing( int index );
+char* CL_ServerListAddress( int index );
 qboolean CL_RefreshServerList( char* address );
 void CL_RememberServer( netadr_t adr, char* name, char* map, int inuse, int maxplayers,
 	int ping, char password );
