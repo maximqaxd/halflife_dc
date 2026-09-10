@@ -756,7 +756,7 @@ void SV_QueryMovevarsChanged( void )
 
 	for (i = 0, cl = svs.clients; i < svs.maxclients; i++, cl++)
 	{
-		if (!cl->active && (cl->spawned || cl->connected))
+		if (!cl->fakeclient && (cl->active || cl->spawned || cl->connected))
 			SV_WriteMovevarsToClient(&cl->netchan.message);
 	}
 }

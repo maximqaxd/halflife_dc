@@ -1535,7 +1535,8 @@ void CL_ParseMovevars( void )
 	if (gl_wateramp.value != movevars.waveHeight)
 		Cvar_SetValue("gl_wateramp", movevars.waveHeight);
 
-	cl_entities->scale = gl_wateramp.value;
+	if (cl_entities)
+		cl_entities->scale = gl_wateramp.value;
 #endif
 }
 
