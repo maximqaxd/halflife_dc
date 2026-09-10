@@ -3,6 +3,7 @@
 #include "quakedef.h"
 #include "winquake.h"
 #include "cmodel.h"
+#include "cl_servercache.h"
 #include "profile.h"
 #include "hashpak.h"
 #include "won.h"
@@ -397,6 +398,9 @@ void Host_WriteConfiguration( void )
 		Key_WriteBindings(f);
 		Cvar_WriteVariables(f);
 		Info_WriteVars(f);
+#if HLDC_MP
+		CL_WriteServerList(f);
+#endif
 
 		if (in_mlook.state & 1)
 			Sys_FPrintf(f, "+mlook\n");

@@ -353,6 +353,12 @@ Replaces Slist command
 =================
 */
 #if HLDC_MP
+// Servers that have answered us at least once, newest first. The list is
+// written back out with the rest of the configuration, so the browser still
+// knows about them the next time the machine is switched on.
+static saved_server_t	saved_servers[MAX_SAVED_SERVERS];
+static int				num_saved_servers;
+
 int CL_ServerListCount( void )
 {
 	return num_servers;
@@ -372,6 +378,178 @@ int CL_ServerListPing( int index )
 	return server_pings[index];
 }
 
+/*
+=================
+CL_RememberServer
+
+Move a server that has just answered to the front of the remembered list,
+dropping the one nobody has heard from in longest if there is no room.
+=================
+*/
+void CL_RememberServer( netadr_t adr, char* name, char* map, int inuse, int maxplayers,
+	int ping, char password )
+{
+	saved_server_t	entry;
+	int				i;
+	int				slot;
+
+	memset(&entry, 0, sizeof(entry));
+	entry.adr = adr;
+	strncpy(entry.name, name, sizeof(entry.name) - 1);
+	strncpy(entry.map, map, sizeof(entry.map) - 1);
+	entry.inuse = inuse;
+	entry.maxplayers = maxplayers;
+	entry.ping = ping;
+	entry.password = password;
+
+	slot = num_saved_servers;
+	for (i = 0; i < num_saved_servers; i++)
+	{
+		if (NET_CompareAdr(saved_servers[i].adr, adr))
+		{
+			slot = i;
+			break;
+		}
+	}
+
+	if (slot >= MAX_SAVED_SERVERS)
+		slot = MAX_SAVED_SERVERS - 1;
+	else if (slot == num_saved_servers)
+		num_saved_servers++;
+
+	for (i = slot; i > 0; i--)
+		saved_servers[i] = saved_servers[i - 1];
+
+	saved_servers[0] = entry;
+}
+
+/*
+=================
+CL_SeedServerList
+
+Put the remembered servers back in the browser so there is something to pick
+before any of them has had a chance to answer.
+=================
+*/
+static void CL_SeedServerList( void )
+{
+	saved_server_t*	saved;
+	server_cache_t*	p;
+	int				i;
+
+	for (i = 0; i < num_saved_servers && num_servers < MAX_LOCAL_SERVERS; i++)
+	{
+		saved = &saved_servers[i];
+		p = &cached_servers[num_servers];
+
+		p->adr = saved->adr;
+		strcpy(p->name, saved->name);
+		strcpy(p->map, saved->map);
+		p->inuse = saved->inuse;
+		p->maxplayers = saved->maxplayers;
+		p->password = saved->password;
+		server_pings[num_servers] = saved->ping;
+		num_servers++;
+	}
+}
+
+/*
+=================
+CL_RefreshCachedServer
+
+A remembered server has answered again: take the fresh details so the browser
+is not showing what it looked like the last time we heard from it.
+=================
+*/
+void CL_RefreshCachedServer( int index, netadr_t adr, char* name, char* map, int active,
+	int maxplayers, char password )
+{
+	server_cache_t*	p;
+
+	p = &cached_servers[index];
+
+	strncpy(p->name, name, sizeof(p->name) - 1);
+	p->name[sizeof(p->name) - 1] = 0;
+	strncpy(p->map, map, sizeof(p->map) - 1);
+	p->map[sizeof(p->map) - 1] = 0;
+	p->inuse = active;
+	p->maxplayers = maxplayers;
+	p->password = password;
+	server_pings[index] = (int)((Sys_FloatTime() - cls.slist_time) * 1000.0f);
+
+	CL_RememberServer(adr, name, map, active, maxplayers, server_pings[index], password);
+}
+
+/*
+=================
+CL_WriteServerList
+
+Save the remembered servers alongside the bindings and the archived cvars, so
+they come back through the config the next time the game starts.
+=================
+*/
+void CL_WriteServerList( void* f )
+{
+	saved_server_t*	saved;
+	char			name[sizeof(saved_servers[0].name)];
+	int				i;
+	int				j;
+
+	for (i = num_saved_servers - 1; i >= 0; i--)
+	{
+		saved = &saved_servers[i];
+
+		// the name goes back through the command parser, so it must not carry
+		// anything that would end the argument early
+		for (j = 0; saved->name[j] && j < sizeof(name) - 1; j++)
+			name[j] = ((byte)saved->name[j] >= 32 && saved->name[j] != '"'
+				&& saved->name[j] != ';' && saved->name[j] != '\\') ? saved->name[j] : ' ';
+		name[j] = 0;
+
+		Sys_FPrintf(f, "mp_addserver \"%s\" \"%s\" \"%s\" %d %d %d %d\n",
+			NET_AdrToString(saved->adr), name, saved->map,
+			saved->inuse, saved->maxplayers, saved->ping, saved->password ? 1 : 0);
+	}
+}
+
+/*
+=================
+CL_AddServer_f
+
+mp_addserver <address> <name> <map> <players> <maxplayers> <ping> <password>
+
+One line of the saved browser list. The config writes these back out, so they
+are how the list survives a restart.
+=================
+*/
+void CL_AddServer_f( void )
+{
+	netadr_t	adr;
+
+	if (Cmd_Argc() != 8)
+	{
+		Con_Printf("mp_addserver <address> <name> <map> <players> <max> <ping> <password>\n");
+		return;
+	}
+
+	memset(&adr, 0, sizeof(adr));
+	if (!NET_StringToAdr(Cmd_Argv(1), &adr) || adr.type != NA_IP)
+	{
+		Con_Printf("mp_addserver: bad address \"%s\"\n", Cmd_Argv(1));
+		return;
+	}
+
+	if (!adr.port)
+		adr.port = BigShort((unsigned short)atoi(PORT_SERVER));
+
+	CL_RememberServer(adr, Cmd_Argv(2), Cmd_Argv(3), atoi(Cmd_Argv(4)),
+		atoi(Cmd_Argv(5)), atoi(Cmd_Argv(6)), (char)atoi(Cmd_Argv(7)));
+
+	// nothing has been searched for yet, so show it straight away
+	if (!num_servers)
+		CL_SeedServerList();
+}
+
 qboolean CL_RefreshServerList( char* address )
 {
 	netadr_t adr;
@@ -387,6 +565,11 @@ qboolean CL_RefreshServerList( char* address )
 	num_servers = 0;
 	memset(cached_servers, 0, sizeof(cached_servers));
 	memset(server_pings, 0, sizeof(server_pings));
+
+	// keep the servers we already know about on the page while we wait; the
+	// ones that answer replace their entry with what they look like now
+	CL_SeedServerList();
+
 	CL_PingServers_f();
 	if (address[0])
 		Netchan_OutOfBandPrint(NS_CLIENT, adr, "details");
@@ -432,6 +615,13 @@ void CL_ClearCachedServers_f( void )
 		p = &cached_servers[i];
 		strcpy(p->name, "empty slot");
 	}
+
+#if HLDC_MP
+	// forget the servers carried over from last time as well, otherwise the
+	// browser puts them straight back on its next search
+	num_saved_servers = 0;
+	memset(saved_servers, 0, sizeof(saved_servers));
+#endif
 
 	Con_Printf("Server list cleared.\n");
 }
@@ -511,7 +701,12 @@ void CL_AddToServerCache( netadr_t adr, char* name, char* map, char* desc, char*
 	{
 		p = &cached_servers[i];
 		if (NET_CompareAdr(p->adr, adr))
+		{
+#if HLDC_MP
+			CL_RefreshCachedServer(i, adr, name, map, active, maxplayers, password);
+#endif
 			return;
+		}
 	}
 
 	// Display it.
@@ -575,6 +770,9 @@ void CL_AddToServerCache( netadr_t adr, char* name, char* map, char* desc, char*
 	cached_servers[num_servers].size = size;
 	strncpy(cached_servers[num_servers].info, info, sizeof(cached_servers[num_servers].info) - 1);
 	cached_servers[num_servers].info[sizeof(cached_servers[num_servers].info) - 1] = 0;
+#if HLDC_MP
+	CL_RememberServer(adr, name, map, active, maxplayers, server_pings[num_servers], password);
+#endif
 	num_servers++;
 }
 
@@ -3041,6 +3239,9 @@ void CL_Init( void )
 	Cmd_AddCommand("slist", CL_Slist_f);
 	Cmd_AddCommand("list", CL_ListCachedServers_f);
 	Cmd_AddCommand("clearlist", CL_ClearCachedServers_f);
+#if HLDC_MP
+	Cmd_AddCommand("mp_addserver", CL_AddServer_f);
+#endif
 	Cmd_AddCommand("resources", CL_PrintResourceLists_f);
 	Cmd_AddCommand("cl_allow_upload", CL_AllowUpload_f);
 	Cmd_AddCommand("cl_allow_download", CL_AllowDownload_f);
