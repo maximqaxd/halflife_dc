@@ -126,6 +126,13 @@ typedef struct _UserMsg
 // Max user message data size
 #define MAX_USER_MSG_DATA	64
 
+#if HLDC_FIXES
+// ScriptedSnark: just like in modern Steam build
+#define MAX_USER_MSG_BUF	192
+#else
+#define MAX_USER_MSG_BUF	MAX_USER_MSG_DATA
+#endif
+
 
 #define	MAX_STYLESTRING	64
 

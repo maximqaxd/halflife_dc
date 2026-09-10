@@ -175,7 +175,7 @@ DispatchUserMsg
 */
 void DispatchUserMsg( int iMsg )
 {
-	static char buf[MAX_USER_MSG_DATA];
+	static char buf[MAX_USER_MSG_BUF];
 	int MsgSize = 0;
 	int fFound = 0;
 
@@ -197,6 +197,13 @@ void DispatchUserMsg( int iMsg )
 				if (MsgSize == -1)
 					MsgSize = MSG_ReadByte();
 
+#if HLDC_FIXES
+				if (MsgSize < 0 || MsgSize > MAX_USER_MSG_BUF)
+				{
+					Con_DPrintf("UserMsg: bad size %d for msg %d\n", MsgSize, iMsg);
+					return;
+				}
+#endif
 				MSG_ReadBuf(MsgSize, buf);
 			}
 
