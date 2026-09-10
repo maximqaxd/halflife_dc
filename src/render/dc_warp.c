@@ -420,6 +420,19 @@ void R_LoadSkys( void )
 				gSkyTexNumber[i] = 0;
 				sprintf(name, "gfx/env/%s%s.pvr", cl_skyname.string, suf[i]);
 				buffer = COM_LoadTempFile(name, &length);
+#if HLDC_FIXES
+				if (!buffer && Q_strcasecmp(cl_skyname.string, "desert"))
+				{
+					sprintf(name, "gfx/env/desert%s.pvr", suf[i]);
+					buffer = COM_LoadTempFile(name, &length);
+				}
+
+				if (!buffer)
+				{
+					Con_DPrintf("R_LoadSkys: couldn't load %s\n", name);
+					continue;
+				}
+#endif
 				sprintf(name, "sky%d", i);
 				gSkyTexNumber[i] = DC_LoadTexture(name, GLT_WORLD, 512, 512,
 					buffer, FALSE, TEX_TYPE_GBIX, NULL);
