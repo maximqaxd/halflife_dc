@@ -90,6 +90,9 @@ void DC_PrintFileCounts( void );
 void GDROM_ConfigureDoorBehavior( void );
 void GDROM_DoorReset( void );
 
+// Set once the drive door has been opened
+extern int g_gdDoorOpened;
+
 typedef long LONG;
 
 void Sys_LowFPPrecision( void );

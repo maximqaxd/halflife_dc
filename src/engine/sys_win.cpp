@@ -267,6 +267,8 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLi
 
 	host_initialized = FALSE;
 
+	// The door has not been touched yet, so the drive is not owed a reset
+	g_gdDoorOpened = 0;
 	GDROM_ConfigureDoorBehavior();
 
 	g_pStartupMem = VirtualAlloc(NULL, 0x2000, MEM_COMMIT, PAGE_READWRITE);

@@ -1237,7 +1237,11 @@ to the same place.
 */
 void VMU_FormatSlotName( char *saveName )
 {
-	sprintf( vmuRecentSave, "@%d@%s", vmuCurrentDevice, saveName );
+	char formatted[MAX_PATH];
+
+	sprintf( formatted, "@%d@%s", vmuCurrentDevice, saveName );
+	strncpy( vmuRecentSave, formatted, sizeof(vmuRecentSave) - 1 );
+	vmuRecentSave[sizeof(vmuRecentSave) - 1] = 0;
 }
 
 /*
