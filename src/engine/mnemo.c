@@ -1257,20 +1257,22 @@ void* MnemoRealloc( void* oldPtr, int sizeBytes )
 	if (Mnemo_BlockSize(oldPtr) >= sizeBytes)
 		return oldPtr;
 
-	hdr = (mnemo_header_t*)oldPtr - 1;
+	// A pez element has no header of its own -- the bytes in front of it belong
+	// to the element before it in the slab, so nothing there can be read.
 	if (Mnemo_FindPezPool(oldPtr))
+	{
 		strcpy(tag, "pez");
-	strcpy(tag, hdr->tag);
-
-	if (Mnemo_FindPezPool(oldPtr))
 		flags = MNEMO_FLAG_PEZ;
-	else
-		flags = (short)hdr->flags;
-
-	if (Mnemo_FindPezPool(oldPtr))
 		allocClass = 0;
+	}
 	else
+	{
+		hdr = (mnemo_header_t*)oldPtr - 1;
+		strncpy(tag, hdr->tag, sizeof(tag) - 1);
+		tag[sizeof(tag) - 1] = 0;
+		flags = (short)hdr->flags;
 		allocClass = (short)hdr->alloc_class;
+	}
 
 	MnemoFree(oldPtr);
 	return MnemoAlloc(sizeBytes, flags, allocClass, tag);
@@ -1804,6 +1806,12 @@ static __forceinline int Cache_MoveToAFile( cache_system_t* cs )
 		return 0;
 
 	newcs = (cache_system_t*)MnemoAlloc(sizeof(cache_system_t), MNEMO_FLAG_MALLOC, 0, (char*)cs);
+
+	// there is no room even for the placeholder, so the block stays where it
+	// is; the payload is already on the AFile and will simply be written again
+	if (newcs == NULL)
+		return 0;
+
 	memcpy(newcs, cs, sizeof(cache_system_t));
 	newcs->size = sizeof(cache_system_t);
 	g_mnemo.cache_bytes += sizeof(cache_system_t);
