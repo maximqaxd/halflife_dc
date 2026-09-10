@@ -5636,7 +5636,8 @@ menupage_t* CMenu::FindPage( char* pszName )
 #define MP_MENU_CHAT 0x112
 
 static cvar_t mp_server = { "mp_server", "", FCVAR_ARCHIVE };
-static cvar_t mp_spray = { "mp_spray", "", FCVAR_ARCHIVE };
+// the lambda is what a player sprays until they pick something else
+static cvar_t mp_spray = { "mp_spray", "{lambda06", FCVAR_ARCHIVE };
 extern char message_type[32];
 
 class CMenuMultiplayerItem : public CMenuItemBase
@@ -5877,28 +5878,54 @@ void CMenuMultiplayerItem::DrawKeyboard( float fade )
 {
 	static char* actions[] = { "SPACE", "DEL", "<", ">", "CASE", "DONE", "BACK", "@", "-", "_" };
 	const char* letters = "1234567890QWERTYUIOPASDFGHJKL_ZXCVBNM.-:";
+	const char* face;
 	char key[2];
-	int i, x, y;
+	float x;
+	int i, cx, cy;
 
 	Text(m_page == MP_MENU_CHAT ? "CHAT" : "ENTER TEXT", 56, 140, 530, (int)(fade * 255));
 	Row(m_page == MP_MENU_PLAYER ? "PLAYER NAME" : m_page == MP_MENU_CHAT ? "MESSAGE" :
 		m_row == 0 ? "SERVER" : "PASSWORD", "", m_row, 184, fade);
+
+	// one panel behind the whole grid, with the frame following the key the
+	// stick is sitting on
+	DCV_TexState_Blend();
+	Box(44, 226, 548, 178, (int)(fade * 40));
+	Box(50 + (m_oskKey % 10) * 54, 232 + (m_oskKey / 10) * 34, 50, 30,
+		(int)(fade * 150));
+
+	// every key face comes off the font sheet, so the layer, the tint and the
+	// scale are set once and the whole grid goes down in one batch
+	DCV_TexState_Blend();
+	DCV_SetHudDepth(4.0f);
+	DCV_SetColor((int)(fade * 255.0f), (int)(fade * 144.0f), 0, 255);
+	Font_ApplyScale(0.65f, 0.86667f);
+	g_nTextCharGap = 0;
+
 	for (i = 0; i < 50; i++)
 	{
-		x = 50 + (i % 10) * 54;
-		y = 232 + (i / 10) * 34;
-		DCV_TexState_Blend();
-		Box(x, y, 50, 30, (int)(fade * (i == m_oskKey ? 160 : 40)));
 		if (i < 40)
 		{
 			key[0] = m_uppercase ? letters[i] : tolower(letters[i]);
 			key[1] = 0;
-			Text(key, x + 19, y + 4, 35, (int)(fade * 255));
+			face = key;
+			cx = 50 + (i % 10) * 54 + 19;
 		}
 		else
-			Text(actions[i - 40], x + 3, y + 4, 46, (int)(fade * 255));
+		{
+			face = actions[i - 40];
+			cx = 50 + (i % 10) * 54 + 3;
+		}
+
+		cy = 232 + (i / 10) * 34 + 4;
+		x = (float)cx;
+
+		while (*face)
+			x += Font_DrawChar(x, (float)cy, (dcfont_t *)draw_chars, *face++);
 	}
+
 	Text("A: TYPE   X: DELETE   B: CANCEL   Select DONE to accept", 56, 414, 530, (int)(fade * 200));
+	g_nTextCharGap = 0;
 }
 
 void CMenuMultiplayerItem::KeyboardSelect( void )
@@ -5995,6 +6022,7 @@ void CMenuMultiplayerItem::Text( const char* text, int x, int y, int width, int 
 		line[i] = ((byte)text[i] >= 32 && (byte)text[i] < 127) ? text[i] : ' ';
 	line[i] = 0;
 	Font_ApplyScale(0.65f, 0.86667f);
+	g_nTextCharGap = 0;
 	while (i && Font_MeasureString((dcfont_t*)draw_chars, (byte*)line) > width)
 		line[--i] = 0;
 	DCV_TexState_Blend();
@@ -6004,11 +6032,18 @@ void CMenuMultiplayerItem::Text( const char* text, int x, int y, int width, int 
 void CMenuMultiplayerItem::Row( const char* label, const char* value, int row, int y, float fade )
 {
 	char text[130];
-	int i, first;
+	int i, first, width;
+
+	// the player page keeps its right-hand side clear for the model and the
+	// spray, so its rows stop short of them; a line being typed into takes the
+	// whole width because the pictures are hidden behind the keyboard anyway
+	if (m_page == MP_MENU_PLAYER && !(m_editing && row == m_row))
+		width = 362;
+	else
+		width = 544;
 
 	DCV_TexState_Blend();
-	Box(48, y - 3, m_page == MP_MENU_PLAYER && row > 0 ? 362 : 544,
-		25, (int)(fade * (row == m_row ? 100 : 35)));
+	Box(48, y - 3, width, 25, (int)(fade * (row == m_row ? 100 : 35)));
 	Text(label, 56, y, 180, (int)(fade * 255));
 	if (m_editing && row == m_row)
 	{
@@ -6025,11 +6060,10 @@ void CMenuMultiplayerItem::Row( const char* label, const char* value, int row, i
 		else if (((int)(Sys_FloatTime() * 3) & 1) == 0)
 			text[m_cursor] = '_';
 		first = m_cursor > 24 ? m_cursor - 24 : 0;
-		Text(text + first, 240, y, 340, (int)(fade * 255));
+		Text(text + first, 240, y, width - 204, (int)(fade * 255));
 	}
 	else if (value)
-		Text(value, 240, y, m_page == MP_MENU_PLAYER && row > 0 ? 160 : 340,
-			(int)(fade * (row == m_row ? 255 : 160)));
+		Text(value, 240, y, width - 204, (int)(fade * (row == m_row ? 255 : 160)));
 }
 
 void CMenuMultiplayerItem::Draw( float fade, qboolean selected )
@@ -6084,9 +6118,12 @@ void CMenuMultiplayerItem::Draw( float fade, qboolean selected )
 		Text("PLAYER SETUP", 56, 140, 530, (int)(fade * 255));
 		Row("PLAYER NAME", Cvar_VariableString("name"), 0, 184, fade);
 		Row("PLAYER MODEL", m_models[m_model][0] ? m_models[m_model] : "GORDON", 1, 224, fade);
-		Row("SPRAY DECAL", mp_spray.string[0] ? mp_spray.string : "NONE", 2, 264, fade);
-		Row("CONTROLS", "Spray / scores / chat", 3, 304, fade);
-		Row("SAVE SETTINGS", "Memory card", 4, 344, fade);
+		// decal lumps are named with a leading brace, which is no use to a player
+		Row("SPRAY DECAL", mp_spray.string[0] ?
+			(mp_spray.string[0] == '{' ? mp_spray.string + 1 : mp_spray.string) : "NONE",
+			2, 264, fade);
+		Row("COMMUNICATION", NULL, 3, 304, fade);
+		Row("SAVE SETTINGS", NULL, 4, 344, fade);
 		Text("Spray changes apply on your next connection.", 56, 386, 350, (int)(fade * 180));
 		if (m_preview)
 		{
