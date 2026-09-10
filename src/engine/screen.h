@@ -65,6 +65,8 @@ void CL_StartProgressBar( void );
 void CL_StopProgressBar( void );
 qboolean CL_UpdateProgressBar( void );
 void CL_PollProgressBar( void );
+// Name the work in progress so a hang can be traced to the step that caused it
+void CL_SetProgressName( char* pszName );
 void DCV_SetProgress( int percent );
 extern float cl_progress_start;
 

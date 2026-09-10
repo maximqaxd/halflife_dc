@@ -13,7 +13,7 @@ extern "C" {
 
 static float g_zapNoFit = 10.0f;   // cost that never beats a plain literal
 
-extern "C" void Sys_SetTaskName( char *name );
+extern "C" void CL_SetProgressName( char *name );
 
 unsigned short g_zapPending;
 unsigned short g_zapBestOp;
@@ -1178,7 +1178,7 @@ int KZapCompress( byte *src, byte *dst, int len )
 		}
 
 		if (watch++ % 100 == 0)
-			Sys_SetTaskName("KZapCompress");
+			CL_SetProgressName("KZapCompress");
 	}
 
 	if (len < 0)
@@ -1225,7 +1225,7 @@ int KZapDecompress( byte *src, byte *dst )
 			cont = codec->Decode(&s, &d);
 		}
 		if (i % 100 == 0)
-			Sys_SetTaskName("KZapDecompress");
+			CL_SetProgressName("KZapDecompress");
 		i++;
 	} while (cont != 0);
 

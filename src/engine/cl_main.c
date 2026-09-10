@@ -19,7 +19,8 @@
 // Only send this many requests before timing out.
 #define CL_CONNECTION_RETRIES		4
 
-// Current long-running task, for the crash screen.
+// Name of the step the loading bar is on. Nothing reads it back; it is here
+// to be picked out of memory when a load stops making progress.
 static char g_szTaskName[64];
 #if HLDC_MP
 static int cl_serverload_progress = -1;
@@ -32,7 +33,7 @@ void CL_HudMessage( const char* pMessage )
 	DispatchDirectUserMsg("HudText", strlen(pMessage), (void*)pMessage);
 }
 
-void Sys_SetTaskName( char *name )
+void CL_SetProgressName( char *name )
 {
 	CL_UpdateProgressBar();
 	strncpy(g_szTaskName, name, 63);
@@ -1777,19 +1778,19 @@ void CL_SignonReply( void )
 		MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
 		sprintf(str, "spawn %i %s", cl.servercount, cls.spawnparms);
 		MSG_WriteString(&cls.netchan.message, str);
-		Sys_SetTaskName("CL_Signon 1");
+		CL_SetProgressName("CL_Signon 1");
 		break;
 
 	case 2:
 		MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
 		MSG_WriteString(&cls.netchan.message, "begin");
 		Cache_Report();
-		Sys_SetTaskName("CL_Signon 2");
+		CL_SetProgressName("CL_Signon 2");
 		break;
 
 	case 3:
 		SCR_EndLoadingPlaque();		// allow normal screen updates
-		Sys_SetTaskName("CL_Signon 3");
+		CL_SetProgressName("CL_Signon 3");
 		CL_StopProgressBar();
 		break;
 	}
@@ -3353,7 +3354,7 @@ void CL_StartProgressBar( void )
 	cl_progress_start = Sys_FloatTime();
 
 	DCV_SetProgress(0);
-	Sys_SetTaskName("start");
+	CL_SetProgressName("start");
 }
 
 /*
@@ -3365,7 +3366,7 @@ Loading is over; put the bar away.
 */
 void CL_StopProgressBar( void )
 {
-	Sys_SetTaskName("end");
+	CL_SetProgressName("end");
 	cl_progress_start = 0;
 #if HLDC_MP
 	cl_serverload_progress = -1;

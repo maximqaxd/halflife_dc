@@ -864,10 +864,10 @@ qboolean CL_RequestMissingResources( void )
 	if (p == &cl.resourcesneeded)
 	{
 		cls.downloadresource = NULL;
-		Sys_SetTaskName("Resource propagation complete");
+		CL_SetProgressName("Resource propagation complete");
 		CL_RegisterResources();
 		cls.doneregistering = TRUE;
-		Sys_SetTaskName("Resources registered");
+		CL_SetProgressName("Resources registered");
 		return FALSE;
 	}
 
@@ -1191,7 +1191,7 @@ void CL_ParseServerInfo( void )
 	CL_BeginServerLoad();
 	CL_SetServerLoadProgress(5);
 #endif
-	Sys_SetTaskName("CL_ParseServerInfo");
+	CL_SetProgressName("CL_ParseServerInfo");
 //
 // wipe the client_state_t struct
 //
@@ -1262,7 +1262,7 @@ void CL_ParseServerInfo( void )
 	str = MSG_ReadString();
 	strncpy(cl.levelname, str, sizeof(cl.levelname) - 1);
 
-	Sys_SetTaskName("Request resourcelist");
+	CL_SetProgressName("Request resourcelist");
 	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
 	MSG_WriteString(&cls.netchan.message, va("resourcelist %i 0", cl.servercount));
 
@@ -1806,7 +1806,7 @@ void CL_ParseServerMessage( void )
 	int	i, j;
 	int bufStart, bufEnd;
 
-	Sys_SetTaskName("CL_ParseServerMessage\n");
+	CL_SetProgressName("CL_ParseServerMessage\n");
 
 	if (cl_shownet.value == 1.0f)
 	{

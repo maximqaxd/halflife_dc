@@ -86,9 +86,6 @@ void Sys_FPrintf( void* fileid, char* fmt, ... );
 
 void DC_PrintFileCounts( void );
 
-// Name the work in progress so a hang can be traced to the step that caused it
-void Sys_SetTaskName( char* pszName );
-
 // Lock the drive door so a save can span discs
 void GDROM_ConfigureDoorBehavior( void );
 void GDROM_DoorReset( void );

@@ -327,28 +327,28 @@ model_t* Mod_LoadModel( model_t* mod, qboolean crash, qboolean bDefer )
 		CL_UpdateProgressBar();
 		Mod_LoadSpriteModel(mod, buf);
 		sprintf(taskname, "Loaded sprite model: %16s", mod->name);
-		Sys_SetTaskName(taskname);
+		CL_SetProgressName(taskname);
 		break;
 
 	case IDSTUDIOHEADER:
 		CL_UpdateProgressBar();
 		Mod_LoadStudioModel(mod, buf);
 		sprintf(taskname, "Loaded studio model: %16s", mod->name);
-		Sys_SetTaskName(taskname);
+		CL_SetProgressName(taskname);
 		break;
 
 	case IDSTUDIONEOHEADER:
 		CL_UpdateProgressBar();
 		Mod_LoadStudioNeoModel(mod, buf);
 		sprintf(taskname, "Loaded neo model: %16s", mod->name);
-		Sys_SetTaskName(taskname);
+		CL_SetProgressName(taskname);
 		break;
 
 	default:
 		CL_UpdateProgressBar();
 		Mod_LoadBrushModel(mod, buf);
 		sprintf(taskname, "Loaded brush model: %16s", mod->name);
-		Sys_SetTaskName(taskname);
+		CL_SetProgressName(taskname);
 		break;
 	}
 
@@ -633,7 +633,7 @@ void Mod_LoadTextures( lump_t* l )
 	if (hasPerMapWads)
 		Bremove_path(perMapWadPath);
 
-	Sys_SetTaskName("Sequencing texture animations");
+	CL_SetProgressName("Sequencing texture animations");
 
 //
 // sequence the animations
@@ -2093,7 +2093,7 @@ qboolean Mod_LoadWorldChunk( char* path, int lumpnum, dheader_t* header )
 	case LUMP_TEXTURES:
 		if (!Mod_LoadExternalTextureTable(path))
 		{
-			Sys_SetTaskName("Looked for compact texture info");
+			CL_SetProgressName("Looked for compact texture info");
 			Mod_LoadTextures(l);
 		}
 		break;
@@ -2205,7 +2205,7 @@ model_t* Mod_LoadModelWorldPiecewise( model_t* mod, qboolean crash )
 			mod->name, version, BSPVERSION);
 	}
 
-	Sys_SetTaskName("World header loaded");
+	CL_SetProgressName("World header loaded");
 
 	// swap all the lumps
 	for (i = 0; i < sizeof(dheader_t) / 4; i++)
@@ -2213,70 +2213,70 @@ model_t* Mod_LoadModelWorldPiecewise( model_t* mod, qboolean crash )
 
 	if (!Mod_LoadEntitiesChunk(mod->name, &header))
 		return NULL;
-	Sys_SetTaskName("Loaded world entities");
+	CL_SetProgressName("Loaded world entities");
 
 	if (!Mod_LoadWorldChunk(mod->name, LUMP_TEXTURES, &header))
 		return NULL;
-	Sys_SetTaskName("Loaded world textures");
+	CL_SetProgressName("Loaded world textures");
 
 	if (!Mod_LoadWorldChunk(mod->name, LUMP_VERTEXES, &header))
 		return NULL;
-	Sys_SetTaskName("Loaded world vertices");
+	CL_SetProgressName("Loaded world vertices");
 
 	if (!Mod_LoadWorldChunk(mod->name, LUMP_EDGES, &header))
 		return NULL;
-	Sys_SetTaskName("Loaded world edges");
+	CL_SetProgressName("Loaded world edges");
 
 	if (!Mod_LoadWorldChunk(mod->name, LUMP_SURFEDGES, &header))
 		return NULL;
-	Sys_SetTaskName("Loaded world surfedges");
+	CL_SetProgressName("Loaded world surfedges");
 
 	if (!Mod_LoadLightingChunk(mod->name, &header))
 		return NULL;
-	Sys_SetTaskName("Loaded world lighting");
+	CL_SetProgressName("Loaded world lighting");
 
 	if (!Mod_LoadWorldChunk(mod->name, LUMP_PLANES, &header))
 		return NULL;
-	Sys_SetTaskName("Loaded world planes");
+	CL_SetProgressName("Loaded world planes");
 
 	if (!Mod_LoadWorldChunk(mod->name, LUMP_TEXINFO, &header))
 		return NULL;
-	Sys_SetTaskName("Loaded world texinfo");
+	CL_SetProgressName("Loaded world texinfo");
 
 	if (!Mod_LoadWorldChunk(mod->name, LUMP_FACES, &header))
 		return NULL;
-	Sys_SetTaskName("Loaded world faces");
+	CL_SetProgressName("Loaded world faces");
 
 	if (!Mod_LoadWorldChunk(mod->name, LUMP_MARKSURFACES, &header))
 		return NULL;
-	Sys_SetTaskName("Loaded world marksurfs");
+	CL_SetProgressName("Loaded world marksurfs");
 
 	if (!Mod_LoadVisibilityChunk(mod->name, &header))
 		return NULL;
-	Sys_SetTaskName("Loaded world visibility");
+	CL_SetProgressName("Loaded world visibility");
 
 	if (!Mod_LoadWorldChunk(mod->name, LUMP_LEAFS, &header))
 		return NULL;
-	Sys_SetTaskName("Loaded world leaves");
+	CL_SetProgressName("Loaded world leaves");
 
 	if (!Mod_LoadWorldChunk(mod->name, LUMP_NODES, &header))
 		return NULL;
-	Sys_SetTaskName("Loaded world nodes");
+	CL_SetProgressName("Loaded world nodes");
 
 	if (!Mod_LoadWorldChunk(mod->name, LUMP_CLIPNODES, &header))
 		return NULL;
-	Sys_SetTaskName("Loaded world clipnodes");
+	CL_SetProgressName("Loaded world clipnodes");
 
 	if (!Mod_LoadWorldChunk(mod->name, LUMP_MODELS, &header))
 		return NULL;
-	Sys_SetTaskName("Loaded world models");
+	CL_SetProgressName("Loaded world models");
 
 	Mod_MakeHull0();
 
 	mod->numframes = 2;		// regular and alternate animation
 	mod->flags = 0;
 
-	Sys_SetTaskName("Loaded entire world");
+	CL_SetProgressName("Loaded entire world");
 
 //
 // set up the submodels (FIXME: this is confusing)
@@ -2313,7 +2313,7 @@ model_t* Mod_LoadModelWorldPiecewise( model_t* mod, qboolean crash )
 		}
 	}
 
-	Sys_SetTaskName("Set up world submodels");
+	CL_SetProgressName("Set up world submodels");
 
 	return world;
 }

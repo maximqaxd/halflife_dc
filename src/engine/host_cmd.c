@@ -926,7 +926,7 @@ void Host_Map( qboolean bIsDemo, char* mapstring, char* mapName, qboolean loadGa
 
 	con_backscroll = 0;
 	key_dest = key_game;			// remove console or menu
-	Sys_SetTaskName("client disconnected and server shut down");
+	CL_SetProgressName("client disconnected and server shut down");
 	SCR_BeginLoadingPlaque();
 
 	// stop sounds (especially looping!)
@@ -953,7 +953,7 @@ void Host_Map( qboolean bIsDemo, char* mapstring, char* mapName, qboolean loadGa
 	if (!SV_SpawnServer(bIsDemo, mapName, NULL))
 		return;
 
-	Sys_SetTaskName("SV_SpawnServer complete");
+	CL_SetProgressName("SV_SpawnServer complete");
 
 	if (loadGame)
 	{
@@ -962,19 +962,19 @@ void Host_Map( qboolean bIsDemo, char* mapstring, char* mapName, qboolean loadGa
 			SV_LoadEntities();
 		}
 
-		Sys_SetTaskName("entities loaded");
+		CL_SetProgressName("entities loaded");
 
 		sv.paused = TRUE;		// pause until all clients connect
 		sv.loadgame = TRUE;
 		SV_ActivateServer(FALSE);
-		Sys_SetTaskName("server activated");
+		CL_SetProgressName("server activated");
 	}
 	else
 	{
 		SV_LoadEntities();
-		Sys_SetTaskName("entities loaded");
+		CL_SetProgressName("entities loaded");
 		SV_ActivateServer(TRUE);
-		Sys_SetTaskName("server activated");
+		CL_SetProgressName("server activated");
 
 		if (!sv.active)
 			return;
@@ -1014,7 +1014,7 @@ void Host_Map( qboolean bIsDemo, char* mapstring, char* mapName, qboolean loadGa
 		Cmd_ExecuteString("connect local", src_client);
 	}
 
-	Sys_SetTaskName("local client connected");
+	CL_SetProgressName("local client connected");
 }
 
 /*
@@ -1077,9 +1077,9 @@ void Host_Map_f( void )
 	GL_UnloadTextures();
 	Cvar_Set("HostMap", name);
 
-	Sys_SetTaskName("About to Host_Map");
+	CL_SetProgressName("About to Host_Map");
 	Host_Map(FALSE, mapstring, name, FALSE);
-	Sys_SetTaskName("Host_Map complete");
+	CL_SetProgressName("Host_Map complete");
 }
 
 /*

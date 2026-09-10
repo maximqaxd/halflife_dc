@@ -789,7 +789,7 @@ int Bcompress_path( char *path )
 			return 1;
 
 		result = Bcompress(&g_bfiles[i]);
-		Sys_SetTaskName("Compressed a Bfile");
+		CL_SetProgressName("Compressed a Bfile");
 		return result;
 	}
 

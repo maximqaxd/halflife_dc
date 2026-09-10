@@ -218,7 +218,7 @@ int TEX_FindPerMapWads( const char* mapPath, char* outPath )
 	strcpy(wadList, "");
 	while (1)
 	{
-		Sys_SetTaskName("Looking for small per level wads");
+		CL_SetProgressName("Looking for small per level wads");
 		sprintf(wadProbe, "%s/%d_%s.wad", com_gamedir, i, mapPath);
 		if (!TEX_FileExists(wadProbe))
 			break;
@@ -255,7 +255,7 @@ qboolean TEX_BuildPerMapWadPath( const char* mapPath, char* outPath )
 	if (TEX_FindPerMapWads(mapPath, outPath))
 		return TRUE;
 
-	Sys_SetTaskName("Looking for monolithic per level wad");
+	CL_SetProgressName("Looking for monolithic per level wad");
 	file = Sys_OpenHandle(outPath, "rb");
 	if (!file)
 	{
@@ -310,7 +310,7 @@ void TEX_SelectLevelWad( int wadIndex )
 			Sys_CloseHandle(texfiles[wadIndex]);
 
 		Bfetch_disc(texpaths[wadIndex]);
-		Sys_SetTaskName("accelerating per-level WAD");
+		CL_SetProgressName("accelerating per-level WAD");
 		texfiles[wadIndex] = Sys_OpenHandle(texpaths[wadIndex], "rb");
 		currentTexFile = wadIndex;
 	}
