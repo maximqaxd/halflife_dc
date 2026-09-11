@@ -1521,6 +1521,24 @@ void SV_Physics_Step( edict_t* ent )
 
 /*
 =============
+SV_SetClientTimes
+
+=============
+*/
+void SV_SetClientTimes( void )
+{
+	int			i;
+	client_t*	cl;
+
+	for (i = 0, cl = svs.clients; i < svs.maxclients; i++, cl++)
+	{
+		if (cl->active || cl->spawned || cl->connected)
+			cl->svtimebase = sv.time;
+	}
+}
+
+/*
+=============
 SV_Physics
 
 Runs the main physics simulation loop against all entities

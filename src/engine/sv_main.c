@@ -1882,6 +1882,8 @@ void SV_ReadPackets( void )
 	float		time1, time2, time3, time4, time5, time6;
 	float		packettime, exectime, processtime;
 
+	SV_SetClientTimes();
+
 	packettime = 0;
 	exectime = 0;
 	processtime = 0;

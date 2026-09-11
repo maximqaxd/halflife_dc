@@ -487,6 +487,7 @@ void SV_Drop_f( void );
 // sv_phys.c
 //
 void SV_Physics( void );
+void SV_SetClientTimes( void );
 trace_t SV_Trace_Toss( edict_t* ent, edict_t* ignore );
 void SV_Impact( edict_t* e1, edict_t* e2, trace_t* ptrace );
 void SV_SetMoveVars( void );
