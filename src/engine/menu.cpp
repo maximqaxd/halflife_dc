@@ -2264,14 +2264,13 @@ int CMenuAttractItem::IsActive( void )
 ==================
 CMenuSaveHeaderItem::CMenuSaveHeaderItem
 
-Putting the save page up writes the slot the player is about to overwrite,
-so the list has something to show for it.
+Measure the save before the card list is scanned.
 ==================
 */
 CMenuSaveHeaderItem::CMenuSaveHeaderItem( CMenu* pMenu )
 	: CMenuItemBase(pMenu)
 {
-	Cbuf_AddText("save fake\nsav fake\n");
+	Cbuf_AddText("save fake.sav fake\n");
 }
 
 void CMenuSaveHeaderItem::Draw( float flFade, qboolean bSelected )
