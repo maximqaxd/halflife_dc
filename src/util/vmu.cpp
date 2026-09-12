@@ -88,10 +88,10 @@ public:
 };
 
 // Door state shared with the low-level GD-ROM driver.
-int					g_gdDoorOpened;
-int					g_gdDoorPending;
+int					g_gdDoorOpened = 0;
+int					g_gdDoorPending = 0;
 
-static int			vmuCurrentDevice;
+static int			vmuCurrentDevice = -1;
 
 #include "vmu_icons.inc"
 
