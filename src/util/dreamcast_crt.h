@@ -1,7 +1,9 @@
 #ifndef DREAMCAST_CRT_H
 #define DREAMCAST_CRT_H
 
+#ifndef HLDC_MP
 #define HLDC_MP 0
+#endif
 
 //
 // Opt-in corrections for defects that shipped in the Dreamcast game.
@@ -15,6 +17,11 @@
 //
 #ifndef HLDC_FIXES
 #define HLDC_FIXES 0
+#endif
+
+#if HLDC_MP
+#undef HLDC_FIXES
+#define HLDC_FIXES 1
 #endif
 
 #ifdef _WIN32_WCE
