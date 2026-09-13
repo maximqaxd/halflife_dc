@@ -33,6 +33,7 @@
 #include "../engine/shake.h"
 #include "decals.h"
 #include "gamerules.h"
+#include "game.h"
 
 // #define DUCKFIX
 
@@ -42,6 +43,7 @@ extern DLL_GLOBAL	BOOL	g_fDrawLines;
 int gEvilImpulse101;
 extern DLL_GLOBAL int		g_iSkillLevel, gDisplayTitle;
 extern "C" cvar_t terminator;
+extern "C" float host_frametime;
 
 float GetAutoaimAngle( float flEasy, float flMedium, float flHard )
 {
@@ -4581,21 +4583,34 @@ Vector CBasePlayer :: GetAutoaimVector( float flDelta )
 		angles.y = -12;
 
 
-	// always use non-sticky autoaim
-	// UNDONE: use sever variable to chose!
-	if (0 || g_iSkillLevel == SKILL_EASY)
-	{
-		m_vecAutoAim = m_vecAutoAim * 0.67f + angles * 0.33f;
-	}
+	float flAutoaimSpeed;
+	if ( terminator.value > 0 )
+		flAutoaimSpeed = 0.3f;
 	else
 	{
-		m_vecAutoAim = angles * 0.9f;
+		switch ( g_iSkillLevel )
+		{
+		case SKILL_EASY:
+		case SKILL_MEDIUM:
+		case SKILL_HARD:
+			flAutoaimSpeed = 0.2f;
+			break;
+		default:
+			flAutoaimSpeed = 0.1f;
+			break;
+		}
 	}
+
+	flAutoaimSpeed *= host_frametime / 0.1f;
+	if ( flAutoaimSpeed > 1.0f )
+		flAutoaimSpeed = 1.0f;
+
+	m_vecAutoAim = angles * flAutoaimSpeed + m_vecAutoAim * ( 1.0f - flAutoaimSpeed );
 
 	// m_vecAutoAim = m_vecAutoAim * 0.99;
 
 	// Don't send across network if sv_aim is 0
-	if ( CVAR_GET_FLOAT( "sv_aim" ) != 0 )
+	if ( g_psv_aim->value != 0 )
 	{
 		if ( m_vecAutoAim.x != m_lastx ||
 			 m_vecAutoAim.y != m_lasty )
@@ -4623,7 +4638,7 @@ Vector CBasePlayer :: AutoaimDeflection( Vector &vecSrc, float flDist, float flD
 	edict_t		*bestent;
 	TraceResult tr;
 
-	if ( CVAR_GET_FLOAT("sv_aim") == 0 )
+	if ( g_psv_aim->value == 0 )
 	{
 		m_fOnTarget = FALSE;
 		return g_vecZero;
