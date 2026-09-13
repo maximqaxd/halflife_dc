@@ -112,7 +112,11 @@ public:
 };
 inline Vector operator*(float fl, const Vector& v)	{ return v * fl; }
 #ifndef DotProduct
+#ifdef _SH4_
+inline float DotProduct(const Vector& a, const Vector& b) { return _Dot3dVW0((float *)&a, (float *)&b); }
+#else
 inline float DotProduct(const Vector& a, const Vector& b) { return(a.x*b.x+a.y*b.y+a.z*b.z); }
+#endif
 #endif
 #ifndef CrossProduct
 inline Vector CrossProduct(const Vector& a, const Vector& b) { return Vector( a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x ); }
