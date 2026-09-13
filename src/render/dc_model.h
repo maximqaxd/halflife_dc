@@ -103,7 +103,7 @@ typedef struct mclipplane_s
 typedef struct
 {
 	vec3_t	normal;
-	float	unused;		// hash-table occupancy/sentinel field, unused after lookup
+	float	padding;	// fourth word keeps each table entry 16-byte aligned
 } planenormal_t;
 
 extern planenormal_t* g_planeNormalTable;
@@ -116,7 +116,7 @@ typedef struct texture_s
 	char		name[16];
 	unsigned short width, height;
 	short		gl_texturenum;
-	short		reserved;
+	short		padding;
 	struct msurface_s* texturechain;
 	short		anim_total;				// total tenths in sequence ( 0 = no)
 	int			anim_min, anim_max;		// time for this frame min <=time< max
@@ -170,7 +170,7 @@ struct decal_s
 	short		entityIndex;	 // Entity this is attached to
 	unsigned short color;		 // ARGB4444 tint 
 	unsigned short scale;		 // scale, packed by FloatToShort
-	unsigned short reserved;
+	unsigned short padding;
 	float		dx;				 // Offsets into surface texture (texture coordinates)
 	float		dy;				
 	struct decal_s*	pnext;		 // linked list for each surface
@@ -431,7 +431,7 @@ typedef struct model_s
 {
 	char		name[48];		// Compact model-name buffer.
 	short		needload;		// bmodels and sprites don't cache normally
-	short		reserved;
+	short		padding;
 
 	modtype_t	type;
 	int			numframes;

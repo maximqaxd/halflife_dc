@@ -119,10 +119,10 @@ void PM_Duck( void )
 	int i;
 
 	Con_Printf("btn %i bInDuck %i FL_DUCKING %i ofs %.2f h %i ch %i pr %i",
-		(pmove.cmd.buttons & IN_DUCK) != 0, pmove.duck.active != 0,
+		(pmove.cmd.buttons & IN_DUCK) != 0, pmove.bInDuck != 0,
 		(pmove.flags & FL_DUCKING) != 0, pmove.view_ofs[2], pmove.usehull,
 		(buttonsChanged & IN_DUCK) != 0, (buttonsPressed & IN_DUCK) != 0);
-	if ((pmove.cmd.buttons & IN_DUCK) || pmove.duck.active || (pmove.flags & FL_DUCKING))
+	if ((pmove.cmd.buttons & IN_DUCK) || pmove.bInDuck || (pmove.flags & FL_DUCKING))
 	{
 		if (pmove.cmd.buttons & IN_DUCK)
 		{
@@ -131,13 +131,13 @@ void PM_Duck( void )
 			pmove.cmd.upmove *= PLAYER_DUCKING_MULTIPLIER;
 			if ((buttonsPressed & IN_DUCK) && !(pmove.flags & FL_DUCKING))
 			{
-				pmove.duck.time = pmove.time;
-				pmove.duck.active = TRUE;
+				pmove.flDuckTime = pmove.time;
+				pmove.bInDuck = TRUE;
 				Con_Printf("(new)");
 			}
-			elapsed = (pmove.time - pmove.duck.time) / 1000.0f;
+			elapsed = (pmove.time - pmove.flDuckTime) / 1000.0f;
 			Con_Printf("e %.2f", elapsed);
-			if (pmove.duck.active)
+			if (pmove.bInDuck)
 			{
 				if (elapsed >= 0.4f || onground == -1)
 				{
@@ -150,7 +150,7 @@ void PM_Duck( void )
 					pmove.usehull = 1;
 					pmove.view_ofs[2] = 12.0f;
 					pmove.flags |= FL_DUCKING;
-					pmove.duck.active = FALSE;
+					pmove.bInDuck = FALSE;
 				}
 				else
 				{
@@ -172,7 +172,7 @@ void PM_Duck( void )
 			if (!trace.startsolid)
 			{
 				pmove.flags &= ~FL_DUCKING;
-				pmove.duck.active = FALSE;
+				pmove.bInDuck = FALSE;
 				pmove.view_ofs[2] = 28.0f;
 				pmove.usehull = 0;
 				VectorCopy(newOrigin, pmove.origin);

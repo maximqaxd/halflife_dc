@@ -388,6 +388,8 @@ void SV_RunCmd( void )
 	VectorCopy(sv_player->v.v_angle, pmove.angles);
 	VectorCopy(sv_player->v.basevelocity, pmove.basevelocity);
 	VectorCopy(sv_player->v.view_ofs, pmove.view_ofs);
+	pmove.flDuckTime = host_client->flDuckTime;
+	pmove.bInDuck = host_client->bInDuck;
 
 	for (i = 0; i < 3; i++)
 	{
@@ -438,6 +440,8 @@ void SV_RunCmd( void )
 		pmove.friction = 1.0f;
 
 	host_client->oldbuttons = pmove.oldbuttons;
+	host_client->flDuckTime = pmove.flDuckTime;
+	host_client->bInDuck = pmove.bInDuck;
 	sv_player->v.teleport_time = pmove.waterjumptime;
 	sv_player->v.waterlevel = waterlevel;
 	sv_player->v.watertype = watertype;

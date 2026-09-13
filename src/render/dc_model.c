@@ -1487,7 +1487,7 @@ unsigned short Mod_AddNormalToTable( vec_t* normal, unsigned int hash )
 			entry->normal[0] = normal[0];
 			entry->normal[1] = normal[1];
 			entry->normal[2] = normal[2];
-			entry->unused = 0.0f;
+			entry->padding = 0.0f;
 			normal_count++;
 			return index;
 		}

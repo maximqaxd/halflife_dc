@@ -148,7 +148,13 @@ typedef struct
 	int			demonum;							// -1 = don't play demos
 	char		demos[MAX_DEMOS][MAX_DEMONAME];	// when not playing
 
-	byte		reserved1[28];
+	int			demorecording;
+	int			demoplayback;
+	int			timedemo;
+	float		demostarttime;
+	int			demostartframe;
+	int			forcetrack;
+	FILE*		demofile;
 	
 	FILE* download;						// file transfer from server
 	resource_t* downloadresource;		// the resource we're trying to retrieve from server
@@ -245,7 +251,7 @@ typedef struct
 
 	int			gaitsequence;
 	float		gaitframe;
-	int			reserved0;
+	float		gaityaw;
 
 	// If standing on conveyor, e.g.
 	vec3_t		basevelocity;
@@ -254,8 +260,9 @@ typedef struct
 	float		friction;
 
 	vec3_t		view_ofs;
-	int			reserved1;
-	int			reserved2;
+	float		flDuckTime;
+	qboolean	bInDuck;
+	short		duck_padding;
 	int			usehull;
 } player_state_t;
 
@@ -278,7 +285,7 @@ typedef struct
 	unsigned short	temp_entity_bytes;
 	unsigned short	sound_bytes;
 	unsigned short	message_bytes;
-	unsigned short	reserved;
+	unsigned short	padding;
 } frame_t;
 
 //
@@ -317,7 +324,7 @@ typedef struct
 
 	int			reserved0;
 	float		frame_lerp;
-	int			reserved1[6];
+	vec3_t		mviewangles[2];	// During demo playback viewangles are lerped between these
 
 	// the client maintains its own idea of view angles, which are
 	// sent to the server each frame.  The server sets punchangle when
@@ -345,7 +352,7 @@ typedef struct
 	float		laststop;
 
 	float		viewheight;
-	float		viewheight_unused;
+	float		crouch;
 
 	screenfade_t sf;
 
@@ -369,7 +376,7 @@ typedef struct
 
 	// Old Client clock
 	float		oldtime;
-	int			reserved2;
+	int			oldtime_padding;
 
 	frame_t		*frames;
 

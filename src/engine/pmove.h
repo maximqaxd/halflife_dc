@@ -68,16 +68,9 @@ typedef struct
 
 	// For ducking/dead
 	vec3_t		view_ofs;		// Our eye position.
-	union
-	{
-		int reserved[2];
-		struct
-		{
-			float time;
-			qboolean active;
-			short pad;
-		} duck;
-	};
+	float		flDuckTime;	// Time we started duck
+	qboolean	bInDuck;		// In process of ducking or ducked already?
+	short		duck_padding;
 
 	int			flags;			// FL_ONGROUND, FL_DUCKING, etc.
 	int			usehull;		// 0 = regular player hull, 1 = ducked player hull, 2 = point hull

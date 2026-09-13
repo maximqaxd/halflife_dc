@@ -43,7 +43,7 @@ typedef struct resource_s
 	char              szFileName[MAX_RESOURCE_FILENAME]; // File name to download/precache.
 	unsigned char     type;                              // t_sound, t_skin, t_model, t_decal.
 	unsigned char     ucFlags;
-	unsigned char     pad[2];
+	unsigned char     padding[2];
 	int               nIndex;                            // For t_decals.
 	struct resource_s* pNext;                            // Next in chain.
 	struct resource_s* pPrev;

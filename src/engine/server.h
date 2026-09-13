@@ -7,7 +7,7 @@
 
 #define	MAX_SIGNON_BUFFERS	16
 #define MAX_SOUNDS_HASHLOOKUP_SIZE	(MAX_SOUNDS * 2 - 1)
-#define MAX_GENERIC_PRECACHE_BYTES	0x800
+#define MAX_GENERIC_NAMES		32
 #define CLIENT_RESERVED_STATE_BYTES	48
 
 #define MAX_SVCHANNELS 10
@@ -128,7 +128,7 @@ typedef struct
 	short		sound_precache_hashedlookup[MAX_SOUNDS_HASHLOOKUP_SIZE];
 	short		sound_precache_hashedlookup_built;
 	char*		generic_precache[MAX_GENERIC];
-	byte		reserved_generic_precache[MAX_GENERIC_PRECACHE_BYTES];
+	char		generic_precache_names[MAX_GENERIC_NAMES][MAX_QPATH];
 	char*		lightstyles[MAX_LIGHTSTYLES];
 
 	int			num_edicts;
@@ -205,21 +205,22 @@ typedef struct client_s
 	qboolean spectator;	 // non-interactive
 
 	qboolean fakeclient; // JAC: This client is a fake player controlled by the game DLL
-	byte reserved1[10];
+	byte padding0[10];
 
 	usercmd_t lastcmd; // for filling in big drops and partial predictions
 
 	float localtime; // of last message
 
 	int		oldbuttons;
-	int		reserved2;
+	int		svtimebase_padding;
 	double	svtimebase;
-	byte	reserved3[CLIENT_RESERVED_STATE_BYTES];
+	byte	reserved_state[CLIENT_RESERVED_STATE_BYTES];
 
 	float	maxspeed; // localized maxspeed
-	int		reserved4;
-	int		pmove_state;
-	qboolean pmove_flags;
+	int		reserved2;
+	float	flDuckTime;
+	qboolean bInDuck;
+	short	duck_padding;
 
 	// the datagram is written to after every frame, but only cleared
 	// when it is sent out to the client.  overflow is tolerated.

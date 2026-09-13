@@ -14,7 +14,7 @@ typedef struct
 {
 	byte	controller[4];
 	byte	blending[2];
-	byte	reserved[2];
+	byte	padding[2];
 
 	short	entityType;  // Normal or Custom to know how to parse the entity.
 	short	skin;

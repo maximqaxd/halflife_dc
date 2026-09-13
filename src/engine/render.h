@@ -76,9 +76,9 @@ typedef struct cl_entity_s
 	vec3_t			attachment[4];
 
 	color24			rendercolor;
-	byte			reserved7;
+	byte			rendercolor_padding;
 	unsigned short	cvFloorColor;	// packed ARGB4444 floor lighting
-	byte			reserved8[2];
+	byte			baseline_padding[2];
 
 	entity_state_t	baseline;		// to fill in defaults in updates
 } cl_entity_t;
