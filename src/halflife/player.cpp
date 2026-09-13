@@ -41,6 +41,25 @@ extern DLL_GLOBAL BOOL		g_fGameOver;
 extern DLL_GLOBAL	BOOL	g_fDrawLines;
 int gEvilImpulse101;
 extern DLL_GLOBAL int		g_iSkillLevel, gDisplayTitle;
+extern "C" cvar_t terminator;
+
+float GetAutoaimAngle( float flEasy, float flMedium, float flHard )
+{
+	if ( terminator.value > 0 )
+		return 0.70710677f;
+
+	switch ( g_iSkillLevel )
+	{
+	case SKILL_EASY:
+		return flEasy;
+	case SKILL_MEDIUM:
+		return flMedium;
+	case SKILL_HARD:
+		return flHard;
+	}
+
+	return flMedium;
+}
 BOOL gInitHUD = TRUE;
 
 extern void CopyToBodyQue(entvars_t* pev);
@@ -1503,26 +1522,17 @@ void CBasePlayer::PlayerUse ( void )
 
 void CBasePlayer::Jump()
 {
-	float		flScale;
 	Vector		vecWallCheckDir;// direction we're tracing a line to find a wall when walljumping
 	Vector		vecAdjustedVelocity;
 	Vector		vecSpot;
 	TraceResult	tr;
+	float		flJumpTime = gpGlobals->time - m_flJumpTime;
 	
 	if (FBitSet(pev->flags, FL_WATERJUMP))
 		return;
 	
 	if (pev->waterlevel >= 2)
 	{
-		switch ((int)pev->watertype)
-		{
-		case CONTENT_WATER:	flScale = 100;	break;
-		case CONTENT_SLIME:	flScale =  80;	break;
-		default:			flScale =  50;	break;
-		}
-
-		pev->velocity.z = flScale;
-
 		// play swiming sound
 		if (m_flSwimTime < gpGlobals->time)
 		{
@@ -1542,11 +1552,21 @@ void CBasePlayer::Jump()
 
 	// If this isn't the first frame pressing the jump button, break out.
 	if ( !FBitSet( m_afButtonPressed, IN_JUMP ) )
-		return;         // don't pogo stick
+	{
+		if ( flJumpTime > 0.2f )
+		{
+			SetBits( pev->button, IN_DUCK );
+			SetBits( m_afButtonPressed, IN_DUCK );
+			Duck();
+		}
+		return;
+	}
 
 	if ( !(pev->flags & FL_ONGROUND) || !pev->groundentity )
 	{
-		return;
+		if ( flJumpTime > 0.5f ||
+			m_rgJumpState[0] || !m_fLongJump )
+			return;
 	}
 
 // many features in this function use v_forward, so makevectors now.
@@ -1560,35 +1580,58 @@ void CBasePlayer::Jump()
 
 	PlayStepSound(MapTextureTypeStepType(m_chTextureType), 1.0f);
 	
-	if ( FBitSet(pev->flags, FL_DUCKING ) || FBitSet(m_afPhysicsFlags, PFLAG_DUCKING) )
+	if ( !FBitSet(pev->flags, FL_DUCKING ) && !FBitSet(m_afPhysicsFlags, PFLAG_DUCKING) )
 	{
-		if ( m_fLongJump && (pev->button & IN_DUCK) && gpGlobals->time - m_flDuckTime < 1 && pev->velocity.Length() > 50 )
-		{// If jump pressed within a second of duck while moving, long jump!
-//			ALERT ( at_console, "LongJump!" );
-			
-			// play longjump 'servo' sound
-			if ( RANDOM_LONG(0,1) )
-			{
-				; // UNDONE: EMIT_SOUND(ENT(pev), CHAN_VOICE, "player/pl_pain2.wav", 1, ATTN_NORM);
-			}
-			else
-			{
-				; // UNDONE: EMIT_SOUND(ENT(pev), CHAN_VOICE, "player/pl_pain4.wav", 1, ATTN_NORM);
-			}
-
-			pev->punchangle.x = -5;
-			pev->velocity = gpGlobals->v_forward * (PLAYER_LONGJUMP_SPEED * 1.6f);
-			pev->velocity.z = sqrt( 2 * 800 * 56.0f ); // jump 56 units
-			SetAnimation( PLAYER_SUPERJUMP );
+		if ( flJumpTime >= 0.5f )
+		{
+			pev->velocity.z = sqrt( 2 * 800 * 45.0f );
+			m_flJumpTime = gpGlobals->time;
+			m_rgJumpState[0] = 0;
 		}
 		else
-		{// ducking jump
-			pev->velocity.z = sqrt( 2 * 800 * 45.0f ); // jump 45 units
+		{
+			float flVelocity = sqrt( pev->velocity.x * pev->velocity.x +
+				pev->velocity.y * pev->velocity.y );
+
+			if ( m_fLongJump && flVelocity > 50 )
+			{
+				if ( RANDOM_LONG(0,1) )
+					EMIT_SOUND(ENT(pev), CHAN_ITEM, "player/pl_long_jump.wav", 1, ATTN_NORM);
+				else
+					EMIT_SOUND(ENT(pev), CHAN_ITEM, "player/pl_long_jump.wav", 1, ATTN_NORM);
+
+				pev->punchangle.x = -5;
+				pev->velocity = gpGlobals->v_forward * (PLAYER_LONGJUMP_SPEED * 1.6f);
+				pev->velocity.z = sqrt( 2 * 800 * 56.0f );
+				SetAnimation( PLAYER_SUPERJUMP );
+			}
+
+			m_flJumpTime = gpGlobals->time;
+			m_rgJumpState[0] = 1;
 		}
 	}
 	else
 	{
-		pev->velocity.z = sqrt( 2 * 800 * 45.0f ); // jump 45 units
+		if ( !m_fLongJump || !(pev->button & IN_DUCK) || flJumpTime >= 1.0f ||
+			pev->velocity.Length() <= 50 )
+		{
+			pev->velocity.z = sqrt( 2 * 800 * 45.0f );
+		}
+		else
+		{
+			if ( RANDOM_LONG(0,1) )
+				EMIT_SOUND(ENT(pev), CHAN_ITEM, "player/pl_long_jump.wav", 1, ATTN_NORM);
+			else
+				EMIT_SOUND(ENT(pev), CHAN_ITEM, "player/pl_long_jump.wav", 1, ATTN_NORM);
+
+			pev->punchangle.x = -5;
+			pev->velocity = gpGlobals->v_forward * (PLAYER_LONGJUMP_SPEED * 1.6f);
+			pev->velocity.z = sqrt( 2 * 800 * 56.0f );
+			SetAnimation( PLAYER_SUPERJUMP );
+		}
+
+		m_flJumpTime = gpGlobals->time;
+		m_rgJumpState[0] = 1;
 	}
 	
 	// If you're standing on a conveyor, add it's velocity to yours (for momentum)
@@ -4604,10 +4647,13 @@ Vector CBasePlayer :: AutoaimDeflection( Vector &vecSrc, float flDist, float flD
 		if (!((pev->waterlevel != 3 && tr.pHit->v.waterlevel == 3) 
 			|| (pev->waterlevel == 3 && tr.pHit->v.waterlevel == 0)))
 		{
-			if (tr.pHit->v.takedamage == DAMAGE_AIM)
-				m_fOnTarget = TRUE;
+			if (Instance( tr.pHit )->IsAlive())
+			{
+				if (tr.pHit->v.takedamage == DAMAGE_AIM)
+					m_fOnTarget = TRUE;
 
-			return m_vecAutoAim;
+				return m_vecAutoAim;
+			}
 		}
 	}
 
@@ -4649,11 +4695,11 @@ Vector CBasePlayer :: AutoaimDeflection( Vector &vecSrc, float flDist, float flD
 		if (DotProduct (dir, gpGlobals->v_forward ) < 0)
 			continue;
 
-		dot = fabsf( DotProduct (dir, gpGlobals->v_right ) )
-			+ fabsf( DotProduct (dir, gpGlobals->v_up ) ) * 0.5f;
+		dot = fabs( DotProduct (dir, gpGlobals->v_right ) )
+			+ fabs( DotProduct (dir, gpGlobals->v_up ) ) * 0.5;
 
 		// tweek for distance
-		dot *= 1.0f + 0.2f * ((center - vecSrc).Length() / flDist);
+		dot *= 1.0 + 0.2 * ((center - vecSrc).Length() / flDist);
 
 		if (dot > bestdot)
 			continue;	// to far to turn

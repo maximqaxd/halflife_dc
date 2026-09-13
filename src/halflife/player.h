@@ -118,6 +118,8 @@ public:
 	float				m_flSwimTime;		// how long player has been underwater
 	float				m_flDuckTime;		// how long we've been ducking
 	float				m_flWallJumpTime;	// how long until next walljump
+	float				m_flJumpTime;
+	int					m_rgJumpState[2];
 
 	float				m_flSuitUpdate;					// when to play next suit update
 	int					m_rgSuitPlayList[CSUITPLAYLIST];// next sentencenum to play for suit update
@@ -292,8 +294,13 @@ public:
 
 #define AUTOAIM_2DEGREES  0.0348994967025
 #define AUTOAIM_5DEGREES  0.08715574274766
+#define AUTOAIM_7DEGREES  0.1218693434051
 #define AUTOAIM_8DEGREES  0.1391731009601
 #define AUTOAIM_10DEGREES 0.1736481776669
+#define AUTOAIM_12DEGREES 0.2079116908178
+#define AUTOAIM_15DEGREES 0.2588190451025
+
+float GetAutoaimAngle( float flEasy, float flMedium, float flHard );
 
 
 extern int	gmsgHudText;
