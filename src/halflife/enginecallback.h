@@ -79,6 +79,7 @@ inline void MESSAGE_BEGIN( int msg_dest, int msg_type, const float *pOrigin = NU
 #define CVAR_REGISTER	CVarRegister
 #define CVAR_GET_FLOAT	CVarGetFloat
 #define CVAR_GET_STRING	CVarGetString
+#define CVAR_GET_POINTER CVarGetPointer
 #define CVAR_SET_FLOAT	CVarSetFloat
 #define CVAR_SET_STRING	CVarSetString
 #define ALERT			AlertMessage

@@ -71,6 +71,7 @@ extern void PF_WriteEntity_I (int iValue);
 extern void CVarRegister (cvar_t *pCvar);
 extern float CVarGetFloat (const char *szVarName);
 extern const char* CVarGetString (const char *szVarName);
+extern cvar_t* CVarGetPointer (const char *szVarName);
 extern void CVarSetFloat (const char *szVarName, float flValue);
 extern void CVarSetString (const char *szVarName, const char *szValue);
 extern void AlertMessage (ALERT_TYPE atype, char *szFmt, ...);

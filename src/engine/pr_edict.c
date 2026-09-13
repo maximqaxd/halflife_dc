@@ -729,6 +729,11 @@ const char* CVarGetString( const char* szVarName )
 	return Cvar_VariableString((char*)szVarName);
 }
 
+cvar_t* CVarGetPointer( const char* szVarName )
+{
+	return Cvar_FindVar((char*)szVarName);
+}
+
 void CVarSetFloat( const char* szVarName, float flValue )
 {
 	Cvar_SetValue((char*)szVarName, flValue);
