@@ -135,91 +135,6 @@ void DCV_SubmitBatchGuarded( void )
 	}
 }
 
-/* Multiply two row-major D3D matrices with the SH-4 matrix/vector unit. */
-static __inline void DCV_MultiplyMatrixSH4( D3DMATRIX *out, const D3DMATRIX *left, const D3DMATRIX *right )
-{
-	__asm(
-		"frchg\n"
-		"fmov.s @r5+, fr0\n"  "fmov.s @r5+, fr4\n"
-		"fmov.s @r5+, fr8\n"  "fmov.s @r5+, fr12\n"
-		"fmov.s @r5+, fr1\n"  "fmov.s @r5+, fr5\n"
-		"fmov.s @r5+, fr9\n"  "fmov.s @r5+, fr13\n"
-		"fmov.s @r5+, fr2\n"  "fmov.s @r5+, fr6\n"
-		"fmov.s @r5+, fr10\n" "fmov.s @r5+, fr14\n"
-		"fmov.s @r5+, fr3\n"  "fmov.s @r5+, fr7\n"
-		"fmov.s @r5+, fr11\n" "fmov.s @r5, fr15\n"
-		"frchg\n"
-
-		"fmov.s @r6, fr0\n" "add #16, r6\n"
-		"fmov.s @r6, fr1\n" "add #16, r6\n"
-		"fmov.s @r6, fr2\n" "add #16, r6\n"
-		"fmov.s @r6, fr3\n" "ftrv xmtrx, fv0\n"
-		"fmov.s fr0, @r4\n" "add #16, r4\n"
-		"fmov.s fr1, @r4\n" "add #16, r4\n"
-		"fmov.s fr2, @r4\n" "add #16, r4\n"
-		"fmov.s fr3, @r4\n"
-
-		"add #-44, r6\n" "fmov.s @r6, fr0\n" "add #16, r6\n"
-		"fmov.s @r6, fr1\n" "add #16, r6\n"
-		"fmov.s @r6, fr2\n" "add #16, r6\n"
-		"fmov.s @r6, fr3\n" "ftrv xmtrx, fv0\n"
-		"add #-44, r4\n" "fmov.s fr0, @r4\n" "add #16, r4\n"
-		"fmov.s fr1, @r4\n" "add #16, r4\n"
-		"fmov.s fr2, @r4\n" "add #16, r4\n"
-		"fmov.s fr3, @r4\n"
-
-		"add #-44, r6\n" "fmov.s @r6, fr0\n" "add #16, r6\n"
-		"fmov.s @r6, fr1\n" "add #16, r6\n"
-		"fmov.s @r6, fr2\n" "add #16, r6\n"
-		"fmov.s @r6, fr3\n" "ftrv xmtrx, fv0\n"
-		"add #-44, r4\n" "fmov.s fr0, @r4\n" "add #16, r4\n"
-		"fmov.s fr1, @r4\n" "add #16, r4\n"
-		"fmov.s fr2, @r4\n" "add #16, r4\n"
-		"fmov.s fr3, @r4\n"
-
-		"add #-44, r6\n" "fmov.s @r6, fr0\n" "add #16, r6\n"
-		"fmov.s @r6, fr1\n" "add #16, r6\n"
-		"fmov.s @r6, fr2\n" "add #16, r6\n"
-		"fmov.s @r6, fr3\n" "ftrv xmtrx, fv0\n"
-		"add #-44, r4\n" "fmov.s fr0, @r4\n" "add #16, r4\n"
-		"fmov.s fr1, @r4\n" "add #16, r4\n"
-		"fmov.s fr2, @r4\n" "add #16, r4\n"
-		"fmov.s fr3, @r4\n",
-		out, left, right);
-}
-
-static __inline void DCV_TransformStudioLightSH4( float *out, const D3DMATRIX *matrix,
-	const D3DVECTOR *light )
-{
-	__asm(
-		"frchg\n"
-		"fmov.s @r5+, fr0\n"  "fmov.s @r5+, fr4\n"
-		"fmov.s @r5+, fr8\n"  "fmov.s @r5+, fr12\n"
-		"fmov.s @r5+, fr1\n"  "fmov.s @r5+, fr5\n"
-		"fmov.s @r5+, fr9\n"  "fmov.s @r5+, fr13\n"
-		"fmov.s @r5+, fr2\n"  "fmov.s @r5+, fr6\n"
-		"fmov.s @r5+, fr10\n" "fmov.s @r5+, fr14\n"
-		"fmov.s @r5+, fr3\n"  "fmov.s @r5+, fr7\n"
-		"fmov.s @r5+, fr11\n" "fmov.s @r5, fr15\n"
-		"frchg\n"
-		"frchg\n"
-		"fldi0 fr12\n"
-		"fldi0 fr13\n"
-		"fldi0 fr14\n"
-		"fldi0 fr15\n"
-		"frchg\n"
-		"fldi0 fr3\n"
-		"fmov.s @r6+, fr0\n"
-		"fmov.s @r6+, fr1\n"
-		"fmov.s @r6, fr2\n"
-		"ftrv xmtrx, fv0\n"
-		"add #12, r4\n"
-		"fmov.s fr2, @-r4\n"
-		"fmov.s fr1, @-r4\n"
-		"fmov.s fr0, @-r4\n",
-		out, matrix, light);
-}
-
 void DCV_SetupStudioLighting( const float (*boneMatrices)[4][4], int count )
 {
 	static D3DMATRIX projection;
@@ -250,9 +165,9 @@ void DCV_SetupStudioLighting( const float (*boneMatrices)[4][4], int count )
 		clip._41 = 0.5f;
 		clip._42 = 0.5f;
 
-		DCV_MultiplyMatrixSH4(&worldView, &world, &view);
-		DCV_MultiplyMatrixSH4(&worldViewProjection, &worldView, &projection);
-		DCV_MultiplyMatrixSH4(&studioTransform, &worldViewProjection, &clip);
+		_Multiply4dM((float *)&worldView, (float *)&world, (float *)&view);
+		_Multiply4dM((float *)&worldViewProjection, (float *)&worldView, (float *)&projection);
+		_Multiply4dM((float *)&studioTransform, (float *)&worldViewProjection, (float *)&clip);
 
 		xOffset = 0;
 		for (i = 0; i < count; i++)
@@ -279,7 +194,8 @@ void DCV_SetupStudioLighting( const float (*boneMatrices)[4][4], int count )
 			boneMatrix._43 = source->_34;
 			boneMatrix._44 = 1.0f;
 
-			DCV_MultiplyMatrixSH4(&transformedBone, &boneMatrix, &studioTransform);
+			_Multiply4dM((float *)&transformedBone, (float *)&boneMatrix,
+				(float *)&studioTransform);
 
 			matrix->_11 = *(float *)&xOffset;
 			matrix->_12 = transformedBone._11 * 640.0f + transformedBone._14 * *(float *)&xOffset;
@@ -298,8 +214,9 @@ void DCV_SetupStudioLighting( const float (*boneMatrices)[4][4], int count )
 			matrix->_43 = transformedBone._42 * -480.0f + transformedBone._44 * 480.0f;
 			matrix->_44 = transformedBone._44;
 
-			DCV_TransformStudioLightSH4(&((float *)g_pMultiMtx1)[i * 4 + 1], &boneMatrix,
-				&g_lightData[0].dvDirection);
+			_LoadMatrix((float *)&boneMatrix);
+			_XDXform3dV((float *)&g_lightData[0].dvDirection,
+				&((float *)g_pMultiMtx1)[i * 4 + 1]);
 			((float *)g_pMultiMtx1)[i * 4 + 0] = 0.0f;
 			((float *)g_pMultiMtx1)[i * 4 + 1] *= -251.0f;
 			((float *)g_pMultiMtx1)[i * 4 + 2] *= -251.0f;
