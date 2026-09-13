@@ -5634,9 +5634,7 @@ menupage_t* CMenu::FindPage( char* pszName )
 #define MP_MENU_PLAYER 0x111
 #define MP_MENU_CHAT 0x112
 
-static cvar_t mp_server = { "mp_server", "", FCVAR_ARCHIVE };
-// the lambda is what a player sprays until they pick something else
-static cvar_t mp_spray = { "mp_spray", "{lambda06", FCVAR_ARCHIVE };
+static char mp_server[MAX_QPATH];
 extern char message_type[32];
 
 class CMenuMultiplayerItem : public CMenuItemBase
@@ -5694,8 +5692,6 @@ static CMenuMultiplayerItem* g_pChatKeyboard;
 
 void UI_MultiplayerInit( void )
 {
-	Cvar_RegisterVariable(&mp_server);
-	Cvar_RegisterVariable(&mp_spray);
 }
 
 qboolean UI_MultiplayerKeyEvent( int key )
@@ -6082,7 +6078,7 @@ void CMenuMultiplayerItem::Draw( float fade, qboolean selected )
 	if (m_page == MP_MENU_ADDRESS)
 	{
 		Text("JOIN GAME", 56, 140, 530, (int)(fade * 255));
-		Row("SERVER ADDRESS", mp_server.string, 0, 174, fade);
+		Row("SERVER ADDRESS", mp_server, 0, 174, fade);
 		Row("PASSWORD", Cvar_VariableString("password")[0] ? "********" : "NONE", 1, 206, fade);
 		Row("REFRESH LAN", "Also query the address above", 2, 238, fade);
 		Text("SERVER", 56, 267, 245, (int)(fade * 180));
@@ -6118,8 +6114,8 @@ void CMenuMultiplayerItem::Draw( float fade, qboolean selected )
 		Row("PLAYER NAME", Cvar_VariableString("name"), 0, 184, fade);
 		Row("PLAYER MODEL", m_models[m_model][0] ? m_models[m_model] : "GORDON", 1, 224, fade);
 		// decal lumps are named with a leading brace, which is no use to a player
-		Row("SPRAY DECAL", mp_spray.string[0] ?
-			(mp_spray.string[0] == '{' ? mp_spray.string + 1 : mp_spray.string) : "NONE",
+		Row("SPRAY DECAL", CL_GetSprayName()[0] ?
+			(CL_GetSprayName()[0] == '{' ? CL_GetSprayName() + 1 : CL_GetSprayName()) : "NONE",
 			2, 264, fade);
 		Row("COMMUNICATION", NULL, 3, 304, fade);
 		Row("SAVE SETTINGS", NULL, 4, 344, fade);
@@ -6139,11 +6135,11 @@ void CMenuMultiplayerItem::Draw( float fade, qboolean selected )
 		}
 		else
 			Text("NO PREVIEW", 448, 260, 140, (int)(fade * 150));
-		if (decal_wad && mp_spray.string[0])
+		if (decal_wad && CL_GetSprayName()[0])
 		{
 			for (i = 0; i < decal_wad->lumpCount; i++)
 			{
-				if (!strcmp(decal_wad->lumps[i].name, mp_spray.string))
+				if (!strcmp(decal_wad->lumps[i].name, CL_GetSprayName()))
 				{
 					texture = Draw_DecalTexture(Draw_CacheIndex(decal_wad, decal_wad->lumps[i].name));
 					if (texture)
@@ -6207,8 +6203,13 @@ void CMenuMultiplayerItem::Accept( void )
 		}
 		key_dest = key_game;
 	}
+	else if (m_row == 0)
+	{
+		strncpy(mp_server, m_text, sizeof(mp_server) - 1);
+		mp_server[sizeof(mp_server) - 1] = 0;
+	}
 	else
-		Cvar_Set(m_row == 0 ? "mp_server" : "password", m_text);
+		Cvar_Set("password", m_text);
 	m_editing = FALSE;
 	memset(m_text, 0, sizeof(m_text));
 }
@@ -6244,16 +6245,16 @@ void CMenuMultiplayerItem::Spray( int direction )
 		return;
 	}
 	for (i = 0; i < count; i++)
-		if (!strcmp(decal_wad->lumps[i].name, mp_spray.string))
+		if (!strcmp(decal_wad->lumps[i].name, CL_GetSprayName()))
 			break;
 	i = (i + direction + count + 1) % (count + 1);
 	if (i == count)
 	{
-		Cvar_Set("mp_spray", "");
+		CL_SetSprayName("");
 		return;
 	}
 	if (CL_CanUploadSpray(decal_wad->lumps[i].name))
-		Cvar_Set("mp_spray", decal_wad->lumps[i].name);
+		CL_SetSprayName(decal_wad->lumps[i].name);
 	else
 		strcpy(m_status, "This decal cannot be used as a spray.");
 }
@@ -6296,23 +6297,24 @@ void CMenuMultiplayerItem::Select( void )
 	if (m_page == MP_MENU_ADDRESS)
 	{
 		if (m_row == 0)
-			Edit(mp_server.string, MAX_QPATH - 1);
+			Edit(mp_server, MAX_QPATH - 1);
 		else if (m_row == 1)
 			Edit(Cvar_VariableString("password"), MAX_QPATH - 1);
 		else if (m_row == 2)
 		{
 			m_firstServer = 0;
-			strcpy(m_status, CL_RefreshServerList(mp_server.string) ?
+			strcpy(m_status, CL_RefreshServerList(mp_server) ?
 				"Searching LAN and the selected server..." : "Could not resolve the server address.");
 		}
 		else if (m_row == 7)
-			Join(mp_server.string);
+			Join(mp_server);
 		else
 		{
 			if (CL_ServerListEntry(m_firstServer + m_row - 3))
 			{
-				Cvar_Set("mp_server", CL_ServerListAddress(m_firstServer + m_row - 3));
-				Join(mp_server.string);
+				strncpy(mp_server, CL_ServerListAddress(m_firstServer + m_row - 3), sizeof(mp_server) - 1);
+				mp_server[sizeof(mp_server) - 1] = 0;
+				Join(mp_server);
 			}
 		}
 	}

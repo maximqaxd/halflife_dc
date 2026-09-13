@@ -525,6 +525,7 @@ void SV_Info_f( void );
 
 extern cvar_t exportdicts;
 extern cvar_t exportsaves;
+extern cvar_t terminator;
 
 
 

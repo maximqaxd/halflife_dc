@@ -2,7 +2,6 @@
 
 #include "quakedef.h"
 
-cvar_t		r_cachestudio = { "r_cachestudio", "1" };
 cvar_t		r_norefresh = { "r_norefresh", "0" };
 cvar_t		r_drawentities = { "r_drawentities", "1" };
 cvar_t		r_drawviewmodel = { "r_drawviewmodel", "1" };
@@ -38,7 +37,6 @@ cvar_t		gl_spriteblend = { "gl_spriteblend", "1" };
 cvar_t		gl_lightholes = { "gl_lightholes", "1" };
 cvar_t		gl_zmax = { "gl_zmax", "4096" };
 cvar_t		gl_alphamin = { "gl_alphamin", "0.25" };
-cvar_t		gl_overdraw = { "gl_overdraw", "0" };
 cvar_t		gl_watersides = { "gl_watersides", "0" };
 cvar_t		gl_envmapsize = { "gl_envmapsize", "256" };
 

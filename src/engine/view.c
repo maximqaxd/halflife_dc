@@ -245,8 +245,8 @@ cshift_t	cshift_water = { { 130, 80, 50 }, 128 };
 cshift_t	cshift_slime = { { 0, 25, 5 }, 150 };
 cshift_t	cshift_lava = { { 255, 80, 0 }, 150 };
 
-cvar_t		v_gamma = { "gamma", "2.5", TRUE };		// monitor gamma
-cvar_t		v_brightness = { "brightness", "0.0", TRUE };	// low level light adjustment
+cvar_t		v_gamma = { "gamma", "2.5" };		// monitor gamma
+cvar_t		v_brightness = { "brightness", "0.0" };	// low level light adjustment
 cvar_t		v_lightgamma = { "lightgamma", "2.5" };
 cvar_t		v_texgamma = { "texgamma", "2.0" };		// source gamma of textures
 cvar_t		v_lambert = { "lambert", "1.5" };

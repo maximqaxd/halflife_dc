@@ -2,10 +2,10 @@
 
 #include "quakedef.h"
 
-cvar_t chase_back = { "chase_back", "100" };
-cvar_t chase_up = { "chase_up", "16" };
-cvar_t chase_right = { "chase_right", "0" };
-cvar_t chase_active = { "chase_active", "0" };
+cvar_t chase_back = { "chase_back", "100", FCVAR_SPONLY };
+cvar_t chase_up = { "chase_up", "16", FCVAR_SPONLY };
+cvar_t chase_right = { "chase_right", "0", FCVAR_SPONLY };
+cvar_t chase_active = { "chase_active", "0", FCVAR_SPONLY };
 
 vec3_t chase_pos;
 vec3_t chase_angles;

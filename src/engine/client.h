@@ -441,7 +441,6 @@ extern	cvar_t	cl_timeout;
 extern	cvar_t	cl_shownet;
 extern	cvar_t	cl_showsizes;
 extern	cvar_t	cl_nolerp;
-extern	cvar_t	cl_stats;
 extern	cvar_t	cl_spectator_password;
 
 extern	cvar_t	lookspring;
@@ -463,7 +462,6 @@ extern	cvar_t	cl_pred_maxtime;
 extern	cvar_t	cl_pred_fraction;
 extern	cvar_t	cl_solid_players;
 extern	cvar_t	cl_nodelta;
-extern	cvar_t	cl_printplayers;
 extern	cvar_t	cl_himodels;
 extern	cvar_t	cl_gaitestimation;
 

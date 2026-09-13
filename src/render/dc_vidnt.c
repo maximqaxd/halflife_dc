@@ -34,16 +34,16 @@ qboolean	gl_mtexable = FALSE;
 cvar_t		vid_d3d = { "vid_d3d", "0" };
 cvar_t		vid_mode = { "vid_mode", "0" };
 // Note that 0 is MODE_WINDOWED
-cvar_t		_vid_default_mode = { "_vid_default_mode", "0", FCVAR_ARCHIVE };
+cvar_t		_vid_default_mode = { "_vid_default_mode", "0" };
 // Note that 3 is MODE_FULLSCREEN_DEFAULT
-cvar_t		_vid_default_mode_win = { "_vid_default_mode_win", "3", FCVAR_ARCHIVE };
+cvar_t		_vid_default_mode_win = { "_vid_default_mode_win", "3" };
 cvar_t		vid_wait = { "vid_wait", "0" };
-cvar_t		vid_nopageflip = { "vid_nopageflip", "0", FCVAR_ARCHIVE };
-cvar_t		vid_wait_override = { "_vid_wait_override", "0", FCVAR_ARCHIVE };
-cvar_t		vid_config_x = { "vid_config_x", "800", FCVAR_ARCHIVE };
-cvar_t		vid_config_y = { "vid_config_y", "600", FCVAR_ARCHIVE };
-cvar_t		vid_stretch_by_2 = { "vid_stretch_by_2", "1", FCVAR_ARCHIVE };
-cvar_t		_windowed_mouse = { "_windowed_mouse", "0", FCVAR_ARCHIVE };
+cvar_t		vid_nopageflip = { "vid_nopageflip", "0" };
+cvar_t		vid_wait_override = { "_vid_wait_override", "0" };
+cvar_t		vid_config_x = { "vid_config_x", "800" };
+cvar_t		vid_config_y = { "vid_config_y", "600" };
+cvar_t		vid_stretch_by_2 = { "vid_stretch_by_2", "1" };
+cvar_t		_windowed_mouse = { "_windowed_mouse", "0" };
 
 int			window_center_x, window_center_y;
 RECT		window_rect;

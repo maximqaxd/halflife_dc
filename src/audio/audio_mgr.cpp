@@ -27,9 +27,9 @@ static float	s_laststereo;
 cvar_t	volume		= {"volume", "0.7", FCVAR_ARCHIVE};
 cvar_t	suitvolume	= {"suitvolume", "0.75", FCVAR_ARCHIVE};
 cvar_t	nosound		= {"nosound", "0"};
-cvar_t	snd_show	= {"snd_show", "0"};
-cvar_t	stereo_sep	= {"stereo_sep", "20"};
-cvar_t	stereo		= {"stereo", "0", FCVAR_ARCHIVE};
+cvar_t	snd_show	= {"snd_show", "0", FCVAR_SPONLY};
+cvar_t	stereo_sep	= {"stereo_sep", "20", FCVAR_ARCHIVE};
+cvar_t	stereo		= {"stereo", "0"};
 cvar_t	soundextra	= {"soundextra", "0"};
 
 /*

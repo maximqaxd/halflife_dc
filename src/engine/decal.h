@@ -15,6 +15,8 @@ extern "C" {
 
 #if HLDC_MP
 qboolean CL_CanUploadSpray( const char* name );
+const char* CL_GetSprayName( void );
+void CL_SetSprayName( const char* name );
 const byte* CL_GetSprayData( byte* hash, int size );
 #endif
 

@@ -20,6 +20,8 @@ cvar_t	sv_idealpitchscale = { "sv_idealpitchscale", "0.8" };
 cvar_t	sv_edgefriction = { "edgefriction", "2", FCVAR_SERVER };
 cvar_t	sv_maxspeed = { "sv_maxspeed", "320", FCVAR_SERVER };
 cvar_t	sv_accelerate = { "sv_accelerate", "10", FCVAR_SERVER };
+cvar_t	sv_rollspeed = { "sv_rollspeed", "200", FCVAR_SERVER };
+cvar_t	sv_rollangle = { "sv_rollangle", "2.0", FCVAR_SERVER };
 
 /*
 ===============

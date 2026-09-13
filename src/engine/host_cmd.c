@@ -4564,7 +4564,7 @@ void Host_InitCommands( void )
 
 	Cmd_AddCommand("keys", SV_Keys_f);
 
-	Cvar_RegisterVariable(&sv_language);
+	Cvar_RegisterVariable(&terminator);
 
 	Host_ClearSaveDirectory();
 }

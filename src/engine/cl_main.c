@@ -49,11 +49,10 @@ cvar_t	model = { "model", "", FCVAR_USERINFO };
 cvar_t	topcolor = { "topcolor", "0", FCVAR_USERINFO };
 cvar_t	bottomcolor = { "bottomcolor", "0", FCVAR_USERINFO };
 
-cvar_t	cl_timeout = { "cl_timeout", "305", TRUE };
+cvar_t	cl_timeout = { "cl_timeout", "305" };
 cvar_t	cl_shownet = { "cl_shownet", "0" };	// can be 0, 1, or 2
-cvar_t	cl_showsizes = { "cl_showsizes", "0" };
+cvar_t	cl_showsizes = { "cl_showsizes", "0", FCVAR_SPONLY };
 cvar_t	cl_nolerp = { "cl_nolerp", "0" };
-cvar_t	cl_stats = { "cl_stats", "0" };
 cvar_t	cl_spectator_password = { "cl_spectator_password", "0" };
 
 cvar_t	lookspring = { "lookspring", "0", TRUE };
@@ -61,7 +60,7 @@ cvar_t	lookstrafe = { "lookstrafe", "0", TRUE };
 cvar_t	sensitivity = { "sensitivity", "3", TRUE };
 float gMouseSensitivity;
 
-cvar_t	cl_skyname = { "cl_skyname", "desert", TRUE };
+cvar_t	cl_skyname = { "cl_skyname", "desert" };
 cvar_t	cl_skycolor_r = { "cl_skycolor_r", "0" };
 cvar_t	cl_skycolor_g = { "cl_skycolor_g", "0" };
 cvar_t	cl_skycolor_b = { "cl_skycolor_b", "0" };
@@ -75,7 +74,6 @@ cvar_t	cl_pred_maxtime = { "cl_pred_maxtime", "255" };
 cvar_t	cl_pred_fraction = { "cl_pred_fraction", "0.5" };
 cvar_t	cl_solid_players = { "cl_solid_players", "1" };
 cvar_t	cl_nodelta = { "cl_nodelta", "0" };
-cvar_t	cl_printplayers = { "cl_printplayers", "0" };
 cvar_t	cl_himodels = { "cl_himodels", "0" };
 cvar_t	cl_gaitestimation = { "cl_gaitestimation", "1" };
 
@@ -2494,6 +2492,18 @@ Starts file upload to server, handles both normal files and MD5-hashed resources
 static byte* cl_spraydata;
 static int cl_spraysize;
 static byte cl_sprayhash[16];
+static char cl_sprayname[16] = "{lambda06";
+
+const char* CL_GetSprayName( void )
+{
+	return cl_sprayname;
+}
+
+void CL_SetSprayName( const char* name )
+{
+	strncpy(cl_sprayname, name, sizeof(cl_sprayname) - 1);
+	cl_sprayname[sizeof(cl_sprayname) - 1] = 0;
+}
 
 static byte* CL_BuildSprayWad( byte* data, int length, int* size )
 {
@@ -2819,7 +2829,7 @@ void CL_CreateResourceList( void )
 	resource_t* resource;
 
 	cl.num_resources = 0;
-	CL_LoadSpray(sv.active ? "" : Cvar_VariableString("mp_spray"));
+	CL_LoadSpray(sv.active ? "" : CL_GetSprayName());
 	if (!cl_spraydata)
 		return;
 	resource = &cl.resourcelist[0];

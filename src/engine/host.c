@@ -82,31 +82,16 @@ float g_fFrameTime = 0.0f;
 cvar_t	host_framerate = { "host_framerate", "0" };
 cvar_t	host_speeds = { "host_speeds", "0" };			// set for running times
 cvar_t	host_killtime = { "host_killtime", "0" };
-cvar_t	sys_ticrate = { "sys_ticrate", "0.05" };
-
 cvar_t	serverprofile = { "serverprofile", "0" };
-
-// multiplayer server rules
-cvar_t	fraglimit = { "mp_fraglimit", "0", FCVAR_SERVER };
-cvar_t	timelimit = { "mp_timelimit", "0", FCVAR_SERVER };
-cvar_t	teamplay = { "mp_teamplay", "0", FCVAR_SERVER };
-cvar_t	friendlyfire = { "mp_friendlyfire", "0", FCVAR_SERVER };
-cvar_t	falldamage = { "mp_falldamage", "0", FCVAR_SERVER };
-cvar_t	weaponstay = { "mp_weaponstay", "0", FCVAR_SERVER };
-cvar_t	forcerespawn = { "mp_forcerespawn", "1", FCVAR_SERVER };
 
 cvar_t	mp_logfile = { "mp_logfile", "1", FCVAR_SERVER };
 cvar_t	mp_logecho = { "mp_logecho", "1", FCVAR_SERVER };
 
 cvar_t	developer = { "developer", "0" };
 
-cvar_t	displaysoundlist = { "displaysoundlist", "0" };
-
 cvar_t	skill = { "skill", "1" };						// 0 - 3
 cvar_t	deathmatch = { "deathmatch", "0", FCVAR_SERVER };			// 0, 1, or 2
 cvar_t	coop = { "coop", "0", FCVAR_SERVER };
-
-cvar_t	mapcyclefile = { "mapcyclefile", "mapcycle.txt" };
 
 cvar_t	pausable = { "pausable", "1", FCVAR_SERVER };
 

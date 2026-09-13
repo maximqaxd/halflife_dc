@@ -65,25 +65,17 @@ cvar_t	sv_newunit = { "sv_newunit", "0" };
 
 cvar_t	showtriggers = { "showtriggers", "0" };
 cvar_t	laddermode = { "laddermode", "0" };
-cvar_t	sv_clienttrace = { "sv_clienttrace", "1", FALSE, TRUE };
+cvar_t	sv_clienttrace = { "sv_clienttrace", "1", FCVAR_SERVER };
 
-cvar_t	timeout = { "sv_timeout", "65", FALSE, TRUE };
+cvar_t	timeout = { "sv_timeout", "65", FCVAR_SERVER };
 cvar_t	sv_challengetime = { "sv_challengetime", "15.0" };
 
-cvar_t	sv_cheats = { "sv_cheats", "1", FALSE, TRUE };
-cvar_t	sv_rollspeed = { "sv_rollspeed", "200", FCVAR_SERVER };
-cvar_t	sv_rollangle = { "sv_rollangle", "2.0", FCVAR_SERVER };
-cvar_t	sv_uploadinterval = { "sv_uploadinterval", "1.0f" };
+cvar_t	sv_cheats = { "sv_cheats", "1", FCVAR_SERVER };
 
 cvar_t	spectator_password = { "sv_spectator_password", "" };	// password for entering as a sepctator
-cvar_t	max_spectators = { "sv_maxspectators", "8", FALSE, TRUE };
-cvar_t	sv_spectalk = { "sv_spectalk", "1", FALSE, TRUE };
-cvar_t	sv_password = { "sv_password", "" };	// password for entering the game
-
-#if HLDC_MP
-cvar_t	sv_masterprint = { "sv_masterprint", "1" };
-cvar_t	sv_masterprinttime = { "sv_masterprinttime", "5.0" };
-#endif
+cvar_t	max_spectators = { "sv_maxspectators", "8", FCVAR_SERVER };
+cvar_t	sv_spectalk = { "sv_spectalk", "1", FCVAR_SERVER };
+cvar_t	sv_password = { "sv_password", "", FCVAR_SERVER | FCVAR_PROTECTED };	// password for entering the game
 
 cvar_t	sv_netsize = { "sv_netsize", "0" };
 
@@ -97,6 +89,7 @@ cvar_t	sv_showcmd = { "sv_showcmd", "0" };
 // are written, so a save can be inspected off the machine
 cvar_t	exportdicts = { "exportdicts", "0" };
 cvar_t	exportsaves = { "exportsaves", "0" };
+cvar_t	terminator = { "terminator", "0" };
 
 int sv_playermodel;
 
@@ -1751,13 +1744,10 @@ void SVC_MasterPrint( void )
 	if (!pMsg)
 		return;
 
-	if (sv_masterprint.value)
+	if ((realtime - gfLastMasterPrintTime) >= 5.0f)
 	{
-		if ((realtime - gfLastMasterPrintTime) >= sv_masterprinttime.value)
-		{
-			gfLastMasterPrintTime = realtime;
-			Con_Printf("%s\n", pMsg);
-		}
+		gfLastMasterPrintTime = realtime;
+		Con_Printf("%s\n", pMsg);
 	}
 }
 #endif

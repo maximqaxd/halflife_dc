@@ -3,6 +3,8 @@
 #include "decal.h"
 #include "hashpak.h"
 
+cvar_t sv_uploadinterval = { "sv_uploadinterval", "1.0f" };
+
 void SV_RecordUploadStats( void )
 {
 	downloadtime_t* sample;
