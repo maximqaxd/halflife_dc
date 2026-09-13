@@ -24,6 +24,7 @@
 #include	"schedule.h"
 #include	"decals.h"
 #include	"weapons.h"
+#include	"game.h"
 
 
 #define SF_INFOBM_RUN		0x0001
@@ -1107,7 +1108,7 @@ Vector VecCheckSplatToss( entvars_t *pev, const Vector &vecSpot1, Vector vecSpot
 	Vector			vecScale;
 	Vector			vecGrenadeVel;
 	Vector			vecTemp;
-	float			flGravity = CVAR_GET_FLOAT( "sv_gravity" );
+	float			flGravity = g_psv_gravity->value;
 
 	// calculate the midpoint and apex of the 'triangle'
 	vecMidPoint = vecSpot1 + (vecSpot2 - vecSpot1) * 0.5f;

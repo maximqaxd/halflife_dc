@@ -39,4 +39,8 @@ extern cvar_t	teamlist;
 extern cvar_t	teamoverride;
 extern cvar_t	defaultteam;
 
+// Engine Cvars
+extern cvar_t	*g_psv_gravity;
+extern cvar_t	*g_psv_aim;
+
 #endif		// GAME_H

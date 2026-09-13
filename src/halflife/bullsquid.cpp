@@ -25,6 +25,7 @@
 #include	"effects.h"
 #include	"decals.h"
 #include	"soundent.h"
+#include	"game.h"
 
 #define		SQUID_SPRINT_DIST	256 // how close the squid has to get before starting to sprint and refusing to swerve
 
@@ -621,7 +622,7 @@ void CBullsquid :: HandleAnimEvent( MonsterEvent_t *pEvent )
 
 		case BSQUID_AE_HOP:
 		{
-			float flGravity = CVAR_GET_FLOAT( "sv_gravity" );
+			float flGravity = g_psv_gravity->value;
 
 			// throw the squid up into the air on this frame.
 			if ( FBitSet ( pev->flags, FL_ONGROUND ) )

@@ -26,6 +26,7 @@
 #include	"squadmonster.h"
 #include	"weapons.h"
 #include	"soundent.h"
+#include	"game.h"
 
 extern DLL_GLOBAL int  g_iSkillLevel;
 
@@ -637,7 +638,7 @@ BOOL CHAssassin :: CheckMeleeAttack1 ( float flDot, float flDist )
 			return FALSE;
 		}
 
-		float flGravity = CVAR_GET_FLOAT( "sv_gravity" );
+		float flGravity = g_psv_gravity->value;
 
 		float time = sqrtf( 160 / (0.5f * flGravity));
 		float speed = flGravity * time / 160;

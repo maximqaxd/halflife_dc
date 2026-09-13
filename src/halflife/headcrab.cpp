@@ -21,6 +21,7 @@
 #include	"cbase.h"
 #include	"monsters.h"
 #include	"schedule.h"
+#include	"game.h"
 
 
 //=========================================================
@@ -242,7 +243,7 @@ void CHeadCrab :: HandleAnimEvent( MonsterEvent_t *pEvent )
 			Vector vecJumpDir;
 			if (m_hEnemy != NULL)
 			{
-				float gravity = CVAR_GET_FLOAT( "sv_gravity" );
+				float gravity = g_psv_gravity->value;
 				if (gravity <= 1)
 					gravity = 1;
 

@@ -25,6 +25,7 @@
 #include	"nodes.h"
 #include	"squadmonster.h"
 #include	"soundent.h"
+#include	"game.h"
 
 extern CGraph WorldGraph;
 
@@ -286,7 +287,7 @@ void CHoundeye :: HandleAnimEvent( MonsterEvent_t *pEvent )
 
 		case HOUND_AE_HOPBACK:
 			{
-				float flGravity = CVAR_GET_FLOAT( "sv_gravity" );
+				float flGravity = g_psv_gravity->value;
 
 				pev->flags &= ~FL_ONGROUND;
 

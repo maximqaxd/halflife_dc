@@ -23,6 +23,10 @@ cvar_t  mapcyclefile = {"mapcyclefile","mapcycle.txt"};
 cvar_t  servercfgfile = {"servercfgfile","server.cfg"};
 cvar_t  lservercfgfile = {"lservercfgfile","listenserver.cfg"};
 
+// Engine Cvars
+cvar_t	*g_psv_gravity = NULL;
+cvar_t	*g_psv_aim = NULL;
+
 // multiplayer server rules
 cvar_t	teamplay	= {"mp_teamplay","0", FCVAR_SERVER };
 cvar_t	fraglimit	= {"mp_fraglimit","0", FCVAR_SERVER };
@@ -447,6 +451,8 @@ cvar_t	sk_player_leg3	= { "sk_player_leg3","1" };
 void GameDLLInit( void )
 {
 	// Register cvars here:
+	g_psv_gravity = CVAR_GET_POINTER( "sv_gravity" );
+	g_psv_aim = CVAR_GET_POINTER( "sv_aim" );
 
 	CVAR_REGISTER (&displaysoundlist);
 	CVAR_REGISTER (&mapcyclefile);
