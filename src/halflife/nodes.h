@@ -181,6 +181,7 @@ public:
 	int		FLoadGraph(char *szMapName);
 	int		FSaveGraph(char *szMapName);
 	int		FSetGraphPointers(void);
+	void	CheckNodeData(void);
 	void	CheckNode(Vector vecOrigin, int iNode);
 
 	void    BuildRegionTables(void);

@@ -34,10 +34,12 @@
 #define	MAX_NODES               1024
 
 extern DLL_GLOBAL edict_t		*g_pBodyQueueHead;
+extern "C" void Sys_Error( char *error, ... );
 
 Vector VecBModelOrigin( entvars_t* pevBModel );
 
 CGraph	WorldGraph;
+static int g_iNodeDataChecks;
 
 LINK_ENTITY_TO_CLASS( info_node, CNodeEnt );
 LINK_ENTITY_TO_CLASS( info_node_air, CNodeEnt );
@@ -209,6 +211,8 @@ int	CGraph :: HandleLinkEnt ( int iNode, entvars_t *pevLinkEnt, int afCapMask, N
 	edict_t  *pentWorld;
 	CBaseEntity	*pDoor;
 	TraceResult	tr;
+
+	CheckNodeData();
 
 	if ( !m_fGraphPresent || !m_fGraphPointersSet )
 	{// protect us in the case that the node graph isn't available
@@ -578,6 +582,8 @@ int CGraph :: FindShortestPath ( int *piPath, int iStart, int iDest, int iHull, 
 	int		iNumPathNodes;
 	int		iHullMask;
 
+	CheckNodeData();
+
 	if ( !m_fGraphPresent || !m_fGraphPointersSet )
 	{// protect us in the case that the node graph isn't available or built
 		ALERT ( at_aiconsole, "Graph not ready!\n" );
@@ -808,8 +814,24 @@ void inline UpdateRange(int &minValue, int &maxValue, int Goal, int Best)
     if (minValue < Lower) minValue = Lower;
 }
 
+void CGraph :: CheckNodeData(void)
+{
+	for (int i = 0; i < m_cNodes; i++)
+	{
+		if (m_di[i].m_SortedBy[0] >= m_cNodes)
+			Sys_Error("Node data corrupted.");
+		if (m_di[i].m_SortedBy[1] >= m_cNodes)
+			Sys_Error("Node data corrupted.");
+		if (m_di[i].m_SortedBy[2] >= m_cNodes)
+			Sys_Error("Node data corrupted.");
+	}
+	g_iNodeDataChecks++;
+}
+
 void CGraph :: CheckNode(Vector vecOrigin, int iNode)
 {
+	CheckNodeData();
+
     // Have we already seen this point before?.
     //
     if (m_di[iNode].m_CheckedEvent == m_CheckedCounter) return;
@@ -866,6 +888,8 @@ int	CGraph :: FindNearestNode ( const Vector &vecOrigin,  int afNodeTypes )
 		ALERT ( at_aiconsole, "Graph not ready!\n" );
 		return -1;
 	}
+
+	CheckNodeData();
 
 	// Check with the cache
 	//
