@@ -193,7 +193,7 @@ void CMP5::PrimaryAttack()
 					+ gpGlobals->v_right * 4, vecShellVelocity, pev->angles.y, m_iShell, TE_BOUNCE_SHELL); 
 	
 	Vector vecSrc	 = m_pPlayer->GetGunPosition( );
-	Vector vecAiming = m_pPlayer->GetAutoaimVector( AUTOAIM_5DEGREES );
+	Vector vecAiming = m_pPlayer->GetAutoaimVector( GetAutoaimAngle( AUTOAIM_12DEGREES, AUTOAIM_10DEGREES, AUTOAIM_7DEGREES ) );
 	
 	if ( g_pGameRules->IsDeathmatch() )
 	{
@@ -290,7 +290,7 @@ void CMP5::WeaponIdle( void )
 {
 	ResetEmptySound( );
 
-	m_pPlayer->GetAutoaimVector( AUTOAIM_5DEGREES );
+	m_pPlayer->GetAutoaimVector( GetAutoaimAngle( AUTOAIM_12DEGREES, AUTOAIM_10DEGREES, AUTOAIM_7DEGREES ) );
 
 	if (m_flTimeWeaponIdle > gpGlobals->time)
 		return;

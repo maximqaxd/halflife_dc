@@ -2380,4 +2380,9 @@ void SR_Register_CGunTarget( void )
 	SR_REGISTER( "FB", CGunTarget, Start );
 	SR_REGISTER( "YJ", CGunTarget, Wait );
 }
+
+void SR_Register_CBasePlatTrain( void )
+{
+
+}
 // END GENERATED SAVE-RESTORE EXPORTS

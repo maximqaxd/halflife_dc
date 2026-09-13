@@ -41,9 +41,8 @@ BOOL WINAPI DllMain(
 	return TRUE;
 }
 
-// Engine services link directly; GameDLL_RegisterModules supplies gpGlobals.
 extern "C" {
-globalvars_t  *gpGlobals;
+globalvars_t  *gpGlobals = &gGlobalVariables;
 }
 
 // Exported for compatibility; the static build never routes through it.

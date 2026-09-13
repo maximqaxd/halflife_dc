@@ -340,7 +340,7 @@ void CGauss::StartFire( void )
 	float flDamage;
 	
 	UTIL_MakeVectors( m_pPlayer->pev->v_angle + m_pPlayer->pev->punchangle );
-	Vector vecAiming = gpGlobals->v_forward;
+	Vector vecAiming = m_pPlayer->GetAutoaimVector( GetAutoaimAngle( AUTOAIM_10DEGREES, AUTOAIM_7DEGREES, AUTOAIM_5DEGREES ) );
 	Vector vecSrc = m_pPlayer->GetGunPosition( ); // + gpGlobals->v_up * -8 + gpGlobals->v_right * 8;
 	
 	if (gpGlobals->time - m_flStartCharge > GetFullChargeTime())
@@ -861,5 +861,10 @@ void SR_Register_gauss( void )
 {
 	SR_REGISTER( "EI", CBaseEntity, SUB_FadeOut );
 	SR_REGISTER( "EJ", CBaseEntity, SUB_Remove );
+}
+
+void SR_Register_CGaussAmmo( void )
+{
+
 }
 // END GENERATED SAVE-RESTORE EXPORTS

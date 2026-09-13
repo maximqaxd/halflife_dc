@@ -1009,4 +1009,9 @@ void SR_Register_CBreakable( void )
 	SR_REGISTER( "CJ", CBreakable, Die );
 	SR_REGISTER( "CK", CBaseEntity, SUB_Remove );
 }
+
+void SR_Register_CPushable( void )
+{
+
+}
 // END GENERATED SAVE-RESTORE EXPORTS

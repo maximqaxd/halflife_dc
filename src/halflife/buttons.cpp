@@ -1320,14 +1320,6 @@ void SR_Register_CBaseButton( void )
 	SR_REGISTER( "YB", CBaseButton, ButtonBackHome );
 }
 
-void SR_Register_buttons( void )
-{
-	SR_REGISTER( "BH", CBaseEntity, SUB_StartFadeOut );
-	SR_REGISTER( "BC", CBaseEntity, SUB_CallUseToggle );
-	SR_REGISTER( "BD", CBaseEntity, SUB_FadeOut );
-	SR_REGISTER( "BE", CBaseEntity, SUB_Remove );
-}
-
 void SR_Register_CEnvSpark( void )
 {
 	SR_REGISTER( "DH", CEnvSpark, SparkStart );

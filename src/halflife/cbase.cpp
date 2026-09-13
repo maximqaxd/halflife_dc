@@ -21,6 +21,12 @@
 #include	"gamerules.h"
 #include	"game.h"
 
+#define SAVE_EXPORT(name) void SR_Register_##name( void );
+#define SAVE_EXPORT_DIRECT(code, className, functionName)
+#include "saveexports.inc"
+#undef SAVE_EXPORT_DIRECT
+#undef SAVE_EXPORT
+
 //
 // Dreamcast static-link export registry.  There is no PE export table to
 // walk, so at startup every game module registers its savable function
@@ -109,10 +115,6 @@ extern "C" void GameDLL_RegisterModules( void )
 {
 	int i;
 
-	// The engine and game share one image, so point the game's globals at the
-	// engine's directly rather than receiving them through GiveFnptrsToDll.
-	gpGlobals = &gGlobalVariables;
-
 	for (i = 0; i < MAX_EXPORTS; i++)
 	{
 		gExportTable[i].function = 0;
@@ -122,7 +124,14 @@ extern "C" void GameDLL_RegisterModules( void )
 	gExportTable[0].function = 0;
 	gExportTable[0].pName = "(null)";
 
-	GameDLL_RegisterSaveExports();
+#define SAVE_EXPORT(name) SR_Register_##name();
+#define SAVE_EXPORT_DIRECT(code, className, functionName) \
+	{ union { void (className::*mfp)(); unsigned int addr; } u; \
+	  u.mfp = (void (className::*)())&className::functionName; \
+	  Sys_RegisterExport(code, u.addr); }
+#include "saveexports.inc"
+#undef SAVE_EXPORT_DIRECT
+#undef SAVE_EXPORT
 }
 
 void EntvarsKeyvalue( entvars_t *pev, KeyValueData *pkvd );

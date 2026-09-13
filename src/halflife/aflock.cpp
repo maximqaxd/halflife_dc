@@ -935,4 +935,9 @@ void SR_Register_CFlockingFlyer( void )
 	SR_REGISTER( "DN", CFlockingFlyer, IdleThink );
 	SR_REGISTER( "DO", CFlockingFlyer, Start );
 }
+
+void SR_Register_CFlockingFlyerFlock( void )
+{
+
+}
 // END GENERATED SAVE-RESTORE EXPORTS

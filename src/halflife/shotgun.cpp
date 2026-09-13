@@ -192,7 +192,7 @@ void CShotgun::PrimaryAttack()
 	
 
 	Vector vecSrc	 = m_pPlayer->GetGunPosition( );
-	Vector vecAiming = m_pPlayer->GetAutoaimVector( AUTOAIM_5DEGREES );
+	Vector vecAiming = m_pPlayer->GetAutoaimVector( GetAutoaimAngle( AUTOAIM_10DEGREES, AUTOAIM_7DEGREES, AUTOAIM_5DEGREES ) );
 
 	if ( g_pGameRules->IsDeathmatch() )
 	{
@@ -269,7 +269,7 @@ void CShotgun::SecondaryAttack( void )
 	EMIT_SOUND_DYN(ENT(m_pPlayer->pev), CHAN_WEAPON, "weapons/dbarrel1.wav", RANDOM_FLOAT(0.98, 1.0), ATTN_NORM, 0, 85 + RANDOM_LONG(0,0x1f));
 	
 	Vector vecSrc	 = m_pPlayer->GetGunPosition( );
-	Vector vecAiming = m_pPlayer->GetAutoaimVector( AUTOAIM_5DEGREES );
+	Vector vecAiming = m_pPlayer->GetAutoaimVector( GetAutoaimAngle( AUTOAIM_10DEGREES, AUTOAIM_7DEGREES, AUTOAIM_5DEGREES ) );
 	
 	if ( g_pGameRules->IsDeathmatch() )
 	{
@@ -357,7 +357,7 @@ void CShotgun::WeaponIdle( void )
 {
 	ResetEmptySound( );
 
-	m_pPlayer->GetAutoaimVector( AUTOAIM_5DEGREES );
+	m_pPlayer->GetAutoaimVector( GetAutoaimAngle( AUTOAIM_10DEGREES, AUTOAIM_7DEGREES, AUTOAIM_5DEGREES ) );
 
 	if (m_flPumpTime && m_flPumpTime < gpGlobals->time)
 	{

@@ -259,7 +259,7 @@ void CEgon::Attack( void )
 	}
 
 	UTIL_MakeVectors( m_pPlayer->pev->v_angle + m_pPlayer->pev->punchangle );
-	Vector vecAiming = gpGlobals->v_forward;
+	Vector vecAiming = m_pPlayer->GetAutoaimVector( GetAutoaimAngle( AUTOAIM_10DEGREES, AUTOAIM_7DEGREES, AUTOAIM_5DEGREES ) );
 	Vector vecSrc	 = m_pPlayer->GetGunPosition( );
 
 	switch( m_fireState )

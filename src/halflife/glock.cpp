@@ -178,7 +178,7 @@ void CGlock::GlockFire( float flSpread , float flCycleTime, BOOL fUseAutoAim )
 	
 	if ( fUseAutoAim )
 	{
-		vecAiming = m_pPlayer->GetAutoaimVector( AUTOAIM_10DEGREES );
+		vecAiming = m_pPlayer->GetAutoaimVector( GetAutoaimAngle( AUTOAIM_15DEGREES, AUTOAIM_10DEGREES, AUTOAIM_7DEGREES ) );
 	}
 	else
 	{
@@ -219,7 +219,7 @@ void CGlock::WeaponIdle( void )
 {
 	ResetEmptySound( );
 
-	m_pPlayer->GetAutoaimVector( AUTOAIM_10DEGREES );
+	m_pPlayer->GetAutoaimVector( GetAutoaimAngle( AUTOAIM_15DEGREES, AUTOAIM_10DEGREES, AUTOAIM_7DEGREES ) );
 
 	if (m_flTimeWeaponIdle > gpGlobals->time)
 		return;

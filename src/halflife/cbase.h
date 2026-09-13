@@ -56,7 +56,6 @@ CBaseEntity
 extern "C" EXPORT int GetEntityAPI( DLL_FUNCTIONS *pFunctionTable, int interfaceVersion );
 
 extern "C" void Sys_RegisterExport( const char *pName, unsigned int function );
-extern "C" void GameDLL_RegisterSaveExports( void );
 
 // Register a savable member function pointer with the save/restore name table.
 // Single-inheritance non-virtual member pointers are just the code address, so
@@ -146,7 +145,6 @@ class CBaseEntity
 	friend void SR_Register_gauss( void ); //SR_FRIEND
 	friend void SR_Register_effects( void ); //SR_FRIEND
 	friend void SR_Register_crossbow( void ); //SR_FRIEND
-	friend void SR_Register_buttons( void ); //SR_FRIEND
 	friend void SR_Register_CWeaponBox( void ); //SR_FRIEND
 	friend void SR_Register_CTripmineGrenade( void ); //SR_FRIEND
 	friend void SR_Register_CSquidSpit( void ); //SR_FRIEND

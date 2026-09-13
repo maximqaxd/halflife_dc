@@ -377,3 +377,10 @@ int CSoundEnt :: ClientSoundIndex ( edict_t *pClient )
 
 	return iReturn;
 }
+
+// BEGIN GENERATED SAVE-RESTORE EXPORTS
+void SR_Register_CSoundEnt( void )
+{
+
+}
+// END GENERATED SAVE-RESTORE EXPORTS

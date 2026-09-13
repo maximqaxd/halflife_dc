@@ -5227,10 +5227,6 @@ SOURCE=..\src\halflife\teamplay_gamerules.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\halflife\saveexports.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=..\src\halflife\playermonster.cpp
 # End Source File
 # Begin Source File
