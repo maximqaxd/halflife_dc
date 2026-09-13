@@ -672,14 +672,9 @@ void FloorDivMod( float numer, float denom, int* quotient,
 	int		q, r;
 	float	x;
 
-#ifndef PARANOID
-	if (denom <= 0.0f)
-		Sys_Error("FloorDivMod: bad denominator %d\n", denom);
-
 //	if ((floor(numer) != numer) || (floor(denom) != denom))
 //		Sys_Error("FloorDivMod: non-integer numer or denom %f %f\n",
 //				numer, denom);
-#endif
 
 	if (numer >= 0.0f)
 	{

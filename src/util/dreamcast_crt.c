@@ -107,7 +107,7 @@ void* DebugRealloc( void* oldPtr, unsigned int sizeBytes, const char* srcFile, i
 
 	if ( !newPtr )
 	{
-		Sys_Error( "Realloc failed." );
+		Sys_Error( "Realloc failed!\n" );
 	}
 	else
 	{

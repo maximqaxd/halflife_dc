@@ -966,7 +966,7 @@ void SV_RecursiveHullTrace( hull_t* hull, int num, float p1f, float p2f, vec_t* 
 	if (!hull->boxplanes)
 	{
 		if (!hull->planes)
-			Sys_Error("No valid planes in hull!");
+			Sys_Error("No valid planes in hull!\n");
 
 		SV_RecursiveHullCheck(hull, num, p1f, p2f, p1, p2, trace);
 	}

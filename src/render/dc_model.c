@@ -2569,7 +2569,7 @@ void Mod_LoadSpriteModel( model_t* mod, void* buffer )
 
 	version = LittleLong(LoadUnalignedLong(&pin->version));
 	if (version != SPRITE_VERSION)
-		Sys_Error("%s has wrong version number (%i should be %i)",
+		Sys_Error("Mod_LoadSpriteModel: %s has wrong version number (%i should be %i)",
 			mod->name, version, SPRITE_VERSION);
 
 	numframes = LittleLong(LoadUnalignedLong(&pin->numframes));

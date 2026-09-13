@@ -369,7 +369,7 @@ static void DC_CacheTextureToRam( dctexture_t *slot )
 			slot->pszName ? slot->pszName : "<nameless>");
 
 	if (slot->bCached)
-		Sys_Error("Reattempted texture to RAM cache!\n");
+		Sys_Error("Reattempted texture-to-RAM cache!\n");
 
 	slot->bCached = 1;
 
@@ -436,7 +436,7 @@ static void DC_DecacheTextureSlot( dctexture_t *slot )
 		return;
 
 	if (slot->pddsSurface)
-		Sys_Error("Cache data was nonnull but so was surface.\n");
+		Sys_Error("Cache data was nonnull, but so was mSurface!");
 
 	pdd = (DDSURFACEDESC2 *)slot->pCacheBlock;
 
@@ -474,7 +474,7 @@ static void DC_DecacheTextureSlot( dctexture_t *slot )
 	if (DCV_DDError(((LPDIRECTDRAWSURFACE4)slot->pddsSurface)->lpVtbl->QueryInterface(
 			(LPDIRECTDRAWSURFACE4)slot->pddsSurface, IID_IDirect3DTexture2,
 			(void **)&slot->pd3dtTexture), TEXT("Get texture from surface")))
-		Sys_Error("Ugh! Texture from surface failed.\n");
+		Sys_Error("Ugh. Texture from surface failed.");
 
 	MnemoFree(slot->pCacheBlock);
 	slot->pbCacheData = NULL;
@@ -593,7 +593,7 @@ void DC_TexDump( void )
 			count++;
 	}
 
-	Con_Printf("%d textures loaded, max %d\n", count, numgltextures + 1);
+	Con_Printf("%d textures loaded, max %d.\n", count, numgltextures + 1);
 
 	if (g_bTextureLog)
 	{
@@ -652,7 +652,7 @@ int DCV_GetSlot( void )
 			return i;
 	}
 
-	Sys_Error("DCV_GetSlot: Too many textures!");
+	Sys_Error("DCV_GetSlot: Too many textures!\n");
 	return -1;
 }
 
@@ -960,7 +960,7 @@ LPDIRECTDRAWSURFACE4 DCV_PrepSurfaceTrueColor(int w, int h, void *data, DDPIXELF
 			else if (fmt == &g_pfARGB4444)
 				*dst++ = (unsigned short)(((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4) | ((a >> 4) << 12));
 			else
-				Sys_Error("DCV_PrepSurfaceTrueColor isn't prepared for this format\n");
+				Sys_Error("DCV_PrepSurfaceTrueColor isn't prepared to deal with output formats other than 4444 or 565.\n");
 		} while (n);
 	}
 
@@ -1400,7 +1400,7 @@ LPDIRECTDRAWSURFACE4 DCV_PrepSurfacePVR(int w, int h, int src_w, int src_h, void
 	{
 		if ((fmtword & 0xf) != PVR_ARGB4444)
 		{
-			Sys_Error("%s: No support for PVR YUV or bump textures\n", name);
+			Sys_Error("%s: No support for PVR YUV or bump textures yet...\n", name);
 			return NULL;
 		}
 		ddsd.ddpfPixelFormat = g_pfARGB4444;
@@ -1446,7 +1446,7 @@ LPDIRECTDRAWSURFACE4 DCV_PrepSurfacePVR(int w, int h, int src_w, int src_h, void
 		else if (fmtword != (0x0e << 8) &&
 				 (fmtword == (0x0f << 8) || fmtword == (PVR_SMALL_VQ << 8)))
 		{
-			Sys_Error("%s: D3D don't do small VQ\n", name);
+			Sys_Error("%s: D3D don't do small VQ!\n", name);
 			return NULL;
 		}
 	}
@@ -1641,7 +1641,7 @@ int DC_LoadTexture(char *identifier, int texture_type, int width, int height, vo
 	{
 		if (++slot_index >= MAX_D3D_TEXTURES)
 		{
-			Sys_Error("DCV_GetSlot: Too many textures.");
+			Sys_Error("DCV_GetSlot: Too many textures!\n");
 			slot_index = -1;
 			break;
 		}
@@ -2062,6 +2062,11 @@ int Draw_MessageCharacterAdd( int x, int y, int num, int rr, int gg, int bb )
 	Font_SetScale(1.0f, 1.0f);
 	DCV_TexState_Additive();
 	return Font_DrawCharI(draw_chars, x, y, num);
+}
+
+void Draw_CharToConback( int num, byte* dest )
+{
+	Sys_Error("Nay!\n");
 }
 
 /*
@@ -2672,7 +2677,7 @@ GL_FindTexture
 */
 int GL_FindTexture( char* identifier )
 {
-	Sys_Error("NYI - go through DCV textures");
+	Sys_Error("NYI - go through DCV textures.");
 	return -1;
 }
 
@@ -2934,7 +2939,7 @@ qpic_t* LoadTransPic( char* pszName, qpic_t* ppic )
 	byte*		pPal;
 
 	if (!trans_pic_loaded)
-		Sys_Error("LoadTransPic called multiple times.\n");
+		Sys_Error("LoadTransPic called multiple times - is this gonna be a problem?\n");
 	trans_pic_loaded = 0;
 
 	if (!ppic)
@@ -3064,7 +3069,7 @@ void DCV_RotateTextureKey( unsigned int* key )
 
 void GL_SelectTexture( unsigned int target )
 {
-	Sys_Error("Use GL_Bind stage argument instead");
+	Sys_Error("Use GL_Bind stage argument instead of GL_SelectTexture\n");
 }
 
 qpic_t* Draw_PicFromWad( char* name )

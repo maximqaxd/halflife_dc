@@ -1532,7 +1532,7 @@ void R_DrawBrushModel( cl_entity_t* e )
 				psurf->texturechain = NULL;
 				chains[nchains++] = psurf;
 				if (nchains >= MAX_BMODEL_CHAINS)
-					Sys_Error("Too many chains in brush model\n");
+					Sys_Error("Too many chains in brush model");
 			}
 next_surf:;
 		}
@@ -2565,7 +2565,6 @@ void R_DecalShoot_( texture_t* ptexture, int index, int entity, int modelIndex, 
 
 	if (!pent || !gDecalModel || gDecalModel->type != mod_brush || !ptexture)
 	{
-		Con_DPrintf("Decals must hit mod_brush!\n");
 		return;
 	}
 

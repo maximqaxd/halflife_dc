@@ -522,12 +522,10 @@ void PM_CheckVelocity( void )
 		// Bound it.
 		if (pmove.velocity[i] > movevars.maxvelocity)
 		{
-			Con_DPrintf("PM  Got a velocity too high on %i\n", i);
 			pmove.velocity[i] = movevars.maxvelocity;
 		}
 		else if (pmove.velocity[i] < -movevars.maxvelocity)
 		{
-			Con_DPrintf("PM  Got a velocity too low on %i\n", i);
 			pmove.velocity[i] = -movevars.maxvelocity;
 		}
 	}
@@ -771,7 +769,6 @@ int PM_FlyMove( void )
 	if (allFraction == 0)
 	{
 		VectorCopy(vec3_origin, pmove.velocity);
-		Con_DPrintf("Don't stick\n");
 	}
 
 	return blocked;
@@ -2179,7 +2176,6 @@ void PlayerMove( qboolean server )
 	switch (pmove.movetype)
 	{
 	default:
-		Con_DPrintf("Bogus pmove player movetype %i on (%i) 0=cl 1=sv\n", pmove.movetype, pmove.server);
 		break;
 
 	case MOVETYPE_NONE:
@@ -2388,9 +2384,6 @@ qboolean PM_AddToTouched( pmtrace_t tr, vec_t* impactvelocity )
 	{
 		VectorCopy(impactvelocity, tr.deltavelocity);
 	}
-
-	if (pmove.numtouch >= MAX_PHYSENTS)
-		Con_DPrintf("Too many entities were touched!\n");
 
 	pmove.touchindex[pmove.numtouch++] = tr;
 	return TRUE;

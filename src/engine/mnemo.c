@@ -169,11 +169,10 @@ static int Cache_FreeLRU( int aggressive );
 static const char* Mnemo_FlagsToString( short flags )
 {
 	static char buffer[MAX_QPATH];
-	int len;
 
 	buffer[0] = 0;
 	if ((flags & ~MNEMO_FLAG_USED) == 0)
-		return "free";
+		return "free ";
 
 	if (flags & MNEMO_FLAG_PEZ)
 		strcat(buffer, "pez ");
@@ -190,11 +189,7 @@ static const char* Mnemo_FlagsToString( short flags )
 	if (flags & MNEMO_FLAG_ROOT)
 		strcat(buffer, "root ");
 	if (flags & MNEMO_FLAG_NO_RECLAIM)
-		strcat(buffer, "noreclaim ");
-
-	len = Q_strlen(buffer);
-	if (len > 0 && buffer[len - 1] == ' ')
-		buffer[len - 1] = 0;
+		strcat(buffer, "opt ");
 
 	return buffer;
 }
@@ -218,7 +213,7 @@ void Mnemo_ReportToFile( void )
 		{
 			fprintf(f, "Node [0x%p] seq [%8d]: ", node, node->sequence);
 			fprintf(f, "%8d [0x%6.6x] byte ", node->payload_size, node->payload_size);
-			fprintf(f, "%11s block: %s\n", Mnemo_FlagsToString(node->flags), node->tag);
+			fprintf(f, "%11s block: %s\r\n", Mnemo_FlagsToString(node->flags), node->tag);
 		}
 
 		Sleep(10);
@@ -398,7 +393,7 @@ static void Mnemo_Sizes_f( void )
 	Con_Printf("sizeof mnode_t: %d\n", sizeof(mnode_t));
 	Con_Printf("sizeof texture_t: %d\n", sizeof(texture_t));
 	Con_Printf("sizeof decal_t: %d\n", sizeof(decal_t));
-	Con_Printf("sizeof mleaf_t: 	%d\n", sizeof(mleaf_t));
+	Con_Printf("sizeof mleaf_t: %d\n", sizeof(mleaf_t));
 	Con_Printf("sizeof model_t: %d\n", sizeof(model_t));
 	Con_Printf("sizeof resource_t: %d\n", sizeof(resource_t));
 	Con_Printf("sizeof glpoly_t: %d\n", sizeof(glpoly_t));
@@ -449,9 +444,9 @@ static void Mnemo_Summary_f( void )
 	}
 
 	Con_Printf("Arena size: %d\n", g_mnemo.arena_size);
-	Con_Printf("Total blocks: %d Total used: %d bytes Total free: %d bytes\n",
+	Con_Printf("Total blocks: %d Total used: %d bytes. Total free: %d bytes.\n",
 		totalBlocks, totalUsed, totalFree);
-	Con_Printf("Biggest used block: %d Biggest free block: %d\n",
+	Con_Printf("Biggest used block: %d. Biggest free block: %d.\n",
 		biggestUsed, biggestFree);
 	Con_Printf("Last sequence number: %d\n", lastSeq);
 }
@@ -619,7 +614,7 @@ static void Mnemo_InitArena( void *buf, int size )
 	first->flags = 0;
 	first->alloc_class = 0;
 	first->sequence = ++g_mnemo.alloc_seq;
-	Q_strncpy(first->tag, "_arena_", sizeof(first->tag));
+	Q_strncpy(first->tag, "(arena)", sizeof(first->tag));
 	first->tag[sizeof(first->tag) - 1] = 0;
 	Mnemo_DecommitBlock(first);
 
@@ -1122,7 +1117,7 @@ void* MnemoAlloc( int size, unsigned int flags, int allocClass, const char* tag 
 	mnemo_header_t* block;
 
 	if (size > MNEMO_MAX_ALLOC)
-		Sys_Error("Absurd MnemoAlloc(%d, %d, %d, %d)", size, flags, allocClass, (int)tag);
+		Sys_Error("Absurd MnemoAlloc( %d, %d, %d, %s )", size, flags, allocClass, tag);
 
 	mnemo_temp_danger = 0;
 	g_mnemo.alloc_attempts++;
@@ -1167,17 +1162,17 @@ void* MnemoAlloc( int size, unsigned int flags, int allocClass, const char* tag 
 	}
 
 	if (block->flags & MNEMO_FLAG_USED)
-		Sys_Error("Ooops!");
+		Sys_Error("Ooops!\n");
 
 	block = _AllocBlock(block, payload_size, flags, allocClass, tag, allocMode);
 
 	if (flags & MNEMO_FLAG_TEMP)
 	{
 		if (!(block->flags & MNEMO_FLAG_USED))
-			Sys_Error("Oops!");
+			Sys_Error("Oops!\n");
 
 		if (g_mnemo.last_temp)
-			Sys_Error("Are we supposed to have multiple temp blocks?");
+			Sys_Error("Are we supposed to have multiple temp blocks?\n");
 
 		g_mnemo.last_temp = block;
 	}
@@ -1230,7 +1225,7 @@ void* calloc( unsigned int num, unsigned int size, const char* file, int line )
 	if (base)
 		file = base + 1;
 
-	sprintf(tag, "%d-%s", line, file);
+	sprintf(tag, "%d#%s", line, file);
 
 	p = MnemoAlloc(size * num, MNEMO_FLAG_MALLOC, 0, tag);
 	if (p)
@@ -1434,9 +1429,6 @@ void Hunk_FreeToLowMark( int mark )
 {
 	int cls;
 
-	if (mark < 0 || mark > hunk_alloc_class)
-		Sys_Error("Hunk_FreeToLowMark: bad mark %i", mark);
-
 	for (cls = mark; cls <= hunk_alloc_class; cls++)
 		Mnemo_FreeBlocksByTag(cls);
 
@@ -1452,7 +1444,7 @@ Hunk_HighAllocName
 */
 void* Hunk_HighAllocName( int size, char* name )
 {
-	Sys_Error("We shouldn't be using Hunk_HighAllocName directly");
+	Sys_Error("We shouldn't be using Hunk_HighAllocName directly.\n");
 	return NULL;
 }
 
@@ -1878,7 +1870,7 @@ static __forceinline int Mnemo_TryCacheMoveBlock( mnemo_header_t* neighbor )
 
 	if ((neighbor->flags & MNEMO_FLAG_CACHE) == 0)
 	{
-		Sys_Error("MnemoCacheMove called on non-cache block");
+		Sys_Error("_MnemoCacheMove called on non-cache block!\n");
 		return 0;
 	}
 
@@ -2391,7 +2383,7 @@ void* Cache_Alloc( cache_user_t* c, int size, char* name )
 	}
 
 	Mnemo_Summary_f();
-	Sys_ErrorColor(RGB565_RED, "Out of cache memory!");
+	Sys_ErrorColor(RGB565_RED, "Out of cache memory.\n");
 	return NULL;
 }
 

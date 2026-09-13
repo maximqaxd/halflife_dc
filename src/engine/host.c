@@ -628,7 +628,7 @@ void Host_ShutdownServer( qboolean crash )
 
 	Master_Shutdown(FALSE);
 
-	Log_Printf("Server shutdown\n");
+	Log_Printf("Server shutdown.\n");
 	Log_Close();
 }
 
@@ -818,6 +818,7 @@ Master_RequestHeartbeat
 Sends a heartbeat to the master server
 ==================
 */
+#if HLDC_MP
 void Master_RequestHeartbeat( void )
 {
 	static char	string[2048];    // Buffer for sending heartbeat
@@ -870,6 +871,7 @@ void Master_RequestHeartbeat( void )
 
 	NET_SendPacket(NS_SERVER, strlen(string), string, master_adr);
 }
+#endif
 
 /*
 ================
@@ -934,7 +936,7 @@ void Master_Shutdown( qboolean bFree )
 
 	Master_Init();
 
-	sprintf(string, "%c", S2M_SHUTDOWN);
+	sprintf(string, "%c\n", S2M_SHUTDOWN);
 
 	for (p = valvemaster_adr; p != NULL; p = p->next)
 		NET_SendPacket(NS_SERVER, strlen(string), string, p->adr);
@@ -975,7 +977,7 @@ void Master_AddServer( netadr_t *adr )
 	{
 		p = (master_t *)MnemoAllocDbg(sizeof(master_t), __FILE__, __LINE__);
 		if (p == NULL)
-			Sys_ErrorColor(RGB565_RED, "Error allocating %i bytes for master\n", sizeof(master_t));
+			Sys_ErrorColor(RGB565_RED, "Error allocating %i bytes for master address.", sizeof(master_t));
 
 		memset(p, 0, sizeof(master_t));
 
@@ -1648,7 +1650,7 @@ void Log_PrintServerVars( void )
 		for (var = cvar_vars; var; var = var->next)
 		{
 			if (var->flags & FCVAR_SERVER)
-				Log_Printf("Server cvar \"%s\" = \"%s\"\n", var->name, var->string);
+				Log_Printf("\"%s\" = \"%s\"\n", var->name, var->string);
 		}
 		Log_Printf("server cvars end\n");
 	}
@@ -1910,7 +1912,7 @@ int Host_Init( quakeparms_t* parms )
 
 	Cvar_SetValue("sv_cheats", 1.0);
 
-	if (COM_CheckParm("-developer"))
+	if (COM_CheckParm("-dev"))
 		Cvar_SetValue("developer", 1.0);
 
 	CheckGore();

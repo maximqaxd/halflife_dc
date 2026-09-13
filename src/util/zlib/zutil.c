@@ -215,7 +215,7 @@ voidpf zcalloc (opaque, items, size)
     if (opaque) items += size - size; /* make compiler happy */
     buf = mallocx(items * size);
     if (buf == Z_NULL)
-        Sys_Error("Out of memory in zcalloc");
+		Sys_Error("Out of memory in zcalloc\n");
     memset(buf, 0, items * size);
     return buf;
 }

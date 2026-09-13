@@ -226,13 +226,13 @@ void Z_CheckHeap( void )
 
 int Hunk_HighMark( void )
 {
-	Sys_Error("This should no longer be used.");
+	Sys_Error("This should no longer be used.\n");
 	return 0;
 }
 
 void Hunk_FreeToHighMark( int mark )
 {
-	Sys_Error("This should no longer be used.");
+	Sys_Error("This should no longer be used.\n");
 }
 
 

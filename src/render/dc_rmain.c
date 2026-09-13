@@ -693,7 +693,7 @@ GL_DrawAliasFrame
 */
 void R_DrawAliasFrame( aliashdr_t* paliashdr, int posenum )
 {
-	Sys_Error("R_DrawAliasFrame should be obsolete\n");
+	Sys_Error("R_DrawAliasModel should be obsolete...");
 }
 
 
@@ -706,7 +706,7 @@ extern vec3_t lightspot;
 
 void R_DrawAliasShadow( aliashdr_t* paliashdr, int posenum )
 {
-	Sys_Error("R_DrawAliasShadow should be obsolete\n");
+	Sys_Error("R_DrawAliasShadow should be obsolete...");
 }
 
 
@@ -719,7 +719,7 @@ R_SetupAliasFrame
 */
 void R_SetupAliasFrame( int frame, aliashdr_t* paliashdr )
 {
-	Sys_Error("R_SetupAliasFrame should be obsolete\n");
+	Sys_Error("R_SetupAliasFrame should be obsolete...");
 }
 
 
@@ -732,7 +732,7 @@ R_DrawAliasModel
 */
 void R_DrawAliasModel( cl_entity_t* e )
 {
-	Sys_Error("R_DrawAliasModel should be obsolete\n");
+	Sys_Error("R_DrawAliasModel should be obsolete...");
 }
 
 //==================================================================================
@@ -767,7 +767,7 @@ void R_DrawEntitiesOnList( void )
 			break;
 
 		case mod_alias:
-			Sys_Error("R_DrawAliasModel should be obsolete\n");
+			Sys_Error("R_DrawAliasModel should be obsolete...");
 			Sys_Error("We have alias models???");
 			break;
 

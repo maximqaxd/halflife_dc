@@ -306,9 +306,7 @@ int ParseDirective( const char* pText )
 			}
 		}
 		else
-		{
-			Con_DPrintf("Unknown token: %s\n", pText);
-		}
+			;
 
 		return 1;
 	}

@@ -29,14 +29,14 @@ void DCV_PushMatrix( int state )
 	if (state == D3DTRANSFORMSTATE_WORLD)
 	{
 		if (g_nWorldStackDepth == 32)
-			Sys_Error("World matrix stack overflowed!\n");
+		Sys_Error("World matrix stack overflowed.");
 		memcpy(&g_matWorldStack[g_nWorldStackDepth], &current, sizeof(D3DMATRIX));
 		g_nWorldStackDepth++;
 	}
 	else
 	{
 		if (g_nProjectionStackDepth == 2)
-			Sys_Error("Projection matrix stack overflowed!\n");
+		Sys_Error("Projection matrix stack overflowed.");
 		memcpy(&g_matProjectionStack[g_nProjectionStackDepth], &current, sizeof(D3DMATRIX));
 		g_nProjectionStackDepth++;
 	}
@@ -55,7 +55,7 @@ void DCV_PopMatrix( int state )
 	if (state == D3DTRANSFORMSTATE_WORLD)
 	{
 		if (g_nWorldStackDepth == 0)
-			Sys_Error("World matrix stack underflowed!\n");
+		Sys_Error("World matrix stack underflowed.");
 		g_nWorldStackDepth--;
 		memcpy(&g_matWorld, &g_matWorldStack[g_nWorldStackDepth], sizeof(D3DMATRIX));
 		g_pD3DDevice->lpVtbl->SetTransform(g_pD3DDevice, D3DTRANSFORMSTATE_WORLD, &g_matWorld);
@@ -63,7 +63,7 @@ void DCV_PopMatrix( int state )
 	else
 	{
 		if (g_nProjectionStackDepth == 0)
-			Sys_Error("Projection matrix stack underflowed!\n");
+		Sys_Error("Projection matrix stack underflowed.");
 		g_nProjectionStackDepth--;
 		memcpy(&g_matProjection, &g_matProjectionStack[g_nProjectionStackDepth], sizeof(D3DMATRIX));
 		g_pD3DDevice->lpVtbl->SetTransform(g_pD3DDevice, state, &g_matProjection);

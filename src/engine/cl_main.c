@@ -855,7 +855,7 @@ void CL_ListCachedServers_f( void )
 			Con_Printf("pw (%c) - ", p->password);
 		Con_Printf("\n");
 		if (p->mod)
-			Con_Printf("Mod info:\nInfo URL %s\nDL URL %s\nVer. %i, size %.2f MB\n",
+			Con_Printf("Mod info:\nInfo URL %s\nDL URL %s\nVer. %i, size %i\n",
 				p->info_url, p->download_url, p->version, (float)p->size / 1048576.0f);
 	}
 }
@@ -946,7 +946,7 @@ void CL_ServerListInfo( void )
 
 	if (name && name[0] && !Q_strcasecmp(name, "more-in-list"))
 	{
-		sprintf(request, "%c%s", 'x', modname);
+		sprintf(request, "%c\r\n%s\r\n", 'x', modname);
 		NET_SendPacket(NS_CLIENT, strlen(request) + 1, request, net_from);
 	}
 	else
@@ -1187,7 +1187,7 @@ void CL_ReadPackets( void )
 	if ((cls.state >= ca_connected) &&
 		((realtime - cls.netchan.last_received) > cl_timeout.value))
 	{
-		Con_Printf("Server connection timed out.\n");
+		Con_Printf("\nServer connection timed out.\n");
 		CL_Disconnect();
 		return;
 	}
@@ -1697,10 +1697,7 @@ void CL_Spectate_f( void )
 	cls.spectator = TRUE;
 
 	if (Cmd_Argc() < 2)
-	{
-		Con_Printf("usage: spectate <server> [server password]\n");
 		return;
-	}
 
 	server = Cmd_Args();
 	if (!server)
@@ -3113,78 +3110,6 @@ void R_UpdateAdaptive( void )
 	R_PrintNetStats();
 }
 
-char* CL_HashedClientID( unsigned char* hash, int size )
-{
-	static char szReturn[128];
-	unsigned char c;
-	char szChunk[10];
-	int i;
-
-	memset(szReturn, 0, sizeof(szReturn));
-
-	for (i = 0; i < size; i++)
-	{
-		c = (unsigned char)hash[i];
-		sprintf(szChunk, "%2x", c);
-		strcat(szReturn, szChunk);
-	}
-
-	return szReturn;
-}
-
-/*
-=================
-CL_PrintCDKey_f
-
-Print the CD key to the console
-=================
-*/
-void CL_PrintCDKey_f( void )
-{
-	char szKeyBuffer[256]; // Keys are about 13 chars long.	
-	char szHashedKeyBuffer[256];
-	char szHashedClientID[2048];
-	int nKeyLength = GUID_LEN;
-	int bDedicated = 0;
-	MD5Context_t ctx;
-	clientid_t clientid;
-	unsigned char digest[16]; // The MD5 Hash
-
-	// A dedicated server
-	if (bDedicated)
-	{
-		Con_Printf("Key has no meaning on dedicated server...\n");
-		return;
-	}
-
-	if (nKeyLength <= 0 ||
-		nKeyLength >= 256)
-	{
-		Con_Printf("Bogus key length on CD Key...\n");
-		return;
-	}
-
-	szKeyBuffer[nKeyLength] = 0;
-
-	// Now get the md5 hash of the key
-	memset(&ctx, 0, sizeof(ctx));
-	memset(digest, 0, sizeof(digest));
-
-	MD5Init(&ctx);
-	MD5Update(&ctx, (unsigned char*)szKeyBuffer, nKeyLength);
-	MD5Final(digest, &ctx);
-	memset(szHashedKeyBuffer, 0, sizeof(szHashedKeyBuffer));
-	strcpy(szHashedKeyBuffer, MD5_Print(digest));
-
-	memset(szHashedClientID, 0, sizeof(szHashedClientID));
-
-	{
-		strcpy(szHashedClientID, "Unset");
-	}
-
-	Con_Printf("CD Key:  %s\nMD5 Hash:  %s\nClient ID:  %s\n\n", szKeyBuffer, szHashedKeyBuffer, szHashedClientID);
-}
-
 /*
 =================
 CL_Init
@@ -3460,7 +3385,7 @@ void CL_PrintLogoList( void )
 		customization = cl.players[i].customdata.pNext;
 
 		if (&cl.players[i] == &cl.players[cl.playernum])
-			Con_Printf("SELF =====================\n");
+			Con_Printf("SELF ====================\n");
 
 		while (customization)
 		{
@@ -3469,7 +3394,7 @@ void CL_PrintLogoList( void )
 		}
 
 		if (&cl.players[i] == &cl.players[cl.playernum])
-			Con_Printf("SELF =====================\n");
+			Con_Printf("SELF ====================\n");
 	}
 	Con_Printf("==========================\n");
 }

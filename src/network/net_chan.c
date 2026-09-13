@@ -294,10 +294,6 @@ void Netchan_Transmit( netchan_t* chan, int length, byte* data )
 	{
 		SZ_Write(&send, data, length);
 	}
-	else
-	{
-		Con_DPrintf("Netchan_Transmit:  Unreliable would overfow, ignoring\n");
-	}
 
 // send the datagram
 	i = chan->outgoing_sequence & (MAX_LATENT - 1);
@@ -358,7 +354,7 @@ qboolean Netchan_Process( netchan_t* chan )
 	sequence_ack &= ~(1 << 31);
 
 	if (showpackets.value)
-		Con_Printf("<-- s=%i(%i) a=%i(%i) %i ",
+		Con_Printf("<-- s=%i(%i) a=%i(%i) %i\n",
 			sequence,
 			reliable_message,
 			sequence_ack,

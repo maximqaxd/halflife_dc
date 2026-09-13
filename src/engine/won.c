@@ -186,7 +186,7 @@ int SV_FindAuthRequest( qboolean create, netadr_t* from )
 
 	if (i == MAX_AUTHREQUESTS)
 	{
-		Con_Printf("No more authentication slots available.\n");
+		Con_Printf("No more authentication slots available\n");
 		return -1;
 	}
 

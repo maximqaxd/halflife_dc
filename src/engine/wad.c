@@ -56,7 +56,7 @@ void W_LoadWadFile( char* filename )
 
 	wad_base = COM_LoadHunkFile(filename);
 	if (!wad_base)
-		Sys_ErrorColor(RGB565_GREEN, "W_LoadWadFile: couldn't load %s", filename);
+		Sys_ErrorColor(RGB565_GREEN, "W_LoadWadFile: couldn't load %s\nDrive door open?", filename);
 
 	header = (wadinfo_t*)wad_base;
 

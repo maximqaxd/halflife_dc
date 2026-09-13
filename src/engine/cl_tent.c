@@ -1474,10 +1474,7 @@ TEMPENTITY* R_DefaultSprite( float* pos, int spriteIndex, float framerate )
 	pSprite = cl.model_precache[spriteIndex];
 
 	if (!spriteIndex || !pSprite || pSprite->type != mod_sprite)
-	{
-		Con_DPrintf("No Sprite %d!\n", spriteIndex);
 		return NULL;
-	}
 
 	frameCount = ModelFrameCount(cl.model_precache[spriteIndex]);
 
@@ -2787,10 +2784,7 @@ TEMPENTITY* CL_TempEntAlloc( vec_t* org, model_t* model )
 	TEMPENTITY* pTemp;
 
 	if (!gpTempEntFree || !model)
-	{
-		Con_DPrintf("Overflow %d temporary ents!\n", MAX_TEMP_ENTITIES);
 		return NULL;
-	}
 
 	pTemp = gpTempEntFree;
 	gpTempEntFree = CL_TempEntNext(pTemp);

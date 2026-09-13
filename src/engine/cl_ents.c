@@ -632,43 +632,6 @@ CL_PrintEntity
 */
 void CL_PrintEntity( cl_entity_t* ent )
 {
-	Con_DPrintf("----------------------------\n");
-	Con_DPrintf("T %.2f", cl.time);
-	Con_DPrintf(":Gap %.2f\n", cl.time - ent->animtime);
-	Con_DPrintf("#%i", ent->index);
-
-	if (ent->model)
-		Con_DPrintf(":%s\n", ent->model->name);
-	else
-		Con_DPrintf(":?\n");
-
-	Con_DPrintf("AT %4.2f ST %4.2f S %i F %4.1f\n", ent->animtime, ent->sequencetime, ent->sequence, ent->frame);
-	Con_DPrintf("PA %4.2f PS %i FR %.1f\n", ent->prevanimtime, ent->prevsequence,
-		ShortToFloat(ent->framerate));
-	Con_DPrintf("C0 %i:%i BL %i:%i\n", ent->controller[0], ent->prevcontroller[0], ent->blending[0], ent->prevblending[0]);
-	Con_DPrintf("O : %.0f %.0f %.0f\n", ent->origin[0], ent->origin[1], ent->origin[2]);
-	Con_DPrintf("PO: %.0f %.0f %.0f\n", ent->prevorigin[0], ent->prevorigin[1], ent->prevorigin[2]);
-	Con_DPrintf("RM:  %i RA: %i RX: %i PF %4.2f\n", ent->rendermode, ent->renderamt, ent->renderfx, ent->prevframe);
-	Con_DPrintf("MT: %i:", ent->movetype);
-
-	if (ent->effects & EF_NOINTERP)
-		Con_DPrintf("NoInterp ");
-	if (ent->effects & EF_NODRAW)
-		Con_DPrintf("NoDraw ");
-	if (ent->effects & EF_LIGHT)
-		Con_DPrintf("Light ");
-	if (ent->effects & EF_BRIGHTFIELD)
-		Con_DPrintf("BFLD ");
-	if (ent->effects & EF_MUZZLEFLASH)
-		Con_DPrintf("MUZ ");
-	if (ent->effects & EF_BRIGHTLIGHT)
-		Con_DPrintf("BLT ");
-	if (ent->effects & EF_DIMLIGHT)
-		Con_DPrintf("Dim ");
-	if (ent->effects & EF_INVLIGHT)
-		Con_DPrintf("Inv ");
-
-	Con_DPrintf("\n");
 }
 
 /*
@@ -930,7 +893,6 @@ void CL_LinkPacketEntities( void )
 			
 			if (cl_numbeamentities >= MAX_BEAMENTS)
 			{
-				Con_DPrintf("Overflow beam entity list!\n");
 				continue;
 			}
 

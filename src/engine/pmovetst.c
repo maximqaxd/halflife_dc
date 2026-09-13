@@ -124,7 +124,7 @@ int PM_BoxPlaneContents( hull_t* hull, int num, vec_t* p )
 	while (num >= 0)
 	{
 		if (num < hull->firstclipnode || num > hull->lastclipnode)
-			Sys_Error("PM_BoxPlaneContents: bad node number");
+				Sys_Error("PM_HullPointContents: bad node number");
 
 		node = hull->clipnodes + num;
 		plane = hull->boxplanes + node->planenum;
@@ -633,8 +633,7 @@ qboolean PM_BoxPlaneHullCheck( hull_t* hull, int num, float p1f, float p2f, vec_
 		{
 			trace->fraction = midf;
 			VectorCopy(mid, trace->endpos);
-			Con_DPrintf("Trace backed up past 0.0.\n");
-			return FALSE;
+				return FALSE;
 		}
 
 		midf = p1f + (p2f - p1f) * frac;
@@ -660,7 +659,7 @@ void PM_RecursiveHullTrace( hull_t* hull, int num, float p1f, float p2f, vec_t* 
 	if (!hull->boxplanes)
 	{
 		if (!hull->planes)
-			Sys_Error("No valid planes in hull!");
+			Sys_Error("No valid planes in hull!\n");
 
 		PM_RecursiveHullCheck(hull, num, p1f, p2f, p1, p2, trace);
 	}
@@ -1022,7 +1021,6 @@ pmtrace_t PM_Worldtrace( vec_t* start, vec_t* end )
 	pe = &pmove.physents[0];
 	if (!pe->model)
 	{
-		Con_DPrintf("No world in PM_Worldtrace!!!\n");
 		return trace;
 	}
 

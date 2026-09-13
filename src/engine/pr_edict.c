@@ -242,7 +242,7 @@ char* ED_NewString( const char* string )
 	int		i, l;
 
 	l = strlen(string) + 1;
-	new = (char*)Hunk_Alloc(l);
+	new = (char*)Hunk_AllocName(l, "ED_NewString");
 	new_p = new;
 
 	for (i = 0; i < l; i++)
@@ -310,10 +310,8 @@ char* ED_ParseEdict( char* data, edict_t* ent )
 			gEntityInterface.pfnKeyValue(ent, &kvd);
 			init = TRUE;
 		}
-		else
-		{
-			Con_Printf("Can't init %s\n", className);
-		}
+			else
+				;
 	}
 
 // go through all the dictionary pairs

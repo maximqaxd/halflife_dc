@@ -2073,7 +2073,7 @@ void COM_FileBase( char* in, char* out )
 	int len, start, end;
 
 	if (!in)
-		Sys_Error("COM_FileBase passed a null string: %s", in);
+		Sys_Error("COM_FileBase passed a null!\n");
 
 	len = strlen(in) - 1;
 
@@ -2101,7 +2101,7 @@ void COM_FileBase( char* in, char* out )
 	len = end - start + 1;
 
 	if (!in)
-		Sys_Error("COM_FileBase passed a null string: %s", in);
+		Sys_Error("COM_FileBase passed a null!\n");
 
 	// Copy partial string
 	strncpy(out, &in[start], len);

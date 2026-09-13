@@ -2512,7 +2512,7 @@ void ParseSaveTables( SAVERESTOREDATA* pSaveData, SAVE_HEADER* pHeader, int upda
 	}
 	for (i = 0; i < pHeader->lightStyleCount; i++)
 	{
-		SaveReadFields(pSaveData, "LIGHTSTYLE", &light, gLightstyleDescription, Q_ARRAYSIZE(gLightstyleDescription));
+		SaveReadFields(pSaveData, "lightstyles", &light, gLightstyleDescription, Q_ARRAYSIZE(gLightstyleDescription));
 		if (updateGlobals)
 		{
 			sv.lightstyles[light.index] = (char*)Hunk_Alloc(strlen(light.style) + 1);
@@ -3410,7 +3410,7 @@ void Host_Kill_f( void )
 
 	if (sv_player->v.health <= 0)
 	{
-		SV_ClientPrintf("Can't suicide -- allready dead!\n");
+		SV_ClientPrintf("Can't suicide -- already dead!\n");
 		return;
 	}
 
@@ -4183,7 +4183,6 @@ void SV_BeginDownload_f( void )
 	}
 
 	SV_NextDownload_f();
-	Con_DPrintf("Downloading %s to %s\n", name, host_client->name);
 }
 
 /*

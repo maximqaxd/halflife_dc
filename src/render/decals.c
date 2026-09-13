@@ -290,16 +290,16 @@ void Decal_ReplaceOrAppendLump( lumplist_t **ppList, lumpinfo_t *lump, qboolean 
 		if (!Q_strcasecmp(lump->name, p->lump->name))
 		{
 			MnemoFree(p->lump);
-			p->lump = (lumpinfo_t *)MnemoAlloc(sizeof(lumpinfo_t), 0x20, 0, "decallump");
+			p->lump = (lumpinfo_t *)MnemoAllocDbg(sizeof(lumpinfo_t), __FILE__, __LINE__);
 			memcpy(p->lump, lump, sizeof(lumpinfo_t));
 			p->breplaced = bsecondlump;
 			return;
 		}
 	}
 
-	p = (lumplist_t *)MnemoAlloc(sizeof(lumplist_t), 0x20, 0, "decallist");
+	p = (lumplist_t *)MnemoAllocDbg(sizeof(lumplist_t), __FILE__, __LINE__);
 	memset(p, 0, sizeof(lumplist_t));
-	p->lump = (lumpinfo_t *)MnemoAlloc(sizeof(lumpinfo_t), 0x20, 0, "decallump");
+	p->lump = (lumpinfo_t *)MnemoAllocDbg(sizeof(lumpinfo_t), __FILE__, __LINE__);
 	memcpy(p->lump, lump, sizeof(lumpinfo_t));
 	p->breplaced = bsecondlump;
 	p->next = *ppList;
@@ -321,7 +321,7 @@ void Decal_MergeInDecals( char *name, const char *pathID, cachewad_t *pwad )
 
 	if (!pwad)
 	{
-		Sys_Error("Decal_MergeInDecals called with NULL wadfile\n");
+		Sys_Error("Decal_MergeInDecals called with NULL wad\n");
 		return;
 	}
 

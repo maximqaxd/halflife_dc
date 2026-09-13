@@ -1235,7 +1235,7 @@ void R_StudioSaveBones( void )
 	bones = (mstudiobone_t*)((byte*)pstudiohdr + pstudiohdr->boneindex);
 	cached_numbones = pstudiohdr->numbones;
 	if (cached_numbones > MAXSTUDIOBONES)
-		Sys_Error("Too damn many bones: %d", cached_numbones);
+		Sys_Error("Too damn many bones!\n");
 
 	for (i = 0; i < pstudiohdr->numbones; i++)
 	{
@@ -1343,7 +1343,6 @@ void SV_StudioSetupBones( model_t* pModel, float frame, int sequence, const vec_
 	// Bound sequence number
 	if (sequence < 0 || sequence >= pstudiohdr->numseq)
 	{
-		Con_DPrintf("sequence %d out of range for model %s\n", sequence, pstudiohdr->name);
 		sequence = 0;
 	}
 
@@ -2617,7 +2616,7 @@ void R_StudioCalcAttachments( void )
 	mstudioattachment_t* pattachment;
 
 	if (pstudiohdr->numattachments > 4)
-		Sys_Error("Too many attachments on %s", currententity->model->name);
+		Sys_Error("Too many attachments on %s\n", currententity->model->name);
 
 	pattachment = (mstudioattachment_t*)((byte*)pstudiohdr + pstudiohdr->attachmentindex);
 	for (i = 0; i < pstudiohdr->numattachments; i++)

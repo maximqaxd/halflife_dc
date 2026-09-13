@@ -106,12 +106,12 @@ particle_t* R_AllocParticle( void )
 		return NULL;
 
 	if (free_particles < particles || free_particles > particles + r_numparticles)
-		Sys_Error("free particle pointer is non-NULL but outside particle array");
+		Sys_Error("free particle pointer is non-NULL but outside particle array\n");
 
 	if (active_particles &&
 		(active_particles < particles || active_particles > particles + r_numparticles))
 	{
-		Sys_Error("active particle pointer is non-NULL but outside particle array");
+		Sys_Error("active particle pointer is non-NULL but outside particle array\n");
 	}
 
 	p = free_particles;

@@ -261,7 +261,7 @@ void R_StudioSaveBones_Neo( void )
 	bones = (mstudiobone_t*)((byte*)pstudiohdr + pstudiohdr->boneindex);
 	cached_numbones = pstudiohdr->numbones;
 	if (cached_numbones > MAXSTUDIOBONES)
-		Sys_Error("Too damn many bones: %d", cached_numbones);
+		Sys_Error("Too damn many bones!\n");
 
 	for (i = 0; i < pstudiohdr->numbones; i++)
 	{
@@ -277,7 +277,7 @@ void R_StudioCalcAttachments_Neo( void )
 	mstudioattachment_neo_t* attachment;
 
 	if (pstudiohdr->numattachments > 4)
-		Sys_Error("Too many attachments on %s", currententity->model->name);
+		Sys_Error("Too many attachments on %s\n", currententity->model->name);
 
 	attachment = (mstudioattachment_neo_t*)((byte*)pstudiohdr + pstudiohdr->attachmentindex);
 	for (i = 0; i < pstudiohdr->numattachments; i++)

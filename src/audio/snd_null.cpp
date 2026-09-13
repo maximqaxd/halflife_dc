@@ -696,10 +696,10 @@ char *S_DSoundError (HRESULT hr)
 	case DSERR_NOINTERFACE:			name = "DSERR_NOINTERFACE"; break;
 	case DSERR_NOT32BYTEALIGNED:		name = "DSERR_NOT32BYTEALIGNED"; break;
 	case DSERR_UNSUPPORTED:			name = "DSERR_UNSUPPORTED"; break;
-	default:				name = "<UNKNOWN>"; break;
+	default:				name = "<UNASSIGNED>"; break;
 	}
 
-	Con_DPrintf ("DirectSound Error (%x): %s\n", hr, name);
+	Con_DPrintf ("DirectSound Error (%x): %s", hr, name);
 
 	return name;
 }

@@ -187,7 +187,6 @@ void SV_PrintCusomizations_f( void )
 			continue;
 
 		nIndex = 1;
-		Con_DPrintf("SV Customizations:\nPlayer %i:%s\n", nIndex, cl->name);
 
 		for (pCust = cl->customdata.pNext; pCust; pCust = pCust->pNext)
 		{

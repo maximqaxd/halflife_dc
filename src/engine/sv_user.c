@@ -667,15 +667,14 @@ void SV_ExecuteClientMessage( client_t* cl )
 
 			if (calculatedChecksum != checksum)
 			{
-				Con_DPrintf("Failed command checksum for %s (%d != %d)/%d\n",
-					cl->name, calculatedChecksum, checksum, cl->netchan.incoming_sequence);
 				return;
 			}
 
 			if (sv_showcmd.value)
 			{
-				Con_Printf("MSEC %i IMP %i Buttons:  %i:%i FWD %i\n", newcmd.msec, newcmd.impulse,
-					newcmd.buttons & IN_ATTACK, newcmd.buttons & IN_ATTACK2, (int)newcmd.forwardmove);
+				Con_Printf("MSEC %i IMP %i Buttons:  %i:%i:%i FWD %i\n", newcmd.msec, newcmd.impulse,
+					newcmd.buttons & IN_ATTACK, newcmd.buttons & IN_ATTACK2,
+					newcmd.buttons & IN_JUMP, (int)newcmd.forwardmove);
 			}
 
 			if (sv.paused || svs.maxclients <= 1 && key_dest != key_game || (sv_player->v.flags & FL_FROZEN) != 0)

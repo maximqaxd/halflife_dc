@@ -771,7 +771,7 @@ void SV_SendServerinfo( client_t *client )
 	if ((developer.value) || (svs.maxclients > 1))
 	{
 		MSG_WriteByte(&client->netchan.message, svc_print);
-		sprintf(message, "%c\nBUILD %d SERVER (%i CRC)\nServer # %i\n", 0x2, build_number(), 0, svs.spawncount);
+		sprintf(message, "%c\nBUILD DC %d SERVER (%i CRC)\nServer # %i\n", 0x2, build_number(), 0, svs.spawncount);
 		MSG_WriteString(&client->netchan.message, message);
 	}
 
@@ -887,7 +887,7 @@ void SV_New_f( void )
 		if (!gEntityInterface.pfnClientConnect(ent, szName, szAddress, szRejectReason))
 		{
 			MSG_WriteByte(&host_client->netchan.message, svc_stufftext);
-			MSG_WriteString(&host_client->netchan.message, va("echo %s", szRejectReason));
+			MSG_WriteString(&host_client->netchan.message, va("echo %s\n", szRejectReason));
 			SV_DropClient(host_client, FALSE);
 			return;
 		}
@@ -1697,7 +1697,9 @@ void SVC_Heartbeat( void )
 		SV_SetMasterPeeringMessage(FALSE);
 
 	// Send the actual heartbeat request to this master server.
+#if HLDC_MP
 	Master_RequestHeartbeat();
+#endif
 }
 
 /*
@@ -3332,7 +3334,6 @@ void SV_AddToFullPack( full_packet_entities_t* pack, int e, unsigned char* pSet 
 
 	if (pack->num_entities >= MAX_PACKET_ENTITIES)
 	{
-		Con_DPrintf("Too many entities in visible packet list.\n");
 		return;
 	}
 	state = &pack->entities[pack->num_entities];
@@ -3696,7 +3697,6 @@ void SV_UpdateToReliableMessages( void )
 
 	if (sv.datagram.overflowed)
 	{
-		Con_DPrintf("sv.datagram overflowed!\n");
 		SZ_Clear(&sv.datagram);
 	}
 
@@ -4031,7 +4031,7 @@ Creates a common list of all server resources
 */
 void SV_Customization( client_t* pPlayer, resource_t* pResource, qboolean bSkipPlayer )
 {
-	Sys_Error("Customizations");
+	Sys_Error("Customizations\n");
 }
 
 void SV_CreateResourceList( void )
@@ -4833,7 +4833,7 @@ int SV_SpawnServer( qboolean bIsDemo, char* server, char* startspot )
 	allow_cheats = sv_cheats.value;
 
 	SV_SetMoveVars();
-	Log_Printf("Map CRC: %i\n", sv.worldmapCRC);
+	Log_Printf("Map CRC \"%i\"\n", sv.worldmapCRC);
 
 	return TRUE;
 }
@@ -5412,7 +5412,7 @@ void SV_WriteIP_f( void )
 		if (banTime != 0.0f)
 			continue;
 
-		fprintf(f, "addip 0.0 %i.%i.%i.%i\n", b[0], b[1], b[2], b[3]);
+		fprintf(f, "addip 0.0f %i.%i.%i.%i\n", b[0], b[1], b[2], b[3]);
 	}
 
 	fclose(f);

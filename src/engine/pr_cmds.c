@@ -183,7 +183,6 @@ int ModelFrames( int modelIndex )
 
 	if (modelIndex <= 0 || modelIndex >= MAX_MODELS)
 	{
-		Con_DPrintf("Bad sprite index!\n");
 		return 1;
 	}
 
@@ -1107,7 +1106,6 @@ edict_t* CreateNamedEntity( int className )
 	if (!pEntityInit)
 	{
 		ED_Free(pedict);
-		Con_DPrintf("Can't create entity: %s\n", &pr_strings[className]);
 		return NULL;
 	}
 	
@@ -1883,11 +1881,8 @@ void PF_MessageEnd_I( void )
 			pUserMsg = pUserMsg->next;
 		}
 
-		if (!pUserMsg)
-		{
-			Con_DPrintf("Illegal User Msg %d\n", gMsgType);
-			return;
-		}
+			if (!pUserMsg)
+				return;
 
 		if (pUserMsg->iSize == -1)
 		{

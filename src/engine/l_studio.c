@@ -72,7 +72,7 @@ void Mod_LoadStudioModel( model_t* mod, void* buffer )
 			strcat(name, ptexture->name);
 
 			if (ptexture->index & 3)
-				Sys_Error("Model %s has misaligned textures - run it through a newer studiomdl.exe!\n", mod->name);
+		Sys_Error("Model %s has misaligned textures - run it through a newer studiomdl.exe!", mod->name);
 
 			texofs = ptexture->index;
 			pData = pin + texofs;
@@ -206,7 +206,7 @@ void Mod_LoadStudioNeoModel( model_t* mod, void* buffer )
 			strcat(name, ptexture->name);
 
 			if (ptexture->index & 3)
-				Sys_Error("Model %s has misaligned textures - run it through a newer studiomdl.exe!\n", mod->name);
+		Sys_Error("Model %s has misaligned textures - run it through a newer studiomdl.exe!", mod->name);
 
 			texofs = ptexture->index;
 			pData = pin + texofs;

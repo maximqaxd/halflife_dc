@@ -235,7 +235,7 @@ char *ES_ErrorTypeToString( int errorCode )
 	case ES_SUCCESS:			return "success";
 	}
 
-	return "Too damn many things";
+	return "?";
 }
 
 /*
@@ -402,7 +402,7 @@ static __inline qboolean VMU_MountDevice( IEsDevice *device )
 	hr = device->lpVtbl->Mount( device );
 	if (hr != ES_SUCCESS)
 	{
-		VMU_Printf( "VMU error: %s\n", ES_ErrorTypeToString( hr ) );
+		VMU_Printf( "VMU error: %s", ES_ErrorTypeToString( hr ) );
 		return false;
 	}
 
@@ -435,7 +435,7 @@ __inline int VMU_DeviceFreeBytes( IEsDevice *device )
 		hr = device->lpVtbl->GetMediaInfo( device, &info );
 		if (hr != ES_SUCCESS)
 		{
-			VMU_Printf( "VMU error: %s\n", ES_ErrorTypeToString( hr ) );
+			VMU_Printf( "VMU error: %s", ES_ErrorTypeToString( hr ) );
 			return 0;
 		}
 
@@ -1045,7 +1045,7 @@ static int VMU_ListFileCallback( IEsDevice *device, unsigned int hFile,
 	hr = device->lpVtbl->OpenFile( device, &file, hFile );
 	if (hr != ES_SUCCESS)
 	{
-		VMU_Printf( "VMU error: %s\n", ES_ErrorTypeToString( hr ) );
+		VMU_Printf( "VMU error: %s", ES_ErrorTypeToString( hr ) );
 	}
 	else
 	{
@@ -1133,7 +1133,7 @@ int VMU_EnumFiles( vmuenumproc_t callback, void *userData )
 	hr = device->lpVtbl->EnumFiles( device, VMU_ListFileCallback, &vmuBrowseInfo );
 	if (hr != ES_SUCCESS)
 	{
-		VMU_Printf( "EnumFlashFiles failed\n", ES_ErrorTypeToString( hr ) );
+		VMU_Printf( "EnumFlashFiles failed, damn it all\n" );
 		return 0;
 	}
 
@@ -1493,7 +1493,7 @@ static int VMU_ReadConfigFile( char *saveName, IEsFile *file, int length )
 
 		hr = file->lpVtbl->Read( file, offset, chunk, buffer );
 		if (hr != ES_SUCCESS)
-			VMU_Printf( "VMU error: %s\n", ES_ErrorTypeToString( hr ) );
+			VMU_Printf( "VMU error: %s", ES_ErrorTypeToString( hr ) );
 
 		Bwrite( buffer, chunk, 1, out );
 

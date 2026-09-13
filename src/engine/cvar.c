@@ -341,7 +341,7 @@ void Cmd_CvarListPrintCvar( cvar_t* var, FILE* f )
 	// And userinfo setting
 	if (var->flags & FCVAR_USERINFO)
 	{
-		strcat(szOutstr, ", u");
+		strcat(szOutstr, ", i");
 	}
 
 	// End the line

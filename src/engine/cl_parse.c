@@ -182,10 +182,7 @@ void DispatchUserMsg( int iMsg )
 	UserMsg* pList;
 
 	if (iMsg <= svc_lastmsg || iMsg >= MAX_USERMSGS)
-	{
-		Con_DPrintf("Illegal User Msg %d\n", iMsg);
 		return;
-	}
 
 	for (pList = gClientUserMsgs; pList; pList = pList->next)
 	{
@@ -211,15 +208,9 @@ void DispatchUserMsg( int iMsg )
 
 			if (pList->pfn)
 				pList->pfn(pList->szName, MsgSize, buf);
-			else
-				Con_DPrintf("UserMsg: No pfn %s %d\n", pList->szName, iMsg);
 		}
 	}
 
-	if (!fFound)
-	{
-		Con_DPrintf("UserMsg: Not Present on Client %d\n", iMsg);
-	}
 }
 
 /*
@@ -254,10 +245,7 @@ int DispatchDirectUserMsg( const char* pszName, int iSize, void* pBuf )
 
 			pfnRet = pList->pfn;
 			if (!pfnRet)
-			{
-				Con_DPrintf("UserMsg: No pfn %s %d\n", pList->szName, pList->iMsg);
 				continue;
-			}
 
 			pfnRet(pList->szName, iMsgSize, pBuf);
 		}
@@ -461,7 +449,7 @@ A download message has been received from the server
 */
 void CL_ParseDownload( void )
 {
-	Sys_Error("Got to CL_ParseDownload");
+	Sys_Error("Got to CL_ParseDownload\n");
 }
 
 /*
@@ -1155,7 +1143,7 @@ void CL_ParseChangeGame( char* gameDir )
 
 	if (!gameDir || !gameDir[0])
 	{
-		Con_Printf("Server didn't specify a gamedir\n");
+		Con_Printf("Server didn't specify a gamedir, assuming no change\n");
 		return;
 	}
 
@@ -1814,7 +1802,7 @@ void CL_ParseServerMessage( void )
 	int	i, j;
 	int bufStart, bufEnd;
 
-	CL_SetProgressName("CL_ParseServerMessage\n");
+	CL_SetProgressName("CL_ParseServerMessage()");
 
 	if (cl_shownet.value == 1.0f)
 	{
