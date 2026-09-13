@@ -30,6 +30,7 @@ extern int gmsgDeathMsg;	// client dll messages
 extern int gmsgHudColor;
 extern int gmsgScoreInfo;
 extern int gmsgMOTD;
+extern "C" int gResumedSave;
 
 //=========================================================
 //=========================================================
@@ -100,22 +101,22 @@ BOOL CHalfLifeRules :: ClientConnected( edict_t *pEntity, const char *pszName, c
 
 void CHalfLifeRules :: InitHUD( CBasePlayer *pl )
 {
-	MESSAGE_BEGIN( MSG_ONE, gmsgHudColor, NULL, pl->pev );
-		if (!strncmp( STRING(gpGlobals->mapname), "ba_", 3 ))
-		{
-			// barney
+	if (!strncmp( STRING(gpGlobals->mapname), "ba_", 3 ))
+	{
+		MESSAGE_BEGIN( MSG_ONE, gmsgHudColor, NULL, pl->pev );
 			WRITE_BYTE( 95 );
 			WRITE_BYTE( 95 );
 			WRITE_BYTE( 255 );
-		}
-		else
-		{
-			// gordon
+		MESSAGE_END();
+	}
+	else
+	{
+		MESSAGE_BEGIN( MSG_ONE, gmsgHudColor, NULL, pl->pev );
 			WRITE_BYTE( 255 );
 			WRITE_BYTE( 160 );
 			WRITE_BYTE( 0 );
-		}
-	MESSAGE_END();
+		MESSAGE_END();
+	}
 }
 
 //=========================================================
@@ -144,13 +145,19 @@ void CHalfLifeRules :: PlayerSpawn( CBasePlayer *pPlayer )
 //=========================================================
 BOOL CHalfLifeRules :: AllowAutoTargetCrosshair( void )
 {
-	return ( g_iSkillLevel == SKILL_EASY );
+	return TRUE;
 }
 
 //=========================================================
 //=========================================================
 void CHalfLifeRules :: PlayerThink( CBasePlayer *pPlayer )
 {
+	if ( gResumedSave )
+	{
+		pPlayer->pev->health = 100.0f;
+		pPlayer->pev->armorvalue = 100.0f;
+		gResumedSave = 0;
+	}
 }
 
 
