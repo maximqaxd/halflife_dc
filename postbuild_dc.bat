@@ -31,9 +31,9 @@ rem
 rem GDISRC is machine-specific (the prototype GDI isn't in the repo). Point it at
 rem your local Half-Life.GDI to enable the bootable-disc step; left blank it skips.
 rem ---------------------------------------------------------------------------
-set "GDISRC=C:\Dev\Dreamcast\HLDC prototypes\HLDC\Half-Life.GDI"
+set "GDISRC="
 set "STAGE=%ROOT%deploy_stage"
-set "OUTDIR=%ROOT%..\gdi_out"
+set "OUTDIR=%ROOT%gdi_out"
 
 if not exist "%ROOT%utils\buildgdi.exe" (
     echo buildgdi.exe not found in %ROOT%utils - skipping GDI step.
