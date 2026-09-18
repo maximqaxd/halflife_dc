@@ -1385,6 +1385,11 @@ void CL_Disconnect_f( void )
 	CL_Disconnect();
 	if (sv.active)
 		Host_ShutdownServer(FALSE);
+#if HLDC_MP
+	/* Explicit Quit Game/disconnect ends RAS. Internal server transitions call
+	 * CL_Disconnect directly and intentionally keep the link alive. */
+	NET_DialHangup();
+#endif
 }
 
 // HL1 CD Key
