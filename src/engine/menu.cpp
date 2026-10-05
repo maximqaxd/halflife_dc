@@ -299,6 +299,12 @@ static const char* g_pszBindFocus;
 
 static char *g_ControlKeyNames[][2] =
 {
+#if HLDC_DUALSTICK
+	{ "RSTICK_LEFT", "RIGHT STICK LEFT" },
+	{ "RSTICK_RIGHT", "RIGHT STICK RIGHT" },
+	{ "RSTICK_UP", "RIGHT STICK UP" },
+	{ "RSTICK_DOWN", "RIGHT STICK DOWN" },
+#endif
 	{ "JOY4", "%pad_y" },
 	{ "JOY1", "%pad_a" },
 	{ "JOY3", "%pad_x" },
@@ -371,13 +377,22 @@ char *CMenuPresetItem::LookupAlias( char *pszKey, char **ppAliases, int *pnAlias
 	controlaction_t	*pAction;
 	int				i;
 
+#if HLDC_DUALSTICK
+	// later scripts override earlier bindings, including unbound buttons
+	for (i = *pnAliases - 1; i >= 0; i--)
+#else
 	for (i = 0; i < *pnAliases; i++)
+#endif
 	{
 		if (!strcmp(pszKey, ppAliases[i * 2]))
 			break;
 	}
 
+#if HLDC_DUALSTICK
+	if (i < 0)
+#else
 	if (i == *pnAliases)
+#endif
 		return pszKey;
 
 	for (pAction = g_ControlActions; pAction->pszCommand; pAction++)
@@ -404,6 +419,9 @@ int CMenuBindItem::BuildControlList( qboolean bKeyboard, qboolean bJoystick )
 	short			control;
 	int				found;
 	qboolean			add;
+#if HLDC_DUALSTICK
+	qboolean			hasSecondStick = IN_HasSecondStick();
+#endif
 
 	count = 0;
 	control = 0;
@@ -416,6 +434,10 @@ int CMenuBindItem::BuildControlList( qboolean bKeyboard, qboolean bJoystick )
 		found = 0;
 		for (key = 0; key < MAX_MENU_CONTROL_KEYS; key++)
 		{
+#if HLDC_DUALSTICK
+			if (!hasSecondStick && key >= K_RSTICK_LEFT && key <= K_RSTICK_DOWN)
+				continue;
+#endif
 			if (!keybindings[key] || strcmp(pAction->pszCommand, keybindings[key]))
 				continue;
 
@@ -4213,7 +4235,9 @@ void CMenuSensitivitySlider::Right( void )
 CMenuPresetItem::CMenuPresetItem( CMenu* pMenu, int preset, int x, int y )
 	: CMenuTextItem()
 {
+#if !HLDC_DUALSTICK
 	char	alias[13];
+#endif
 
 	m_pMenu = pMenu;
 	m_align = 0;
@@ -4239,10 +4263,38 @@ CMenuPresetItem::CMenuPresetItem( CMenu* pMenu, int preset, int x, int y )
 	m_iAlias = 0;
 
 	// the script the page runs also says what each button ends up doing
+#if HLDC_DUALSTICK
+	m_ppAliases = NULL;
+	m_nAliases = 0;
+	LoadAliases();
+#else
 	strncpy(alias, m_szCommand + 5, 12);
 	alias[12] = 0;
 	Text_LoadAliases(&m_ppAliases, &m_nAliases, alias);
+#endif
 }
+
+
+#if HLDC_DUALSTICK
+/*
+==================
+CMenuPresetItem::LoadAliases
+
+The diagram reads the same base and overlay scripts as preset selection.
+Refreshing it after a controller change does not apply any bindings.
+==================
+*/
+void CMenuPresetItem::LoadAliases( void )
+{
+	Text_FreeAliases(m_ppAliases, m_nAliases);
+	m_hasSecondStick = IN_HasSecondStick();
+	strcpy(m_szGameDir, com_gamedir);
+	m_pszOverlay = IN_PresetOverlay(m_preset);
+	Text_LoadAliases(&m_ppAliases, &m_nAliases, m_szCommand + 5);
+	if (m_pszOverlay)
+		Text_AppendAliases(&m_ppAliases, &m_nAliases, m_pszOverlay);
+}
+#endif
 
 
 int CMenuPresetItem::GetCalloutWidth( void )
@@ -4394,6 +4446,11 @@ void CMenuPresetItem::Draw( float flFade, qboolean bSelected )
 	float	x1, x2;
 	float	y1, y2;
 
+#if HLDC_DUALSTICK
+	if (m_hasSecondStick != IN_HasSecondStick() || strcmp(m_szGameDir, com_gamedir))
+		LoadAliases();
+#endif
+
 	DCV_TexState_Blend();
 
 	if (bSelected)
@@ -4441,7 +4498,11 @@ void CMenuPresetItem::Draw( float flFade, qboolean bSelected )
 		{
 			float brightness = 254.0f;
 			int x, boxX, calloutWidth;
+#if HLDC_DUALSTICK
+			psz = m_preset == 'A' && m_pszOverlay ? "MOVE" : "%look";
+#else
 			psz = "%look";
+#endif
 			calloutWidth = GetCalloutWidth();
 			x = GetLeftX();
 			Text_DrawStringRight(0.7f, 0.93331f, psz, x, 173,
@@ -4502,7 +4563,11 @@ void CMenuPresetItem::Draw( float flFade, qboolean bSelected )
 
 void CMenuPresetItem::Select( void )
 {
+#if HLDC_DUALSTICK
+	IN_ExecPreset(m_preset, FALSE);
+#else
 	Cbuf_AddText(m_pszCommand);
+#endif
 
 	switch (m_preset)
 	{
@@ -4584,6 +4649,9 @@ CMenuBindItem::CMenuBindItem( CMenu* pMenu )
 	m_reserved18 = 0;
 	m_reserved28 = 0;
 	m_reserved24 = 0;
+#if HLDC_DUALSTICK
+	m_hasSecondStick = IN_HasSecondStick();
+#endif
 }
 
 void CMenuBindItem::Draw( float flFade, qboolean bSelected )
@@ -4592,6 +4660,9 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 	int			joystick;
 	int			oldKeyboard;
 	int			oldJoystick;
+#if HLDC_DUALSTICK
+	qboolean		hasSecondStick;
+#endif
 	int			alpha;
 	int			row;
 	int			slot;
@@ -4607,15 +4678,29 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 	oldJoystick = m_reserved28;
 	keyboard = IN_KeyboardActive();
 	joystick = IN_JoystickActive();
+#if HLDC_DUALSTICK
+	hasSecondStick = IN_HasSecondStick();
+#endif
 	m_reserved24 = keyboard;
 	m_reserved28 = joystick;
 
+#if HLDC_DUALSTICK
+	if (oldKeyboard != m_reserved24 || oldJoystick != m_reserved28 || m_hasSecondStick != hasSecondStick)
+#else
 	if (oldKeyboard != m_reserved24 || oldJoystick != m_reserved28)
+#endif
 	{
+#if HLDC_DUALSTICK
+		Key_SetCaptureMode(0);
+		m_capturing = 0;
+#endif
 		m_mode = 1;
 		m_selection = 0;
 		m_reserved18 = 1;
 	}
+#if HLDC_DUALSTICK
+	m_hasSecondStick = hasSecondStick;
+#endif
 
 	if (m_reserved18)
 	{
@@ -4745,7 +4830,12 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 	if (m_selection < m_nEntries - 2)
 		m_pMenu->DrawMenuElementQuad(4, 520.0f, 401.0f, 590.0f, 421.0f);
 
+#if HLDC_DUALSTICK
+	// hotplug can cancel capture and rebuild the rows before queued keys are read
+	capturedKey = m_capturing && m_mode >= 6 ? Key_GetCapturedKey() : 0;
+#else
 	capturedKey = Key_GetCapturedKey();
+#endif
 	if (capturedKey)
 	{
 		m_capturing = 0;
@@ -4762,7 +4852,7 @@ void CMenuBindItem::Draw( float flFade, qboolean bSelected )
 			Cbuf_AddText(bindCommand);
 #if HLDC_MP
 			key_dest = key_ui;
-#else
+#elif !HLDC_DUALSTICK
 			key_dest = key_menu;
 #endif
 		}
@@ -4812,6 +4902,9 @@ void CMenuBindItem::Cancel( void )
 	}
 	else
 	{
+#if HLDC_DUALSTICK
+		Key_SetCaptureMode(0);
+#endif
 		if (m_mode == 4)
 		{
 			sprintf(binding, "bind \"%s\" \"\"\n", joyshift1.string);
@@ -7096,6 +7189,9 @@ CMenuSensitivitySlider::~CMenuSensitivitySlider( void )
 
 CMenuPresetItem::~CMenuPresetItem( void )
 {
+#if HLDC_DUALSTICK
+	Text_FreeAliases(m_ppAliases, m_nAliases);
+#else
 	int i;
 
 	for (i = 0; i < m_nAliases; i++)
@@ -7104,6 +7200,7 @@ CMenuPresetItem::~CMenuPresetItem( void )
 		delete m_ppAliases[i * 2];
 	}
 	delete m_ppAliases;
+#endif
 }
 
 void CMenuCheatItem::SetPos( float x, float y )

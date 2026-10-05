@@ -129,6 +129,14 @@
 #define	K_AUX31			237
 #define	K_AUX32			238
 
+#if HLDC_DUALSTICK
+// Cardinal directions of the second Maple stick; AUX aliases remain valid
+#define	K_RSTICK_LEFT	K_AUX18
+#define	K_RSTICK_RIGHT	K_AUX19
+#define	K_RSTICK_UP		K_AUX20
+#define	K_RSTICK_DOWN	K_AUX21
+#endif
+
 // JACK: Intellimouse(c) Mouse Wheel Support
 
 #define K_MWHEELUP		240

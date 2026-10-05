@@ -124,6 +124,13 @@ keyname_t keynames[] =
 	{"JOY3", K_JOY3},
 	{"JOY4", K_JOY4},
 
+#if HLDC_DUALSTICK
+	{"RSTICK_LEFT", K_RSTICK_LEFT},
+	{"RSTICK_RIGHT", K_RSTICK_RIGHT},
+	{"RSTICK_UP", K_RSTICK_UP},
+	{"RSTICK_DOWN", K_RSTICK_DOWN},
+#endif
+
 	{"AUX1", K_AUX1},
 	{"AUX2", K_AUX2},
 	{"AUX3", K_AUX3},
@@ -587,6 +594,12 @@ void Key_SetBinding( int keynum, char* binding )
 	{
 		if (!strcmp(keybindings[keynum], binding))
 			return;
+
+#if HLDC_DUALSTICK
+		// release the old command before replacing a held stick binding
+		if (keynum >= K_RSTICK_LEFT && keynum <= K_RSTICK_DOWN && keydown[keynum])
+			Key_Event(keynum, FALSE);
+#endif
 
 		Z_Free(keybindings[keynum]);
 		keybindings[keynum] = NULL;

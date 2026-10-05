@@ -126,6 +126,10 @@ void	Text_DrawCenteredStatus( byte* str, float time, int color, float sx, float 
 void	Text_LoadLangTags( void );
 char*	Text_ParseToken( char* in, char* out );
 void	Text_LoadAliases( char*** pppAliases, int* pnAliases, char* pszFile );
+#if HLDC_DUALSTICK
+void	Text_AppendAliases( char*** pppAliases, int* pnAliases, char* pszFile );
+void	Text_FreeAliases( char** ppAliases, int nAliases );
+#endif
 
 #ifdef __cplusplus
 }

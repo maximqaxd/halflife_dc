@@ -1159,7 +1159,11 @@ void CL_ParseChangeGame( char* gameDir )
 		ClientDLL_HudInit();
 		ClientDLL_HudVidInit();
 		Cbuf_AddText("exec config.cfg\n");
+#if HLDC_DUALSTICK
+		IN_ExecPreset('A', FALSE);
+#else
 		Cbuf_AddText("exec preset_a.cfg\n");
+#endif
 		if (FileExists("/CD-ROM/valve/halflife.cfg"))
 			Cbuf_AddText("exec halflife.cfg\n");
 		Con_Printf("Changed to game %s\n", gameDir);

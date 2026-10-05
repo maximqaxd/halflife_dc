@@ -5,7 +5,13 @@ extern qboolean con_loading;
 extern int con_totallines;
 extern int con_backscroll;
 extern int con_rows;
+#if HLDC_DUALSTICK && defined(__cplusplus)
+extern "C" {
+#endif
 extern qboolean con_forcedup;	// because no entities to refresh
+#if HLDC_DUALSTICK && defined(__cplusplus)
+}
+#endif
 extern qboolean con_initialized;
 extern int	con_notifylines;		// scan lines to clear for notify lines
 

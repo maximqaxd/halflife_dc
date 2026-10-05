@@ -1892,7 +1892,11 @@ int Host_Init( quakeparms_t* parms )
 	}
 
 	// Execute the startup configs
+#if HLDC_DUALSTICK
+	IN_ExecPreset('A', TRUE);
+#else
 	Cbuf_InsertText("exec preset_a.cfg\n");
+#endif
 	Cbuf_InsertText("exec valve.rc\n");
 
 	if (FileExists("/CD-ROM/valve/halflife.cfg"))

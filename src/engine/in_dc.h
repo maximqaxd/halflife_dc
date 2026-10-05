@@ -13,6 +13,14 @@
 // A usage slot that no object claimed
 #define JOY_USAGE_NONE		255
 
+// Define HLDC_DUALSTICK=1 for second-stick support; undefined or 0 keeps the
+// original controller layout and input path.
+#if HLDC_DUALSTICK
+// Button usage slots for WinCE's AN5/AN6 analog channels
+#define JOY_AN5			20
+#define JOY_AN6			21
+#endif
+
 // Every unit hanging off the four Maple sockets is described the same way:
 // the GUID the driver knows it by, the socket it turned up in, what kind of
 // device it is, and the DirectInput device created to talk to it.
@@ -44,6 +52,10 @@ struct maplejoystick_t
 	byte			povUsage[MAX_JOY_POVS];
 	int				pov[MAX_JOY_POVS][2];
 	DIPROPRANGE		range[2];
+#if HLDC_DUALSTICK
+	float			rightStick[2];	// AN5/AN6, centred at zero
+	qboolean		inputValid;
+#endif
 	int				numAxes;
 	int				numButtons;
 	DIDEVCAPS		caps;

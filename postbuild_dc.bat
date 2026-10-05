@@ -35,6 +35,10 @@ set "GDISRC="
 set "STAGE=%ROOT%deploy_stage"
 set "OUTDIR=%ROOT%gdi_out"
 
+rem Pass dualstick as the second argument for an EXE built with HLDC_DUALSTICK=1.
+rem Keep optional assets in a separate stage so a later stock build omits them.
+if /I "%~2"=="dualstick" set "STAGE=%ROOT%obj\dualstick_stage"
+
 if not exist "%ROOT%utils\buildgdi.exe" (
     echo buildgdi.exe not found in %ROOT%utils - skipping GDI step.
     goto done
@@ -50,6 +54,13 @@ if not exist "%GDISRC%" (
 
 rem Stage the overlay files with the disc's uppercase names.
 if not exist "%STAGE%" mkdir "%STAGE%"
+if /I "%~2"=="dualstick" (
+    if not exist "%STAGE%\VALVE" mkdir "%STAGE%\VALVE"
+    copy /Y "%ROOT%assets\valve\dual_a.cfg" "%STAGE%\VALVE\DUAL_A.CFG" >nul
+    if errorlevel 1 exit /b 1
+    copy /Y "%ROOT%assets\valve\dual_bc.cfg" "%STAGE%\VALVE\DUAL_BC.CFG" >nul
+    if errorlevel 1 exit /b 1
+)
 echo Staging fresh HALFLIFE_DC.EXE ...
 copy /Y "%EXE%" "%STAGE%\HALFLIFE_DC.EXE" >nul
 if exist "%ROOT%deploy\0winceos.bin" (

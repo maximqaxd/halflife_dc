@@ -846,7 +846,12 @@ void Text_LoadAliases( char*** pppAliases, int* pnAliases, char* pszFile )
 		in = Text_SkipSpace(in);
 		Text_ParseToken(in, binding);
 
+#if HLDC_DUALSTICK
+		// an empty binding in an overlay clears the original preset's label
+		if (!Q_stricmp(command, "bind") && strlen(key))
+#else
 		if (!Q_stricmp(command, "bind") && strlen(key) && strlen(binding))
+#endif
 		{
 			(*pppAliases)[count * 2] = new char[strlen(key) + 1];
 			strcpy((*pppAliases)[count * 2], key);
@@ -877,5 +882,46 @@ void Text_LoadAliases( char*** pppAliases, int* pnAliases, char* pszFile )
 	if (buf)
 		COM_FreeFile(buf);
 }
+
+#if HLDC_DUALSTICK
+/*
+================
+Text_AppendAliases
+
+Append an explicit overlay after the base script. The last binding for a key
+wins, just as it does when the command buffer executes the scripts.
+================
+*/
+void Text_AppendAliases( char*** pppAliases, int* pnAliases, char* pszFile )
+{
+	char	**overlay;
+	char	**aliases;
+	int		count;
+
+	Text_LoadAliases(&overlay, &count, pszFile);
+	aliases = new char*[(*pnAliases + count) * 2];
+	memcpy(aliases, *pppAliases, *pnAliases * 2 * sizeof(char*));
+	memcpy(aliases + *pnAliases * 2, overlay, count * 2 * sizeof(char*));
+	delete[] *pppAliases;
+	delete[] overlay;
+	*pppAliases = aliases;
+	*pnAliases += count;
+}
+
+
+/*
+================
+Text_FreeAliases
+================
+*/
+void Text_FreeAliases( char** ppAliases, int nAliases )
+{
+	int		i;
+
+	for (i = 0; i < nAliases * 2; i++)
+		delete[] ppAliases[i];
+	delete[] ppAliases;
+}
+#endif
 
 } // extern "C"

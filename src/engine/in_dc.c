@@ -28,6 +28,9 @@ extern kbutton_t in_speed, in_mlook, in_jlook, in_strafe;
 extern cvar_t m_pitch, m_yaw, m_side, m_forward;
 extern cvar_t cl_movespeedkey, cl_pitchdown, cl_pitchup, cl_forwardspeed, cl_sidespeed,
 	cl_yawspeed, cl_pitchspeed, cl_anglespeedkey, lookspring, lookstrafe;
+#if HLDC_DUALSTICK
+extern cvar_t cl_backspeed, cl_upspeed;
+#endif
 
 void GDROM_DoorReset( void );
 
@@ -87,6 +90,9 @@ PDWORD	pdwRawValue[JOY_MAX_AXES];
 cvar_t	in_joystick = { "joystick", "1", FCVAR_ARCHIVE };
 cvar_t	joy_name = { "joyname", "joystick" };
 cvar_t	joy_advanced = { "joyadvanced", "1", FCVAR_ARCHIVE };
+#if HLDC_DUALSTICK
+cvar_t	joy_dualstick = { "joydualstick", "1", FCVAR_ARCHIVE };
+#endif
 cvar_t	joy_advaxisx = { "joyadvaxisx", "4", FCVAR_ARCHIVE };
 cvar_t	joy_advaxisy = { "joyadvaxisy", "1", FCVAR_ARCHIVE };
 cvar_t	joy_advaxisz = { "joyadvaxisz", "0", FCVAR_ARCHIVE };
@@ -165,6 +171,9 @@ extern int	joy_sidedir;
 
 // Smoothed stick deflection carried between frames, one per axis
 float		joy_softvalue[JOY_MAX_AXES];
+#if HLDC_DUALSTICK
+static float	joy_rightsoft[2];
+#endif
 
 // The pad button that each of the eleven shiftable positions reports as
 int			joykeys[10] =
@@ -520,6 +529,9 @@ static void IN_ReadKeyboard(void)
 // forward-referenced functions
 void IN_StartupJoystick( void );
 void Joy_AdvancedUpdate_f( void );
+#if HLDC_DUALSTICK
+void IN_ClearRightStickKeys( void );
+#endif
 void IN_JoyMove( usercmd_t* cmd );
 
 /*
@@ -953,6 +965,9 @@ void IN_Init( void )
 	Cvar_RegisterVariable(&in_joystick);
 	Cvar_RegisterVariable(&joy_name);
 	Cvar_RegisterVariable(&joy_advanced);
+#if HLDC_DUALSTICK
+	Cvar_RegisterVariable(&joy_dualstick);
+#endif
 	Cvar_RegisterVariable(&joy_advaxisx);
 	Cvar_RegisterVariable(&joy_advaxisy);
 	Cvar_RegisterVariable(&joy_advaxisz);
@@ -1167,6 +1182,10 @@ IN_StartupJoystick
 */
 void IN_StartupJoystick( void )
 {
+#if HLDC_DUALSTICK
+	IN_ClearRightStickKeys();
+#endif
+
 	// abort startup if user requests no joystick
 	if (COM_CheckParm("-nojoy"))
 		return;
@@ -1185,6 +1204,10 @@ void IN_StartupJoystick( void )
 	// mark advanced initialization as not completed
 	// this is needed as cvars are not available during initialization
 	joy_advancedinit = FALSE;
+#if HLDC_DUALSTICK
+	memset(joy_softvalue, 0, sizeof(joy_softvalue));
+	memset(joy_rightsoft, 0, sizeof(joy_rightsoft));
+#endif
 }
 
 
@@ -1247,6 +1270,180 @@ void Joy_AdvancedUpdate_f( void )
 		dwControlMap[JOY_AXIS_Y] = dwTemp & JOY_RELATIVE_AXIS;
 	}
 }
+
+
+#if HLDC_DUALSTICK
+// Movement bindings retain analog speed; other commands use key events
+enum rightstickaction_t
+{
+	StickButton = 0,
+	StickForward,
+	StickBack,
+	StickLeft,
+	StickRight,
+	StickUp,
+	StickDown,
+	StickLookUp,
+	StickLookDown,
+	StickTurnLeft,
+	StickTurnRight
+};
+static const char *joy_stickActions[] =
+{
+	"", "+forward", "+back", "+moveleft", "+moveright", "+moveup", "+movedown",
+	"+lookup", "+lookdown", "+left", "+right"
+};
+static qboolean joy_stickHeld[4], joy_stickEmitted[4];
+
+
+/*
+===========
+IN_RightStickAction
+===========
+*/
+int IN_RightStickAction( int key )
+{
+	int		action;
+
+	if (keybindings[key])
+	{
+		for (action = StickForward; action <= StickTurnRight; action++)
+			if (!strcmp(keybindings[key], joy_stickActions[action]))
+				return action;
+	}
+	return StickButton;
+}
+
+
+/*
+===========
+IN_ClearRightStickKeys
+===========
+*/
+void IN_ClearRightStickKeys( void )
+{
+	int		i;
+
+	for (i = 0; i < 4; i++)
+	{
+		if (joy_stickEmitted[i])
+			Key_Event(K_RSTICK_LEFT + i, FALSE);
+		joy_stickHeld[i] = joy_stickEmitted[i] = FALSE;
+	}
+}
+
+
+/*
+===========
+IN_RightStickKeys
+
+Capture each direction as a key, or send press/release events for commands
+that do not have analog movement handling.
+===========
+*/
+void IN_RightStickKeys( void )
+{
+	int			i, axis, key;
+	float		value;
+	qboolean	down, game;
+
+	game = key_dest == key_game && !con_forcedup && !(giSubState & 0x10);
+	for (i = 0; i < 4; i++)
+	{
+		axis = i / 2;
+		key = K_RSTICK_LEFT + i;
+		value = 0;
+		if (joy_dualstick.value && in_joystick.value && !gnControllerGrace
+			&& IN_HasSecondStick() && pJoystickDevice->inputValid)
+		{
+			value = pJoystickDevice->rightStick[axis];
+			if (!(i & 1))
+				value = -value;
+			if (value > 0.05f)
+				Host_UpdateScreenSaver(FALSE);
+		}
+
+		// separate press and release thresholds avoid repeated key events
+		down = value > (joy_stickHeld[i] ? 0.25f : 0.35f);
+		if (joy_stickEmitted[i] && (!down || !game || IN_RightStickAction(key) != StickButton))
+		{
+			Key_Event(key, FALSE);
+			joy_stickEmitted[i] = FALSE;
+		}
+		if (down && !joy_stickHeld[i])
+		{
+			if (key_dest == key_capture)
+				Key_PushCapturedKey(key);
+			else if (game && IN_RightStickAction(key) == StickButton && keybindings[key] && *keybindings[key])
+			{
+				Key_Event(key, TRUE);
+				joy_stickEmitted[i] = TRUE;
+			}
+		}
+		joy_stickHeld[i] = down;
+	}
+}
+
+
+/*
+===========
+IN_RightStickMove
+
+Apply the direction's bound action with analog speed. The binding determines
+the direction, so opposite halves of an axis can be assigned independently.
+===========
+*/
+void IN_RightStickMove( usercmd_t *cmd, int key, float value, float speed, float aspeed )
+{
+	int		action;
+	float	direction;
+
+	if (key_dest != key_game || con_forcedup || (giSubState & 0x10))
+		return;
+
+	action = IN_RightStickAction(key);
+	switch (action)
+	{
+	case StickForward:
+	case StickBack:
+		if (value > joy_forwardthreshold.value)
+		{
+			direction = action == StickForward ? 1.0f : -1.0f;
+			cmd->forwardmove += direction * value * fabs(joy_forwardsensitivity.value) * speed
+				* (action == StickForward ? cl_forwardspeed.value : cl_backspeed.value);
+			joy_forwarddir = (int)direction;
+		}
+		break;
+	case StickLeft:
+	case StickRight:
+		if (value > joy_sidethreshold.value)
+		{
+			direction = action == StickRight ? 1.0f : -1.0f;
+			cmd->sidemove += direction * value * fabs(joy_sidesensitivity.value) * speed * cl_sidespeed.value;
+			joy_sidedir = (int)direction;
+		}
+		break;
+	case StickUp:
+	case StickDown:
+		if (value > joy_forwardthreshold.value)
+			cmd->upmove += (action == StickUp ? 1.0f : -1.0f) * value * speed * cl_upspeed.value;
+		break;
+	case StickLookUp:
+	case StickLookDown:
+		if (value > joy_pitchthreshold.value)
+			cl.viewangles[PITCH] += (action == StickLookDown ? 1.0f : -1.0f) * value
+				* joy_pitchsensitivity.value * gJoySensitivity * aspeed * cl_pitchspeed.value;
+		V_StopPitchDrift();
+		break;
+	case StickTurnLeft:
+	case StickTurnRight:
+		if (value > joy_yawthreshold.value)
+			cl.viewangles[YAW] += (action == StickTurnLeft ? 1.0f : -1.0f) * value
+				* fabs(joy_yawsensitivity.value) * gJoySensitivity * aspeed * cl_yawspeed.value;
+		break;
+	}
+}
+#endif
 
 
 /*
@@ -1351,6 +1548,79 @@ qboolean IN_JoystickActive( void )
 }
 
 
+#if HLDC_DUALSTICK
+/*
+===========
+IN_HasSecondStick
+
+The WinCE driver reports the second stick through AN5/AN6 button usages.
+===========
+*/
+qboolean IN_HasSecondStick( void )
+{
+	return pJoystickDevice
+		&& pJoystickDevice->buttonUsage[JOY_AN5] != JOY_USAGE_NONE
+		&& pJoystickDevice->buttonUsage[JOY_AN6] != JOY_USAGE_NONE;
+}
+
+
+/*
+===========
+IN_PresetOverlay
+
+Use the optional layout only when the pad reports both axes and the script
+is installed in the current game. The original preset is always available.
+===========
+*/
+char *IN_PresetOverlay( int preset )
+{
+	char	*name;
+	FILE	*file;
+	int		length;
+
+	if (!IN_HasSecondStick() || preset < 'A' || preset > 'C')
+		return NULL;
+
+	if (preset == 'A')
+		name = "dual_a.cfg";
+	else
+		name = "dual_bc.cfg";
+	length = COM_FOpenFile(name, &file);
+	if (!file)
+		return NULL;
+	Sys_CloseHandle(file);
+	return length > 0 ? name : NULL;
+}
+
+
+/*
+===========
+IN_ExecPreset
+
+Keep the scripts together so an inserted exec cannot run the overlay before
+the original preset's unbindall. Saved configuration can still follow both.
+===========
+*/
+void IN_ExecPreset( int preset, qboolean insert )
+{
+	char	commands[80];
+	char	*overlay;
+
+	if (preset < 'A' || preset > 'C')
+		return;
+
+	sprintf(commands, "exec preset_%c.cfg\n", preset + 'a' - 'A');
+	overlay = IN_PresetOverlay(preset);
+	if (overlay)
+		sprintf(commands + strlen(commands), "exec %s\n", overlay);
+	if (insert)
+		Cbuf_InsertText(commands);
+	else
+		Cbuf_AddText(commands);
+}
+#endif
+
+
 /*
 ===========
 IN_Commands
@@ -1408,15 +1678,32 @@ void IN_Commands( void )
 	VMU_UpdateDeviceIcons();
 	IN_ReadMouse();
 
+#if HLDC_DUALSTICK
+	if (pJoystickDevice)
+		IN_ReadJoystick(pJoystickDevice);
+	IN_RightStickKeys();
+#endif
 	if (!pJoystickDevice)
 		return;
 
+#if !HLDC_DUALSTICK
 	IN_ReadJoystick(pJoystickDevice);
 
+#endif
 	for (i = 0; i < MAX_JOY_POVS; i++)
 	{
+#if HLDC_DUALSTICK
+		changed[i] = 0;
+		pressed[i] = 0;
+		if (pJoystickDevice->povUsage[i] != JOY_USAGE_NONE)
+		{
+			changed[i] = pJoystickDevice->buttonChanged[pJoystickDevice->povUsage[i]];
+			pressed[i] = pJoystickDevice->oldButtons[pJoystickDevice->povUsage[i]];
+		}
+#else
 		changed[i] = pJoystickDevice->buttonChanged[pJoystickDevice->povUsage[i]];
 		pressed[i] = pJoystickDevice->oldButtons[pJoystickDevice->povUsage[i]];
+#endif
 	}
 
 	// find which pad positions the two shift buttons are bound to
@@ -1529,7 +1816,16 @@ void IN_Commands( void )
 
 	// holding the whole face of the pad down drops back to the menu, or opens
 	// the drive door when there is nothing to drop back to
+#if HLDC_DUALSTICK
+	if (pJoystickDevice->buttonUsage[0] != JOY_USAGE_NONE
+		&& pJoystickDevice->buttonUsage[1] != JOY_USAGE_NONE
+		&& pJoystickDevice->buttonUsage[8] != JOY_USAGE_NONE
+		&& pJoystickDevice->buttonUsage[9] != JOY_USAGE_NONE
+		&& pJoystickDevice->buttonUsage[3] != JOY_USAGE_NONE
+		&& pJoystickDevice->oldButtons[pJoystickDevice->buttonUsage[0]]
+#else
 	if (pJoystickDevice->oldButtons[pJoystickDevice->buttonUsage[0]]
+#endif
 		&& pJoystickDevice->oldButtons[pJoystickDevice->buttonUsage[1]]
 		&& pJoystickDevice->oldButtons[pJoystickDevice->buttonUsage[8]]
 		&& pJoystickDevice->oldButtons[pJoystickDevice->buttonUsage[9]]
@@ -1643,6 +1939,11 @@ void IN_JoyMove( usercmd_t *cmd )
 	maplejoyaxis_t	*pAxis;
 	int		i;
 
+#if HLDC_DUALSTICK
+	joy_forwarddir = 0;
+	joy_sidedir = 0;
+
+#endif
 	// complete initialization if first time in
 	// this is needed as cvars are not available at initialization time
 	if (!joy_advancedinit)
@@ -1652,8 +1953,17 @@ void IN_JoyMove( usercmd_t *cmd )
 	}
 
 	// verify the pad is plugged in and that we still hold it
+#if HLDC_DUALSTICK
+	if (!in_joystick.value || !pJoystickDevice || !pJoystickDevice->inputValid)
+	{
+		memset(joy_softvalue, 0, sizeof(joy_softvalue));
+		memset(joy_rightsoft, 0, sizeof(joy_rightsoft));
+		return;
+	}
+#else
 	if (!pJoystickDevice || !pJoystickDevice->numAxes)
 		return;
+#endif
 
 	if (in_speed.state & 1)
 	{
@@ -1668,9 +1978,11 @@ void IN_JoyMove( usercmd_t *cmd )
 		aspeed = host_frametime;
 	}
 
+#if !HLDC_DUALSTICK
 	joy_forwarddir = 0;
 	joy_sidedir = 0;
 
+#endif
 	// don't act on the sticks while the pad is still being counted as missing
 	if (gnControllerGrace)
 		return;
@@ -1679,7 +1991,11 @@ void IN_JoyMove( usercmd_t *cmd )
 	for (i = 0; i < JOY_MAX_AXES; i++)
 	{
 		pAxis = &pJoystickDevice->axes[i];
+#if HLDC_DUALSTICK
+		if (pAxis->usage == JOY_USAGE_NONE)
+#else
 		if (pAxis->axis == JOY_USAGE_NONE)
+#endif
 			continue;
 
 		// get the floating point zero-centered, potentially-inverted data for the current axis
@@ -1695,7 +2011,11 @@ void IN_JoyMove( usercmd_t *cmd )
 			// raw stick: just ease off the first part of the throw
 			fTemp = fabs(fAxisValue);
 			if (fTemp < 0.4f)
+#if HLDC_DUALSTICK
+				fAxisValue *= 0.2f;
+#else
 				fAxisValue = 0.2f * fTemp * (fAxisValue / fTemp);
+#endif
 		}
 
 		switch (dwAxisMap[i])
@@ -1799,6 +2119,29 @@ void IN_JoyMove( usercmd_t *cmd )
 			break;
 		}
 	}
+
+#if HLDC_DUALSTICK
+	if (joy_dualstick.value && IN_HasSecondStick())
+	{
+		for (i = 0; i < 2; i++)
+		{
+			int key = i == 0 ? K_RSTICK_LEFT : K_RSTICK_UP;
+			fAxisValue = pJoystickDevice->rightStick[i];
+			if (softstick.value)
+			{
+				fAxisValue = IN_ApplySoftDamp(joy_rightsoft[i], fAxisValue);
+				joy_rightsoft[i] = fAxisValue;
+			}
+			else if (fabs(fAxisValue) < 0.4f)
+				fAxisValue *= 0.2f;
+
+			IN_RightStickMove(cmd, key, fAxisValue < 0 ? -fAxisValue : 0, speed, aspeed);
+			IN_RightStickMove(cmd, key + 1, fAxisValue > 0 ? fAxisValue : 0, speed, aspeed);
+		}
+	}
+	else
+		memset(joy_rightsoft, 0, sizeof(joy_rightsoft));
+#endif
 
 	// bounds check pitch
 	if (cl.viewangles[PITCH] > cl_pitchdown.value)

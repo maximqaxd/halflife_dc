@@ -40,6 +40,10 @@ maplejoystick_t::maplejoystick_t( GUID guid, int type )
 	memset(oldButtons, 0, sizeof(oldButtons));
 	memset(buttonChanged, 0, sizeof(buttonChanged));
 	memset(axisValue, 0, sizeof(axisValue));
+#if HLDC_DUALSTICK
+	memset(rightStick, 0, sizeof(rightStick));
+	inputValid = FALSE;
+#endif
 }
 
 
@@ -69,6 +73,12 @@ BOOL IN_EnumAxesCallback( maplejoystick_t *pJoy, LPCDIDEVICEOBJECTINSTANCE lpddo
 	else if (lpddoi->dwType & DIDFT_BUTTON)
 	{
 		usage = lpddoi->wUsage - USAGE_FIRST_BUTTON;
+#if HLDC_DUALSTICK
+		if (usage < 0 || usage >= MAX_JOY_BUTTONS || pJoy->numButtons >= MAX_JOY_BUTTONS)
+			return DIENUM_CONTINUE;
+		if (pJoy->buttonUsage[usage] != JOY_USAGE_NONE)
+			return DIENUM_CONTINUE;
+#endif
 		pJoy->buttonUsage[usage] = pJoy->numButtons;
 
 		if (lpddoi->wUsage - USAGE_FIRST_BUTTON == 0)
@@ -271,19 +281,63 @@ qboolean IN_ReadJoystick( maplejoystick_t *pJoy )
 	int			i;
 	int			usage;
 	int			value;
+#if HLDC_DUALSTICK
+	HRESULT		result;
+#endif
 
+#if HLDC_DUALSTICK
+	result = pJoy->device.pDevice->GetDeviceState(sizeof(js), &js);
+	if (result == DIERR_INPUTLOST || result == DIERR_NOTACQUIRED)
+	{
+		result = pJoy->device.pDevice->Acquire();
+		if (SUCCEEDED(result))
+			result = pJoy->device.pDevice->GetDeviceState(sizeof(js), &js);
+	}
+
+	// a failed read releases held buttons and stops both sticks this frame
+	pJoy->inputValid = SUCCEEDED(result);
+	if (!pJoy->inputValid)
+	{
+		memset(&js, 0, sizeof(js));
+		js.lX = js.lY = 127;
+	}
+
+	for (i = 0; i < 2; i++)
+	{
+		pJoy->rightStick[i] = 0;
+		usage = pJoy->buttonUsage[JOY_AN5 + i];
+		if (usage == JOY_USAGE_NONE || !pJoy->inputValid)
+			continue;
+
+		// AN5/AN6 are raw Maple bytes: 128 is centre, 0 and 255 are full travel
+		value = js.rgbButtons[usage] - 128;
+		pJoy->rightStick[i] = value < 0 ? value / 128.0f : value / 127.0f;
+		if (fabs(pJoy->rightStick[i]) < 0.05f)
+			pJoy->rightStick[i] = 0;
+	}
+#else
 	// the pad is handed back to us whenever the game loses focus
 	if (pJoy->device.pDevice->GetDeviceState(sizeof(js), &js) == DIERR_INPUTLOST)
 	{
 		pJoy->device.pDevice->Acquire();
 		pJoy->device.pDevice->GetDeviceState(sizeof(js), &js);
 	}
+#endif
 
 	for (i = 0; i < MAX_JOY_BUTTONS; i++)
 	{
 		usage = pJoy->buttonUsage[i];
 		if (usage != JOY_USAGE_NONE)
 		{
+#if HLDC_DUALSTICK
+			if (i == JOY_AN5 || i == JOY_AN6)
+			{
+				// these channels feed the right stick, not AUX16/AUX17 buttons
+				pJoy->buttonChanged[usage] = (pJoy->oldButtons[usage] != 0);
+				pJoy->oldButtons[usage] = 0;
+			}
+			else
+#endif
 			if (i == 16 || i == 17)
 			{
 				// the triggers report how far they are held; only the top bit
@@ -313,5 +367,9 @@ qboolean IN_ReadJoystick( maplejoystick_t *pJoy )
 		}
 	}
 
+#if HLDC_DUALSTICK
+	return pJoy->inputValid;
+#else
 	return TRUE;
+#endif
 }
